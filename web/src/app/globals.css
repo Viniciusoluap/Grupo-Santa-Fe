@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand Colors */
+  --brand-yellow: #F5C400;
+  --brand-yellow-dark: #D4A800;
+  --brand-yellow-light: #FDE84A;
+  --brand-dark: #1A1A1A;
+  --brand-dark-secondary: #2D2D2D;
+  --brand-gray: #6B7280;
+  --brand-gray-light: #F3F4F6;
+  --brand-white: #FFFFFF;
+
+  --background: var(--brand-white);
+  --foreground: var(--brand-dark);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-yellow-dark: var(--brand-yellow-dark);
+  --color-brand-yellow-light: var(--brand-yellow-light);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-dark-secondary: var(--brand-dark-secondary);
+  --color-brand-gray: var(--brand-gray);
+  --color-brand-gray-light: var(--brand-gray-light);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--brand-gray-light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--brand-yellow);
+  border-radius: 3px;
+}
+
+/* Selection */
+::selection {
+  background: var(--brand-yellow);
+  color: var(--brand-dark);
+}
