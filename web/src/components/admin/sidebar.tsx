@@ -16,6 +16,7 @@ import {
   CalendarDays,
   BadgeDollarSign,
   HardHat,
+  Ruler,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,11 @@ const navItems = [
     label: "Obras",
     href: "/admin/obras",
     icon: HardHat,
+  },
+  {
+    label: "Projetos",
+    href: "/admin/projetos",
+    icon: Ruler,
   },
   {
     label: "Contratos",
