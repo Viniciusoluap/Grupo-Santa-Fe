@@ -11,21 +11,18 @@ const navLinks = [
     label: "Imóveis",
     href: "/imoveis",
     children: [
-      { label: "Imóveis Prontos", href: "/imoveis/prontos" },
-      { label: "Lotes e Terrenos", href: "/imoveis/lotes" },
-      { label: "Lançamentos", href: "/imoveis/lancamentos" },
+      { label: "Todos os Imóveis", href: "/imoveis" },
+      { label: "Casas e Apartamentos", href: "/imoveis?type=casa" },
+      { label: "Lotes e Terrenos", href: "/imoveis?type=lote" },
+      { label: "Comercial", href: "/imoveis?type=comercial" },
     ],
   },
   {
     label: "Serviços",
     href: "/servicos",
     children: [
-      { label: "Corretagem", href: "/servicos/corretagem" },
-      { label: "Financiamento Habitacional", href: "/servicos/financiamento" },
+      { label: "Todos os Serviços", href: "/servicos" },
       { label: "Simulador de Financiamento", href: "/simulador" },
-      { label: "Obras e Reformas", href: "/servicos/obras" },
-      { label: "Projetos e Orçamentos", href: "/servicos/projetos" },
-      { label: "Regularização Imobiliária", href: "/servicos/regularizacao" },
     ],
   },
   { label: "Mercado", href: "/mercado" },
@@ -56,7 +53,7 @@ export function Navbar() {
       {/* Top bar */}
       <div className="bg-[var(--brand-yellow)] px-4 py-1.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-xs font-medium text-[var(--brand-dark)]">
-          <span>Av. JK N° 103 — Vale Dourado · Canaã dos Carajás-PA · Frente ao SINE</span>
+          <span>Rua B N° 40 — Ouro Preto · Canaã dos Carajás-PA · CEP 68350-307</span>
           <a
             href="tel:+5594993044689"
             className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"

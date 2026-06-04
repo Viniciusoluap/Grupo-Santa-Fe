@@ -12,16 +12,16 @@ const PropertyMap = dynamic(
   { ssr: false, loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: "480px" }} /> }
 );
 
-// Mock coordinates centred around Canaã dos Carajás-PA
+// Coordinates for Canaã dos Carajás-PA neighbourhoods
 const COORDS: Record<string, [number, number]> = {
-  "1": [-6.4985, -49.8778],
-  "2": [-6.5010, -49.8820],
-  "3": [-6.5050, -49.8750],
-  "4": [-6.4960, -49.8800],
-  "5": [-6.5080, -49.8710],
-  "6": [-6.4940, -49.8850],
-  "7": [-6.5020, -49.8760],
-  "8": [-6.5060, -49.8830],
+  "1": [-6.4960, -49.8750], // Ouro Preto
+  "2": [-6.5015, -49.8820], // Novo Horizonte
+  "3": [-6.4942, -49.8790], // Centro
+  "4": [-6.4880, -49.8810], // Residencial Norte
+  "5": [-6.5030, -49.8760], // Vila dos Funcionários
+  "6": [-6.4970, -49.8835], // Vale Dourado
+  "7": [-6.5060, -49.8700], // Parque Industrial
+  "8": [-6.5200, -49.8950], // Zona Rural
 };
 
 export default function AdminMapaPage() {
