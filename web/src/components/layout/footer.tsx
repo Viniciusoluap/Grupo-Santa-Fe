@@ -37,7 +37,7 @@ export function Footer() {
             </p>
           </div>
           <a
-            href="https://wa.me/5562999999999"
+            href="https://wa.me/5594992448612"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-[var(--brand-dark)] text-[var(--brand-yellow)] px-6 py-3 font-bold text-sm uppercase tracking-wider hover:bg-[var(--brand-dark-secondary)] transition-colors"
@@ -69,25 +69,32 @@ export function Footer() {
             {/* Contact */}
             <div className="space-y-2">
               <a
-                href="tel:+5562999999999"
+                href="tel:+5594993044689"
                 className="flex items-center gap-2 text-sm text-gray-400 hover:text-[var(--brand-yellow)] transition-colors"
               >
                 <Phone size={14} className="text-[var(--brand-yellow)]" />
-                (62) 9 9999-9999
+                (94) 99304-4689 — Escritório
               </a>
               <a
-                href="mailto:contato@gruposantafe.com.br"
+                href="tel:+5594992448612"
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-[var(--brand-yellow)] transition-colors"
+              >
+                <Phone size={14} className="text-[var(--brand-yellow)]" />
+                (94) 99244-8612 — Cleidson (CEO)
+              </a>
+              <a
+                href="mailto:comercial@gruposantafee.com.br"
                 className="flex items-center gap-2 text-sm text-gray-400 hover:text-[var(--brand-yellow)] transition-colors"
               >
                 <Mail size={14} className="text-[var(--brand-yellow)]" />
-                contato@gruposantafe.com.br
+                comercial@gruposantafee.com.br
               </a>
               <div className="flex items-start gap-2 text-sm text-gray-400">
                 <MapPin
                   size={14}
                   className="text-[var(--brand-yellow)] mt-0.5 shrink-0"
                 />
-                <span>Goiânia - GO</span>
+                <span>Av. JK N° 103 — Vale Dourado/Centro<br />Em frente ao SINE · Canaã dos Carajás-PA</span>
               </div>
             </div>
             {/* Social */}
@@ -198,7 +205,7 @@ export function Footer() {
           <p className="text-xs text-gray-500">
             © {new Date().getFullYear()} Grupo Santa Fé. Todos os direitos reservados.
           </p>
-          <p className="text-xs text-gray-600">CRECI-GO XXXX-J</p>
+          <p className="text-xs text-gray-600">Canaã dos Carajás — PA · CRECI-PA</p>
         </div>
       </div>
     </footer>

@@ -12,16 +12,16 @@ const PropertyMap = dynamic(
   { ssr: false, loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: "480px" }} /> }
 );
 
-// Mock coordinates centred around Goiânia-GO
+// Mock coordinates centred around Canaã dos Carajás-PA
 const COORDS: Record<string, [number, number]> = {
-  "1": [-16.6701, -49.2532],
-  "2": [-16.6890, -49.2621],
-  "3": [-16.7022, -49.2743],
-  "4": [-16.6543, -49.2401],
-  "5": [-16.7150, -49.2312],
-  "6": [-16.6812, -49.2890],
-  "7": [-16.6623, -49.2700],
-  "8": [-16.7050, -49.2500],
+  "1": [-6.4985, -49.8778],
+  "2": [-6.5010, -49.8820],
+  "3": [-6.5050, -49.8750],
+  "4": [-6.4960, -49.8800],
+  "5": [-6.5080, -49.8710],
+  "6": [-6.4940, -49.8850],
+  "7": [-6.5020, -49.8760],
+  "8": [-6.5060, -49.8830],
 };
 
 export default function AdminMapaPage() {

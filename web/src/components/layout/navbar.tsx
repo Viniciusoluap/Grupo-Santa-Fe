@@ -28,8 +28,8 @@ const navLinks = [
       { label: "Regularização Imobiliária", href: "/servicos/regularizacao" },
     ],
   },
+  { label: "Mercado", href: "/mercado" },
   { label: "Sobre", href: "/sobre" },
-  { label: "Blog", href: "/blog" },
   { label: "Contato", href: "/contato" },
 ];
 
@@ -56,13 +56,13 @@ export function Navbar() {
       {/* Top bar */}
       <div className="bg-[var(--brand-yellow)] px-4 py-1.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-xs font-medium text-[var(--brand-dark)]">
-          <span>Segunda a Sexta: 8h–18h | Sábado: 8h–13h</span>
+          <span>Av. JK N° 103 — Vale Dourado · Canaã dos Carajás-PA · Frente ao SINE</span>
           <a
-            href="tel:+5562999999999"
+            href="tel:+5594993044689"
             className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
           >
             <Phone size={12} />
-            (62) 9 9999-9999
+            (94) 99304-4689
           </a>
         </div>
       </div>

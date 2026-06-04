@@ -22,6 +22,7 @@ import {
   Map,
   Rss,
   BarChart2,
+  Globe,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,11 @@ const navItems = [
     label: "WhatsApp",
     href: "/admin/whatsapp",
     icon: MessageCircle,
+  },
+  {
+    label: "Agregador",
+    href: "/admin/agregador",
+    icon: Globe,
   },
   {
     label: "Relatórios",
