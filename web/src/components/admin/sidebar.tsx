@@ -19,6 +19,7 @@ import {
   Ruler,
   FileCheck,
   MessageCircle,
+  Map,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,11 @@ const navItems = [
     label: "Regularização",
     href: "/admin/regularizacao",
     icon: FileCheck,
+  },
+  {
+    label: "Mapa",
+    href: "/admin/mapa",
+    icon: Map,
   },
   {
     label: "WhatsApp",
