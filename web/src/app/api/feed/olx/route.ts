@@ -24,7 +24,7 @@ ${properties
   .map(
     (p) => `  <advert>
     <id><![CDATA[GSF-${p.id}]]></id>
-    <url>${SITE_URL}/imoveis/${p.slug}</url>
+    <url>${SITE_URL}/imoveis/${p.id}</url>
     <title><![CDATA[${p.title}]]></title>
     <body><![CDATA[${p.description}]]></body>
     <category>${categoryCode(p.type, p.status)}</category>
