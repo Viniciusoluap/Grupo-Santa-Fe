@@ -49,7 +49,7 @@ ${properties
       </Details>
       <ListPrice currency="BRL">${p.price}</ListPrice>${p.condominium != null ? `\n      <CondoFee currency="BRL">${p.condominium}</CondoFee>` : ""}${p.iptu != null ? `\n      <PropertyTax currency="BRL">${p.iptu}</PropertyTax>` : ""}
       <Description><![CDATA[${p.description}]]></Description>
-      <PropertyURL>${SITE_URL}/imoveis/${p.slug}</PropertyURL>
+      <PropertyURL>${SITE_URL}/imoveis/${p.id}</PropertyURL>
       <Media>
 ${p.images.length > 0 ? p.images.map((img) => `        <Item medium="image"><![CDATA[${img}]]></Item>`).join("\n") : `        <Item medium="image"><![CDATA[${SITE_URL}/og-image.jpg]]></Item>`}
       </Media>
