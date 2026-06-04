@@ -13,6 +13,7 @@ import {
   Settings,
   FileText,
   Calculator,
+  CalendarDays,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,11 @@ const navItems = [
     label: "Leads",
     href: "/admin/leads",
     icon: Users,
+  },
+  {
+    label: "Agenda",
+    href: "/admin/agenda",
+    icon: CalendarDays,
   },
   {
     label: "Corretores",
