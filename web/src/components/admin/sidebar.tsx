@@ -21,6 +21,7 @@ import {
   MessageCircle,
   Map,
   Rss,
+  BarChart2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,11 @@ const navItems = [
     label: "WhatsApp",
     href: "/admin/whatsapp",
     icon: MessageCircle,
+  },
+  {
+    label: "Relatórios",
+    href: "/admin/relatorios",
+    icon: BarChart2,
   },
   {
     label: "Feeds XML",
