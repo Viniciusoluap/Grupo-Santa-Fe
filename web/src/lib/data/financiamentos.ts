@@ -1,0 +1,127 @@
+import { Financiamento } from "@/lib/types/financiamento";
+
+function buildChecklist(type: "mcmv" | "sbpe"): Financiamento["checklist"] {
+  const base = [
+    { id: "c1", name: "RG / CNH (frente e verso)", category: "pessoal" as const, required: true, status: "aprovado" as const, uploadedAt: "2026-01-15" },
+    { id: "c2", name: "CPF", category: "pessoal" as const, required: true, status: "aprovado" as const, uploadedAt: "2026-01-15" },
+    { id: "c3", name: "Certidão de nascimento ou casamento", category: "pessoal" as const, required: true, status: "aprovado" as const, uploadedAt: "2026-01-16" },
+    { id: "c4", name: "Comprovante de residência (3 meses)", category: "pessoal" as const, required: true, status: "aprovado" as const, uploadedAt: "2026-01-16" },
+    { id: "c5", name: "Holerite dos últimos 3 meses", category: "renda" as const, required: true, status: "enviado" as const, uploadedAt: "2026-01-20" },
+    { id: "c6", name: "Declaração de IR (último exercício)", category: "renda" as const, required: true, status: "enviado" as const, uploadedAt: "2026-01-22" },
+    { id: "c7", name: "Extrato bancário (3 meses)", category: "renda" as const, required: true, status: "pendente" as const },
+    { id: "c8", name: "Certidão de matrícula do imóvel", category: "imovel" as const, required: true, status: "pendente" as const },
+    { id: "c9", name: "Planta/memorial do imóvel", category: "imovel" as const, required: false, status: "pendente" as const },
+    { id: "c10", name: "IPTU atualizado", category: "imovel" as const, required: true, status: "pendente" as const },
+    { id: "c11", name: "Extrato do FGTS", category: "banco" as const, required: type === "mcmv", status: "enviado" as const, uploadedAt: "2026-01-25" },
+    { id: "c12", name: "Laudo de avaliação do imóvel", category: "banco" as const, required: true, status: "pendente" as const },
+  ];
+  return base;
+}
+
+export const financiamentos: Financiamento[] = [
+  {
+    id: "f1",
+    clientName: "Carlos Mendes",
+    clientPhone: "(62) 9 8888-1111",
+    clientEmail: "carlos@email.com",
+    tipo: "mcmv",
+    banco: "caixa",
+    status: "documentacao",
+    corretor: "João Santos",
+    property: "Residencial Jardim Novo — Apto 204, Bloco B",
+    propertyValue: 280000,
+    financingValue: 250000,
+    entry: 30000,
+    fgts: 15000,
+    income: 5800,
+    installment: 1650,
+    term: 360,
+    rate: 5.5,
+    startDate: "2026-01-10",
+    expectedEnd: "2026-08-30",
+    protocolNumber: "CEF-2026-001234",
+    checklist: buildChecklist("mcmv"),
+    notes: "Cliente optou pelo MCMV Faixa 3. Análise de crédito pré-aprovada.",
+  },
+  {
+    id: "f2",
+    clientName: "Beatriz Santos",
+    clientPhone: "(62) 9 7777-2222",
+    clientEmail: "beatriz@email.com",
+    tipo: "sbpe",
+    banco: "bradesco",
+    status: "analise_banco",
+    corretor: "Maria Oliveira",
+    property: "Casa Setor Bueno",
+    propertyValue: 560000,
+    financingValue: 420000,
+    entry: 140000,
+    fgts: 0,
+    income: 18000,
+    installment: 4200,
+    term: 240,
+    rate: 9.8,
+    startDate: "2026-02-01",
+    expectedEnd: "2026-07-15",
+    protocolNumber: "BRD-2026-005678",
+    checklist: buildChecklist("sbpe"),
+    notes: "Financiamento SBPE linha taxa reduzida. Documentação completa enviada.",
+  },
+  {
+    id: "f3",
+    clientName: "Roberto Alves",
+    clientPhone: "(62) 9 6666-3333",
+    clientEmail: "roberto@email.com",
+    tipo: "pro_cotista",
+    banco: "caixa",
+    status: "aprovado",
+    corretor: "João Santos",
+    property: "Apto Alto da Glória",
+    propertyValue: 390000,
+    financingValue: 320000,
+    entry: 70000,
+    fgts: 45000,
+    income: 12000,
+    installment: 2800,
+    term: 300,
+    rate: 7.2,
+    startDate: "2025-11-01",
+    expectedEnd: "2026-04-30",
+    protocolNumber: "CEF-2025-009876",
+    checklist: buildChecklist("sbpe"),
+    notes: "Pró-Cotista com utilização de FGTS. Aprovado pelo banco, aguardando assinatura de contrato.",
+  },
+  {
+    id: "f4",
+    clientName: "Ana Paula Lima",
+    clientPhone: "(62) 9 5555-4444",
+    clientEmail: "anapaula@email.com",
+    tipo: "mcmv",
+    banco: "caixa",
+    status: "liberado",
+    corretor: "Ana Lima",
+    property: "Cond. Parque das Flores — Casa 12",
+    propertyValue: 210000,
+    financingValue: 189000,
+    entry: 21000,
+    fgts: 12000,
+    income: 4200,
+    installment: 1100,
+    term: 360,
+    rate: 4.5,
+    startDate: "2025-08-15",
+    expectedEnd: "2026-01-20",
+    protocolNumber: "CEF-2025-003456",
+    checklist: buildChecklist("mcmv").map((c) => ({ ...c, status: "aprovado" as const })),
+  },
+];
+
+export function getFinanciamentoById(id: string) {
+  return financiamentos.find((f) => f.id === id);
+}
+
+export function getChecklistProgress(f: Financiamento) {
+  const total = f.checklist.length;
+  const done = f.checklist.filter((c) => c.status === "aprovado").length;
+  return { total, done, pct: Math.round((done / total) * 100) };
+}
