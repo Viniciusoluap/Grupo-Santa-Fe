@@ -18,6 +18,7 @@ import {
   HardHat,
   Ruler,
   FileCheck,
+  MessageCircle,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,11 @@ const navItems = [
     label: "Regularização",
     href: "/admin/regularizacao",
     icon: FileCheck,
+  },
+  {
+    label: "WhatsApp",
+    href: "/admin/whatsapp",
+    icon: MessageCircle,
   },
   {
     label: "Contratos",
