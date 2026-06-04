@@ -20,6 +20,7 @@ import {
   FileCheck,
   MessageCircle,
   Map,
+  Rss,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,11 @@ const navItems = [
     label: "WhatsApp",
     href: "/admin/whatsapp",
     icon: MessageCircle,
+  },
+  {
+    label: "Feeds XML",
+    href: "/admin/feeds",
+    icon: Rss,
   },
   {
     label: "Contratos",
