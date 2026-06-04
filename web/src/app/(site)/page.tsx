@@ -247,6 +247,47 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Simulador CTA */}
+      <section className="py-14 bg-[var(--brand-dark)]">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+          <div>
+            <p className="text-[var(--brand-yellow)] font-bold text-xs tracking-widest uppercase mb-3">
+              Financiamento Habitacional
+            </p>
+            <h2 className="text-white font-black text-3xl md:text-4xl uppercase leading-tight mb-4">
+              Simule seu financiamento{" "}
+              <span className="text-[var(--brand-yellow)]">agora</span>
+            </h2>
+            <p className="text-gray-400 leading-relaxed mb-6">
+              Calcule suas parcelas nos sistemas Price e SAC, com suporte ao
+              Minha Casa Minha Vida (MCMV) e FGTS. Resultado imediato com
+              tabela completa de amortização.
+            </p>
+            <Button variant="primary" size="lg" asChild>
+              <Link href="/simulador">
+                Abrir Simulador <ArrowRight size={18} />
+              </Link>
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Minha Casa Minha Vida", value: "a partir de 4,75% a.a." },
+              { label: "Uso do FGTS", value: "Aceito na entrada" },
+              { label: "Prazo máximo", value: "até 30 anos" },
+              { label: "Sistemas", value: "Price e SAC" },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                className="bg-white/5 border border-white/10 p-4 hover:border-[var(--brand-yellow)]/40 transition-colors"
+              >
+                <p className="text-[var(--brand-yellow)] font-black text-sm">{value}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Featured Properties */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
