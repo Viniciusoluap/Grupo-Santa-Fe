@@ -14,6 +14,7 @@ import {
   FileText,
   Calculator,
   CalendarDays,
+  BadgeDollarSign,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,11 @@ const navItems = [
     label: "Corretores",
     href: "/admin/corretores",
     icon: UserCheck,
+  },
+  {
+    label: "Comissões",
+    href: "/admin/comissoes",
+    icon: BadgeDollarSign,
   },
   {
     label: "Financiamentos",
