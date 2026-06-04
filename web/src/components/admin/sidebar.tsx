@@ -17,6 +17,7 @@ import {
   BadgeDollarSign,
   HardHat,
   Ruler,
+  FileCheck,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,11 @@ const navItems = [
     label: "Projetos",
     href: "/admin/projetos",
     icon: Ruler,
+  },
+  {
+    label: "Regularização",
+    href: "/admin/regularizacao",
+    icon: FileCheck,
   },
   {
     label: "Contratos",
