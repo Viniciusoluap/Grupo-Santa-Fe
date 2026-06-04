@@ -1,0 +1,93 @@
+import { Regularizacao } from "@/lib/types/regularizacao";
+
+export const regularizacoes: Regularizacao[] = [
+  {
+    id: "reg1",
+    name: "Regularização de Escritura — Casa Jardim Novo",
+    clientName: "Sra. Benedita Silva",
+    clientPhone: "(62) 9 9988-7766",
+    tipo: "regularizacao_escritura",
+    status: "em_analise_orgao",
+    responsible: "Dra. Carla Matos (Despachante)",
+    property: "Casa — Rua Esperança, 45",
+    address: "Rua Esperança, 45 — Jardim Novo, Goiânia-GO",
+    matricula: "Matrícula nº 12.345 — CRI 1ª Zona",
+    startDate: "2026-01-20",
+    estimatedEnd: "2026-08-31",
+    serviceValue: 4800,
+    paidValue: 2400,
+    notes: "Imóvel sem escritura há 20 anos. Documentação familiar complexa.",
+    documents: [
+      { id: "d1", name: "Escritura anterior / Contrato de Compra", orgao: "CRI", required: true, status: "obtido", obtainedAt: "2026-02-05" },
+      { id: "d2", name: "Certidão de matrícula atualizada", orgao: "CRI 1ª Zona", required: true, status: "obtido", obtainedAt: "2026-02-10" },
+      { id: "d3", name: "IPTU atualizado (3 últimos anos)", orgao: "Prefeitura", required: true, status: "obtido", obtainedAt: "2026-02-08" },
+      { id: "d4", name: "Certidão negativa de débitos municipais", orgao: "Prefeitura", required: true, status: "protocolado", notes: "Aguardando emissão" },
+      { id: "d5", name: "RG e CPF do(s) proprietário(s)", orgao: "—", required: true, status: "obtido", obtainedAt: "2026-01-25" },
+      { id: "d6", name: "Certidão de estado civil atualizada", orgao: "Cartório", required: true, status: "obtido", obtainedAt: "2026-02-01" },
+      { id: "d7", name: "Georreferenciamento / Planta aprovada", orgao: "Prefeitura", required: false, status: "pendente" },
+      { id: "d8", name: "ITBI pago", orgao: "Prefeitura", required: true, status: "pendente" },
+    ],
+    andamentos: [
+      { id: "a1", date: "2026-01-20", status: "analise_inicial", description: "Análise inicial do caso realizada. Documentação levantada e processo iniciado.", by: "Dra. Carla Matos" },
+      { id: "a2", date: "2026-02-15", status: "documentacao", description: "Documentação principal reunida. Aguardando certidão negativa da Prefeitura.", by: "Dra. Carla Matos" },
+      { id: "a3", date: "2026-03-10", status: "protocolo", description: "Processo protocolado no CRI 1ª Zona sob número PROT-2026-8821.", orgao: "CRI 1ª Zona", protocol: "PROT-2026-8821", by: "Dra. Carla Matos" },
+      { id: "a4", date: "2026-04-02", status: "em_analise_orgao", description: "Processo em análise no CRI. Prazo estimado de 45 dias para retorno.", orgao: "CRI 1ª Zona", by: "Sistema" },
+    ],
+  },
+  {
+    id: "reg2",
+    name: "Habite-se — Residência Rua das Palmeiras",
+    clientName: "Marcos Ferreira",
+    clientPhone: "(62) 9 8877-5566",
+    tipo: "habite_se",
+    status: "documentacao",
+    responsible: "Eng. Pedro Lima",
+    property: "Residência Rua das Palmeiras, 234",
+    address: "Rua das Palmeiras, 234 — Jardim América, Goiânia-GO",
+    startDate: "2026-04-01",
+    estimatedEnd: "2026-09-30",
+    serviceValue: 3200,
+    paidValue: 1600,
+    documents: [
+      { id: "d1", name: "ART de obra concluída", orgao: "CREA", required: true, status: "pendente" },
+      { id: "d2", name: "Projeto aprovado pela Prefeitura", orgao: "Prefeitura", required: true, status: "obtido", obtainedAt: "2025-08-20" },
+      { id: "d3", name: "Laudo do Corpo de Bombeiros", orgao: "Bombeiros", required: true, status: "pendente" },
+      { id: "d4", name: "Certidão INSS da obra (CNO)", orgao: "INSS", required: true, status: "pendente" },
+      { id: "d5", name: "Fotos da obra concluída", orgao: "—", required: false, status: "pendente" },
+    ],
+    andamentos: [
+      { id: "a1", date: "2026-04-01", status: "analise_inicial", description: "Início do processo para obtenção do Habite-se. Obra reformada concluída.", by: "Eng. Pedro Lima" },
+      { id: "a2", date: "2026-04-10", status: "documentacao", description: "Levantamento da documentação necessária. Aguardando ART e laudos.", by: "Eng. Pedro Lima" },
+    ],
+  },
+  {
+    id: "reg3",
+    name: "Desmembramento de Lote — Setor Industrial",
+    clientName: "Industria São Lucas",
+    clientPhone: "(62) 3333-8899",
+    tipo: "desmembramento",
+    status: "concluido",
+    responsible: "Dra. Carla Matos (Despachante)",
+    property: "Lote Av. Industrial, 1500",
+    address: "Av. Industrial, 1500 — Dist. Industrial, Aparecida-GO",
+    matricula: "Matrícula nº 45.678 — CRI Aparecida",
+    startDate: "2025-04-01",
+    estimatedEnd: "2025-12-31",
+    serviceValue: 8500,
+    paidValue: 8500,
+    documents: [
+      { id: "d1", name: "Certidão de matrícula original", orgao: "CRI", required: true, status: "aprovado" },
+      { id: "d2", name: "Memorial descritivo e planta", orgao: "Prefeitura", required: true, status: "aprovado" },
+      { id: "d3", name: "ART do projeto", orgao: "CREA", required: true, status: "aprovado" },
+      { id: "d4", name: "Aprovação municipal do desmembramento", orgao: "Prefeitura", required: true, status: "aprovado" },
+    ],
+    andamentos: [
+      { id: "a1", date: "2025-04-01", status: "analise_inicial", description: "Início do processo de desmembramento.", by: "Dra. Carla Matos" },
+      { id: "a2", date: "2025-12-15", status: "concluido", description: "Desmembramento concluído. Novas matrículas emitidas: 45.679 e 45.680.", by: "Dra. Carla Matos" },
+    ],
+  },
+];
+
+export function getRegularizacaoById(id: string) {
+  return regularizacoes.find((r) => r.id === id);
+}
