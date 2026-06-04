@@ -1,0 +1,121 @@
+"use client";
+
+import Link from "next/link";
+import { Phone, MessageSquare, Calendar, User, ArrowRight } from "lucide-react";
+import { Lead, LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
+import { formatCurrency } from "@/lib/utils";
+
+const KANBAN_COLUMNS: LeadStatus[] = [
+  "novo",
+  "contato",
+  "visita_agendada",
+  "proposta",
+  "negociacao",
+  "ganho",
+  "perdido",
+];
+
+function LeadCard({ lead }: { lead: Lead }) {
+  const cfg = LEAD_STATUS_CONFIG[lead.status];
+  return (
+    <div className="bg-white border border-gray-100 p-3 hover:shadow-md transition-shadow cursor-pointer group">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <p className="font-bold text-[var(--brand-dark)] text-sm leading-tight">{lead.name}</p>
+        <Link
+          href={`/admin/leads/${lead.id}`}
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-[var(--brand-yellow)]"
+        >
+          <ArrowRight size={13} />
+        </Link>
+      </div>
+
+      <p className="text-gray-400 text-xs mb-2 truncate">{lead.service}</p>
+
+      {lead.budget && (
+        <p className="text-[var(--brand-yellow)] font-black text-sm mb-2">
+          {formatCurrency(lead.budget)}
+        </p>
+      )}
+
+      <div className="flex items-center gap-1 text-gray-400 text-xs mb-3">
+        <User size={10} />
+        <span className="truncate">{lead.assignedTo}</span>
+      </div>
+
+      {lead.visits.some((v) => v.status === "agendada") && (
+        <div className="flex items-center gap-1 text-purple-600 text-xs bg-purple-50 px-2 py-1 mb-2">
+          <Calendar size={10} />
+          {new Date(lead.visits.find((v) => v.status === "agendada")!.scheduledAt).toLocaleDateString("pt-BR", {
+            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+          })}
+        </div>
+      )}
+
+      <div className="flex gap-1 pt-2 border-t border-gray-50">
+        <a
+          href={`tel:${lead.phone}`}
+          className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-50 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Phone size={12} />
+        </a>
+        <a
+          href={`https://wa.me/55${lead.phone.replace(/\D/g, "")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-green-500 hover:bg-green-50 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MessageSquare size={12} />
+        </a>
+        <Link
+          href={`/admin/leads/${lead.id}`}
+          className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors"
+        >
+          <ArrowRight size={12} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export function LeadKanban({ leads }: { leads: Lead[] }) {
+  const byStatus = (status: LeadStatus) =>
+    leads.filter((l) => l.status === status);
+
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-4">
+      {KANBAN_COLUMNS.map((status) => {
+        const cfg = LEAD_STATUS_CONFIG[status];
+        const col = byStatus(status);
+        return (
+          <div key={status} className="flex-shrink-0 w-60">
+            {/* Column header */}
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-black px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>
+                  {cfg.label}
+                </span>
+              </div>
+              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                {col.length}
+              </span>
+            </div>
+
+            {/* Cards */}
+            <div className="space-y-2 min-h-20">
+              {col.map((lead) => (
+                <LeadCard key={lead.id} lead={lead} />
+              ))}
+              {col.length === 0 && (
+                <div className="border-2 border-dashed border-gray-200 p-4 text-center">
+                  <p className="text-gray-300 text-xs">Nenhum lead</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
