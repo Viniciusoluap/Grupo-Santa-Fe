@@ -132,27 +132,40 @@ export default function ContatoPage() {
 
               <div className="space-y-4">
                 <a
-                  href="tel:+5562999999999"
+                  href="tel:+5594993044689"
                   className="flex items-start gap-3 text-gray-300 hover:text-[var(--brand-yellow)] transition-colors group"
                 >
                   <div className="w-9 h-9 bg-[var(--brand-yellow)] group-hover:bg-white flex items-center justify-center shrink-0 transition-colors">
                     <Phone size={16} className="text-[var(--brand-dark)]" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm">(62) 9 9999-9999</p>
-                    <p className="text-xs text-gray-500">Telefone / WhatsApp</p>
+                    <p className="font-bold text-sm">(94) 99304-4689</p>
+                    <p className="text-xs text-gray-500">Escritório</p>
                   </div>
                 </a>
 
                 <a
-                  href="mailto:contato@gruposantafe.com.br"
+                  href="tel:+5594992448612"
+                  className="flex items-start gap-3 text-gray-300 hover:text-[var(--brand-yellow)] transition-colors group"
+                >
+                  <div className="w-9 h-9 bg-[var(--brand-yellow)] group-hover:bg-white flex items-center justify-center shrink-0 transition-colors">
+                    <Phone size={16} className="text-[var(--brand-dark)]" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">(94) 99244-8612</p>
+                    <p className="text-xs text-gray-500">Cleidson — CEO</p>
+                  </div>
+                </a>
+
+                <a
+                  href="mailto:comercial@gruposantafee.com.br"
                   className="flex items-start gap-3 text-gray-300 hover:text-[var(--brand-yellow)] transition-colors group"
                 >
                   <div className="w-9 h-9 bg-[var(--brand-yellow)] group-hover:bg-white flex items-center justify-center shrink-0 transition-colors">
                     <Mail size={16} className="text-[var(--brand-dark)]" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm">contato@gruposantafe.com.br</p>
+                    <p className="font-bold text-sm">comercial@gruposantafee.com.br</p>
                     <p className="text-xs text-gray-500">E-mail</p>
                   </div>
                 </a>
@@ -162,8 +175,8 @@ export default function ContatoPage() {
                     <MapPin size={16} className="text-[var(--brand-dark)]" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm">Goiânia — GO</p>
-                    <p className="text-xs text-gray-500">Atendemos toda a região</p>
+                    <p className="font-bold text-sm">Rua B N° 40 — Ouro Preto</p>
+                    <p className="text-xs text-gray-500">CEP 68350-307 · Canaã dos Carajás-PA</p>
                   </div>
                 </div>
 
@@ -181,7 +194,7 @@ export default function ContatoPage() {
 
             {/* WhatsApp */}
             <a
-              href="https://wa.me/5562999999999"
+              href="https://wa.me/5594992448612"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-3 w-full bg-green-500 hover:bg-green-600 text-white font-bold text-sm uppercase tracking-wider py-4 transition-colors"

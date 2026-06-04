@@ -3,22 +3,19 @@ import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
 
 const footerLinks = {
   imoveis: [
-    { label: "Imóveis Prontos", href: "/imoveis/prontos" },
-    { label: "Lotes e Terrenos", href: "/imoveis/lotes" },
-    { label: "Lançamentos", href: "/imoveis/lancamentos" },
+    { label: "Todos os Imóveis", href: "/imoveis" },
+    { label: "Casas e Apartamentos", href: "/imoveis?type=casa" },
+    { label: "Lotes e Terrenos", href: "/imoveis?type=lote" },
+    { label: "Mercado Agregado", href: "/mercado" },
   ],
   servicos: [
-    { label: "Corretagem", href: "/servicos/corretagem" },
-    { label: "Financiamento Habitacional", href: "/servicos/financiamento" },
-    { label: "Obras e Reformas", href: "/servicos/obras" },
-    { label: "Projetos de Engenharia", href: "/servicos/projetos" },
-    { label: "Regularização Imobiliária", href: "/servicos/regularizacao" },
+    { label: "Nossos Serviços", href: "/servicos" },
+    { label: "Simulador de Financiamento", href: "/simulador" },
+    { label: "Portal do Cliente", href: "/portal" },
   ],
   empresa: [
     { label: "Sobre o Grupo", href: "/sobre" },
-    { label: "Blog", href: "/blog" },
-    { label: "Trabalhe Conosco", href: "/carreiras" },
-    { label: "Política de Privacidade", href: "/privacidade" },
+    { label: "Contato", href: "/contato" },
   ],
 };
 
@@ -94,7 +91,7 @@ export function Footer() {
                   size={14}
                   className="text-[var(--brand-yellow)] mt-0.5 shrink-0"
                 />
-                <span>Av. JK N° 103 — Vale Dourado/Centro<br />Em frente ao SINE · Canaã dos Carajás-PA</span>
+                <span>Rua B N° 40 — Ouro Preto<br />CEP 68350-307 · Canaã dos Carajás-PA</span>
               </div>
             </div>
             {/* Social */}
