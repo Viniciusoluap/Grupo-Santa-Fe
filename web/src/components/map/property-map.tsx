@@ -22,7 +22,7 @@ interface PropertyMapProps {
 
 export function PropertyMap({
   pins,
-  center = [-16.6869, -49.2648],
+  center = [-6.5000, -49.8790],
   zoom = 13,
   height = "500px",
   onPinClick,
