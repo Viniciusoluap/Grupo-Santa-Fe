@@ -130,6 +130,9 @@ export function Navbar() {
 
           {/* CTA */}
           <div className="hidden lg:flex items-center gap-3">
+            <Link href="/portal" className="text-gray-400 hover:text-[var(--brand-yellow)] text-xs font-bold uppercase tracking-wider transition-colors">
+              Portal do Cliente
+            </Link>
             <Button variant="primary" size="sm" asChild>
               <Link href="/contato">Fale Conosco</Link>
             </Button>
