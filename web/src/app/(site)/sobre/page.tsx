@@ -13,7 +13,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Sobre Nós",
-  description: "Conheça a história, missão e valores do Grupo Santa Fé — especialistas em imóveis, construção e engenharia em Goiânia.",
+  description: "Conheça a história, missão e valores do Grupo Santa Fé — especialistas em imóveis, construção e engenharia em Canaã dos Carajás - PA.",
 };
 
 const values = [
@@ -48,7 +48,7 @@ const timeline = [
     year: "2014",
     title: "Fundação",
     description:
-      "O Grupo Santa Fé nasce focado em corretagem imobiliária em Goiânia, com uma equipe de 3 corretores.",
+      "O Grupo Santa Fé nasce focado em corretagem imobiliária em Canaã dos Carajás - PA, com uma equipe de corretores especializados.",
   },
   {
     year: "2016",
@@ -78,24 +78,24 @@ const timeline = [
 
 const team = [
   {
-    name: "João Santos",
-    role: "Diretor Comercial",
-    creci: "CRECI-GO XXXX",
+    name: "Cleidson",
+    role: "CEO & Fundador",
+    creci: "CRECI-PA",
   },
   {
-    name: "Maria Oliveira",
-    role: "Corretora Sênior",
-    creci: "CRECI-GO YYYY",
+    name: "Equipe Comercial",
+    role: "Corretores",
+    creci: "CRECI-PA",
   },
   {
-    name: "Carlos Ferreira",
-    role: "Engenheiro Civil",
-    crea: "CREA-GO ZZZZ",
+    name: "Engenharia",
+    role: "Engenheiros e Técnicos",
+    crea: "CREA-PA",
   },
   {
-    name: "Ana Lima",
-    role: "Especialista em Financiamento",
-    creci: "CRECI-GO WWWW",
+    name: "Financiamento",
+    role: "Especialistas MCMV / SBPE",
+    creci: "CRECI-PA",
   },
 ];
 

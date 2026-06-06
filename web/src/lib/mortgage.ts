@@ -147,10 +147,17 @@ export const MCMV_PROGRAMS = [
     description: "Financiamento pelo MCMV com taxas reduzidas",
   },
   {
-    label: "Fora do MCMV (taxa de mercado)",
+    label: "Faixa 4 — Até R$ 12.000/mês",
+    maxIncome: 12000,
+    rate: 8.16,
+    maxValue: 500000,
+    description: "Faixa estendida com taxas reduzidas via FGTS",
+  },
+  {
+    label: "SBPE — Acima do MCMV",
     maxIncome: Infinity,
     rate: 10.5,
     maxValue: Infinity,
-    description: "Financiamento habitacional convencional",
+    description: "Financiamento habitacional via sistema bancário convencional",
   },
 ];

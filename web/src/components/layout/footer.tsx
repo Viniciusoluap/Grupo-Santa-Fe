@@ -1,5 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
+import { SOCIAL_LINKS } from "@/lib/social";
 
 const footerLinks = {
   imoveis: [
@@ -11,10 +13,12 @@ const footerLinks = {
   servicos: [
     { label: "Nossos Serviços", href: "/servicos" },
     { label: "Simulador de Financiamento", href: "/simulador" },
+    { label: "Cursos Profissionais", href: "/cursos" },
     { label: "Portal do Cliente", href: "/portal" },
   ],
   empresa: [
     { label: "Sobre o Grupo", href: "/sobre" },
+    { label: "Instituto Social", href: "/instituto" },
     { label: "Contato", href: "/contato" },
   ],
 };
@@ -34,7 +38,7 @@ export function Footer() {
             </p>
           </div>
           <a
-            href="https://wa.me/5594992448612"
+            href={SOCIAL_LINKS.whatsapp}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-[var(--brand-dark)] text-[var(--brand-yellow)] px-6 py-3 font-bold text-sm uppercase tracking-wider hover:bg-[var(--brand-dark-secondary)] transition-colors"
@@ -51,12 +55,13 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <div className="mb-4">
-              <span className="text-[var(--brand-yellow)] font-black text-2xl tracking-wider uppercase block">
-                Grupo Santa Fé
-              </span>
-              <span className="text-gray-500 text-xs tracking-[0.3em] uppercase">
-                Construindo Negócios
-              </span>
+              <Image
+                src="/logo.jpg"
+                alt="Grupo Santa Fé — Construindo Negócios"
+                width={640}
+                height={641}
+                className="h-16 w-auto"
+              />
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-6">
               Há anos transformando sonhos em realidade. Especialistas em
@@ -98,7 +103,7 @@ export function Footer() {
             <div className="flex gap-3 mt-5">
               {[
                 {
-                  href: "#",
+                  href: SOCIAL_LINKS.instagram,
                   label: "Instagram",
                   svg: (
                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -107,7 +112,7 @@ export function Footer() {
                   ),
                 },
                 {
-                  href: "#",
+                  href: SOCIAL_LINKS.facebook,
                   label: "Facebook",
                   svg: (
                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -116,7 +121,7 @@ export function Footer() {
                   ),
                 },
                 {
-                  href: "#",
+                  href: SOCIAL_LINKS.youtube,
                   label: "YouTube",
                   svg: (
                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">

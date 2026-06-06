@@ -13,7 +13,7 @@ import {
 import { simulate, MCMV_PROGRAMS, type SimulationInput } from "@/lib/mortgage";
 import { formatCurrency } from "@/lib/utils";
 
-const TERM_OPTIONS = [60, 120, 180, 240, 300, 360];
+const TERM_OPTIONS = [60, 120, 180, 240, 300, 360, 420];
 
 function InputField({
   label,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X, Phone, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ const navLinks = [
     ],
   },
   { label: "Mercado", href: "/mercado" },
+  { label: "Cursos", href: "/cursos" },
+  { label: "Instituto", href: "/instituto" },
   { label: "Sobre", href: "/sobre" },
   { label: "Contato", href: "/contato" },
 ];
@@ -68,15 +71,15 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex flex-col leading-none">
-              <span className="text-[var(--brand-yellow)] font-black text-xl tracking-wider uppercase">
-                Grupo Santa Fé
-              </span>
-              <span className="text-gray-400 text-[9px] tracking-[0.3em] uppercase">
-                Construindo Negócios
-              </span>
-            </div>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logo.jpg"
+              alt="Grupo Santa Fé — Construindo Negócios"
+              width={640}
+              height={641}
+              className="h-12 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop nav */}
