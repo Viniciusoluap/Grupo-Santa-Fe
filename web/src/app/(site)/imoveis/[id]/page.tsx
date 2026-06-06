@@ -236,7 +236,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
               </p>
 
               <a
-                href={`https://wa.me/5562999999999?text=${whatsappMsg}`}
+                href={`https://wa.me/5594993044689?text=${whatsappMsg}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-sm uppercase tracking-wider py-3 transition-colors mb-3"
@@ -246,11 +246,11 @@ export default async function PropertyDetailPage({ params }: PageProps) {
               </a>
 
               <a
-                href="tel:+5562999999999"
+                href="tel:+5594993044689"
                 className="flex items-center justify-center gap-2 w-full border border-gray-600 hover:border-[var(--brand-yellow)] text-gray-300 hover:text-[var(--brand-yellow)] font-bold text-sm uppercase tracking-wider py-3 transition-colors mb-6"
               >
                 <Phone size={16} />
-                (62) 9 9999-9999
+                (94) 99304-4689
               </a>
 
               {/* Mini contact form */}

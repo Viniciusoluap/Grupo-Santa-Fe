@@ -194,7 +194,7 @@ export default function ContatoPage() {
 
             {/* WhatsApp */}
             <a
-              href="https://wa.me/5594992448612"
+              href="https://wa.me/5594993044689"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-3 w-full bg-green-500 hover:bg-green-600 text-white font-bold text-sm uppercase tracking-wider py-4 transition-colors"

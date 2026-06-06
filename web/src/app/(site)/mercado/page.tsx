@@ -218,20 +218,12 @@ export default function MercadoPage() {
           <p className="text-gray-400 text-sm mb-5">Av. JK N° 103 — Vale Dourado/Centro · Em frente ao SINE · Canaã dos Carajás-PA</p>
           <div className="flex flex-wrap gap-3 justify-center">
             <a
-              href="https://wa.me/5594992448612"
+              href="https://wa.me/5594993044689"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase px-6 py-2.5 hover:opacity-90 transition-opacity"
             >
-              Cleidson — (94) 99244-8612
-            </a>
-            <a
-              href="https://wa.me/5594993044689"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="border border-[var(--brand-yellow)] text-[var(--brand-yellow)] font-bold text-xs uppercase px-6 py-2.5 hover:bg-white/5 transition-colors"
-            >
-              Escritório — (94) 99304-4689
+              WhatsApp — (94) 99304-4689
             </a>
           </div>
         </div>

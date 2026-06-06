@@ -47,10 +47,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
             <div className="mt-4 bg-[var(--brand-yellow)] p-4">
               <p className="text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wide mb-2">Seu Corretor</p>
-              <p className="text-[var(--brand-dark)] font-bold text-sm">João Santos</p>
-              <a href="tel:(62)99999-1111" className="text-[var(--brand-dark)]/70 text-xs hover:text-[var(--brand-dark)] mt-1 block">(62) 9 9999-1111</a>
+              <p className="text-[var(--brand-dark)] font-bold text-sm">Grupo Santa Fé</p>
+              <a href="tel:+5594993044689" className="text-[var(--brand-dark)]/70 text-xs hover:text-[var(--brand-dark)] mt-1 block">(94) 99304-4689</a>
               <a
-                href="https://wa.me/5562999991111"
+                href="https://wa.me/5594993044689"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 flex items-center justify-center gap-1 bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold uppercase tracking-wider py-2 hover:bg-[var(--brand-dark)]/80 transition-colors"
