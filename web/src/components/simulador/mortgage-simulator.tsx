@@ -90,6 +90,15 @@ export function MortgageSimulator() {
 
   const result = useMemo(() => simulate(form), [form]);
 
+  const bankComparison = useMemo(
+    () =>
+      BANK_RATES.map((b) => ({
+        ...b,
+        installment: simulate({ ...form, annualRate: b.rate }).firstInstallment,
+      })),
+    [form]
+  );
+
   const downPaymentPercent =
     form.propertyValue > 0
       ? ((form.downPayment / form.propertyValue) * 100).toFixed(1)
@@ -373,8 +382,10 @@ export function MortgageSimulator() {
                 </p>
               </div>
               <p className="text-xs text-gray-400 mb-4">
-                Taxas de referência pesquisadas no mercado em {BANK_RATES_REFERENCE_DATE}. Os valores finais variam
-                conforme análise de crédito, renda e relacionamento com cada instituição.
+                Taxas de referência pesquisadas no mercado em {BANK_RATES_REFERENCE_DATE}. A parcela estimada usa o
+                mesmo valor financiado, prazo e sistema de amortização desta simulação — apenas trocando a taxa de
+                juros pela de cada banco. Os valores finais variam conforme análise de crédito, renda e
+                relacionamento com cada instituição.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -382,15 +393,21 @@ export function MortgageSimulator() {
                     <tr>
                       <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Banco</th>
                       <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Taxa de referência</th>
+                      <th className="px-4 py-2 text-right font-bold text-gray-500 uppercase tracking-wide">
+                        {form.system === "price" ? "Parcela estimada" : "1ª parcela estimada"}
+                      </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Índice</th>
                       <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Observações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {BANK_RATES.map((b) => (
+                    {bankComparison.map((b) => (
                       <tr key={b.bank} className="hover:bg-gray-50">
                         <td className="px-4 py-2 font-bold text-[var(--brand-dark)]">{b.bank}</td>
                         <td className="px-4 py-2 text-gray-600">{b.rateLabel}</td>
+                        <td className="px-4 py-2 text-right font-bold text-[var(--brand-dark)]">
+                          {formatCurrency(b.installment)}
+                        </td>
                         <td className="px-4 py-2 text-gray-500">{b.index}</td>
                         <td className="px-4 py-2 text-gray-400">{b.notes}</td>
                       </tr>
@@ -399,7 +416,8 @@ export function MortgageSimulator() {
                 </table>
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                * Comparativo meramente informativo. Confirme sempre as condições atualizadas diretamente com cada banco.
+                * Comparativo meramente informativo. Parcela estimada calculada com base no valor financiado, prazo e
+                sistema de amortização desta simulação. Confirme sempre as condições atualizadas diretamente com cada banco.
               </p>
             </div>
 
