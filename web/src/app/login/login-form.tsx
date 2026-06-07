@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useActionState } from "react";
-import { signIn } from "next-auth/react";
+import { useState } from "react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
 
@@ -27,10 +27,13 @@ export function LoginForm() {
 
     if (result?.error) {
       setError("E-mail ou senha incorretos. Tente novamente.");
-    } else {
-      router.push("/admin");
-      router.refresh();
+      return;
     }
+
+    const session = await getSession();
+    const role = (session?.user as { role?: string } | undefined)?.role;
+    router.push(role === "cliente" ? "/portal" : "/admin");
+    router.refresh();
   }
 
   return (
