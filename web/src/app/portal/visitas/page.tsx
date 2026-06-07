@@ -121,7 +121,7 @@ export default function PortalVisitasPage() {
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Solicitar Nova Visita</p>
         <p className="text-sm text-gray-500 mb-4">Para agendar uma visita a outro imóvel, entre em contato com seu corretor pelo WhatsApp.</p>
         <a
-          href="https://wa.me/5562999991111"
+          href="https://wa.me/5594993044689"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs uppercase tracking-wider px-5 py-2.5 transition-colors"

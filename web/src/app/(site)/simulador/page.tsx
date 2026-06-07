@@ -14,7 +14,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Simulador de Financiamento",
   description:
-    "Simule seu financiamento habitacional pelo MCMV, FGTS ou financiamento convencional. Tabelas Price e SAC com amortização completa.",
+    "Simule seu financiamento habitacional pelo MCMV (Faixas 1-4), SBPE, FGTS. Prazo de até 420 meses (35 anos). Tabelas Price e SAC com amortização completa.",
 };
 
 const benefits = [

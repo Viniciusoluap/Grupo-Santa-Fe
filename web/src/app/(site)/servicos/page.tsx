@@ -8,6 +8,9 @@ import {
   MapPin,
   ArrowRight,
   CheckCircle2,
+  SearchCheck,
+  Briefcase,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
@@ -106,6 +109,51 @@ const services = [
       "Documentação 100% regularizada",
       "Financiamento direto com a construtora",
       "Assessoria de localização",
+    ],
+  },
+  {
+    icon: SearchCheck,
+    title: "Avaliação Imobiliária",
+    slug: "avaliacao",
+    description:
+      "Avaliação técnica de lotes, casas e imóveis comerciais com laudo detalhado. Utilizamos metodologia oficial para determinar o valor de mercado real do seu imóvel.",
+    items: [
+      "Avaliação de lotes e terrenos",
+      "Avaliação de imóveis residenciais",
+      "Laudo técnico de avaliação",
+      "Metodologia ABNT NBR 14653",
+      "Avaliação para venda ou financiamento",
+      "Avaliação gratuita inicial",
+    ],
+  },
+  {
+    icon: Briefcase,
+    title: "Consultoria Imobiliária",
+    slug: "consultoria-imobiliaria",
+    description:
+      "Consultoria especializada para compra, venda, investimento e gestão de imóveis. Orientamos você nas melhores decisões para maximizar o retorno do seu investimento.",
+    items: [
+      "Análise de viabilidade de compra",
+      "Estratégias de investimento imobiliário",
+      "Gestão de carteira de imóveis",
+      "Análise de mercado local",
+      "Orientação jurídica e documental",
+      "Planejamento de portfólio",
+    ],
+  },
+  {
+    icon: ShieldAlert,
+    title: "Consultoria Empresarial / NR-1",
+    slug: "consultoria-nr1",
+    description:
+      "Consultoria para adequação de empresas às normas regulamentadoras, especialmente NR-1 (Gerenciamento de Riscos Ocupacionais). Treinamentos e processos para manter sua empresa em conformidade.",
+    items: [
+      "Diagnóstico de conformidade NR-1",
+      "Elaboração do PGR (Programa de Gerenciamento de Riscos)",
+      "Treinamentos obrigatórios para colaboradores",
+      "Adequação de processos internos",
+      "Documentação e registros legais",
+      "Acompanhamento contínuo de conformidade",
     ],
   },
 ];
