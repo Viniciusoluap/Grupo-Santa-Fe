@@ -320,7 +320,7 @@ export default function AgregadorPage() {
                   <input
                     value={formData.contactPhone}
                     onChange={(e) => setFormData((f) => ({ ...f, contactPhone: e.target.value }))}
-                    placeholder="Ex: 94 99244-8612"
+                    placeholder="Ex: 94 99188-8143"
                     className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                   />
                 </div>

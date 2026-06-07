@@ -145,15 +145,15 @@ export default function ContatoPage() {
                 </a>
 
                 <a
-                  href="tel:+5594992448612"
+                  href="tel:+5594991888143"
                   className="flex items-start gap-3 text-gray-300 hover:text-[var(--brand-yellow)] transition-colors group"
                 >
                   <div className="w-9 h-9 bg-[var(--brand-yellow)] group-hover:bg-white flex items-center justify-center shrink-0 transition-colors">
                     <Phone size={16} className="text-[var(--brand-dark)]" />
                   </div>
                   <div>
-                    <p className="font-bold text-sm">(94) 99244-8612</p>
-                    <p className="text-xs text-gray-500">Cleidson — CEO</p>
+                    <p className="font-bold text-sm">(94) 99188-8143</p>
+                    <p className="text-xs text-gray-500">Administrativo</p>
                   </div>
                 </a>
 
