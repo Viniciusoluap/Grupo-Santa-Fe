@@ -56,11 +56,11 @@ export function Footer() {
           <div className="lg:col-span-2">
             <div className="mb-4">
               <Image
-                src="/logo.jpg"
+                src="/logo-on-dark.png"
                 alt="Grupo Santa Fé — Construindo Negócios"
-                width={640}
-                height={641}
-                className="h-16 w-auto"
+                width={1177}
+                height={334}
+                className="h-12 w-auto"
               />
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-6">
