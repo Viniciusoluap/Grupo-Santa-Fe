@@ -24,42 +24,42 @@ const services = [
     title: "Corretagem",
     description:
       "Compra, venda e locação de imóveis com assessoria completa do início ao fim do processo.",
-    href: "/servicos/corretagem",
+    href: "/servicos#corretagem",
   },
   {
     icon: Calculator,
     title: "Financiamento Habitacional",
     description:
       "Simulação e acompanhamento de financiamento pelo MCMV, FGTS e principais bancos.",
-    href: "/servicos/financiamento",
+    href: "/servicos#financiamento",
   },
   {
     icon: Wrench,
     title: "Obras e Reformas",
     description:
       "Construção, ampliação e reforma com gestão completa, cronograma e controle de qualidade.",
-    href: "/servicos/obras",
+    href: "/servicos#obras",
   },
   {
     icon: Building2,
     title: "Projetos de Engenharia",
     description:
       "Projetos arquitetônicos, estruturais, elétricos e hidráulicos com orçamento detalhado.",
-    href: "/servicos/projetos",
+    href: "/servicos#projetos",
   },
   {
     icon: FileCheck,
     title: "Regularização Imobiliária",
     description:
       "Regularização de imóveis junto aos órgãos competentes com acompanhamento completo.",
-    href: "/servicos/regularizacao",
+    href: "/servicos#regularizacao",
   },
   {
     icon: MapPin,
     title: "Lotes e Terrenos",
     description:
       "Lotes em localidades selecionadas com toda documentação regularizada e infraestrutura.",
-    href: "/imoveis/lotes",
+    href: "/servicos#lotes",
   },
 ];
 

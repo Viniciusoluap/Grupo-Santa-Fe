@@ -23,6 +23,12 @@ const navLinks = [
     href: "/servicos",
     children: [
       { label: "Todos os Serviços", href: "/servicos" },
+      { label: "Corretagem", href: "/servicos#corretagem" },
+      { label: "Financiamento Habitacional", href: "/servicos#financiamento" },
+      { label: "Obras e Reformas", href: "/servicos#obras" },
+      { label: "Projetos de Engenharia", href: "/servicos#projetos" },
+      { label: "Regularização Imobiliária", href: "/servicos#regularizacao" },
+      { label: "Lotes e Terrenos", href: "/servicos#lotes" },
       { label: "Simulador de Financiamento", href: "/simulador" },
     ],
   },
