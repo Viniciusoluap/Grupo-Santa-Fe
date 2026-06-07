@@ -79,11 +79,11 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image
-              src="/logo.jpg"
+              src="/logo-on-dark.png"
               alt="Grupo Santa Fé — Construindo Negócios"
-              width={640}
-              height={641}
-              className="h-12 w-auto"
+              width={1177}
+              height={334}
+              className="h-10 w-auto"
               priority
             />
           </Link>
