@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import {
   BANK_RATES,
   BANK_RATES_REFERENCE_DATE,
+  simulate,
   type SimulationInput,
   type SimulationResult,
 } from "@/lib/mortgage";
@@ -97,8 +98,14 @@ export function generateSimulationPdf(input: SimulationInput, result: Simulation
     theme: "striped",
     styles: { fontSize: 9, cellPadding: 6 },
     headStyles: { fillColor: BRAND_DARK, textColor: BRAND_YELLOW },
-    head: [["Banco", "Taxa de referência", "Índice", "Observações"]],
-    body: BANK_RATES.map((b) => [b.bank, b.rateLabel, b.index, b.notes]),
+    head: [["Banco", "Taxa de referência", "Parcela estimada", "Índice", "Observações"]],
+    body: BANK_RATES.map((b) => [
+      b.bank,
+      b.rateLabel,
+      formatCurrency(simulate({ ...input, annualRate: b.rate }).firstInstallment),
+      b.index,
+      b.notes,
+    ]),
   });
 
   // @ts-expect-error -- jspdf-autotable augments the doc instance at runtime

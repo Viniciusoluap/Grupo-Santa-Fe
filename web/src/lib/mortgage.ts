@@ -126,6 +126,7 @@ export function simulate(input: SimulationInput): SimulationResult {
 
 export interface BankRate {
   bank: string;
+  rate: number;
   rateLabel: string;
   index: string;
   notes: string;
@@ -141,30 +142,35 @@ export const BANK_RATES_REFERENCE_DATE = "Junho/2026";
 export const BANK_RATES: BankRate[] = [
   {
     bank: "Caixa Econômica Federal",
+    rate: 11.19,
     rateLabel: "a partir de 11,19% a.a. + TR",
     index: "TR",
     notes: "Menor taxa de balcão do mercado no SFH",
   },
   {
     bank: "Itaú",
+    rate: 11.6,
     rateLabel: "a partir de 11,60% a.a. + TR",
     index: "TR",
     notes: "Condições melhores para correntistas",
   },
   {
     bank: "Santander",
+    rate: 11.69,
     rateLabel: "a partir de 11,69% a.a. + TR",
     index: "TR",
     notes: "Reduziu taxas no fim de 2025/início de 2026",
   },
   {
     bank: "Bradesco",
+    rate: 11.7,
     rateLabel: "a partir de 11,70% a.a. + TR",
     index: "TR",
     notes: "Taxa varia conforme relacionamento bancário",
   },
   {
     bank: "Banco Inter",
+    rate: 9.5,
     rateLabel: "a partir de 9,50% a.a. + IPCA",
     index: "IPCA",
     notes: "100% digital — atenção: taxa indexada à inflação (IPCA)",
