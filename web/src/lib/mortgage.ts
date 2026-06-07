@@ -124,6 +124,53 @@ export function simulate(input: SimulationInput): SimulationResult {
   }
 }
 
+export interface BankRate {
+  bank: string;
+  rateLabel: string;
+  index: string;
+  notes: string;
+}
+
+/**
+ * Taxas de referência pesquisadas em fontes públicas do mercado (jun/2026).
+ * Servem como comparativo informativo — cada instituição define a taxa final
+ * conforme relacionamento, renda e análise de crédito do cliente.
+ */
+export const BANK_RATES_REFERENCE_DATE = "Junho/2026";
+
+export const BANK_RATES: BankRate[] = [
+  {
+    bank: "Caixa Econômica Federal",
+    rateLabel: "a partir de 11,19% a.a. + TR",
+    index: "TR",
+    notes: "Menor taxa de balcão do mercado no SFH",
+  },
+  {
+    bank: "Itaú",
+    rateLabel: "a partir de 11,60% a.a. + TR",
+    index: "TR",
+    notes: "Condições melhores para correntistas",
+  },
+  {
+    bank: "Santander",
+    rateLabel: "a partir de 11,69% a.a. + TR",
+    index: "TR",
+    notes: "Reduziu taxas no fim de 2025/início de 2026",
+  },
+  {
+    bank: "Bradesco",
+    rateLabel: "a partir de 11,70% a.a. + TR",
+    index: "TR",
+    notes: "Taxa varia conforme relacionamento bancário",
+  },
+  {
+    bank: "Banco Inter",
+    rateLabel: "a partir de 9,50% a.a. + IPCA",
+    index: "IPCA",
+    notes: "100% digital — atenção: taxa indexada à inflação (IPCA)",
+  },
+];
+
 export const MCMV_PROGRAMS = [
   {
     label: "Faixa 1 — Até R$ 2.640/mês",

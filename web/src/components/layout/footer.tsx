@@ -78,11 +78,11 @@ export function Footer() {
                 (94) 99304-4689 — Escritório
               </a>
               <a
-                href="tel:+5594992448612"
+                href="tel:+5594991888143"
                 className="flex items-center gap-2 text-sm text-gray-400 hover:text-[var(--brand-yellow)] transition-colors"
               >
                 <Phone size={14} className="text-[var(--brand-yellow)]" />
-                (94) 99244-8612 — Cleidson (CEO)
+                (94) 99188-8143 — Administrativo
               </a>
               <a
                 href="mailto:comercial@gruposantafee.com.br"

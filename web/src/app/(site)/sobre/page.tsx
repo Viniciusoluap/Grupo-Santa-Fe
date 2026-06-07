@@ -78,8 +78,8 @@ const timeline = [
 
 const team = [
   {
-    name: "Cleidson",
-    role: "CEO & Fundador",
+    name: "Administrativo",
+    role: "Direção e Administração",
     creci: "CRECI-PA",
   },
   {

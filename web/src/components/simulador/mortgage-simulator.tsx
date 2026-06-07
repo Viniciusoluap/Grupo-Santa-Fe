@@ -9,9 +9,18 @@ import {
   CircleDollarSign,
   ChevronDown,
   ChevronUp,
+  FileDown,
+  Landmark,
 } from "lucide-react";
-import { simulate, MCMV_PROGRAMS, type SimulationInput } from "@/lib/mortgage";
+import {
+  simulate,
+  MCMV_PROGRAMS,
+  BANK_RATES,
+  BANK_RATES_REFERENCE_DATE,
+  type SimulationInput,
+} from "@/lib/mortgage";
 import { formatCurrency } from "@/lib/utils";
+import { generateSimulationPdf } from "@/lib/simulation-pdf";
 
 const TERM_OPTIONS = [60, 120, 180, 240, 300, 360, 420];
 
@@ -244,6 +253,23 @@ export function MortgageSimulator() {
           </div>
         ) : (
           <>
+            {/* Generate PDF */}
+            <div className="bg-white border border-gray-100 p-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-bold text-[var(--brand-dark)] text-sm">Sua simulação está pronta</p>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  Gere um PDF com os resultados e o comparativo de taxas dos principais bancos.
+                </p>
+              </div>
+              <button
+                onClick={() => generateSimulationPdf(form, result)}
+                className="flex items-center gap-2 bg-[var(--brand-dark)] hover:bg-[var(--brand-dark)]/80 text-[var(--brand-yellow)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors shrink-0"
+              >
+                <FileDown size={15} />
+                Gerar PDF da Simulação
+              </button>
+            </div>
+
             {/* Summary cards */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[var(--brand-dark)] p-5">
@@ -336,6 +362,45 @@ export function MortgageSimulator() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Bank rate comparison */}
+            <div className="bg-white border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Landmark size={15} className="text-[var(--brand-yellow)]" />
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                  Comparativo de Taxas — Principais Bancos
+                </p>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">
+                Taxas de referência pesquisadas no mercado em {BANK_RATES_REFERENCE_DATE}. Os valores finais variam
+                conforme análise de crédito, renda e relacionamento com cada instituição.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Banco</th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Taxa de referência</th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Índice</th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-500 uppercase tracking-wide">Observações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {BANK_RATES.map((b) => (
+                      <tr key={b.bank} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 font-bold text-[var(--brand-dark)]">{b.bank}</td>
+                        <td className="px-4 py-2 text-gray-600">{b.rateLabel}</td>
+                        <td className="px-4 py-2 text-gray-500">{b.index}</td>
+                        <td className="px-4 py-2 text-gray-400">{b.notes}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                * Comparativo meramente informativo. Confirme sempre as condições atualizadas diretamente com cada banco.
+              </p>
             </div>
 
             {/* Amortization table */}
