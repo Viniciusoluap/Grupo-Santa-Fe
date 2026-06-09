@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, Phone, ChevronDown } from "lucide-react";
+import { Menu, X, Phone, ChevronDown, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -136,8 +136,12 @@ export function Navbar() {
 
           {/* CTA */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/portal" className="text-gray-400 hover:text-[var(--brand-yellow)] text-xs font-bold uppercase tracking-wider transition-colors">
-              Portal do Cliente
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 text-gray-400 hover:text-[var(--brand-yellow)] text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              <LogIn size={14} />
+              Entrar
             </Link>
             <Button variant="primary" size="sm" asChild>
               <Link href="/contato">Fale Conosco</Link>
@@ -184,7 +188,15 @@ export function Navbar() {
                 )}
               </div>
             ))}
-            <Button variant="primary" className="mt-4 w-full" asChild>
+            <Link
+              href="/login"
+              className="flex items-center justify-center gap-2 py-3 mt-3 border border-gray-700 text-gray-300 hover:text-[var(--brand-yellow)] hover:border-[var(--brand-yellow)] font-bold text-sm uppercase tracking-wider transition-colors"
+              onClick={() => setIsOpen(false)}
+            >
+              <LogIn size={16} />
+              Entrar (Admin · Corretor · Cliente)
+            </Link>
+            <Button variant="primary" className="mt-3 w-full" asChild>
               <Link href="/contato" onClick={() => setIsOpen(false)}>
                 Fale Conosco
               </Link>
