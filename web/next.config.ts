@@ -45,11 +45,18 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Garante que http:// redireciona para https:// (reforço além do Vercel)
+      // Canonicaliza para www — o widget de chat do HostGator está registrado no domínio com www
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "gruposantafee.com.br" }],
+        destination: "https://www.gruposantafee.com.br/:path*",
+        permanent: true,
+      },
+      // Garante que http:// redireciona para https://www
       {
         source: "/:path*",
         has: [{ type: "header", key: "x-forwarded-proto", value: "http" }],
-        destination: "https://gruposantafee.com.br/:path*",
+        destination: "https://www.gruposantafee.com.br/:path*",
         permanent: true,
       },
     ];
