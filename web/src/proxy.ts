@@ -5,10 +5,10 @@ export const proxy = auth((req) => {
   // Canonical domain: redirect non-www → www so the HostGator chat widget renders
   const host = req.headers.get("host") || "";
   if (host === "gruposantafee.com.br") {
-    const www = new URL(req.url);
-    www.host = "www.gruposantafee.com.br";
-    www.protocol = "https:";
-    return NextResponse.redirect(www, { status: 308 });
+    const url = req.nextUrl.clone();
+    url.host = "www.gruposantafee.com.br";
+    url.protocol = "https:";
+    return NextResponse.redirect(url, 308);
   }
 
   const isLoggedIn = !!req.auth;
@@ -26,5 +26,5 @@ export const proxy = auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|api/auth).*)"],
 };

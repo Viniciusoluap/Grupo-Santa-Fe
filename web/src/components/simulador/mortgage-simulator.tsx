@@ -57,20 +57,80 @@ function CurrencyInput({
   onChange: (v: number) => void;
   placeholder?: string;
 }) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "");
+    const cents = digits ? parseInt(digits, 10) : 0;
+    onChange(cents / 100);
+  }
+
+  const displayValue =
+    value > 0
+      ? new Intl.NumberFormat("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(value)
+      : "";
+
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
         R$
       </span>
       <input
-        type="number"
-        min={0}
-        step={1000}
-        value={value || ""}
-        onChange={(e) => onChange(Number(e.target.value))}
-        placeholder={placeholder ?? "0"}
+        type="text"
+        inputMode="numeric"
+        value={displayValue}
+        onChange={handleChange}
+        placeholder={placeholder ?? "0,00"}
         className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
       />
+    </div>
+  );
+}
+
+function PercentInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (pct: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [raw, setRaw] = useState("");
+
+  function handleFocus() {
+    setEditing(true);
+    setRaw(value > 0 ? value.toFixed(1).replace(".", ",") : "");
+  }
+
+  function handleBlur() {
+    setEditing(false);
+    const num = parseFloat(raw.replace(",", "."));
+    if (!isNaN(num)) onChange(Math.min(100, Math.max(0, num)));
+    else if (raw === "") onChange(0);
+  }
+
+  const displayValue = editing
+    ? raw
+    : value > 0
+    ? value.toFixed(1).replace(".", ",")
+    : "";
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={displayValue}
+        onChange={(e) => setRaw(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholder="0,0"
+        className="w-full pr-7 pl-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 text-right"
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+        %
+      </span>
     </div>
   );
 }
@@ -98,11 +158,6 @@ export function MortgageSimulator() {
       })),
     [form]
   );
-
-  const downPaymentPercent =
-    form.propertyValue > 0
-      ? ((form.downPayment / form.propertyValue) * 100).toFixed(1)
-      : "0";
 
   const maxFinancedPercent = 80;
   const minDownPayment = form.propertyValue * (1 - maxFinancedPercent / 100);
@@ -155,13 +210,29 @@ export function MortgageSimulator() {
             label="Entrada"
             hint={`Mínimo recomendado: ${formatCurrency(minDownPayment)} (20%)`}
           >
-            <CurrencyInput
-              value={form.downPayment}
-              onChange={(v) => setForm((f) => ({ ...f, downPayment: v }))}
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              {downPaymentPercent}% do valor do imóvel
-            </p>
+            <div className="grid grid-cols-5 gap-2">
+              <div className="col-span-3">
+                <CurrencyInput
+                  value={form.downPayment}
+                  onChange={(v) => setForm((f) => ({ ...f, downPayment: v }))}
+                />
+              </div>
+              <div className="col-span-2">
+                <PercentInput
+                  value={
+                    form.propertyValue > 0
+                      ? (form.downPayment / form.propertyValue) * 100
+                      : 0
+                  }
+                  onChange={(pct) =>
+                    setForm((f) => ({
+                      ...f,
+                      downPayment: (f.propertyValue * pct) / 100,
+                    }))
+                  }
+                />
+              </div>
+            </div>
           </InputField>
 
           {/* FGTS */}
