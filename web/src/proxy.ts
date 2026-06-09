@@ -2,15 +2,23 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
 export const proxy = auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
-  const isLoginPage = req.nextUrl.pathname === "/login";
+  // Canonical domain: redirect non-www → www so the HostGator chat widget renders
+  const host = req.headers.get("host") || "";
+  if (host === "gruposantafee.com.br") {
+    const www = new URL(req.url);
+    www.host = "www.gruposantafee.com.br";
+    www.protocol = "https:";
+    return NextResponse.redirect(www, { status: 308 });
+  }
 
-  if (isAdminRoute && !isLoggedIn) {
+  const isLoggedIn = !!req.auth;
+  const { pathname } = req.nextUrl;
+
+  if (pathname.startsWith("/admin") && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
-  if (isLoginPage && isLoggedIn) {
+  if (pathname === "/login" && isLoggedIn) {
     return NextResponse.redirect(new URL("/admin", req.nextUrl));
   }
 
@@ -18,5 +26,5 @@ export const proxy = auth((req) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*", "/login"],
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
 };
