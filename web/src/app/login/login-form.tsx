@@ -93,6 +93,23 @@ export function LoginForm() {
         )}
         {loading ? "Entrando..." : "Entrar"}
       </button>
+
+      <div className="border-t border-gray-100 pt-4 space-y-1">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">
+          Acessos de demonstração
+        </p>
+        {[
+          { label: "Admin", email: "admin@gruposantafe.com.br", senha: "admin123" },
+          { label: "Corretor", email: "corretor@gruposantafe.com.br", senha: "corretor123" },
+          { label: "Cliente", email: "cliente@email.com", senha: "cliente123" },
+        ].map((u) => (
+          <div key={u.label} className="flex items-center justify-between text-xs text-gray-400 bg-gray-50 px-3 py-1.5">
+            <span className="font-bold text-gray-500 w-14">{u.label}</span>
+            <span className="flex-1">{u.email}</span>
+            <span className="font-mono ml-2">{u.senha}</span>
+          </div>
+        ))}
+      </div>
     </form>
   );
 }
