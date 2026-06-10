@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { logoutAction } from "@/app/admin/logout-action";
 import {
   LayoutDashboard,
   Building2,
@@ -186,13 +186,15 @@ export function Sidebar({ userName, userRole, onClose }: SidebarProps) {
 
       {/* Logout */}
       <div className="px-3 py-4 border-t border-white/10">
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex items-center gap-2.5 px-3 py-2.5 w-full text-sm text-gray-400 hover:text-red-400 hover:bg-white/5 transition-all"
-        >
-          <LogOut size={16} />
-          Sair do sistema
-        </button>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex items-center gap-2.5 px-3 py-2.5 w-full text-sm text-gray-400 hover:text-red-400 hover:bg-white/5 transition-all"
+          >
+            <LogOut size={16} />
+            Sair do sistema
+          </button>
+        </form>
       </div>
     </aside>
   );
