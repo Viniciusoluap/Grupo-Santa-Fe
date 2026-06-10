@@ -60,6 +60,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.role = (user as AppUser).role;
         token.creci = (user as AppUser).creci;
+        token.name = user.name;
+        token.email = user.email;
       }
       return token;
     },
@@ -67,6 +69,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as unknown as AppUser & { id: string }).role = token.role as UserRole;
         (session.user as unknown as AppUser).creci = token.creci as string | undefined;
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
       }
       return session;
     },
