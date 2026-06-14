@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Phone, Mail, CheckCircle2, Clock, AlertCircle, XCircle, Upload } from "lucide-react";
-import { BackButton } from "@/components/ui/back-button";
-import { getFinanciamentoById, getChecklistProgress } from "@/lib/data/financiamentos";
-import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, CHECKLIST_CATEGORIES, FinanciamentoStatus } from "@/lib/types/financiamento";
+import { ArrowLeft, Phone, Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { prisma } from "@/lib/db";
+import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency } from "@/lib/utils";
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -12,31 +11,44 @@ const stageOrder: FinanciamentoStatus[] = ["pre_analise", "documentacao", "anali
 
 export default async function FinanciamentoDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const f = getFinanciamentoById(id);
+  const f = await prisma.financiamento.findUnique({
+    where: { id },
+    include: {
+      checklist: { orderBy: { grupo: "asc" } },
+      corretor: true,
+    },
+  });
   if (!f) notFound();
 
-  const cfg = STATUS_CONFIG[f.status];
-  const progress = getChecklistProgress(f);
-  const currentOrder = STATUS_CONFIG[f.status].order;
-
-  const docStatusIcon = {
-    aprovado: <CheckCircle2 size={14} className="text-green-600" />,
-    enviado: <Clock size={14} className="text-blue-500" />,
-    pendente: <AlertCircle size={14} className="text-orange-400" />,
-    rejeitado: <XCircle size={14} className="text-red-500" />,
+  const cfg = STATUS_CONFIG[f.status as FinanciamentoStatus] ?? {
+    label: f.status,
+    bgColor: "bg-gray-100",
+    color: "text-gray-600",
+    order: 0,
   };
+  const currentOrder = cfg.order;
 
-  const categorized = (Object.entries(CHECKLIST_CATEGORIES) as [keyof typeof CHECKLIST_CATEGORIES, string][]).map(([cat, label]) => ({
-    cat,
-    label,
-    items: f.checklist.filter((c) => c.category === cat),
-  })).filter((g) => g.items.length > 0);
+  const tipoLabel = TIPO_CONFIG[f.tipo as keyof typeof TIPO_CONFIG]?.label ?? f.tipo;
+  const bancoLabel = BANCO_CONFIG[f.banco as keyof typeof BANCO_CONFIG]?.label ?? f.banco;
+
+  // Group checklist items by grupo
+  const checklistByGroup = f.checklist.reduce((acc, item) => {
+    if (!acc[item.grupo]) acc[item.grupo] = [];
+    acc[item.grupo].push(item);
+    return acc;
+  }, {} as Record<string, typeof f.checklist>);
+
+  const totalChecklist = f.checklist.length;
+  const doneChecklist = f.checklist.filter((i) => i.concluido).length;
+  const progressPct = totalChecklist > 0 ? Math.round((doneChecklist / totalChecklist) * 100) : 0;
 
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <BackButton />
-        <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{f.clientName}</h1>
+        <Link href="/admin/financiamentos" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+          <ArrowLeft size={14} /> Financiamentos
+        </Link>
+        <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{f.clienteNome}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>
 
@@ -67,44 +79,45 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Checklist Documental</h2>
-              <span className="text-xs font-bold text-gray-500">{progress.done}/{progress.total} aprovados</span>
+              <span className="text-xs font-bold text-gray-500">{doneChecklist}/{totalChecklist} concluídos</span>
             </div>
             <div className="h-2 bg-gray-100 mb-5 overflow-hidden">
-              <div className={`h-full transition-all ${progress.pct === 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`} style={{ width: `${progress.pct}%` }} />
+              <div className={`h-full transition-all ${progressPct === 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`} style={{ width: `${progressPct}%` }} />
             </div>
 
-            {categorized.map(({ cat, label, items }) => (
-              <div key={cat} className="mb-4">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">{label}</p>
-                <div className="space-y-2">
-                  {items.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between gap-3 p-2.5 bg-gray-50">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {docStatusIcon[doc.status]}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm text-[var(--brand-dark)] truncate">{doc.name}</p>
-                            {doc.required && <span className="text-[9px] font-bold bg-red-50 text-red-500 px-1 shrink-0">Obrig.</span>}
+            {totalChecklist === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">Nenhum item no checklist.</p>
+            ) : (
+              Object.entries(checklistByGroup).map(([grupo, items]) => (
+                <div key={grupo} className="mb-4">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">{grupo}</p>
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-3 p-2.5 bg-gray-50">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {item.concluido
+                            ? <CheckCircle2 size={14} className="text-green-600" />
+                            : <AlertCircle size={14} className="text-orange-400" />
+                          }
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-[var(--brand-dark)] truncate">{item.item}</p>
+                            {item.concluidoEm && (
+                              <p className="text-xs text-gray-400">
+                                Concluído em {new Date(item.concluidoEm).toLocaleDateString("pt-BR")}
+                              </p>
+                            )}
+                            {item.notas && <p className="text-xs text-red-500">{item.notas}</p>}
                           </div>
-                          {doc.uploadedAt && <p className="text-xs text-gray-400">Enviado em {new Date(doc.uploadedAt).toLocaleDateString("pt-BR")}</p>}
-                          {doc.notes && <p className="text-xs text-red-500">{doc.notes}</p>}
                         </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 uppercase shrink-0 ${item.concluido ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-600"}`}>
+                          {item.concluido ? "Concluído" : "Pendente"}
+                        </span>
                       </div>
-                      {(doc.status === "pendente" || doc.status === "rejeitado") && (
-                        <button className="flex items-center gap-1 shrink-0 text-[10px] bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold uppercase px-2 py-1 transition-colors">
-                          <Upload size={10} /> Upload
-                        </button>
-                      )}
-                      {doc.status === "enviado" && (
-                        <button className="shrink-0 text-[10px] bg-green-100 hover:bg-green-200 text-green-700 font-bold uppercase px-2 py-1 transition-colors">
-                          Aprovar
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -113,15 +126,17 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
           {/* Client */}
           <div className="bg-[var(--brand-dark)] p-5">
             <p className="text-gray-400 text-xs uppercase tracking-widest font-bold mb-3">Cliente</p>
-            <p className="text-white font-bold">{f.clientName}</p>
-            <p className="text-gray-400 text-sm mt-0.5">{f.property}</p>
+            <p className="text-white font-bold">{f.clienteNome}</p>
+            <p className="text-gray-400 text-sm mt-0.5">{f.imovel}</p>
             <div className="mt-4 space-y-2">
-              <a href={`tel:${f.clientPhone}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
-                <Phone size={14} /> {f.clientPhone}
+              <a href={`tel:${f.clienteTel}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
+                <Phone size={14} /> {f.clienteTel}
               </a>
-              <a href={`mailto:${f.clientEmail}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
-                <Mail size={14} /> E-mail
-              </a>
+              {f.clienteEmail && (
+                <a href={`mailto:${f.clienteEmail}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
+                  <Mail size={14} /> E-mail
+                </a>
+              )}
             </div>
           </div>
 
@@ -129,13 +144,12 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Resumo Financeiro</p>
             {[
-              { label: "Valor do imóvel", value: formatCurrency(f.propertyValue) },
-              { label: "Valor financiado", value: formatCurrency(f.financingValue) },
-              { label: "Entrada", value: formatCurrency(f.entry) },
-              f.fgts > 0 ? { label: "FGTS", value: formatCurrency(f.fgts) } : null,
-              { label: "Parcela", value: formatCurrency(f.installment) },
-              { label: "Prazo", value: `${f.term} meses` },
-              { label: "Taxa", value: `${f.rate}% a.a.` },
+              { label: "Valor do imóvel", value: formatCurrency(f.valorImovel) },
+              { label: "Valor financiado", value: formatCurrency(f.valorFinanciado) },
+              { label: "Entrada", value: formatCurrency(f.entrada) },
+              f.parcela ? { label: "Parcela", value: formatCurrency(f.parcela) } : null,
+              { label: "Prazo", value: `${f.prazo} meses` },
+              { label: "Taxa", value: `${f.taxa}% a.a.` },
             ].filter(Boolean).map((item) => item && (
               <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{item.label}</span>
@@ -148,12 +162,12 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Processo</p>
             {[
-              { label: "Tipo", value: TIPO_CONFIG[f.tipo].label },
-              { label: "Banco", value: BANCO_CONFIG[f.banco].label },
-              { label: "Corretor", value: f.corretor },
-              { label: "Protocolo", value: f.protocolNumber || "—" },
-              { label: "Iniciado em", value: new Date(f.startDate).toLocaleDateString("pt-BR") },
-              f.expectedEnd ? { label: "Previsão", value: new Date(f.expectedEnd).toLocaleDateString("pt-BR") } : null,
+              { label: "Tipo", value: tipoLabel },
+              { label: "Banco", value: bancoLabel },
+              f.corretor ? { label: "Corretor", value: f.corretor.nome } : null,
+              f.clienteCpf ? { label: "CPF", value: f.clienteCpf } : null,
+              f.protocolo ? { label: "Protocolo", value: f.protocolo } : null,
+              { label: "Cadastrado em", value: new Date(f.criadoEm).toLocaleDateString("pt-BR") },
             ].filter(Boolean).map((item) => item && (
               <div key={item.label} className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0 gap-2">
                 <span className="text-xs text-gray-500 shrink-0">{item.label}</span>
@@ -161,13 +175,6 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
               </div>
             ))}
           </div>
-
-          {f.notes && (
-            <div className="bg-yellow-50 border border-yellow-100 p-4">
-              <p className="text-xs font-bold text-yellow-700 uppercase tracking-wide mb-1">Observações</p>
-              <p className="text-xs text-yellow-800">{f.notes}</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

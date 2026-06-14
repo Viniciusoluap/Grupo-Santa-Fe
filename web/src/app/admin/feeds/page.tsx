@@ -1,9 +1,6 @@
-"use client";
-
-import { useState } from "react";
-import { Copy, Check, ExternalLink, Rss } from "lucide-react";
-import { BackButton } from "@/components/ui/back-button";
-import { properties } from "@/lib/data/properties";
+import { ExternalLink, Rss } from "lucide-react";
+import { prisma } from "@/lib/db";
+import { FeedCopyButton } from "./feed-copy-button";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gruposantafe.com.br";
 
@@ -52,34 +49,24 @@ const feeds = [
   },
 ];
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-500 border border-gray-200 hover:border-[var(--brand-yellow)] hover:text-[var(--brand-dark)] transition-colors"
-    >
-      {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-      {copied ? "Copiado!" : "Copiar URL"}
-    </button>
-  );
-}
+export default async function FeedsPage() {
+  const imoveis = await prisma.imovel.findMany({
+    where: { publicadoSite: true, status: { notIn: ["vendido", "locado"] } },
+    orderBy: { criadoEm: "desc" },
+    select: { id: true, status: true, publicadoZap: true, publicadoOlx: true, publicadoViva: true },
+  });
 
-export default function FeedsPage() {
+  const total = imoveis.length;
+  const aVenda = imoveis.filter((p) => p.status === "venda").length;
+  const paraLocacao = imoveis.filter((p) => p.status === "locacao").length;
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Exportação para Portais</h1>
           <p className="text-gray-400 text-sm mt-0.5">
-            {properties.length} imóveis disponíveis para exportação
+            {total} imóveis disponíveis para exportação
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -91,9 +78,9 @@ export default function FeedsPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total de Imóveis", value: properties.length },
-          { label: "À Venda", value: properties.filter((p) => p.status === "venda").length },
-          { label: "Para Locação", value: properties.filter((p) => p.status === "locacao").length },
+          { label: "Total de Imóveis", value: total },
+          { label: "À Venda", value: aVenda },
+          { label: "Para Locação", value: paraLocacao },
         ].map((s) => (
           <div key={s.label} className="bg-white border border-gray-100 p-4">
             <p className="font-black text-[var(--brand-dark)] text-2xl">{s.value}</p>
@@ -120,7 +107,7 @@ export default function FeedsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <CopyButton text={feed.url} />
+                <FeedCopyButton text={feed.url} />
                 <a
                   href={feed.path}
                   target="_blank"
