@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { MapPin, Filter } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { properties } from "@/lib/data/properties";
 import { formatCurrency } from "@/lib/utils";
 import type { MapPin as MapPinType } from "@/components/map/property-map";
@@ -52,6 +53,7 @@ export default function AdminMapaPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
+          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Mapa de Imóveis</h1>
           <p className="text-gray-400 text-sm mt-0.5">{filtered.length} imóveis no mapa</p>
         </div>

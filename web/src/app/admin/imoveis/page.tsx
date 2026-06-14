@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
-import { properties } from "@/lib/data/properties";
+import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 
 const typeLabel: Record<string, string> = {
@@ -16,9 +16,16 @@ const statusColor: Record<string, string> = {
   venda: "bg-green-100 text-green-700",
   locacao: "bg-blue-100 text-blue-700",
   lancamento: "bg-[var(--brand-yellow)] text-[var(--brand-dark)]",
+  vendido: "bg-gray-100 text-gray-500",
+  locado: "bg-gray-100 text-gray-500",
 };
 
-export default function AdminImoveisPage() {
+export default async function AdminImoveisPage() {
+  const imoveis = await prisma.imovel.findMany({
+    orderBy: { criadoEm: "desc" },
+    include: { corretor: true },
+  });
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -28,7 +35,7 @@ export default function AdminImoveisPage() {
             Imóveis
           </h1>
           <p className="text-gray-400 text-sm mt-0.5">
-            {properties.length} imóveis cadastrados
+            {imoveis.length} imóveis cadastrados
           </p>
         </div>
         <Link
@@ -94,43 +101,43 @@ export default function AdminImoveisPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {properties.map((property) => (
-                <tr key={property.id} className="hover:bg-gray-50 transition-colors">
+              {imoveis.map((imovel) => (
+                <tr key={imovel.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-gray-400">
-                    GSF-{property.id.padStart(4, "0")}
+                    GSF-{imovel.id.slice(-4).toUpperCase()}
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-[var(--brand-dark)] leading-tight">
-                      {property.title}
+                      {imovel.titulo}
                     </p>
-                    {property.badge && (
+                    {imovel.badge && (
                       <span className="text-[10px] bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold px-1.5 py-0.5 uppercase">
-                        {property.badge}
+                        {imovel.badge}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span className="text-xs text-gray-500">
-                      {typeLabel[property.type]}
+                      {typeLabel[imovel.tipo] ?? imovel.tipo}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <span className="text-xs text-gray-500">
-                      {property.address.neighborhood}, {property.address.city}
+                      {imovel.bairro}, {imovel.cidade}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">
-                    {formatCurrency(property.price)}
+                    {formatCurrency(imovel.preco)}
                   </td>
                   <td className="px-4 py-3 text-center hidden md:table-cell">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${statusColor[property.status]}`}>
-                      {property.status}
+                    <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${statusColor[imovel.status] ?? "bg-gray-100 text-gray-500"}`}>
+                      {imovel.status}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <Link
-                        href={`/imoveis/${property.id}`}
+                        href={`/imoveis/${imovel.slug}`}
                         target="_blank"
                         title="Ver no site"
                         className="p-1.5 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-100 transition-colors"

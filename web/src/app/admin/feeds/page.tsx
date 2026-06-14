@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check, ExternalLink, Rss } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { properties } from "@/lib/data/properties";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gruposantafe.com.br";
@@ -75,6 +76,7 @@ export default function FeedsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
+          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Exportação para Portais</h1>
           <p className="text-gray-400 text-sm mt-0.5">
             {properties.length} imóveis disponíveis para exportação

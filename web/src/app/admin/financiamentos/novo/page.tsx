@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { TIPO_CONFIG, BANCO_CONFIG } from "@/lib/types/financiamento";
-import { leads } from "@/lib/data/leads";
+import { criarFinanciamento } from "@/lib/actions/financiamentos";
 
 export default function NovoFinanciamentoPage() {
   return (
@@ -14,20 +14,29 @@ export default function NovoFinanciamentoPage() {
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form className="space-y-5">
+        <form action={criarFinanciamento} className="space-y-5">
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Dados do Cliente</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Lead / Cliente *</label>
-                <select required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                  <option value="">Selecione um lead...</option>
-                  {leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Cliente *</label>
+                <input name="clienteNome" type="text" required placeholder="Nome completo" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
+                <input name="clienteTel" type="tel" placeholder="(62) 9 9999-9999" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
+                <input name="clienteEmail" type="email" placeholder="email@exemplo.com" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF</label>
+                <input name="clienteCpf" type="text" placeholder="000.000.000-00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Imóvel *</label>
-                <input type="text" required placeholder="Endereço / nome do imóvel" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                <input name="imovel" type="text" required placeholder="Endereço / nome do imóvel" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
             </div>
           </div>
@@ -37,14 +46,14 @@ export default function NovoFinanciamentoPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Financiamento *</label>
-                <select required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                <select name="tipo" required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
                   <option value="">Selecione...</option>
                   {Object.entries(TIPO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Banco / Convênio *</label>
-                <select required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                <select name="banco" required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
                   <option value="">Selecione...</option>
                   {Object.entries(BANCO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
@@ -55,28 +64,38 @@ export default function NovoFinanciamentoPage() {
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Valores</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                { label: "Valor do Imóvel *", placeholder: "280000" },
-                { label: "Valor do Financiamento *", placeholder: "250000" },
-                { label: "Entrada", placeholder: "30000" },
-                { label: "FGTS", placeholder: "0" },
-                { label: "Renda Familiar Bruta *", placeholder: "0" },
-                { label: "Prazo (meses) *", placeholder: "360" },
-              ].map(({ label, placeholder }) => (
-                <div key={label}>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{label}</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                    <input type="number" placeholder={placeholder} className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                  </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Imóvel *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                  <input name="valorImovel" type="number" step="0.01" required placeholder="280000" className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
-              ))}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Financiamento *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                  <input name="valorFinanciado" type="number" step="0.01" required placeholder="250000" className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Entrada</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                  <input name="entrada" type="number" step="0.01" placeholder="30000" className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Taxa de Juros (% a.a.) *</label>
+                <div className="relative">
+                  <input name="taxa" type="number" step="0.01" required placeholder="8.5" className="w-full pr-3 pl-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prazo (meses) *</label>
+                <input name="prazo" type="number" required placeholder="360" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Observações</label>
-            <textarea rows={3} placeholder="Informações adicionais..." className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none" />
           </div>
 
           <div className="flex gap-3 pt-2 border-t border-gray-100">

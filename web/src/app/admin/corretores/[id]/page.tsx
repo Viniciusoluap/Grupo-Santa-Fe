@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, TrendingUp, Award, Calendar } from "lucide-react";
+import { Phone, Mail, TrendingUp, Award, Calendar } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { getCorretorById, getTotalCommissions, getPendingCommissions } from "@/lib/data/corretores";
 import { COMMISSION_STATUS_CONFIG, COMMISSION_TYPE_CONFIG } from "@/lib/types/corretor";
 import { formatCurrency } from "@/lib/utils";
@@ -20,9 +21,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/corretores" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
-          <ArrowLeft size={14} /> Corretores
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase">{c.name}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${c.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
           {c.active ? "Ativo" : "Inativo"}

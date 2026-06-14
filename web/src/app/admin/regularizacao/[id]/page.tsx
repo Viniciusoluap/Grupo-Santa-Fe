@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Phone, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { getRegularizacaoById } from "@/lib/data/regularizacoes";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
@@ -39,9 +40,7 @@ export default async function RegDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/regularizacao" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
-          <ArrowLeft size={14} /> Regularização
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase flex-1">{r.name}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>

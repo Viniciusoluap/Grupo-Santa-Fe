@@ -9,6 +9,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -104,6 +105,9 @@ export default function SobrePage() {
     <>
       {/* Hero */}
       <section className="bg-[var(--brand-dark)] py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4">
+          <BackButton className="mb-6 text-gray-500 hover:text-[var(--brand-yellow)]" />
+        </div>
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <p className="text-[var(--brand-yellow)] font-bold text-xs tracking-widest uppercase mb-3">

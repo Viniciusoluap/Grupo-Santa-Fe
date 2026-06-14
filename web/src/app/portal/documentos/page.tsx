@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Upload, CheckCircle2, Clock, AlertCircle, XCircle } from "lucide-react";
 import { getClientProcess } from "@/lib/data/portal";
 import { DOC_STATUS_CONFIG, DocumentStatus } from "@/lib/types/portal";
+import { BackButton } from "@/components/ui/back-button";
 
 export default function PortalDocumentosPage() {
   const process = getClientProcess();
@@ -30,6 +31,7 @@ export default function PortalDocumentosPage() {
   return (
     <div className="space-y-5">
       <div>
+        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Documentos</h1>
         <p className="text-gray-400 text-sm mt-0.5">{process.documents.length} documentos no processo</p>
       </div>

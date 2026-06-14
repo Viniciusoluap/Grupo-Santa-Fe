@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, Clock } from "lucide-react";
+import { Phone, Mail, Clock } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { getProjetoById } from "@/lib/data/projetos";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
 import { formatCurrency } from "@/lib/utils";
@@ -19,9 +20,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/projetos" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
-          <ArrowLeft size={14} /> Projetos
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase flex-1">{p.name}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>

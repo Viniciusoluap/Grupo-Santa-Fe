@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageSquare, Send, CheckCheck, Clock, AlertCircle, Users, Plus, Search, Phone } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { leads } from "@/lib/data/leads";
 
 type TemplateCategory = "boas_vindas" | "follow_up" | "agendamento" | "proposta" | "financiamento" | "personalizada";
@@ -129,6 +130,7 @@ export default function WhatsAppPage() {
   return (
     <div className="space-y-5">
       <div>
+        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Central WhatsApp</h1>
         <p className="text-gray-400 text-sm mt-0.5">Envio de mensagens e templates para leads e clientes</p>
       </div>

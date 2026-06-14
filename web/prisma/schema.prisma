@@ -1,0 +1,371 @@
+// Grupo Santa Fé — Schema completo
+// Database: SQLite (dev) / PostgreSQL (prod)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── IMÓVEIS ─────────────────────────────────────────────────────────────────
+
+model Imovel {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  tipo            String   // casa, apartamento, lote, terreno, comercial, chacara
+  status          String   // venda, locacao, lancamento, vendido, locado
+  titulo          String
+  descricao       String
+  preco           Float
+  precoNegociavel Boolean  @default(false)
+  condominio      Float?
+  iptu            Float?
+  area            Float
+  areaTotal       Float?
+  quartos         Int?
+  suites          Int?
+  banheiros       Int?
+  vagas           Int?
+  rua             String   @default("")
+  bairro          String
+  cidade          String   @default("Canaã dos Carajás")
+  estado          String   @default("PA")
+  cep             String?
+  features        String   @default("[]")
+  imagens         String   @default("[]")
+  destaque        Boolean  @default(false)
+  badge           String?
+  publicadoSite   Boolean  @default(true)
+  publicadoZap    Boolean  @default(false)
+  publicadoOlx    Boolean  @default(false)
+  publicadoViva   Boolean  @default(false)
+  corretorId      String?
+  corretor        Corretor?    @relation(fields: [corretorId], references: [id])
+  leads           Lead[]
+  contratos       Contrato[]
+  visitas         Visita[]
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@map("imoveis")
+}
+
+// ─── LEADS / CRM ─────────────────────────────────────────────────────────────
+
+model Lead {
+  id                String   @id @default(cuid())
+  nome              String
+  telefone          String
+  email             String?
+  servico           String
+  status            String   @default("novo")
+  origem            String   @default("site")
+  corretorId        String?
+  corretor          Corretor? @relation(fields: [corretorId], references: [id])
+  imovelInteresseId String?
+  imovelInteresse   Imovel?  @relation(fields: [imovelInteresseId], references: [id])
+  orcamento         Float?
+  notas             String   @default("")
+  interacoes        Interacao[]
+  visitas           Visita[]
+  criadoEm          DateTime @default(now())
+  atualizadoEm      DateTime @updatedAt
+
+  @@map("leads")
+}
+
+model Interacao {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tipo        String
+  descricao   String
+  criadoEm    DateTime @default(now())
+  criadoPor   String
+
+  @@map("interacoes")
+}
+
+// ─── AGENDA / VISITAS ─────────────────────────────────────────────────────────
+
+model Visita {
+  id           String    @id @default(cuid())
+  leadId       String?
+  lead         Lead?     @relation(fields: [leadId], references: [id])
+  imovelId     String?
+  imovel       Imovel?   @relation(fields: [imovelId], references: [id])
+  corretorId   String?
+  corretor     Corretor? @relation(fields: [corretorId], references: [id])
+  clienteNome  String
+  clienteTel   String
+  agendadaPara DateTime
+  status       String    @default("agendada")
+  notas        String    @default("")
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@map("visitas")
+}
+
+// ─── CORRETORES ──────────────────────────────────────────────────────────────
+
+model Corretor {
+  id               String    @id @default(cuid())
+  nome             String
+  email            String    @unique
+  telefone         String
+  creci            String
+  foto             String?
+  ativo            Boolean   @default(true)
+  especialidades   String    @default("[]")
+  imoveis          Imovel[]
+  leads            Lead[]
+  visitas          Visita[]
+  comissoes        Comissao[]
+  financiamentos   Financiamento[]
+  criadoEm         DateTime  @default(now())
+  atualizadoEm     DateTime  @updatedAt
+
+  @@map("corretores")
+}
+
+// ─── COMISSÕES ───────────────────────────────────────────────────────────────
+
+model Comissao {
+  id           String    @id @default(cuid())
+  corretorId   String
+  corretor     Corretor  @relation(fields: [corretorId], references: [id])
+  contratoId   String?
+  contrato     Contrato? @relation(fields: [contratoId], references: [id])
+  imovel       String
+  valor        Float
+  percentual   Float     @default(6)
+  status       String    @default("pendente")
+  vencimento   DateTime
+  pagamentoEm  DateTime?
+  notas        String    @default("")
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@map("comissoes")
+}
+
+// ─── FINANCIAMENTOS ──────────────────────────────────────────────────────────
+
+model Financiamento {
+  id              String          @id @default(cuid())
+  clienteNome     String
+  clienteCpf      String?
+  clienteTel      String
+  clienteEmail    String?
+  imovel          String
+  tipo            String
+  banco           String
+  valorImovel     Float
+  valorFinanciado Float
+  entrada         Float
+  taxa            Float
+  prazo           Int
+  parcela         Float?
+  status          String          @default("analise_credito")
+  protocolo       String?
+  corretorId      String?
+  corretor        Corretor?       @relation(fields: [corretorId], references: [id])
+  checklist       ChecklistItem[]
+  criadoEm        DateTime        @default(now())
+  atualizadoEm    DateTime        @updatedAt
+
+  @@map("financiamentos")
+}
+
+model ChecklistItem {
+  id              String        @id @default(cuid())
+  financiamentoId String
+  financiamento   Financiamento @relation(fields: [financiamentoId], references: [id], onDelete: Cascade)
+  grupo           String
+  item            String
+  concluido       Boolean       @default(false)
+  concluidoEm     DateTime?
+  notas           String        @default("")
+
+  @@map("checklist_items")
+}
+
+// ─── OBRAS ───────────────────────────────────────────────────────────────────
+
+model Obra {
+  id              String       @id @default(cuid())
+  nome            String
+  tipo            String
+  status          String       @default("orcamento")
+  clienteNome     String
+  clienteTel      String
+  endereco        String
+  area            Float
+  valorTotal      Float
+  valorPago       Float        @default(0)
+  progresso       Int          @default(0)
+  engenheiroResp  String
+  dataInicio      DateTime?
+  dataPrevisaoFim DateTime?
+  dataConclusao   DateTime?
+  descricao       String       @default("")
+  etapas          ObraEtapa[]
+  diario          ObraDiario[]
+  criadoEm        DateTime     @default(now())
+  atualizadoEm    DateTime     @updatedAt
+
+  @@map("obras")
+}
+
+model ObraEtapa {
+  id          String   @id @default(cuid())
+  obraId      String
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  nome        String
+  descricao   String   @default("")
+  status      String   @default("pendente")
+  percentual  Float    @default(0)
+  ordem       Int      @default(0)
+  criadoEm    DateTime @default(now())
+
+  @@map("obra_etapas")
+}
+
+model ObraDiario {
+  id          String   @id @default(cuid())
+  obraId      String
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  data        DateTime @default(now())
+  descricao   String
+  fotos       String   @default("[]")
+  responsavel String
+  clima       String?
+  criadoEm    DateTime @default(now())
+
+  @@map("obra_diario")
+}
+
+// ─── PROJETOS ────────────────────────────────────────────────────────────────
+
+model Projeto {
+  id           String    @id @default(cuid())
+  nome         String
+  tipo         String
+  status       String    @default("orcamento")
+  clienteNome  String
+  clienteTel   String
+  engenheiro   String
+  valorProjeto Float
+  valorPago    Float     @default(0)
+  prazoEntrega DateTime?
+  descricao    String    @default("")
+  arquivos     String    @default("[]")
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@map("projetos")
+}
+
+// ─── REGULARIZAÇÃO ───────────────────────────────────────────────────────────
+
+model Regularizacao {
+  id           String         @id @default(cuid())
+  nome         String
+  tipo         String
+  status       String         @default("analise")
+  clienteNome  String
+  clienteTel   String
+  endereco     String
+  matricula    String?
+  cartorio     String?
+  responsavel  String
+  valorServico Float
+  valorPago    Float          @default(0)
+  previsaoFim  DateTime?
+  descricao    String         @default("")
+  documentos   RegDocumento[]
+  criadoEm     DateTime       @default(now())
+  atualizadoEm DateTime       @updatedAt
+
+  @@map("regularizacoes")
+}
+
+model RegDocumento {
+  id              String        @id @default(cuid())
+  regularizacaoId String
+  regularizacao   Regularizacao @relation(fields: [regularizacaoId], references: [id], onDelete: Cascade)
+  nome            String
+  status          String        @default("pendente")
+  observacao      String        @default("")
+  criadoEm        DateTime      @default(now())
+  atualizadoEm    DateTime      @updatedAt
+
+  @@map("reg_documentos")
+}
+
+// ─── CONTRATOS ────────────────────────────────────────────────────────────────
+
+model Contrato {
+  id          String     @id @default(cuid())
+  numero      String     @unique
+  tipo        String
+  status      String     @default("rascunho")
+  parteA      String
+  parteADoc   String?
+  parteB      String
+  parteBDoc   String?
+  imovelId    String?
+  imovel      Imovel?    @relation(fields: [imovelId], references: [id])
+  valor       Float
+  vencimento  DateTime?
+  descricao   String     @default("")
+  clausulas   String     @default("")
+  comissoes   Comissao[]
+  criadoEm    DateTime   @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@map("contratos")
+}
+
+// ─── AGREGADOR ────────────────────────────────────────────────────────────────
+
+model AgregadorImovel {
+  id            String   @id @default(cuid())
+  titulo        String
+  descricao     String?
+  preco         Float?
+  precoTexto    String?
+  area          Float?
+  tipo          String?
+  bairro        String?
+  cidade        String   @default("Canaã dos Carajás")
+  estado        String   @default("PA")
+  fonte         String
+  urlFonte      String?
+  imagens       String   @default("[]")
+  status        String   @default("pendente")
+  documentoTipo String   @default("nenhum")
+  documentoObs  String?
+  contatoNome   String?
+  contatoTel    String?
+  notas         String?
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@map("agregador_imoveis")
+}
+
+// ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
+
+model Configuracao {
+  id    String @id @default(cuid())
+  chave String @unique
+  valor String
+  grupo String @default("geral")
+
+  @@map("configuracoes")
+}

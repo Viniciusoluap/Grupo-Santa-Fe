@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Plus } from "lucide-react";
+import { Phone, Plus } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { getObraById } from "@/lib/data/obras";
 import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, WEATHER_CONFIG } from "@/lib/types/obra";
 import { formatCurrency } from "@/lib/utils";
@@ -20,9 +21,7 @@ export default async function ObraDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/obras" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
-          <ArrowLeft size={14} /> Obras
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{o.name}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>

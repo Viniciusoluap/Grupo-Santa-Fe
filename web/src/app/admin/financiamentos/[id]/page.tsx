@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, CheckCircle2, Clock, AlertCircle, XCircle, Upload } from "lucide-react";
+import { Phone, Mail, CheckCircle2, Clock, AlertCircle, XCircle, Upload } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { getFinanciamentoById, getChecklistProgress } from "@/lib/data/financiamentos";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, CHECKLIST_CATEGORIES, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency } from "@/lib/utils";
@@ -34,9 +35,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/financiamentos" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
-          <ArrowLeft size={14} /> Financiamentos
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{f.clientName}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>

@@ -1,6 +1,7 @@
 import { GraduationCap, Clock, Users, MapPin, Monitor, ArrowRight, CheckCircle2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { BackButton } from "@/components/ui/back-button";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -67,6 +68,9 @@ export default function CursosPage() {
     <>
       {/* Header */}
       <section className="bg-[var(--brand-dark)] py-16">
+        <div className="max-w-7xl mx-auto px-4 mb-8">
+          <BackButton className="text-gray-500 hover:text-[var(--brand-yellow)]" />
+        </div>
         <div className="max-w-7xl mx-auto px-4">
           <p className="text-[var(--brand-yellow)] font-bold text-xs tracking-widest uppercase mb-3">
             Formação Profissional

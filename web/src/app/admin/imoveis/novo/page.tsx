@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
+import { prisma } from "@/lib/db";
+import { criarImovel } from "@/lib/actions/imoveis";
 
 const tipos = ["casa", "apartamento", "lote", "terreno", "comercial", "chacara"];
 const tipoLabel: Record<string, string> = {
@@ -14,25 +16,24 @@ const bairros = [
   "Centro", "Ouro Preto", "Novo Horizonte", "Residencial Norte", "Vila dos Funcionários",
   "Jardim Primavera", "Setor Sul", "Setor Norte", "Bairro de Lourdes", "Outro",
 ];
-const corretores = ["João Santos", "Maria Oliveira", "Ana Lima", "Pedro Souza"];
 
-export default function NovoImovelPage() {
+export default async function NovoImovelPage() {
+  const corretores = await prisma.corretor.findMany({
+    where: { ativo: true },
+    orderBy: { nome: "asc" },
+  });
+
   return (
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link
-          href="/admin/imoveis"
-          className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]"
-        >
-          <ArrowLeft size={14} /> Imóveis
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">
           Novo Imóvel
         </h1>
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form className="space-y-6">
+        <form action={criarImovel} className="space-y-6">
           {/* Dados básicos */}
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
@@ -45,6 +46,7 @@ export default function NovoImovelPage() {
                 </label>
                 <input
                   type="text"
+                  name="titulo"
                   required
                   placeholder="Ex.: Casa 3 Quartos — Centro"
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
@@ -55,6 +57,7 @@ export default function NovoImovelPage() {
                   Tipo *
                 </label>
                 <select
+                  name="tipo"
                   required
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
                 >
@@ -71,6 +74,7 @@ export default function NovoImovelPage() {
                   Situação *
                 </label>
                 <select
+                  name="status"
                   required
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
                 >
@@ -85,6 +89,7 @@ export default function NovoImovelPage() {
                   Bairro *
                 </label>
                 <select
+                  name="bairro"
                   required
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
                 >
@@ -102,7 +107,8 @@ export default function NovoImovelPage() {
                 </label>
                 <input
                   type="text"
-                  defaultValue="Montes Claros"
+                  name="cidade"
+                  defaultValue="Canaã dos Carajás"
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                 />
               </div>
@@ -125,6 +131,7 @@ export default function NovoImovelPage() {
                   </span>
                   <input
                     type="number"
+                    name="preco"
                     required
                     min={0}
                     placeholder="0"
@@ -138,6 +145,7 @@ export default function NovoImovelPage() {
                 </label>
                 <input
                   type="number"
+                  name="area"
                   min={0}
                   placeholder="0"
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
@@ -153,9 +161,9 @@ export default function NovoImovelPage() {
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: "Quartos", name: "bedrooms" },
-                { label: "Banheiros", name: "bathrooms" },
-                { label: "Vagas", name: "parking" },
+                { label: "Quartos", name: "quartos" },
+                { label: "Banheiros", name: "banheiros" },
+                { label: "Vagas", name: "vagas" },
                 { label: "Suítes", name: "suites" },
               ].map(({ label, name }) => (
                 <div key={name}>
@@ -184,11 +192,14 @@ export default function NovoImovelPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                   Corretor Responsável
                 </label>
-                <select className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                <select
+                  name="corretorId"
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
+                >
                   <option value="">Nenhum</option>
                   {corretores.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
                     </option>
                   ))}
                 </select>
@@ -202,6 +213,7 @@ export default function NovoImovelPage() {
               Descrição
             </label>
             <textarea
+              name="descricao"
               rows={4}
               placeholder="Descreva o imóvel, características, diferenciais..."
               className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none"

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
+import { criarRegularizacao } from "@/lib/actions/regularizacoes";
 
 export default function NovoRegularizacaoPage() {
   return (
@@ -13,11 +14,15 @@ export default function NovoRegularizacaoPage() {
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form className="space-y-5">
+        <form action={criarRegularizacao} className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Processo *</label>
+              <input name="nome" type="text" required placeholder="Ex: Regularização Escritura - Rua das Flores" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            </div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Regularização *</label>
-              <select required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+              <select name="tipo" required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
                 <option value="">Selecione...</option>
                 {Object.entries(REG_TIPO_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.icon} {v.label}</option>
@@ -26,40 +31,32 @@ export default function NovoRegularizacaoPage() {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
-              <input type="text" required placeholder="Nome do cliente" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              <input name="clienteNome" type="text" required placeholder="Nome do cliente" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone *</label>
-              <input type="tel" required placeholder="(62) 9 9999-9999" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              <input name="clienteTel" type="tel" required placeholder="(62) 9 9999-9999" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço do Imóvel *</label>
-              <input type="text" required placeholder="Endereço completo" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Matrícula / Nº Registro</label>
-              <input type="text" placeholder="Ex: Matrícula nº 12.345" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              <input name="endereco" type="text" required placeholder="Endereço completo" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
-              <input type="text" placeholder="Despachante / Engenheiro" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              <input name="responsavel" type="text" placeholder="Despachante / Engenheiro" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Serviço (R$)</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                <input type="number" placeholder="0" className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                <input name="valorServico" type="number" step="0.01" placeholder="0" className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Previsão de Conclusão</label>
-              <input type="date" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Observações</label>
-            <textarea rows={3} placeholder="Informações adicionais sobre o processo..." className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none" />
+            <textarea name="descricao" rows={3} placeholder="Informações adicionais sobre o processo..." className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none" />
           </div>
 
           <div className="flex gap-3 pt-2 border-t border-gray-100">

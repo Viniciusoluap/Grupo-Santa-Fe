@@ -2,23 +2,46 @@
 
 import { useState } from "react";
 import { Search, Plus, ExternalLink, CheckCircle2, Clock, Archive, Loader2, Link2 } from "lucide-react";
-import { agregadorListings } from "@/lib/data/agregador";
 import { SOURCE_CONFIG, DOCUMENTO_CONFIG, STATUS_CONFIG } from "@/lib/types/agregador";
-import type { AgregadorListing, AgregadorSource, DocumentoTipo } from "@/lib/types/agregador";
+import type { AgregadorSource, DocumentoTipo } from "@/lib/types/agregador";
 import { formatCurrency } from "@/lib/utils";
 import type { ScrapedData } from "@/app/api/scraper/fetch/route";
+import { atualizarStatusAgregador } from "@/lib/actions/agregador";
 
 const SOURCES: AgregadorSource[] = ["olx", "zapimoveis", "vivareal", "facebook", "instagram", "google", "direto", "outro"];
 const DOCUMENTOS: DocumentoTipo[] = ["nenhum", "escritura", "contrato_gaveta", "inventario", "heranca", "financiado", "loteamento", "posse", "outros"];
 
-function StatusIcon({ status }: { status: AgregadorListing["status"] }) {
-  if (status === "verificado") return <CheckCircle2 size={14} className="text-green-500" />;
-  if (status === "arquivado") return <Archive size={14} className="text-gray-400" />;
+// DB listing type (from Prisma)
+interface DbListing {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  preco: number | null;
+  precoTexto: string | null;
+  area: number | null;
+  tipo: string | null;
+  bairro: string | null;
+  cidade: string;
+  estado: string;
+  fonte: string;
+  urlFonte: string | null;
+  imagens: string;
+  status: string;
+  documentoTipo: string;
+  documentoObs: string | null;
+  contatoNome: string | null;
+  contatoTel: string | null;
+  notas: string | null;
+}
+
+function StatusIcon({ status }: { status: string }) {
+  if (status === "ativo") return <CheckCircle2 size={14} className="text-green-500" />;
+  if (status === "descartado") return <Archive size={14} className="text-gray-400" />;
   return <Clock size={14} className="text-yellow-500" />;
 }
 
-export default function AgregadorPage() {
-  const [listings] = useState<AgregadorListing[]>(agregadorListings);
+export default function AgregadorPage({ initialListings }: { initialListings: DbListing[] }) {
+  const [listings, setListings] = useState<DbListing[]>(initialListings);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("todos");
   const [showModal, setShowModal] = useState(false);
@@ -35,9 +58,9 @@ export default function AgregadorPage() {
   });
 
   const filtered = listings.filter((l) => {
-    const matchSource = sourceFilter === "todos" || l.source === sourceFilter;
+    const matchSource = sourceFilter === "todos" || l.fonte === sourceFilter;
     const q = search.toLowerCase();
-    const matchSearch = !q || l.title.toLowerCase().includes(q) || l.neighborhood?.toLowerCase().includes(q);
+    const matchSearch = !q || l.titulo.toLowerCase().includes(q) || l.bairro?.toLowerCase().includes(q);
     return matchSource && matchSearch;
   });
 
@@ -95,9 +118,9 @@ export default function AgregadorPage() {
         >
           Todos ({listings.length})
         </button>
-        {SOURCES.filter((s) => listings.some((l) => l.source === s)).map((s) => {
+        {SOURCES.filter((s) => listings.some((l) => l.fonte === s)).map((s) => {
           const cfg = SOURCE_CONFIG[s];
-          const count = listings.filter((l) => l.source === s).length;
+          const count = listings.filter((l) => l.fonte === s).length;
           return (
             <button
               key={s}
@@ -134,14 +157,14 @@ export default function AgregadorPage() {
           </thead>
           <tbody>
             {filtered.map((l) => {
-              const src = SOURCE_CONFIG[l.source];
-              const doc = DOCUMENTO_CONFIG[l.documentoTipo];
-              const st = STATUS_CONFIG[l.status];
+              const src = SOURCE_CONFIG[l.fonte as AgregadorSource] ?? { label: l.fonte, color: "#666", bg: "#eee" };
+              const doc = DOCUMENTO_CONFIG[l.documentoTipo as DocumentoTipo] ?? { label: l.documentoTipo, color: "#666" };
+              const st = STATUS_CONFIG[l.status as keyof typeof STATUS_CONFIG] ?? { label: l.status, color: "#666" };
               return (
                 <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 max-w-xs">
-                    <p className="font-medium text-[var(--brand-dark)] truncate">{l.title}</p>
-                    <p className="text-xs text-gray-400">{l.neighborhood} · {l.city}</p>
+                    <p className="font-medium text-[var(--brand-dark)] truncate">{l.titulo}</p>
+                    <p className="text-xs text-gray-400">{l.bairro} · {l.cidade}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -152,7 +175,7 @@ export default function AgregadorPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-bold text-[var(--brand-dark)]">
-                    {l.priceText ?? (l.price ? formatCurrency(l.price) : "—")}
+                    {l.precoTexto ?? (l.preco ? formatCurrency(l.preco) : "—")}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs font-medium" style={{ color: doc.color }}>{doc.label}</span>
@@ -164,9 +187,9 @@ export default function AgregadorPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {l.sourceUrl && (
+                    {l.urlFonte && (
                       <a
-                        href={l.sourceUrl}
+                        href={l.urlFonte}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[var(--brand-dark)] transition-colors"

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 
 const specialties = ["Compra e Venda", "Financiamento MCMV", "Financiamento Convencional", "Locação", "Lotes", "Alto Padrão", "Regularização Imobiliária", "Projetos de Engenharia"];
 
@@ -7,9 +7,7 @@ export default function NovoCorretorPage() {
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/admin/corretores" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
-          <ArrowLeft size={14} /> Corretores
-        </Link>
+        <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Novo Corretor</h1>
       </div>
 
