@@ -369,3 +369,100 @@ model Configuracao {
 
   @@map("configuracoes")
 }
+
+// ─── BPO FINANCEIRO ───────────────────────────────────────────────────────────
+
+model BpoCliente {
+  id            String          @id @default(cuid())
+  razaoSocial   String
+  cnpj          String?
+  cpf           String?
+  responsavel   String
+  email         String?
+  telefone      String
+  servicos      String          @default("[]") // JSON: ["contas_pagar","contas_receber","folha","fiscal","conciliacao"]
+  status        String          @default("ativo") // ativo, pausado, encerrado
+  honorarios    Float
+  diaVencimento Int             @default(10)
+  dataInicio    DateTime
+  observacoes   String          @default("")
+  lancamentos   BpoLancamento[]
+  criadoEm      DateTime        @default(now())
+  atualizadoEm  DateTime        @updatedAt
+
+  @@map("bpo_clientes")
+}
+
+model BpoLancamento {
+  id          String     @id @default(cuid())
+  clienteId   String
+  cliente     BpoCliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  tipo        String     // honorario, despesa, reembolso
+  descricao   String
+  valor       Float
+  vencimento  DateTime
+  pago        Boolean    @default(false)
+  pagoEm      DateTime?
+  competencia String     // "2026-06"
+  criadoEm    DateTime   @default(now())
+
+  @@map("bpo_lancamentos")
+}
+
+// ─── AVALIAÇÃO DE IMÓVEIS ─────────────────────────────────────────────────────
+
+model Avaliacao {
+  id             String    @id @default(cuid())
+  numero         String    @unique
+  tipo           String    // mercado, locacao, judicial, parecer_tecnico
+  finalidade     String    // compra_venda, locacao, judicial, garantia, inventario
+  status         String    @default("solicitada") // solicitada, vistoria, elaboracao, revisao, entregue, cancelada
+  clienteNome    String
+  clienteCpf     String?
+  clienteTel     String
+  clienteEmail   String?
+  endereco       String
+  bairro         String
+  cidade         String    @default("Canaã dos Carajás")
+  estado         String    @default("PA")
+  areaConstruida Float?
+  areaTerreno    Float?
+  quartos        Int?
+  banheiros      Int?
+  vagas          Int?
+  caracteristicas String   @default("")
+  metodologia    String    @default("comparativo") // comparativo, renda, custo
+  valorEstimado  Float?
+  avaliador      String
+  dataVistoria   DateTime?
+  prazoEntrega   DateTime?
+  dataEntrega    DateTime?
+  observacoes    String    @default("")
+  laudo          String?
+  criadoEm       DateTime  @default(now())
+  atualizadoEm   DateTime  @updatedAt
+
+  @@map("avaliacoes")
+}
+
+// ─── CONTABILIDADE ────────────────────────────────────────────────────────────
+
+model Lancamento {
+  id             String    @id @default(cuid())
+  tipo           String    // receita, despesa
+  categoria      String    // servicos, comissoes, imoveis, aluguel, folha, impostos, marketing, outros
+  descricao      String
+  valor          Float
+  data           DateTime
+  vencimento     DateTime?
+  status         String    @default("pendente") // pendente, pago, cancelado
+  formaPagamento String?   // pix, transferencia, boleto, dinheiro, cartao
+  referencia     String?
+  competencia    String    // "2026-06"
+  fornecedor     String?
+  observacoes    String    @default("")
+  criadoEm       DateTime  @default(now())
+  atualizadoEm   DateTime  @updatedAt
+
+  @@map("lancamentos")
+}

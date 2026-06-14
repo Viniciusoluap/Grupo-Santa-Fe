@@ -24,6 +24,10 @@ import {
   BarChart2,
   Globe,
   X,
+  Scale,
+  Briefcase,
+  ClipboardList,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -112,9 +116,27 @@ const navItems = [
     adminOnly: true,
   },
   {
-    label: "Contratos",
-    href: "/admin/contratos",
-    icon: FileText,
+    label: "BPO Financeiro",
+    href: "/admin/bpo",
+    icon: Briefcase,
+    adminOnly: true,
+  },
+  {
+    label: "Avaliações",
+    href: "/admin/avaliacoes",
+    icon: ClipboardList,
+    adminOnly: true,
+  },
+  {
+    label: "Contabilidade",
+    href: "/admin/contabilidade",
+    icon: BookOpen,
+    adminOnly: true,
+  },
+  {
+    label: "Jurídico",
+    href: "/admin/juridico",
+    icon: Scale,
     adminOnly: true,
   },
   {

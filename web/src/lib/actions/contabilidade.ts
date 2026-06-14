@@ -1,0 +1,36 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db";
+
+export async function criarLancamento(formData: FormData) {
+  const data = formData.get("data") as string;
+  const competencia = data.slice(0, 7); // "YYYY-MM"
+
+  await prisma.lancamento.create({
+    data: {
+      tipo: formData.get("tipo") as string,
+      categoria: formData.get("categoria") as string,
+      descricao: formData.get("descricao") as string,
+      valor: parseFloat(formData.get("valor") as string),
+      data: new Date(data),
+      vencimento: formData.get("vencimento") ? new Date(formData.get("vencimento") as string) : null,
+      status: (formData.get("status") as string) || "pendente",
+      formaPagamento: (formData.get("formaPagamento") as string) || null,
+      referencia: (formData.get("referencia") as string) || null,
+      competencia,
+      fornecedor: (formData.get("fornecedor") as string) || null,
+      observacoes: (formData.get("observacoes") as string) || "",
+    },
+  });
+
+  revalidatePath("/admin/contabilidade");
+}
+
+export async function atualizarStatusLancamento(formData: FormData) {
+  const id = formData.get("id") as string;
+  const status = formData.get("status") as string;
+
+  await prisma.lancamento.update({ where: { id }, data: { status } });
+  revalidatePath("/admin/contabilidade");
+}
