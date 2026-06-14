@@ -53,6 +53,7 @@ const navItems = [
     label: "Corretores",
     href: "/admin/corretores",
     icon: UserCheck,
+    adminOnly: true,
   },
   {
     label: "Comissões",
@@ -68,16 +69,19 @@ const navItems = [
     label: "Obras",
     href: "/admin/obras",
     icon: HardHat,
+    adminOnly: true,
   },
   {
     label: "Projetos",
     href: "/admin/projetos",
     icon: Ruler,
+    adminOnly: true,
   },
   {
     label: "Regularização",
     href: "/admin/regularizacao",
     icon: FileCheck,
+    adminOnly: true,
   },
   {
     label: "Mapa",
@@ -93,26 +97,31 @@ const navItems = [
     label: "Agregador",
     href: "/admin/agregador",
     icon: Globe,
+    adminOnly: true,
   },
   {
     label: "Relatórios",
     href: "/admin/relatorios",
     icon: BarChart2,
+    adminOnly: true,
   },
   {
     label: "Feeds XML",
     href: "/admin/feeds",
     icon: Rss,
+    adminOnly: true,
   },
   {
     label: "Contratos",
     href: "/admin/contratos",
     icon: FileText,
+    adminOnly: true,
   },
   {
     label: "Configurações",
     href: "/admin/configuracoes",
     icon: Settings,
+    adminOnly: true,
   },
 ];
 
@@ -124,6 +133,8 @@ interface SidebarProps {
 
 export function Sidebar({ userName, userRole, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const isAdmin = userRole === "admin";
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <aside className="h-full flex flex-col bg-[var(--brand-dark)] w-64">
@@ -158,7 +169,7 @@ export function Sidebar({ userName, userRole, onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-0.5">
-          {navItems.map(({ label, href, icon: Icon, exact }) => {
+          {visibleNavItems.map(({ label, href, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <li key={href}>

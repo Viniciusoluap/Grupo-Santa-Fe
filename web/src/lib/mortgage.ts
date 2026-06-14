@@ -177,40 +177,41 @@ export const BANK_RATES: BankRate[] = [
   },
 ];
 
+// Limites atualizados em abril/2026 pelo Governo Federal (Ministério das Cidades / Caixa)
 export const MCMV_PROGRAMS = [
   {
-    label: "Faixa 1 — Até R$ 2.640/mês",
-    maxIncome: 2640,
+    label: "Faixa 1 — Até R$ 2.850/mês",
+    maxIncome: 2850,
     rate: 4.75,
     maxValue: 170000,
-    description: "Taxa subsidiada para famílias de baixa renda",
+    description: "Taxa subsidiada para famílias de baixa renda (cotistas FGTS têm condições melhores)",
   },
   {
-    label: "Faixa 2 — Até R$ 4.400/mês",
-    maxIncome: 4400,
+    label: "Faixa 2 — Até R$ 5.000/mês",
+    maxIncome: 5000,
     rate: 5.25,
     maxValue: 264000,
-    description: "Financiamento facilitado com subsídio parcial",
+    description: "Financiamento com subsídio parcial — taxa varia conforme FGTS e região",
   },
   {
-    label: "Faixa 3 — Até R$ 8.000/mês",
-    maxIncome: 8000,
+    label: "Faixa 3 — Até R$ 9.600/mês",
+    maxIncome: 9600,
     rate: 6.5,
     maxValue: 350000,
-    description: "Financiamento pelo MCMV com taxas reduzidas",
+    description: "Taxas reduzidas pelo MCMV — Norte/Nordeste podem ter condições diferenciadas",
   },
   {
-    label: "Faixa 4 — Até R$ 12.000/mês",
-    maxIncome: 12000,
+    label: "Faixa 4 (Classe Média) — Até R$ 13.000/mês",
+    maxIncome: 13000,
     rate: 8.16,
-    maxValue: 500000,
-    description: "Faixa estendida com taxas reduzidas via FGTS",
+    maxValue: 600000,
+    description: "Faixa estendida até R$ 600 mil — taxas com FGTS variam por renda e operação",
   },
   {
     label: "SBPE — Acima do MCMV",
     maxIncome: Infinity,
     rate: 10.5,
     maxValue: Infinity,
-    description: "Financiamento habitacional via sistema bancário convencional",
+    description: "Financiamento convencional via sistema bancário — taxa de referência de mercado",
   },
 ];
