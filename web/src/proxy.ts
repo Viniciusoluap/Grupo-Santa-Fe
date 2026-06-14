@@ -13,12 +13,32 @@ export const proxy = auth((req) => {
 
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
+  const role = (req.auth?.user as { role?: string } | undefined)?.role;
 
   if (pathname.startsWith("/admin") && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
   if (pathname === "/login" && isLoggedIn) {
+    return NextResponse.redirect(new URL("/admin", req.nextUrl));
+  }
+
+  // Corretor cannot access admin-only sections
+  const adminOnlyPaths = [
+    "/admin/corretores",
+    "/admin/obras",
+    "/admin/projetos",
+    "/admin/regularizacao",
+    "/admin/relatorios",
+    "/admin/feeds",
+    "/admin/contratos",
+    "/admin/configuracoes",
+    "/admin/agregador",
+  ];
+  if (
+    role === "corretor" &&
+    adminOnlyPaths.some((p) => pathname.startsWith(p))
+  ) {
     return NextResponse.redirect(new URL("/admin", req.nextUrl));
   }
 
