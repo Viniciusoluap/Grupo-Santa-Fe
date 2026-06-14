@@ -177,35 +177,35 @@ export const BANK_RATES: BankRate[] = [
   },
 ];
 
-// Limites atualizados em abril/2026 pelo Governo Federal (Ministério das Cidades / Caixa)
+// Limites vigentes desde 22/abril/2026 (Portaria MCID nº 333 de 01/04/2026 + aprovação CCFGTS de 24/03/2026)
 export const MCMV_PROGRAMS = [
   {
-    label: "Faixa 1 — Até R$ 2.850/mês",
-    maxIncome: 2850,
+    label: "Faixa 1 — Até R$ 3.200/mês",
+    maxIncome: 3200,
     rate: 4.75,
-    maxValue: 170000,
-    description: "Taxa subsidiada para famílias de baixa renda (cotistas FGTS têm condições melhores)",
+    maxValue: 275000,
+    description: "Taxa subsidiada para famílias de baixa renda — cotistas FGTS e Norte/Nordeste têm taxas menores (a partir de 4% a.a.)",
   },
   {
     label: "Faixa 2 — Até R$ 5.000/mês",
     maxIncome: 5000,
     rate: 5.25,
-    maxValue: 264000,
+    maxValue: 275000,
     description: "Financiamento com subsídio parcial — taxa varia conforme FGTS e região",
   },
   {
     label: "Faixa 3 — Até R$ 9.600/mês",
     maxIncome: 9600,
     rate: 6.5,
-    maxValue: 350000,
-    description: "Taxas reduzidas pelo MCMV — Norte/Nordeste podem ter condições diferenciadas",
+    maxValue: 400000,
+    description: "Teto do imóvel ampliado para R$ 400 mil — taxas reduzidas pelo MCMV com prazo de até 420 meses",
   },
   {
     label: "Faixa 4 (Classe Média) — Até R$ 13.000/mês",
     maxIncome: 13000,
     rate: 8.16,
     maxValue: 600000,
-    description: "Faixa estendida até R$ 600 mil — taxas com FGTS variam por renda e operação",
+    description: "Faixa estendida até R$ 600 mil — taxas até 8,16% a.a. variando conforme FGTS e relacionamento bancário",
   },
   {
     label: "SBPE — Acima do MCMV",

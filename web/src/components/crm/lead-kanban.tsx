@@ -2,8 +2,28 @@
 
 import Link from "next/link";
 import { Phone, MessageSquare, Calendar, User, ArrowRight } from "lucide-react";
-import { Lead, LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
+import { LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
 import { formatCurrency } from "@/lib/utils";
+
+type DbVisita = {
+  id: string;
+  status: string;
+  agendadaPara: Date;
+};
+
+type DbLead = {
+  id: string;
+  nome: string;
+  telefone: string;
+  email: string | null;
+  servico: string;
+  status: string;
+  origem: string;
+  orcamento: number | null;
+  notas: string;
+  corretor: { id: string; nome: string } | null;
+  visitas: DbVisita[];
+};
 
 const KANBAN_COLUMNS: LeadStatus[] = [
   "novo",
@@ -15,12 +35,13 @@ const KANBAN_COLUMNS: LeadStatus[] = [
   "perdido",
 ];
 
-function LeadCard({ lead }: { lead: Lead }) {
-  const cfg = LEAD_STATUS_CONFIG[lead.status];
+function LeadCard({ lead }: { lead: DbLead }) {
+  const agendada = lead.visitas.find((v) => v.status === "agendada");
+
   return (
     <div className="bg-white border border-gray-100 p-3 hover:shadow-md transition-shadow cursor-pointer group">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="font-bold text-[var(--brand-dark)] text-sm leading-tight">{lead.name}</p>
+        <p className="font-bold text-[var(--brand-dark)] text-sm leading-tight">{lead.nome}</p>
         <Link
           href={`/admin/leads/${lead.id}`}
           className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-[var(--brand-yellow)]"
@@ -29,38 +50,41 @@ function LeadCard({ lead }: { lead: Lead }) {
         </Link>
       </div>
 
-      <p className="text-gray-400 text-xs mb-2 truncate">{lead.service}</p>
+      <p className="text-gray-400 text-xs mb-2 truncate">{lead.servico}</p>
 
-      {lead.budget && (
+      {lead.orcamento && (
         <p className="text-[var(--brand-yellow)] font-black text-sm mb-2">
-          {formatCurrency(lead.budget)}
+          {formatCurrency(lead.orcamento)}
         </p>
       )}
 
       <div className="flex items-center gap-1 text-gray-400 text-xs mb-3">
         <User size={10} />
-        <span className="truncate">{lead.assignedTo}</span>
+        <span className="truncate">{lead.corretor?.nome ?? "—"}</span>
       </div>
 
-      {lead.visits.some((v) => v.status === "agendada") && (
+      {agendada && (
         <div className="flex items-center gap-1 text-purple-600 text-xs bg-purple-50 px-2 py-1 mb-2">
           <Calendar size={10} />
-          {new Date(lead.visits.find((v) => v.status === "agendada")!.scheduledAt).toLocaleDateString("pt-BR", {
-            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+          {new Date(agendada.agendadaPara).toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
           })}
         </div>
       )}
 
       <div className="flex gap-1 pt-2 border-t border-gray-50">
         <a
-          href={`tel:${lead.phone}`}
+          href={`tel:${lead.telefone}`}
           className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-50 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           <Phone size={12} />
         </a>
         <a
-          href={`https://wa.me/55${lead.phone.replace(/\D/g, "")}`}
+          href={`https://wa.me/55${lead.telefone.replace(/\D/g, "")}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-green-500 hover:bg-green-50 transition-colors"
@@ -79,9 +103,8 @@ function LeadCard({ lead }: { lead: Lead }) {
   );
 }
 
-export function LeadKanban({ leads }: { leads: Lead[] }) {
-  const byStatus = (status: LeadStatus) =>
-    leads.filter((l) => l.status === status);
+export function LeadKanban({ leads }: { leads: DbLead[] }) {
+  const byStatus = (status: string) => leads.filter((l) => l.status === status);
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">

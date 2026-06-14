@@ -1,5 +1,6 @@
 import { Calendar, Clock, MapPin, Phone } from "lucide-react";
 import { getClientProcess } from "@/lib/data/portal";
+import { BackButton } from "@/components/ui/back-button";
 
 const scheduledVisits = [
   {
@@ -32,6 +33,7 @@ export default function PortalVisitasPage() {
   return (
     <div className="space-y-5">
       <div>
+        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Visitas</h1>
         <p className="text-gray-400 text-sm mt-0.5">{scheduledVisits.length} visita agendada</p>
       </div>

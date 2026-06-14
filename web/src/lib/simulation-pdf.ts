@@ -17,7 +17,7 @@ const systemLabel: Record<SimulationInput["system"], string> = {
   sac: "SAC (parcelas decrescentes)",
 };
 
-export function generateSimulationPdf(input: SimulationInput, result: SimulationResult) {
+function buildPdf(input: SimulationInput, result: SimulationResult, includeSchedule: boolean) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 40;
@@ -32,7 +32,13 @@ export function generateSimulationPdf(input: SimulationInput, result: Simulation
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Simulação de Financiamento Habitacional", margin, 50);
+  doc.text(
+    includeSchedule
+      ? "Simulação de Financiamento Habitacional — Completo com Tabela de Amortização"
+      : "Simulação de Financiamento Habitacional",
+    margin,
+    50
+  );
 
   let y = 100;
 
@@ -75,6 +81,7 @@ export function generateSimulationPdf(input: SimulationInput, result: Simulation
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
+  doc.setTextColor(...BRAND_DARK);
   doc.text("Comparativo de Taxas — Financiamento Habitacional", margin, y);
   y += 6;
   doc.setFont("helvetica", "normal");
@@ -111,6 +118,50 @@ export function generateSimulationPdf(input: SimulationInput, result: Simulation
   // @ts-expect-error -- jspdf-autotable augments the doc instance at runtime
   y = doc.lastAutoTable.finalY + 30;
 
+  // Amortization schedule (full table)
+  if (includeSchedule && result.schedule.length > 0) {
+    if (y > doc.internal.pageSize.getHeight() - 120) {
+      doc.addPage();
+      y = 60;
+    }
+
+    doc.setTextColor(...BRAND_DARK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Tabela de Amortização", margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(110, 110, 110);
+    doc.text(`${input.termMonths} parcelas — ${systemLabel[input.system]}`, margin, y + 14);
+    y += 28;
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      theme: "striped",
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: BRAND_DARK, textColor: BRAND_YELLOW, fontSize: 8 },
+      head: [["Mês", "Parcela", "Amortização", "Juros", "Saldo Devedor"]],
+      body: result.schedule.map((row) => [
+        row.month,
+        formatCurrency(row.payment),
+        formatCurrency(row.principal),
+        formatCurrency(row.interest),
+        formatCurrency(row.balance),
+      ]),
+      columnStyles: {
+        0: { halign: "center", cellWidth: 40 },
+        1: { halign: "right" },
+        2: { halign: "right" },
+        3: { halign: "right", textColor: [180, 100, 0] },
+        4: { halign: "right" },
+      },
+    });
+
+    // @ts-expect-error -- jspdf-autotable augments the doc instance at runtime
+    y = doc.lastAutoTable.finalY + 30;
+  }
+
   if (y > doc.internal.pageSize.getHeight() - 140) {
     doc.addPage();
     y = 60;
@@ -142,6 +193,19 @@ export function generateSimulationPdf(input: SimulationInput, result: Simulation
   );
   doc.text(disclaimer, margin, y);
 
+  return doc;
+}
+
+export function generateSimulationPdf(input: SimulationInput, result: SimulationResult) {
   const dateStr = new Date().toLocaleDateString("pt-BR");
-  doc.save(`simulacao-financiamento-grupo-santa-fe-${dateStr.replace(/\//g, "-")}.pdf`);
+  buildPdf(input, result, false).save(
+    `simulacao-financiamento-grupo-santa-fe-${dateStr.replace(/\//g, "-")}.pdf`
+  );
+}
+
+export function generateSimulationPdfWithSchedule(input: SimulationInput, result: SimulationResult) {
+  const dateStr = new Date().toLocaleDateString("pt-BR");
+  buildPdf(input, result, true).save(
+    `simulacao-completa-grupo-santa-fe-${dateStr.replace(/\//g, "-")}.pdf`
+  );
 }

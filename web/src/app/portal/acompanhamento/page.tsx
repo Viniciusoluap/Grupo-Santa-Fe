@@ -1,6 +1,7 @@
 import { Clock } from "lucide-react";
 import { getClientProcess } from "@/lib/data/portal";
 import { STAGE_CONFIG } from "@/lib/types/portal";
+import { BackButton } from "@/components/ui/back-button";
 
 export default function PortalAcompanhamentoPage() {
   const process = getClientProcess();
@@ -11,6 +12,7 @@ export default function PortalAcompanhamentoPage() {
   return (
     <div className="space-y-5">
       <div>
+        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Acompanhamento</h1>
         <p className="text-gray-400 text-sm mt-0.5">Histórico completo do seu processo</p>
       </div>

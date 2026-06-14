@@ -1,243 +1,98 @@
-"use client";
+import { prisma } from "@/lib/db";
+import { RelatoriosClient } from "./relatorios-client";
 
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import { TrendingUp, DollarSign, Building2, Users, Award } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import {
-  monthlySales,
-  propertyTypeData,
-  leadFunnelData,
-  corretorRanking,
-  serviceRevenue,
-} from "@/lib/data/analytics";
+const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
 
-const totalReceita = monthlySales.reduce((s, m) => s + m.receita, 0);
-const totalVendas = monthlySales.reduce((s, m) => s + m.vendas, 0);
-const totalLeads = monthlySales.reduce((s, m) => s + m.leads, 0);
-const ticketMedio = Math.round(totalReceita / totalVendas);
+export default async function RelatoriosPage() {
+  const [
+    totalImoveis,
+    totalLeads,
+    leadsPorStatus,
+    comissoesPagas,
+    imoveisPorTipo,
+    totalFinanciamentos,
+    corretores,
+  ] = await Promise.all([
+    prisma.imovel.count(),
+    prisma.lead.count(),
+    prisma.lead.groupBy({ by: ["status"], _count: { id: true } }),
+    prisma.comissao.findMany({ where: { status: "paga" }, orderBy: { pagamentoEm: "asc" } }),
+    prisma.imovel.groupBy({ by: ["tipo"], _count: { id: true } }),
+    prisma.financiamento.count(),
+    prisma.corretor.findMany({
+      where: { ativo: true },
+      include: { comissoes: { where: { status: "paga" } } },
+      take: 10,
+    }),
+  ]);
 
-const kpis = [
-  {
-    label: "Receita Total (12m)",
-    value: formatCurrency(totalReceita),
-    icon: DollarSign,
-    delta: "+18% vs período anterior",
-  },
-  {
-    label: "Imóveis Vendidos",
-    value: String(totalVendas),
-    icon: Building2,
-    delta: "+4 vs período anterior",
-  },
-  {
-    label: "Leads Captados",
-    value: String(totalLeads),
-    icon: Users,
-    delta: "7.3% taxa de conversão",
-  },
-  {
-    label: "Ticket Médio",
-    value: formatCurrency(ticketMedio),
-    icon: TrendingUp,
-    delta: "+6% vs período anterior",
-  },
-];
+  // Build monthly commissions data (last 12 months)
+  const now = new Date();
+  const months: { month: string; receita: number; vendas: number; leads: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const label = d.toLocaleString("pt-BR", { month: "short", year: "2-digit" }).replace(". ", "/");
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+    const comissoesMes = comissoesPagas.filter(
+      (c) => c.pagamentoEm && c.pagamentoEm >= monthStart && c.pagamentoEm <= monthEnd
+    );
+    months.push({
+      month: label,
+      receita: comissoesMes.reduce((s, c) => s + c.valor, 0),
+      vendas: comissoesMes.length,
+      leads: 0,
+    });
+  }
 
-function fmt(v: number) {
-  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}K`;
-  return `R$ ${v}`;
-}
+  // Property type distribution
+  const propertyTypeData = imoveisPorTipo.map((g, idx) => ({
+    name: g.tipo.charAt(0).toUpperCase() + g.tipo.slice(1),
+    value: g._count.id,
+    color: PIE_COLORS[idx % PIE_COLORS.length],
+  }));
 
-export default function RelatoriosPage() {
+  // Lead funnel
+  const totalLeadsCount = totalLeads || 1;
+  const statusMap: Record<string, string> = {
+    novo: "Captados",
+    contato: "Em Contato",
+    visita: "Visitas",
+    proposta: "Proposta",
+    fechado: "Fechados",
+    perdido: "Perdidos",
+  };
+  const leadFunnelData = leadsPorStatus.map((s) => ({
+    stage: statusMap[s.status] ?? s.status,
+    count: s._count.id,
+    pct: Math.round((s._count.id / totalLeadsCount) * 100),
+  }));
+
+  // Corretor ranking by paid commissions
+  const corretorRanking = corretores
+    .map((c) => ({
+      name: c.nome,
+      comissoes: c.comissoes.reduce((s, com) => s + com.valor, 0),
+      vendas: c.comissoes.length,
+    }))
+    .sort((a, b) => b.comissoes - a.comissoes)
+    .slice(0, 5);
+
+  // Service revenue — grouped by imovel field on comissoes (approximation)
+  const serviceRevenue = [
+    { service: "Corretagem", receita: comissoesPagas.reduce((s, c) => s + c.valor, 0) },
+  ];
+
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">
-          Relatórios & BI
-        </h1>
-        <p className="text-gray-400 text-sm mt-0.5">Últimos 12 meses · Jul/2024 – Jun/2025</p>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k) => (
-          <div key={k.label} className="bg-white border border-gray-100 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{k.label}</p>
-              <k.icon size={16} className="text-gray-300" />
-            </div>
-            <p className="font-black text-[var(--brand-dark)] text-2xl leading-none">{k.value}</p>
-            <p className="text-xs mt-1 text-green-500">{k.delta}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Revenue area chart */}
-      <div className="bg-white border border-gray-100 p-5">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-          Receita Mensal (R$)
-        </p>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={monthlySales} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="gradReceita" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#F5C400" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#F5C400" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} />
-            <YAxis tickFormatter={fmt} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={60} />
-            <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), "Receita"]} />
-            <Area type="monotone" dataKey="receita" stroke="#F5C400" strokeWidth={2.5} fill="url(#gradReceita)" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Sales + leads bar */}
-        <div className="bg-white border border-gray-100 p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-            Vendas vs Leads por Mês
-          </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={monthlySales} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 9 }} tickLine={false} />
-              <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip />
-              <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="leads" name="Leads" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="vendas" name="Vendas" fill="#F5C400" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Property type pie */}
-        <div className="bg-white border border-gray-100 p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-            Distribuição por Tipo
-          </p>
-          <div className="flex items-center gap-6">
-            <ResponsiveContainer width={160} height={160}>
-              <PieChart>
-                <Pie
-                  data={propertyTypeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={44}
-                  outerRadius={72}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {propertyTypeData.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => [Number(v ?? 0), "Imóveis"]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2 flex-1">
-              {propertyTypeData.map((d) => (
-                <div key={d.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="text-sm text-gray-600">{d.name}</span>
-                  </div>
-                  <span className="text-xs font-black text-[var(--brand-dark)]">{d.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Lead funnel */}
-        <div className="bg-white border border-gray-100 p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-            Funil de Conversão
-          </p>
-          <div className="space-y-2">
-            {leadFunnelData.map((s) => (
-              <div key={s.stage}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-600">{s.stage}</span>
-                  <span className="font-bold text-[var(--brand-dark)]">
-                    {s.count} <span className="text-gray-400 font-normal">({s.pct}%)</span>
-                  </span>
-                </div>
-                <div className="h-2 bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full bg-[var(--brand-yellow)] transition-all"
-                    style={{ width: `${s.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Corretor ranking */}
-        <div className="bg-white border border-gray-100 p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-            Ranking de Corretores
-          </p>
-          <div className="space-y-3">
-            {corretorRanking.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-3">
-                <div
-                  className={`w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs font-black ${
-                    i === 0
-                      ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                      : "bg-gray-100 text-gray-500"
-                  }`}
-                >
-                  {i === 0 ? <Award size={12} /> : i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{c.name}</p>
-                  <p className="text-xs text-gray-400">{c.vendas} vendas</p>
-                </div>
-                <p className="text-sm font-black text-[var(--brand-dark)] flex-shrink-0">
-                  {formatCurrency(c.comissoes)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Service revenue horizontal bar */}
-      <div className="bg-white border border-gray-100 p-5">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-          Receita por Serviço
-        </p>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={serviceRevenue} layout="vertical" margin={{ top: 0, right: 16, left: 80, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-            <XAxis type="number" tickFormatter={fmt} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-            <YAxis type="category" dataKey="service" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={80} />
-            <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), "Receita"]} />
-            <Bar dataKey="receita" fill="#F5C400" radius={[0, 2, 2, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <RelatoriosClient
+      totalImoveis={totalImoveis}
+      totalLeads={totalLeads}
+      totalFinanciamentos={totalFinanciamentos}
+      monthlySales={months}
+      propertyTypeData={propertyTypeData}
+      leadFunnelData={leadFunnelData}
+      corretorRanking={corretorRanking}
+      serviceRevenue={serviceRevenue}
+    />
   );
 }

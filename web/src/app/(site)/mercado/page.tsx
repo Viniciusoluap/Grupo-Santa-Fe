@@ -6,6 +6,7 @@ import { getVerifiedListings } from "@/lib/data/agregador";
 import { SOURCE_CONFIG, DOCUMENTO_CONFIG } from "@/lib/types/agregador";
 import type { AgregadorSource } from "@/lib/types/agregador";
 import { formatCurrency } from "@/lib/utils";
+import { BackButton } from "@/components/ui/back-button";
 
 const listings = getVerifiedListings();
 
@@ -35,6 +36,9 @@ export default function MercadoPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
       <div className="bg-[var(--brand-dark)] py-12 px-4">
+        <div className="max-w-5xl mx-auto mb-6">
+          <BackButton className="text-gray-500 hover:text-[var(--brand-yellow)]" />
+        </div>
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-[var(--brand-yellow)] text-xs font-bold uppercase tracking-widest mb-2">
             Canaã dos Carajás — PA

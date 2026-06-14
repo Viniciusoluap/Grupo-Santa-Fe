@@ -11,68 +11,116 @@ import {
 import Link from "next/link";
 import { auth } from "@/auth";
 import { formatCurrency } from "@/lib/utils";
-import { properties } from "@/lib/data/properties";
+import { prisma } from "@/lib/db";
 import type { UserRole } from "@/auth";
 
-const kpis = [
-  {
-    label: "Imóveis Ativos",
-    value: properties.length,
-    change: "+2 este mês",
-    up: true,
-    icon: Building2,
-    color: "bg-[var(--brand-yellow)]",
-    href: "/admin/imoveis",
-  },
-  {
-    label: "Novos Leads",
-    value: 24,
-    change: "+6 esta semana",
-    up: true,
-    icon: Users,
-    color: "bg-blue-500",
-    href: "/admin/leads",
-  },
-  {
-    label: "Negócios Fechados",
-    value: 7,
-    change: "+2 este mês",
-    up: true,
-    icon: TrendingUp,
-    color: "bg-green-500",
-    href: "/admin/leads",
-  },
-  {
-    label: "Receita do Mês",
-    value: formatCurrency(38500),
-    change: "-5% vs mês anterior",
-    up: false,
-    icon: CircleDollarSign,
-    color: "bg-purple-500",
-    href: "/admin",
-  },
-];
+const leadStatusColor: Record<string, string> = {
+  "novo": "bg-[var(--brand-yellow)] text-[var(--brand-dark)]",
+  "em_contato": "bg-blue-100 text-blue-700",
+  "visita_agendada": "bg-purple-100 text-purple-700",
+  "proposta_enviada": "bg-orange-100 text-orange-700",
+  "fechado": "bg-green-100 text-green-700",
+};
 
-const recentLeads = [
-  { id: 1, name: "Carlos Mendes", phone: "(62) 9 8765-4321", service: "Financiamento MCMV", status: "Novo", time: "há 15 min" },
-  { id: 2, name: "Ana Paula Santos", phone: "(62) 9 9876-5432", service: "Compra de imóvel", status: "Em contato", time: "há 1h" },
-  { id: 3, name: "Roberto Lima", phone: "(62) 9 7654-3210", service: "Avaliação de imóvel", status: "Visita agendada", time: "há 3h" },
-  { id: 4, name: "Fernanda Costa", phone: "(62) 9 6543-2109", service: "Regularização", status: "Proposta enviada", time: "ontem" },
-  { id: 5, name: "Marcos Oliveira", phone: "(62) 9 5432-1098", service: "Obra e reforma", status: "Novo", time: "ontem" },
-];
+function leadStatusLabel(status: string) {
+  const map: Record<string, string> = {
+    novo: "Novo",
+    em_contato: "Em contato",
+    visita_agendada: "Visita agendada",
+    proposta_enviada: "Proposta enviada",
+    fechado: "Fechado",
+    perdido: "Perdido",
+  };
+  return map[status] ?? status;
+}
 
-const recentProperties = properties.slice(0, 5);
-
-const statusColor: Record<string, string> = {
-  "Novo": "bg-[var(--brand-yellow)] text-[var(--brand-dark)]",
-  "Em contato": "bg-blue-100 text-blue-700",
-  "Visita agendada": "bg-purple-100 text-purple-700",
-  "Proposta enviada": "bg-orange-100 text-orange-700",
+const imovelStatusColor: Record<string, string> = {
+  venda: "bg-green-100 text-green-700",
+  locacao: "bg-blue-100 text-blue-700",
+  lancamento: "bg-[var(--brand-yellow)] text-[var(--brand-dark)]",
+  vendido: "bg-gray-100 text-gray-500",
+  locado: "bg-gray-100 text-gray-500",
 };
 
 export default async function AdminDashboard() {
   const session = await auth();
   const role = ((session?.user as { role?: UserRole } | undefined)?.role) ?? "corretor";
+
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // Fetch all real data in parallel
+  const [
+    imoveisAtivos,
+    leadsThisMonth,
+    leadsFechados,
+    comissoesThisMonth,
+    recentLeads,
+    recentImoveis,
+  ] = await Promise.all([
+    prisma.imovel.count({
+      where: { status: { notIn: ["vendido", "locado"] } },
+    }),
+    prisma.lead.count({
+      where: { criadoEm: { gte: firstOfMonth } },
+    }),
+    prisma.lead.count({
+      where: { status: "fechado" },
+    }),
+    prisma.comissao.aggregate({
+      _sum: { valor: true },
+      where: { status: "paga", pagamentoEm: { gte: firstOfMonth } },
+    }),
+    prisma.lead.findMany({
+      orderBy: { criadoEm: "desc" },
+      take: 5,
+    }),
+    prisma.imovel.findMany({
+      orderBy: { criadoEm: "desc" },
+      take: 5,
+    }),
+  ]);
+
+  const receitaMes = comissoesThisMonth._sum.valor ?? 0;
+
+  const kpis = [
+    {
+      label: "Imóveis Ativos",
+      value: imoveisAtivos,
+      change: "portfólio ativo",
+      up: true,
+      icon: Building2,
+      color: "bg-[var(--brand-yellow)]",
+      href: "/admin/imoveis",
+    },
+    {
+      label: "Novos Leads",
+      value: leadsThisMonth,
+      change: "este mês",
+      up: true,
+      icon: Users,
+      color: "bg-blue-500",
+      href: "/admin/leads",
+    },
+    {
+      label: "Negócios Fechados",
+      value: leadsFechados,
+      change: "total fechados",
+      up: true,
+      icon: TrendingUp,
+      color: "bg-green-500",
+      href: "/admin/leads",
+    },
+    {
+      label: "Receita do Mês",
+      value: formatCurrency(receitaMes),
+      change: "comissões pagas",
+      up: receitaMes >= 0,
+      icon: CircleDollarSign,
+      color: "bg-purple-500",
+      href: "/admin",
+    },
+  ];
 
   if (role === "corretor") {
     const userName = session?.user?.name ?? "Corretor";
@@ -88,10 +136,10 @@ export default async function AdminDashboard() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {[
-            { label: "Meus Leads", value: corretorLeads.length, change: "+2 esta semana", up: true, icon: Users, color: "bg-blue-500", href: "/admin/leads" },
-            { label: "Imóveis Disponíveis", value: properties.length, change: "carteira ativa", up: true, icon: Building2, color: "bg-[var(--brand-yellow)]", href: "/admin/imoveis" },
-            { label: "Agenda Hoje", value: 2, change: "visitas marcadas", up: true, icon: CalendarDays, color: "bg-purple-500", href: "/admin/agenda" },
-            { label: "Comissões do Mês", value: formatCurrency(4200), change: "+1 negócio fechado", up: true, icon: BadgeDollarSign, color: "bg-green-500", href: "/admin/comissoes" },
+            { label: "Meus Leads", value: corretorLeads.length, change: "recentes", up: true, icon: Users, color: "bg-blue-500", href: "/admin/leads" },
+            { label: "Imóveis Disponíveis", value: imoveisAtivos, change: "carteira ativa", up: true, icon: Building2, color: "bg-[var(--brand-yellow)]", href: "/admin/imoveis" },
+            { label: "Agenda Hoje", value: 0, change: "visitas marcadas", up: true, icon: CalendarDays, color: "bg-purple-500", href: "/admin/agenda" },
+            { label: "Comissões do Mês", value: formatCurrency(receitaMes), change: "pagas este mês", up: true, icon: BadgeDollarSign, color: "bg-green-500", href: "/admin/comissoes" },
           ].map(({ label, value, change, up, icon: Icon, color, href }) => (
             <Link key={label} href={href} className="bg-white border border-gray-100 p-5 hover:shadow-md transition-shadow group">
               <div className="flex items-start justify-between mb-3">
@@ -120,14 +168,17 @@ export default async function AdminDashboard() {
               {corretorLeads.map((lead) => (
                 <div key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
-                    <p className="font-medium text-[var(--brand-dark)] text-sm truncate">{lead.name}</p>
-                    <p className="text-gray-400 text-xs">{lead.service} · {lead.time}</p>
+                    <p className="font-medium text-[var(--brand-dark)] text-sm truncate">{lead.nome}</p>
+                    <p className="text-gray-400 text-xs">{lead.servico} · {new Date(lead.criadoEm).toLocaleDateString("pt-BR")}</p>
                   </div>
-                  <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${statusColor[lead.status] ?? "bg-gray-100 text-gray-500"}`}>
-                    {lead.status}
+                  <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${leadStatusColor[lead.status] ?? "bg-gray-100 text-gray-500"}`}>
+                    {leadStatusLabel(lead.status)}
                   </span>
                 </div>
               ))}
+              {corretorLeads.length === 0 && (
+                <p className="px-5 py-4 text-xs text-gray-400">Nenhum lead ainda.</p>
+              )}
             </div>
           </div>
           <div className="bg-white border border-gray-100">
@@ -136,15 +187,18 @@ export default async function AdminDashboard() {
               <Link href="/admin/imoveis" className="text-xs text-[var(--brand-yellow)] font-bold uppercase tracking-wide">Ver todos</Link>
             </div>
             <div className="divide-y divide-gray-50">
-              {properties.slice(0, 4).map((property) => (
-                <div key={property.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
+              {recentImoveis.slice(0, 4).map((imovel) => (
+                <div key={imovel.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
-                    <p className="font-medium text-[var(--brand-dark)] text-sm truncate">{property.title}</p>
-                    <p className="text-gray-400 text-xs">{property.address.neighborhood} · {formatCurrency(property.price)}</p>
+                    <p className="font-medium text-[var(--brand-dark)] text-sm truncate">{imovel.titulo}</p>
+                    <p className="text-gray-400 text-xs">{imovel.bairro} · {formatCurrency(imovel.preco)}</p>
                   </div>
-                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-500">{property.status}</span>
+                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-500">{imovel.status}</span>
                 </div>
               ))}
+              {recentImoveis.length === 0 && (
+                <p className="px-5 py-4 text-xs text-gray-400">Nenhum imóvel cadastrado.</p>
+              )}
             </div>
           </div>
         </div>
@@ -228,17 +282,20 @@ export default async function AdminDashboard() {
               <div key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                 <div className="min-w-0">
                   <p className="font-medium text-[var(--brand-dark)] text-sm truncate">
-                    {lead.name}
+                    {lead.nome}
                   </p>
-                  <p className="text-gray-400 text-xs">{lead.service} · {lead.time}</p>
+                  <p className="text-gray-400 text-xs">{lead.servico} · {new Date(lead.criadoEm).toLocaleDateString("pt-BR")}</p>
                 </div>
                 <span
-                  className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${statusColor[lead.status] ?? "bg-gray-100 text-gray-500"}`}
+                  className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${leadStatusColor[lead.status] ?? "bg-gray-100 text-gray-500"}`}
                 >
-                  {lead.status}
+                  {leadStatusLabel(lead.status)}
                 </span>
               </div>
             ))}
+            {recentLeads.length === 0 && (
+              <p className="px-5 py-4 text-xs text-gray-400">Nenhum lead cadastrado.</p>
+            )}
           </div>
         </div>
 
@@ -256,23 +313,22 @@ export default async function AdminDashboard() {
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
-            {recentProperties.map((property) => (
-              <div key={property.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
+            {recentImoveis.map((imovel) => (
+              <div key={imovel.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                 <div className="min-w-0">
                   <p className="font-medium text-[var(--brand-dark)] text-sm truncate">
-                    {property.title}
+                    {imovel.titulo}
                   </p>
-                  <p className="text-gray-400 text-xs">{property.address.neighborhood} · {formatCurrency(property.price)}</p>
+                  <p className="text-gray-400 text-xs">{imovel.bairro} · {formatCurrency(imovel.preco)}</p>
                 </div>
-                <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${
-                  property.status === "lancamento"
-                    ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                    : "bg-gray-100 text-gray-500"
-                }`}>
-                  {property.status}
+                <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${imovelStatusColor[imovel.status] ?? "bg-gray-100 text-gray-500"}`}>
+                  {imovel.status}
                 </span>
               </div>
             ))}
+            {recentImoveis.length === 0 && (
+              <p className="px-5 py-4 text-xs text-gray-400">Nenhum imóvel cadastrado.</p>
+            )}
           </div>
         </div>
       </div>
