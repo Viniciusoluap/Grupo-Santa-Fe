@@ -20,7 +20,7 @@ import {
   type SimulationInput,
 } from "@/lib/mortgage";
 import { formatCurrency } from "@/lib/utils";
-import { generateSimulationPdf } from "@/lib/simulation-pdf";
+import { generateSimulationPdf, generateSimulationPdfWithSchedule } from "@/lib/simulation-pdf";
 
 const TERM_OPTIONS = [60, 120, 180, 240, 300, 360, 420];
 
@@ -341,13 +341,22 @@ export function MortgageSimulator() {
                   Gere um PDF com os resultados e o comparativo de taxas dos principais bancos.
                 </p>
               </div>
-              <button
-                onClick={() => generateSimulationPdf(form, result)}
-                className="flex items-center gap-2 bg-[var(--brand-dark)] hover:bg-[var(--brand-dark)]/80 text-[var(--brand-yellow)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors shrink-0"
-              >
-                <FileDown size={15} />
-                Gerar PDF da Simulação
-              </button>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  onClick={() => generateSimulationPdf(form, result)}
+                  className="flex items-center gap-2 bg-[var(--brand-dark)] hover:bg-[var(--brand-dark)]/80 text-[var(--brand-yellow)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors"
+                >
+                  <FileDown size={15} />
+                  PDF Simples
+                </button>
+                <button
+                  onClick={() => generateSimulationPdfWithSchedule(form, result)}
+                  className="flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow)]/80 text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors"
+                >
+                  <FileDown size={15} />
+                  PDF Completo + Tabela
+                </button>
+              </div>
             </div>
 
             {/* Summary cards */}
