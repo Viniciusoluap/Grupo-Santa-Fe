@@ -50,6 +50,11 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
   return (
     <header
       className={cn(
@@ -161,7 +166,7 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="lg:hidden bg-[var(--brand-dark-secondary)] border-t border-gray-700">
+        <div className="lg:hidden bg-[var(--brand-dark-secondary)] border-t border-gray-700 overflow-y-auto max-h-[calc(100dvh-96px)]">
           <nav className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
             {navLinks.map((link) => (
               <div key={link.label}>
