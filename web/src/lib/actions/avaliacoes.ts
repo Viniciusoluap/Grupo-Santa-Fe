@@ -52,3 +52,11 @@ export async function atualizarStatusAvaliacao(formData: FormData) {
   revalidatePath(`/admin/avaliacoes/${id}`);
   revalidatePath("/admin/avaliacoes");
 }
+
+export async function salvarChecklistAvaliacao(id: string, dados: string) {
+  await prisma.avaliacao.update({
+    where: { id },
+    data: { caracteristicas: dados },
+  });
+  revalidatePath(`/admin/avaliacoes/${id}`);
+}

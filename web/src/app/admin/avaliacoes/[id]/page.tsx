@@ -4,6 +4,7 @@ import { ArrowLeft, Phone, Mail, MapPin, Calendar } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
+import { ChecklistVistoria } from "./_components/checklist-vistoria";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:  { label: "Solicitada",    bg: "bg-gray-100",   text: "text-gray-600",   order: 1 },
@@ -181,6 +182,10 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-5">
+        <ChecklistVistoria avaliacaoId={id} initialData={a.caracteristicas ?? ""} />
       </div>
     </div>
   );
