@@ -1,4 +1,5 @@
-import { Property } from "@/lib/types";
+import { Property, PropertyType, PropertyStatus } from "@/lib/types";
+import type { Imovel } from "@/generated/prisma/client";
 
 export const properties: Property[] = [
   {
@@ -274,4 +275,36 @@ export function filterProperties(filters: {
     }
     return true;
   });
+}
+
+export function imovelToProperty(i: Imovel): Property {
+  return {
+    id: i.id,
+    slug: i.slug,
+    type: i.tipo as PropertyType,
+    status: i.status as PropertyStatus,
+    title: i.titulo,
+    description: i.descricao,
+    price: i.preco,
+    priceNegotiable: i.precoNegociavel,
+    condominium: i.condominio ?? undefined,
+    iptu: i.iptu ?? undefined,
+    area: i.area,
+    areaTotal: i.areaTotal ?? undefined,
+    bedrooms: i.quartos ?? undefined,
+    suites: i.suites ?? undefined,
+    bathrooms: i.banheiros ?? undefined,
+    parking: i.vagas ?? undefined,
+    address: {
+      street: i.rua,
+      neighborhood: i.bairro,
+      city: i.cidade,
+      state: i.estado,
+    },
+    features: JSON.parse(i.features || "[]"),
+    images: JSON.parse(i.imagens || "[]"),
+    badge: i.badge ?? undefined,
+    featured: i.destaque,
+    createdAt: i.criadoEm.toISOString(),
+  };
 }

@@ -1,7 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/db";
 
-export type UserRole = "admin" | "corretor" | "cliente";
+export type UserRole = "admin" | "corretor" | "colaborador" | "cliente";
 
 interface AppUser {
   id: string;
@@ -9,32 +11,8 @@ interface AppUser {
   email: string;
   role: UserRole;
   creci?: string;
+  corretorId?: string;
 }
-
-const MOCK_USERS: (AppUser & { password: string })[] = [
-  {
-    id: "1",
-    name: "Administrador",
-    email: "admin@gruposantafe.com.br",
-    password: "admin123",
-    role: "admin",
-  },
-  {
-    id: "2",
-    name: "João Corretor",
-    email: "corretor@gruposantafe.com.br",
-    password: "corretor123",
-    role: "corretor",
-    creci: "CRECI-GO 0001",
-  },
-  {
-    id: "3",
-    name: "Maria Cliente",
-    email: "cliente@email.com",
-    password: "cliente123",
-    role: "cliente",
-  },
-];
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -43,15 +21,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "E-mail", type: "email" },
         password: { label: "Senha", type: "password" },
       },
-      authorize(credentials) {
-        const user = MOCK_USERS.find(
-          (u) =>
-            u.email === credentials?.email &&
-            u.password === credentials?.password
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+
+        const usuario = await prisma.usuario.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!usuario || !usuario.ativo) return null;
+
+        const senhaOk = await bcrypt.compare(
+          credentials.password as string,
+          usuario.senha
         );
-        if (!user) return null;
-        const { password: _pw, ...safeUser } = user;
-        return safeUser;
+        if (!senhaOk) return null;
+
+        let corretorId: string | undefined;
+        if (usuario.papel === "corretor") {
+          const corretor = await prisma.corretor.findUnique({
+            where: { email: usuario.email },
+            select: { id: true },
+          });
+          corretorId = corretor?.id;
+        }
+
+        return {
+          id: usuario.id,
+          name: usuario.nome,
+          email: usuario.email,
+          role: usuario.papel as UserRole,
+          creci: usuario.creci ?? undefined,
+          corretorId,
+        };
       },
     }),
   ],
@@ -60,6 +61,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.role = (user as AppUser).role;
         token.creci = (user as AppUser).creci;
+        token.corretorId = (user as AppUser).corretorId;
         token.name = user.name;
         token.email = user.email;
       }
@@ -69,6 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as unknown as AppUser & { id: string }).role = token.role as UserRole;
         (session.user as unknown as AppUser).creci = token.creci as string | undefined;
+        (session.user as unknown as AppUser).corretorId = token.corretorId as string | undefined;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
       }

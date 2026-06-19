@@ -42,9 +42,15 @@ const imovelStatusColor: Record<string, string> = {
   locado: "bg-gray-100 text-gray-500",
 };
 
+type SessionUser = { role?: UserRole; corretorId?: string };
+
 export default async function AdminDashboard() {
   const session = await auth();
-  const role = ((session?.user as { role?: UserRole } | undefined)?.role) ?? "corretor";
+  const user = (session?.user as SessionUser | undefined);
+  const role = user?.role ?? "corretor";
+  const isCorretor = role === "corretor";
+  const corretorId = user?.corretorId;
+  const corretorFilter = isCorretor && corretorId ? { corretorId } : {};
 
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -59,23 +65,25 @@ export default async function AdminDashboard() {
     recentImoveis,
   ] = await Promise.all([
     prisma.imovel.count({
-      where: { status: { notIn: ["vendido", "locado"] } },
+      where: { status: { notIn: ["vendido", "locado"] }, ...corretorFilter },
     }),
     prisma.lead.count({
-      where: { criadoEm: { gte: firstOfMonth } },
+      where: { criadoEm: { gte: firstOfMonth }, ...corretorFilter },
     }),
     prisma.lead.count({
-      where: { status: "fechado" },
+      where: { status: "fechado", ...corretorFilter },
     }),
     prisma.comissao.aggregate({
       _sum: { valor: true },
-      where: { status: "paga", pagamentoEm: { gte: firstOfMonth } },
+      where: { status: "paga", pagamentoEm: { gte: firstOfMonth }, ...(isCorretor && corretorId ? { corretorId } : {}) },
     }),
     prisma.lead.findMany({
+      where: corretorFilter,
       orderBy: { criadoEm: "desc" },
       take: 5,
     }),
     prisma.imovel.findMany({
+      where: corretorFilter,
       orderBy: { criadoEm: "desc" },
       take: 5,
     }),
@@ -169,7 +177,7 @@ export default async function AdminDashboard() {
                 <div key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
                     <p className="font-medium text-[var(--brand-dark)] text-sm truncate">{lead.nome}</p>
-                    <p className="text-gray-400 text-xs">{lead.servico} · {new Date(lead.criadoEm).toLocaleDateString("pt-BR")}</p>
+                    <p className="text-gray-400 text-xs">{(() => { try { return (JSON.parse(lead.servico) as string[]).join(", "); } catch { return lead.servico; } })()} · {new Date(lead.criadoEm).toLocaleDateString("pt-BR")}</p>
                   </div>
                   <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${leadStatusColor[lead.status] ?? "bg-gray-100 text-gray-500"}`}>
                     {leadStatusLabel(lead.status)}

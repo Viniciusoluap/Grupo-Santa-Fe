@@ -29,13 +29,10 @@ export default function LoginPage() {
 
           <LoginForm />
 
-          {/* Hint */}
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium mb-2">Contas de demonstração:</p>
-            <div className="space-y-1 text-xs text-gray-400 font-mono">
-              <p>admin@gruposantafe.com.br / admin123</p>
-              <p>corretor@gruposantafe.com.br / corretor123</p>
-            </div>
+          <div className="mt-6 pt-5 border-t border-gray-100 text-center">
+            <p className="text-xs text-gray-400">
+              Acesso somente para usuários cadastrados pelo administrador.
+            </p>
           </div>
         </div>
       </div>

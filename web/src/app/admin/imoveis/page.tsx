@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
+import { ImovelAcoes } from "./_components/imovel-acoes";
+import { auth } from "@/auth";
 
 const typeLabel: Record<string, string> = {
   casa: "Casa",
@@ -20,8 +22,16 @@ const statusColor: Record<string, string> = {
   locado: "bg-gray-100 text-gray-500",
 };
 
+type SessionUser = { role?: string; corretorId?: string };
+
 export default async function AdminImoveisPage() {
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const isCorretor = user?.role === "corretor";
+  const corretorId = user?.corretorId;
+
   const imoveis = await prisma.imovel.findMany({
+    where: isCorretor && corretorId ? { corretorId } : {},
     orderBy: { criadoEm: "desc" },
     include: { corretor: true },
   });
@@ -135,28 +145,7 @@ export default async function AdminImoveisPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1">
-                      <Link
-                        href={`/imoveis/${imovel.slug}`}
-                        target="_blank"
-                        title="Ver no site"
-                        className="p-1.5 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-100 transition-colors"
-                      >
-                        <Eye size={14} />
-                      </Link>
-                      <button
-                        title="Editar"
-                        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        title="Excluir"
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    <ImovelAcoes id={imovel.id} titulo={imovel.titulo} />
                   </td>
                 </tr>
               ))}

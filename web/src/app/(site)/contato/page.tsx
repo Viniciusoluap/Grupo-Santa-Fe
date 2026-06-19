@@ -1,5 +1,6 @@
-import { Phone, Mail, MapPin, Clock, MessageSquare } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, MessageSquare, CheckCircle2 } from "lucide-react";
 import { BackButton } from "@/components/ui/back-button";
+import { enviarContato } from "@/lib/actions/leads";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -18,7 +19,12 @@ const services = [
   "Outro",
 ];
 
-export default function ContatoPage() {
+interface PageProps {
+  searchParams: Promise<{ enviado?: string }>;
+}
+
+export default async function ContatoPage({ searchParams }: PageProps) {
+  const { enviado } = await searchParams;
   return (
     <>
       {/* Header */}
@@ -48,82 +54,99 @@ export default function ContatoPage() {
               Envie sua mensagem
             </h2>
 
-            <form className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {enviado === "1" ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+                <CheckCircle2 size={48} className="text-green-500" />
+                <h3 className="font-black text-[var(--brand-dark)] text-xl uppercase">Mensagem enviada!</h3>
+                <p className="text-gray-500 text-sm max-w-sm">
+                  Recebemos seu contato e entraremos em comunicação em até 2 horas no horário comercial.
+                </p>
+              </div>
+            ) : (
+              <form action={enviarContato} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      Nome completo *
+                    </label>
+                    <input
+                      name="nome"
+                      type="text"
+                      required
+                      placeholder="Seu nome"
+                      className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      Telefone / WhatsApp *
+                    </label>
+                    <input
+                      name="telefone"
+                      type="tel"
+                      required
+                      placeholder="(94) 9 9999-9999"
+                      className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                    Nome completo *
+                    E-mail
                   </label>
                   <input
-                    type="text"
-                    required
-                    placeholder="Seu nome"
+                    name="email"
+                    type="email"
+                    placeholder="seu@email.com"
                     className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                    Serviços de interesse *
+                    <span className="ml-2 text-[10px] text-gray-400 normal-case font-normal">(pode selecionar mais de um)</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {services.map((s) => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          name="servicos"
+                          value={s}
+                          className="accent-[var(--brand-yellow)] w-4 h-4 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700 group-hover:text-[var(--brand-dark)] transition-colors">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                    Telefone / WhatsApp *
+                    Mensagem
                   </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="(62) 9 9999-9999"
-                    className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+                  <textarea
+                    name="mensagem"
+                    rows={5}
+                    placeholder="Conte-nos mais sobre o que você precisa..."
+                    className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                  E-mail
-                </label>
-                <input
-                  type="email"
-                  placeholder="seu@email.com"
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                  Serviço de interesse *
-                </label>
-                <select
-                  required
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none cursor-pointer"
+                <button
+                  type="submit"
+                  className="w-full bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-sm uppercase tracking-wider py-3 transition-colors"
                 >
-                  <option value="">Selecione um serviço</option>
-                  {services.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  Enviar Mensagem
+                </button>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                  Mensagem
-                </label>
-                <textarea
-                  rows={5}
-                  placeholder="Conte-nos mais sobre o que você precisa..."
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-sm uppercase tracking-wider py-3 transition-colors"
-              >
-                Enviar Mensagem
-              </button>
-
-              <p className="text-xs text-gray-400 text-center">
-                Respondemos em até 2 horas no horário comercial.
-              </p>
-            </form>
+                <p className="text-xs text-gray-400 text-center">
+                  Respondemos em até 2 horas no horário comercial.
+                </p>
+              </form>
+            )}
           </div>
 
           {/* Sidebar */}

@@ -128,7 +128,9 @@ export default async function CorretorDetailPage({ params }: PageProps) {
                           <p className="font-medium text-[var(--brand-dark)]">{lead.nome}</p>
                           <p className="text-xs text-gray-400">{lead.telefone}</p>
                         </td>
-                        <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{lead.servico}</td>
+                        <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
+                          {(() => { try { return (JSON.parse(lead.servico) as string[]).join(", "); } catch { return lead.servico; } })()}
+                        </td>
                         <td className="px-4 py-3 text-center">
                           <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-600">{lead.status}</span>
                         </td>

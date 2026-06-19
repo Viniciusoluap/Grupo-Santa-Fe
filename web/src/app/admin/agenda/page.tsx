@@ -1,10 +1,19 @@
 import Link from "next/link";
 import { Calendar, Clock, User, CheckCircle2, XCircle } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 import { atualizarStatusVisita, criarVisita } from "@/lib/actions/agenda";
 
+type SessionUser = { role?: string; corretorId?: string };
+
 export default async function AgendaPage() {
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const isCorretor = user?.role === "corretor";
+  const corretorId = user?.corretorId;
+
   const visitas = await prisma.visita.findMany({
+    where: isCorretor && corretorId ? { corretorId } : {},
     orderBy: { agendadaPara: "asc" },
     include: { lead: true, imovel: true, corretor: true },
   });

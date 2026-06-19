@@ -39,13 +39,20 @@ export function LeadsClient({ leads }: LeadsClientProps) {
     return acc;
   }, {} as Record<string, number>);
 
-  const filtered = leads.filter(
-    (l) =>
-      !search ||
-      l.nome.toLowerCase().includes(search.toLowerCase()) ||
-      l.servico.toLowerCase().includes(search.toLowerCase()) ||
-      (l.corretor?.nome ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  function parseServicos(servico: string): string[] {
+    try { return JSON.parse(servico); } catch { return [servico]; }
+  }
+
+  const filtered = leads.filter((l) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const servicos = parseServicos(l.servico).join(" ").toLowerCase();
+    return (
+      l.nome.toLowerCase().includes(q) ||
+      servicos.includes(q) ||
+      (l.corretor?.nome ?? "").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-5">
@@ -139,7 +146,13 @@ export function LeadsClient({ leads }: LeadsClientProps) {
                         <p className="font-medium text-[var(--brand-dark)]">{lead.nome}</p>
                         <p className="text-xs text-gray-400">{lead.telefone}</p>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-sm text-gray-500">{lead.servico}</td>
+                      <td className="px-4 py-3 hidden md:table-cell text-sm text-gray-500">
+                        <div className="flex flex-wrap gap-1">
+                          {parseServicos(lead.servico).map((s) => (
+                            <span key={s} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 font-medium">{s}</span>
+                          ))}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-500">{lead.corretor?.nome ?? "—"}</td>
                       <td className="px-4 py-3 hidden lg:table-cell text-right font-bold text-sm">
                         {lead.orcamento ? formatCurrency(lead.orcamento) : "—"}

@@ -1,9 +1,12 @@
 import { Suspense } from "react";
-import { filterProperties } from "@/lib/data/properties";
+import { prisma } from "@/lib/db";
+import { imovelToProperty } from "@/lib/data/properties";
 import { PropertyCard } from "@/components/imoveis/property-card";
 import { PropertyFilters } from "@/components/imoveis/property-filters";
-import { Building2, Search } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { BackButton } from "@/components/ui/back-button";
+
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   searchParams: Promise<{
@@ -20,43 +23,6 @@ export const metadata = {
   description: "Encontre o imóvel ideal entre casas, apartamentos, lotes e terrenos.",
 };
 
-function PropertyGrid({ params }: { params: PageProps["searchParams"] extends Promise<infer T> ? T : never }) {
-  const [minPrice, maxPrice] = params.price
-    ? params.price.split("-").map(Number)
-    : [undefined, undefined];
-
-  const filtered = filterProperties({
-    type: params.type,
-    status: params.status,
-    minPrice,
-    maxPrice,
-    bedrooms: params.bedrooms ? Number(params.bedrooms) : undefined,
-    search: params.search,
-  });
-
-  if (filtered.length === 0) {
-    return (
-      <div className="col-span-full text-center py-20">
-        <Search size={40} className="text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-400 font-medium text-lg">
-          Nenhum imóvel encontrado com esses filtros
-        </p>
-        <p className="text-gray-300 text-sm mt-1">
-          Tente ajustar ou limpar os filtros de busca
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {filtered.map((property) => (
-        <PropertyCard key={property.id} property={property} />
-      ))}
-    </>
-  );
-}
-
 export default async function ImoveisPage({ searchParams }: PageProps) {
   const params = await searchParams;
 
@@ -64,14 +30,28 @@ export default async function ImoveisPage({ searchParams }: PageProps) {
     ? params.price.split("-").map(Number)
     : [undefined, undefined];
 
-  const filtered = filterProperties({
-    type: params.type,
-    status: params.status,
-    minPrice,
-    maxPrice,
-    bedrooms: params.bedrooms ? Number(params.bedrooms) : undefined,
-    search: params.search,
-  });
+  const where: Record<string, unknown> = { publicadoSite: true };
+  if (params.type) where.tipo = params.type;
+  if (params.status) where.status = params.status;
+
+  const imoveis = await prisma.imovel.findMany({ where });
+  let filtered = imoveis.map(imovelToProperty);
+
+  if (minPrice) filtered = filtered.filter((p) => p.price >= minPrice);
+  if (maxPrice) filtered = filtered.filter((p) => p.price <= maxPrice);
+  if (params.bedrooms) {
+    const beds = Number(params.bedrooms);
+    filtered = filtered.filter((p) => (p.bedrooms ?? 0) >= beds);
+  }
+  if (params.search) {
+    const q = params.search.toLowerCase();
+    filtered = filtered.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.address.neighborhood.toLowerCase().includes(q) ||
+        p.address.city.toLowerCase().includes(q)
+    );
+  }
 
   return (
     <>
