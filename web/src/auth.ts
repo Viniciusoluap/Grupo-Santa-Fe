@@ -11,6 +11,7 @@ interface AppUser {
   email: string;
   role: UserRole;
   creci?: string;
+  corretorId?: string;
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -35,12 +36,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         );
         if (!senhaOk) return null;
 
+        let corretorId: string | undefined;
+        if (usuario.papel === "corretor") {
+          const corretor = await prisma.corretor.findUnique({
+            where: { email: usuario.email },
+            select: { id: true },
+          });
+          corretorId = corretor?.id;
+        }
+
         return {
           id: usuario.id,
           name: usuario.nome,
           email: usuario.email,
           role: usuario.papel as UserRole,
           creci: usuario.creci ?? undefined,
+          corretorId,
         };
       },
     }),
@@ -50,6 +61,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.role = (user as AppUser).role;
         token.creci = (user as AppUser).creci;
+        token.corretorId = (user as AppUser).corretorId;
         token.name = user.name;
         token.email = user.email;
       }
@@ -59,6 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as unknown as AppUser & { id: string }).role = token.role as UserRole;
         (session.user as unknown as AppUser).creci = token.creci as string | undefined;
+        (session.user as unknown as AppUser).corretorId = token.corretorId as string | undefined;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
       }

@@ -3,6 +3,7 @@ import { Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { ImovelAcoes } from "./_components/imovel-acoes";
+import { auth } from "@/auth";
 
 const typeLabel: Record<string, string> = {
   casa: "Casa",
@@ -21,8 +22,16 @@ const statusColor: Record<string, string> = {
   locado: "bg-gray-100 text-gray-500",
 };
 
+type SessionUser = { role?: string; corretorId?: string };
+
 export default async function AdminImoveisPage() {
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const isCorretor = user?.role === "corretor";
+  const corretorId = user?.corretorId;
+
   const imoveis = await prisma.imovel.findMany({
+    where: isCorretor && corretorId ? { corretorId } : {},
     orderBy: { criadoEm: "desc" },
     include: { corretor: true },
   });

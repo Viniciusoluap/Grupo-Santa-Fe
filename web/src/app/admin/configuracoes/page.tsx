@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 
@@ -38,6 +40,9 @@ const SECTIONS = [
 ];
 
 export default async function ConfiguracoesPage() {
+  const session = await auth();
+  if ((session?.user as { role?: string })?.role !== "admin") redirect("/admin");
+
   const [configs, usuarios] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
