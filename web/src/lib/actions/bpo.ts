@@ -42,6 +42,7 @@ export async function criarLancamentoBpo(formData: FormData) {
   });
 
   revalidatePath(`/admin/bpo/${clienteId}`);
+  revalidatePath("/admin/bpo");
 }
 
 export async function marcarLancamentoPago(formData: FormData) {
@@ -54,6 +55,33 @@ export async function marcarLancamentoPago(formData: FormData) {
   });
 
   revalidatePath(`/admin/bpo/${clienteId}`);
+  revalidatePath("/admin/bpo");
+}
+
+export async function criarCobranca(formData: FormData) {
+  const clienteId = formData.get("clienteId") as string;
+
+  await prisma.bpoLancamento.create({
+    data: {
+      clienteId,
+      tipo: formData.get("tipo") as string,
+      descricao: formData.get("descricao") as string,
+      valor: parseFloat(formData.get("valor") as string),
+      vencimento: new Date(formData.get("vencimento") as string),
+      competencia: formData.get("competencia") as string,
+    },
+  });
+
+  revalidatePath("/admin/bpo");
+}
+
+export async function pagarLancamento(id: string) {
+  await prisma.bpoLancamento.update({
+    where: { id },
+    data: { pago: true, pagoEm: new Date() },
+  });
+
+  revalidatePath("/admin/bpo");
 }
 
 export async function atualizarStatusBpoCliente(formData: FormData) {
