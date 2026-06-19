@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Plus, ExternalLink, CheckCircle2, Clock, Archive, Loader2, Link2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Search, Plus, ExternalLink, CheckCircle2, Clock, Archive, Loader2, Link2, Download } from "lucide-react";
 import { SOURCE_CONFIG, DOCUMENTO_CONFIG, STATUS_CONFIG } from "@/lib/types/agregador";
 import type { AgregadorSource, DocumentoTipo } from "@/lib/types/agregador";
 import { formatCurrency } from "@/lib/utils";
 import type { ScrapedData } from "@/app/api/scraper/fetch/route";
-import { atualizarStatusAgregador } from "@/lib/actions/agregador";
+import { atualizarStatusAgregador, criarAgregadorImovel, importarParaCatalogo } from "@/lib/actions/agregador";
 
 const SOURCES: AgregadorSource[] = ["olx", "zapimoveis", "vivareal", "facebook", "instagram", "google", "direto", "outro"];
 const DOCUMENTOS: DocumentoTipo[] = ["nenhum", "escritura", "contrato_gaveta", "inventario", "heranca", "financiado", "loteamento", "posse", "outros"];
@@ -35,8 +35,9 @@ interface DbListing {
 }
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === "ativo") return <CheckCircle2 size={14} className="text-green-500" />;
+  if (status === "verificado" || status === "ativo") return <CheckCircle2 size={14} className="text-green-500" />;
   if (status === "descartado") return <Archive size={14} className="text-gray-400" />;
+  if (status === "importado") return <Download size={14} className="text-blue-500" />;
   return <Clock size={14} className="text-yellow-500" />;
 }
 
@@ -45,6 +46,30 @@ export function AgregadorClient({ initialListings = [] }: { initialListings: DbL
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("todos");
   const [showModal, setShowModal] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function feedback(text: string) {
+    setMsg(text);
+    setTimeout(() => setMsg(null), 3000);
+  }
+
+  function handleStatusChange(id: string, status: string) {
+    startTransition(async () => {
+      await atualizarStatusAgregador(id, status);
+      setListings((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+      feedback("Status atualizado.");
+    });
+  }
+
+  function handleImportar(id: string, titulo: string) {
+    if (!confirm(`Importar "${titulo}" para o catálogo de imóveis? Ele será adicionado como rascunho não publicado.`)) return;
+    startTransition(async () => {
+      await importarParaCatalogo(id);
+      setListings((prev) => prev.map((l) => l.id === id ? { ...l, status: "importado" } : l));
+      feedback("Imóvel importado para o catálogo! Acesse Imóveis para publicar.");
+    });
+  }
 
   // New listing form state
   const [formUrl, setFormUrl] = useState("");
@@ -94,6 +119,12 @@ export function AgregadorClient({ initialListings = [] }: { initialListings: DbL
 
   return (
     <div className="space-y-5">
+      {msg && (
+        <div className="bg-[var(--brand-yellow)]/20 border border-[var(--brand-yellow)] px-3 py-2 text-xs font-bold text-[var(--brand-dark)]">
+          {msg}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -187,16 +218,32 @@ export function AgregadorClient({ initialListings = [] }: { initialListings: DbL
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {l.urlFonte && (
-                      <a
-                        href={l.urlFonte}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
-                      >
-                        <ExternalLink size={12} /> Ver original
-                      </a>
-                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {l.urlFonte && (
+                        <a href={l.urlFonte} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-[var(--brand-dark)] transition-colors px-2 py-1 border border-gray-200">
+                          <ExternalLink size={10} /> Ver
+                        </a>
+                      )}
+                      {l.status === "pendente" && (
+                        <button onClick={() => handleStatusChange(l.id, "verificado")} disabled={isPending}
+                          className="text-[10px] font-bold px-2 py-1 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50">
+                          ✓ Verificar
+                        </button>
+                      )}
+                      {l.status === "verificado" && (
+                        <button onClick={() => handleImportar(l.id, l.titulo)} disabled={isPending}
+                          className="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors disabled:opacity-50">
+                          ↗ Importar
+                        </button>
+                      )}
+                      {l.status !== "descartado" && l.status !== "importado" && (
+                        <button onClick={() => handleStatusChange(l.id, "descartado")} disabled={isPending}
+                          className="text-[10px] font-bold px-2 py-1 bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-50">
+                          ✗
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -360,8 +407,33 @@ export function AgregadorClient({ initialListings = [] }: { initialListings: DbL
               </div>
 
               <div className="flex gap-3 pt-2 border-t border-gray-100">
-                <button className="bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 hover:opacity-90 transition-opacity">
-                  Salvar Imóvel
+                <button
+                  disabled={isPending || !formData.title}
+                  onClick={() => {
+                    startTransition(async () => {
+                      await criarAgregadorImovel({
+                        titulo: formData.title,
+                        descricao: formData.description || undefined,
+                        preco: formData.price ? parseFloat(formData.price) : undefined,
+                        area: formData.area ? parseFloat(formData.area) : undefined,
+                        tipo: formData.type,
+                        bairro: formData.neighborhood || undefined,
+                        fonte: formData.source,
+                        urlFonte: formUrl || undefined,
+                        imagens: scraped?.images ?? [],
+                        documentoTipo: formData.documentoTipo,
+                        documentoObs: formData.documentoObs || undefined,
+                        contatoTel: formData.contactPhone || undefined,
+                        contatoNome: formData.contactName || undefined,
+                        notas: formData.notes || undefined,
+                      });
+                      setShowModal(false);
+                      feedback("Imóvel adicionado ao agregador.");
+                    });
+                  }}
+                  className="bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {isPending ? "Salvando..." : "Salvar Imóvel"}
                 </button>
                 <button onClick={() => setShowModal(false)} className="border border-gray-200 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 hover:border-gray-300 transition-colors">
                   Cancelar
