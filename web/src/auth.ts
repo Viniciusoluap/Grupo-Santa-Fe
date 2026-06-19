@@ -1,7 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/db";
 
-export type UserRole = "admin" | "corretor" | "cliente";
+export type UserRole = "admin" | "corretor" | "colaborador" | "cliente";
 
 interface AppUser {
   id: string;
@@ -11,31 +13,6 @@ interface AppUser {
   creci?: string;
 }
 
-const MOCK_USERS: (AppUser & { password: string })[] = [
-  {
-    id: "1",
-    name: "Administrador",
-    email: "admin@gruposantafe.com.br",
-    password: "admin123",
-    role: "admin",
-  },
-  {
-    id: "2",
-    name: "João Corretor",
-    email: "corretor@gruposantafe.com.br",
-    password: "corretor123",
-    role: "corretor",
-    creci: "CRECI-GO 0001",
-  },
-  {
-    id: "3",
-    name: "Maria Cliente",
-    email: "cliente@email.com",
-    password: "cliente123",
-    role: "cliente",
-  },
-];
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -43,15 +20,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "E-mail", type: "email" },
         password: { label: "Senha", type: "password" },
       },
-      authorize(credentials) {
-        const user = MOCK_USERS.find(
-          (u) =>
-            u.email === credentials?.email &&
-            u.password === credentials?.password
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+
+        const usuario = await prisma.usuario.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!usuario || !usuario.ativo) return null;
+
+        const senhaOk = await bcrypt.compare(
+          credentials.password as string,
+          usuario.senha
         );
-        if (!user) return null;
-        const { password: _pw, ...safeUser } = user;
-        return safeUser;
+        if (!senhaOk) return null;
+
+        return {
+          id: usuario.id,
+          name: usuario.nome,
+          email: usuario.email,
+          role: usuario.papel as UserRole,
+          creci: usuario.creci ?? undefined,
+        };
       },
     }),
   ],

@@ -1,6 +1,7 @@
 import { Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { ConfiguracoesClient } from "./configuracoes-client";
+import { UsuariosClient } from "./_components/usuarios-client";
 
 const SECTIONS = [
   {
@@ -37,7 +38,10 @@ const SECTIONS = [
 ];
 
 export default async function ConfiguracoesPage() {
-  const configs = await prisma.configuracao.findMany({ orderBy: { grupo: "asc" } });
+  const [configs, usuarios] = await Promise.all([
+    prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
+    prisma.usuario.findMany({ orderBy: { criadoEm: "asc" } }),
+  ]);
   const valoresSalvos = Object.fromEntries(configs.map((c) => [c.chave, c.valor]));
 
   return (
@@ -51,6 +55,16 @@ export default async function ConfiguracoesPage() {
       </div>
 
       <ConfiguracoesClient sections={SECTIONS} valoresSalvos={valoresSalvos} />
+
+      <UsuariosClient usuarios={usuarios.map((u) => ({
+        id: u.id,
+        nome: u.nome,
+        email: u.email,
+        papel: u.papel,
+        ativo: u.ativo,
+        creci: u.creci,
+        telefone: u.telefone,
+      }))} />
     </div>
   );
 }

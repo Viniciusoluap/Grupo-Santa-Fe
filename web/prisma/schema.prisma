@@ -445,6 +445,23 @@ model Avaliacao {
   @@map("avaliacoes")
 }
 
+// ─── USUÁRIOS DO SISTEMA ─────────────────────────────────────────────────────
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nome         String
+  email        String   @unique
+  senha        String
+  papel        String   @default("colaborador") // admin | corretor | colaborador | cliente
+  ativo        Boolean  @default(true)
+  creci        String?
+  telefone     String?
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@map("usuarios")
+}
+
 // ─── CONTABILIDADE ────────────────────────────────────────────────────────────
 
 model Lancamento {
