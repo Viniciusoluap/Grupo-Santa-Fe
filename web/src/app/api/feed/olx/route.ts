@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { properties } from "@/lib/data/properties";
+import { prisma } from "@/lib/db";
+import { imovelToProperty } from "@/lib/data/properties";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gruposantafe.com.br";
 
@@ -18,6 +19,10 @@ function categoryCode(type: string, status: string): string {
 }
 
 export async function GET() {
+  const properties = await prisma.imovel
+    .findMany({ where: { publicadoSite: true } })
+    .then((list) => list.map(imovelToProperty));
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <adverts>
 ${properties

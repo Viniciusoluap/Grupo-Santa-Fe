@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X } from "lucide-react";
 import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario } from "@/lib/actions/usuarios";
 
-type Papel = "admin" | "corretor" | "colaborador" | "cliente";
+type Papel = "admin" | "colaborador";
 
 interface Usuario {
   id: string;
@@ -17,10 +17,8 @@ interface Usuario {
 }
 
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
-  { value: "admin",        label: "Admin",        cor: "bg-red-100 text-red-700" },
-  { value: "corretor",     label: "Corretor",     cor: "bg-blue-100 text-blue-700" },
-  { value: "colaborador",  label: "Colaborador",  cor: "bg-purple-100 text-purple-700" },
-  { value: "cliente",      label: "Cliente",      cor: "bg-green-100 text-green-700" },
+  { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
+  { value: "colaborador", label: "Colaborador", cor: "bg-purple-100 text-purple-700" },
 ];
 
 function Badge({ papel }: { papel: string }) {
@@ -93,7 +91,7 @@ export function UsuariosClient({ usuarios }: Props) {
         <div className="flex items-center gap-2">
           <Users size={18} className="text-[var(--brand-dark)]" />
           <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">
-            Gerenciar Acessos
+            Colaboradores do Sistema
           </h2>
         </div>
         <button
@@ -112,7 +110,7 @@ export function UsuariosClient({ usuarios }: Props) {
 
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap border-b border-gray-100 pb-0">
-        {(["todos", "admin", "corretor", "colaborador", "cliente"] as const).map((p) => (
+        {(["todos", "admin", "colaborador"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setAba(p)}
@@ -229,10 +227,6 @@ export function UsuariosClient({ usuarios }: Props) {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
                 <input name="telefone" type="tel" placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CRECI (somente corretor)</label>
-                <input name="creci" type="text" placeholder="PA-12345" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
 
               <div className="flex gap-3 pt-2">

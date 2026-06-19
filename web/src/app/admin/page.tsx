@@ -169,7 +169,7 @@ export default async function AdminDashboard() {
                 <div key={lead.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50">
                   <div className="min-w-0">
                     <p className="font-medium text-[var(--brand-dark)] text-sm truncate">{lead.nome}</p>
-                    <p className="text-gray-400 text-xs">{lead.servico} · {new Date(lead.criadoEm).toLocaleDateString("pt-BR")}</p>
+                    <p className="text-gray-400 text-xs">{(() => { try { return (JSON.parse(lead.servico) as string[]).join(", "); } catch { return lead.servico; } })()} · {new Date(lead.criadoEm).toLocaleDateString("pt-BR")}</p>
                   </div>
                   <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 uppercase ${leadStatusColor[lead.status] ?? "bg-gray-100 text-gray-500"}`}>
                     {leadStatusLabel(lead.status)}

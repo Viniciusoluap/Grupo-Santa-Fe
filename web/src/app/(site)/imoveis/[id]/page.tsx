@@ -13,25 +13,29 @@ import {
   ChevronRight,
   Home,
 } from "lucide-react";
-import { getPropertyById, properties } from "@/lib/data/properties";
+import { prisma } from "@/lib/db";
+import { imovelToProperty } from "@/lib/data/properties";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
 export async function generateStaticParams() {
-  return properties.map((p) => ({ id: p.id }));
+  return [];
 }
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const property = getPropertyById(id);
-  if (!property) return {};
+  const imovel = await prisma.imovel.findUnique({ where: { id } });
+  if (!imovel) return {};
   return {
-    title: property.title,
-    description: property.description.slice(0, 160),
+    title: imovel.titulo,
+    description: imovel.descricao.slice(0, 160),
   };
 }
 
@@ -52,9 +56,11 @@ const statusLabel: Record<string, string> = {
 
 export default async function PropertyDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const property = getPropertyById(id);
+  const imovel = await prisma.imovel.findUnique({ where: { id } });
 
-  if (!property) notFound();
+  if (!imovel) notFound();
+
+  const property = imovelToProperty(imovel);
 
   const whatsappMsg = encodeURIComponent(
     `Olá! Tenho interesse no imóvel: ${property.title} (R$ ${property.price.toLocaleString("pt-BR")}). Poderia me dar mais informações?`

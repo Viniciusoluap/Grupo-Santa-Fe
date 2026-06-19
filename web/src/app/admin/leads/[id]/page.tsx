@@ -34,8 +34,10 @@ export default async function LeadDetailPage({ params }: PageProps) {
     label: lead.status,
     order: 0,
   };
+  function parseServicos(s: string): string[] { try { return JSON.parse(s); } catch { return [s]; } }
+  const servicosLead = parseServicos(lead.servico);
   const whatsappMsg = encodeURIComponent(
-    `Olá ${lead.nome}, aqui é da equipe do Grupo Santa Fé. Podemos conversar sobre ${lead.servico}?`
+    `Olá ${lead.nome}, aqui é da equipe do Grupo Santa Fé. Podemos conversar sobre ${servicosLead.join(", ")}?`
   );
 
   return (
@@ -49,7 +51,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
             <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
           </div>
           <p className="text-gray-400 text-sm mt-0.5">
-            {lead.servico} · {lead.origem} · {lead.corretor?.nome ?? "Sem corretor"}
+            {servicosLead.join(", ")} · {lead.origem} · {lead.corretor?.nome ?? "Sem corretor"}
           </p>
         </div>
       </div>

@@ -50,7 +50,11 @@ function LeadCard({ lead }: { lead: DbLead }) {
         </Link>
       </div>
 
-      <p className="text-gray-400 text-xs mb-2 truncate">{lead.servico}</p>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {(() => { try { return JSON.parse(lead.servico) as string[]; } catch { return [lead.servico]; } })().map((s: string) => (
+          <span key={s} className="text-[9px] bg-gray-100 text-gray-500 px-1 py-0.5 font-medium truncate max-w-[120px]">{s}</span>
+        ))}
+      </div>
 
       {lead.orcamento && (
         <p className="text-[var(--brand-yellow)] font-black text-sm mb-2">

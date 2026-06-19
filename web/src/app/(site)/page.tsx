@@ -16,7 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { getFeaturedProperties } from "@/lib/data/properties";
+import { prisma } from "@/lib/db";
+import { imovelToProperty } from "@/lib/data/properties";
 
 const services = [
   {
@@ -80,8 +81,13 @@ const reasons = [
   "Atendimento personalizado e transparente",
 ];
 
-export default function HomePage() {
-  const featuredProperties = getFeaturedProperties().slice(0, 3);
+export default async function HomePage() {
+  const featuredImoveis = await prisma.imovel.findMany({
+    where: { publicadoSite: true, destaque: true },
+    orderBy: { criadoEm: "desc" },
+    take: 3,
+  });
+  const featuredProperties = featuredImoveis.map(imovelToProperty);
   return (
     <>
       {/* Hero */}

@@ -40,7 +40,10 @@ const SECTIONS = [
 export default async function ConfiguracoesPage() {
   const [configs, usuarios] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
-    prisma.usuario.findMany({ orderBy: { criadoEm: "asc" } }),
+    prisma.usuario.findMany({
+      where: { papel: { in: ["admin", "colaborador"] } },
+      orderBy: { criadoEm: "asc" },
+    }),
   ]);
   const valoresSalvos = Object.fromEntries(configs.map((c) => [c.chave, c.valor]));
 
