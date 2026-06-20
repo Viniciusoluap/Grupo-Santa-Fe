@@ -462,6 +462,42 @@ model Usuario {
   @@map("usuarios")
 }
 
+// ─── INTEGRAÇÃO BANCÁRIA ─────────────────────────────────────────────────────
+
+model ContaBancaria {
+  id                  String              @id @default(cuid())
+  banco               String
+  agencia             String?
+  conta               String
+  tipo                String              @default("corrente") // corrente, poupanca, pagamento, investimento
+  descricao           String?
+  saldoAtual          Float               @default(0)
+  ativo               Boolean             @default(true)
+  pluggyItemId        String?
+  pluggyAccountId     String?
+  ultimaSincronizacao DateTime?
+  transacoes          TransacaoBancaria[]
+  criadoEm            DateTime            @default(now())
+
+  @@map("contas_bancarias")
+}
+
+model TransacaoBancaria {
+  id          String        @id @default(cuid())
+  contaId     String
+  conta       ContaBancaria @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  data        DateTime
+  descricao   String
+  valor       Float
+  tipo        String        // credito, debito
+  categoria   String?
+  status      String        @default("pendente") // pendente, conciliado, ignorado
+  externalId  String?       @unique
+  criadoEm    DateTime      @default(now())
+
+  @@map("transacoes_bancarias")
+}
+
 // ─── CONTABILIDADE ────────────────────────────────────────────────────────────
 
 model Lancamento {
