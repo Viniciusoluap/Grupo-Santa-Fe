@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -20,6 +21,7 @@ export async function criarLead(formData: FormData) {
       corretorId: (formData.get("corretorId") as string) || undefined,
     },
   });
+  await notificarAdmins("novo_lead", "Novo lead cadastrado", `${formData.get("nome")} — ${JSON.stringify(servicos)}`, "/admin/leads").catch(() => {});
   revalidatePath("/admin/leads");
   redirect("/admin/leads");
 }
@@ -41,6 +43,7 @@ export async function enviarContato(formData: FormData) {
       notas: mensagem,
     },
   });
+  await notificarAdmins("novo_lead", "Novo contato do site", `${nome} — ${servicos.join(", ")}`, "/admin/leads").catch(() => {});
   revalidatePath("/admin/leads");
   redirect("/contato?enviado=1");
 }

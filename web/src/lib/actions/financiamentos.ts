@@ -1,5 +1,6 @@
 "use server";
 import { prisma } from "@/lib/db";
+import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -20,6 +21,7 @@ export async function criarFinanciamento(formData: FormData) {
       prazo: parseInt(formData.get("prazo") as string) || 360,
     },
   });
+  await notificarAdmins("novo_financiamento", "Novo financiamento cadastrado", `${fin.clienteNome} — ${fin.banco}`, "/admin/financiamentos").catch(() => {});
   revalidatePath("/admin/financiamentos");
   redirect(`/admin/financiamentos/${fin.id}`);
 }

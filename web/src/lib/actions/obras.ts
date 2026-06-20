@@ -1,5 +1,6 @@
 "use server";
 import { prisma } from "@/lib/db";
+import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -17,6 +18,8 @@ export async function criarObra(formData: FormData) {
       descricao: (formData.get("descricao") as string) || "",
     },
   });
+  const nomeObra = formData.get("nome") as string;
+  await notificarAdmins("nova_obra", "Nova obra cadastrada", `${nomeObra} — ${formData.get("clienteNome")}`, "/admin/obras").catch(() => {});
   revalidatePath("/admin/obras");
   redirect("/admin/obras");
 }

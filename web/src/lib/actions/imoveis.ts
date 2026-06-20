@@ -1,5 +1,6 @@
 "use server";
 import { prisma } from "@/lib/db";
+import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -48,6 +49,8 @@ export async function criarImovel(formData: FormData) {
       corretorId: corretorId || undefined,
     },
   });
+
+  await notificarAdmins("novo_imovel", "Novo imóvel cadastrado", `${titulo} — ${bairro}`, "/admin/imoveis").catch(() => {});
 
   revalidatePath("/admin/imoveis");
   redirect("/admin/imoveis");

@@ -150,10 +150,11 @@ const navItems = [
 interface SidebarProps {
   userName: string;
   userRole: string;
+  userFoto?: string | null;
   onClose?: () => void;
 }
 
-export function Sidebar({ userName, userRole, onClose }: SidebarProps) {
+export function Sidebar({ userName, userRole, userFoto, onClose }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = userRole === "admin";
   const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
@@ -179,10 +180,14 @@ export function Sidebar({ userName, userRole, onClose }: SidebarProps) {
 
       {/* User info */}
       <div className="px-5 py-4 border-b border-white/10">
-        <div className="w-9 h-9 bg-[var(--brand-yellow)] rounded-full flex items-center justify-center mb-2">
-          <span className="text-[var(--brand-dark)] font-black text-sm">
-            {userName?.[0]?.toUpperCase()}
-          </span>
+        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center mb-2 bg-[var(--brand-yellow)]">
+          {userFoto ? (
+            <img src={userFoto} alt={userName} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-[var(--brand-dark)] font-black text-sm">
+              {userName?.[0]?.toUpperCase()}
+            </span>
+          )}
         </div>
         <p className="text-white text-sm font-medium leading-none">{userName}</p>
         <p className="text-gray-500 text-xs mt-0.5 capitalize">{userRole}</p>

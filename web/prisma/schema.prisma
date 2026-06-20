@@ -456,6 +456,7 @@ model Usuario {
   ativo             Boolean          @default(true)
   creci             String?
   telefone          String?
+  foto              String?
   criadoEm          DateTime         @default(now())
   conexaoWhatsApp   ConexaoWhatsApp?
   atualizadoEm      DateTime         @updatedAt
@@ -556,4 +557,20 @@ model MensagemWhatsapp {
   atualizadoEm     DateTime        @updatedAt
 
   @@map("mensagens_whatsapp")
+}
+
+// ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────
+
+model Notificacao {
+  id        String   @id @default(cuid())
+  usuarioId String
+  tipo      String
+  titulo    String
+  mensagem  String
+  link      String?
+  lida      Boolean  @default(false)
+  criadoEm  DateTime @default(now())
+
+  @@index([usuarioId, lida])
+  @@map("notificacoes")
 }

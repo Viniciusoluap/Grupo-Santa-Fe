@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -22,6 +23,8 @@ export async function criarCorretor(formData: FormData) {
       ativo: true,
     },
   });
+  const nome = formData.get("nome") as string;
+  await notificarAdmins("novo_corretor", "Novo corretor cadastrado", `${nome} — CRECI ${formData.get("creci")}`, "/admin/corretores").catch(() => {});
   revalidatePath("/admin/corretores");
   redirect("/admin/corretores");
 }
