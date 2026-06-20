@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { enviarTexto } from "@/lib/evolution";
 
 interface Destinatario {
   id: string;
@@ -45,7 +44,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!conexao || conexao.status !== "conectado") {
-    return NextResponse.json({ error: "Nenhuma conexão WhatsApp ativa" }, { status: 400 });
+    return NextResponse.json({ error: "Nenhuma conexão WhatsApp Business ativa" }, { status: 400 });
+  }
+
+  if (!conexao.token || !conexao.phoneNumberId) {
+    return NextResponse.json({ error: "Credenciais da Business API não configuradas" }, { status: 400 });
   }
 
   let enviadas = 0;
@@ -53,14 +56,7 @@ export async function POST(req: NextRequest) {
 
   for (const dest of destinatarios) {
     try {
-      let externalId: string | null = null;
-
-      if (conexao.provedor === "evolution" && conexao.instancia) {
-        externalId = await enviarTexto(conexao.instancia, dest.telefone, mensagem);
-      } else if (conexao.provedor === "business" && conexao.token && conexao.phoneNumberId) {
-        externalId = await enviarBusiness(conexao.token, conexao.phoneNumberId, dest.telefone, mensagem);
-      }
-
+      const externalId = await enviarBusiness(conexao.token, conexao.phoneNumberId, dest.telefone, mensagem);
       await prisma.mensagemWhatsapp.create({
         data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem, leadId: dest.leadId, externalId, status: "enviada" },
       });
