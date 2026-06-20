@@ -448,16 +448,17 @@ model Avaliacao {
 // ─── USUÁRIOS DO SISTEMA ─────────────────────────────────────────────────────
 
 model Usuario {
-  id           String   @id @default(cuid())
-  nome         String
-  email        String   @unique
-  senha        String
-  papel        String   @default("colaborador") // admin | corretor | colaborador | cliente
-  ativo        Boolean  @default(true)
-  creci        String?
-  telefone     String?
-  criadoEm    DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  id                String           @id @default(cuid())
+  nome              String
+  email             String           @unique
+  senha             String
+  papel             String           @default("colaborador") // admin | corretor | colaborador | cliente
+  ativo             Boolean          @default(true)
+  creci             String?
+  telefone          String?
+  criadoEm          DateTime         @default(now())
+  conexaoWhatsApp   ConexaoWhatsApp?
+  atualizadoEm      DateTime         @updatedAt
 
   @@map("usuarios")
 }
@@ -518,4 +519,41 @@ model Lancamento {
   atualizadoEm   DateTime  @updatedAt
 
   @@map("lancamentos")
+}
+
+// ─── WHATSAPP ─────────────────────────────────────────────────────────────────
+
+model ConexaoWhatsApp {
+  id            String             @id @default(cuid())
+  usuarioId     String             @unique
+  usuario       Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  provedor      String             @default("evolution") // evolution | business
+  instancia     String?
+  token         String?
+  phoneNumberId String?
+  numero        String?
+  status        String             @default("desconectado") // desconectado | aguardando_qr | conectado
+  qrCode        String?
+  mensagens     MensagemWhatsapp[]
+  criadoEm      DateTime           @default(now())
+  atualizadoEm  DateTime           @updatedAt
+
+  @@map("conexoes_whatsapp")
+}
+
+model MensagemWhatsapp {
+  id               String          @id @default(cuid())
+  conexaoId        String
+  conexao          ConexaoWhatsApp @relation(fields: [conexaoId], references: [id], onDelete: Cascade)
+  leadId           String?
+  destinatario     String
+  nomeDestinatario String?
+  mensagem         String
+  status           String          @default("enviada") // enviada | entregue | lida | falhou
+  externalId       String?
+  erroMsg          String?
+  enviadaEm        DateTime        @default(now())
+  atualizadoEm     DateTime        @updatedAt
+
+  @@map("mensagens_whatsapp")
 }
