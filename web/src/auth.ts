@@ -69,6 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     session({ session, token }) {
       if (session.user) {
+        session.user.id = token.sub as string;
         (session.user as unknown as AppUser & { id: string }).role = token.role as UserRole;
         (session.user as unknown as AppUser).creci = token.creci as string | undefined;
         (session.user as unknown as AppUser).corretorId = token.corretorId as string | undefined;
