@@ -1,5 +1,6 @@
 "use server";
 import { prisma } from "@/lib/db";
+import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -16,6 +17,8 @@ export async function criarRegularizacao(formData: FormData) {
       descricao: (formData.get("descricao") as string) || "",
     },
   });
+  const nomeReg = formData.get("nome") as string;
+  await notificarAdmins("nova_regularizacao", "Nova regularização cadastrada", `${nomeReg} — ${formData.get("clienteNome")}`, "/admin/regularizacao").catch(() => {});
   revalidatePath("/admin/regularizacao");
   redirect("/admin/regularizacao");
 }
