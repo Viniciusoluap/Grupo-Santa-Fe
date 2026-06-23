@@ -34,6 +34,8 @@ model Imovel {
   cidade          String   @default("Canaã dos Carajás")
   estado          String   @default("PA")
   cep             String?
+  latitude        Float?
+  longitude       Float?
   features        String   @default("[]")
   imagens         String   @default("[]")
   destaque        Boolean  @default(false)

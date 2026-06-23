@@ -37,6 +37,8 @@ type DbImovel = {
   quartos: number | null;
   banheiros: number | null;
   area: number;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 interface MapaClientProps {
@@ -54,6 +56,17 @@ export function MapaClient({ imoveis }: MapaClientProps) {
   );
 
   const pins: MapPinType[] = filtered.map((p, i) => {
+    if (p.latitude && p.longitude) {
+      return {
+        id: p.id,
+        lat: p.latitude,
+        lng: p.longitude,
+        title: p.titulo,
+        price: p.preco,
+        type: p.tipo,
+        href: `/admin/imoveis/${p.slug}`,
+      };
+    }
     const base = COORDS_BY_BAIRRO[p.bairro];
     const offset = i * 0.0003;
     return {
