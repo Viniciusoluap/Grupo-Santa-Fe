@@ -18,6 +18,11 @@ export async function criarImovel(formData: FormData) {
   const vagas = parseInt(formData.get("vagas") as string) || null;
   const suites = parseInt(formData.get("suites") as string) || null;
   const corretorId = (formData.get("corretorId") as string) || null;
+  const imagens = (formData.get("imagens") as string) || "[]";
+  const latRaw = formData.get("latitude") as string;
+  const lngRaw = formData.get("longitude") as string;
+  const latitude = latRaw ? parseFloat(latRaw) : null;
+  const longitude = lngRaw ? parseFloat(lngRaw) : null;
 
   // Generate slug from titulo
   const slug =
@@ -46,6 +51,9 @@ export async function criarImovel(formData: FormData) {
       banheiros,
       vagas,
       suites,
+      imagens,
+      latitude,
+      longitude,
       corretorId: corretorId || undefined,
     },
   });
@@ -73,12 +81,19 @@ export async function editarImovel(formData: FormData) {
   const corretorId = (formData.get("corretorId") as string) || null;
   const destaque = formData.get("destaque") === "on";
   const publicadoSite = formData.get("publicadoSite") === "on";
+  const imagens = (formData.get("imagens") as string) || "[]";
+  const latRaw = formData.get("latitude") as string;
+  const lngRaw = formData.get("longitude") as string;
+  const latitude = latRaw ? parseFloat(latRaw) : null;
+  const longitude = lngRaw ? parseFloat(lngRaw) : null;
 
   await prisma.imovel.update({
     where: { id },
-    data: { titulo, tipo, status, preco, area, bairro, cidade, descricao,
-            quartos, banheiros, vagas, suites, corretorId: corretorId || undefined,
-            destaque, publicadoSite },
+    data: {
+      titulo, tipo, status, preco, area, bairro, cidade, descricao,
+      quartos, banheiros, vagas, suites, corretorId: corretorId || undefined,
+      destaque, publicadoSite, imagens, latitude, longitude,
+    },
   });
 
   revalidatePath("/admin/imoveis");

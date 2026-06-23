@@ -3,6 +3,9 @@ import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { editarImovel } from "@/lib/actions/imoveis";
+import { FotoUpload } from "../../_components/foto-upload";
+import { PrecoInput } from "../../_components/preco-input";
+import { LocalizacaoPicker } from "../../_components/localizacao-picker";
 
 const tipos = ["casa", "apartamento", "lote", "terreno", "comercial", "chacara"];
 const tipoLabel: Record<string, string> = {
@@ -88,11 +91,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Preço *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                  <input type="number" name="preco" required min={0} defaultValue={imovel.preco}
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                </div>
+                <PrecoInput name="preco" defaultValue={imovel.preco} required />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área (m²)</label>
@@ -119,6 +118,23 @@ export default async function EditarImovelPage({ params }: PageProps) {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Fotos */}
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Fotos</p>
+            <FotoUpload name="imagens" defaultValue={imovel.imagens} />
+          </div>
+
+          {/* Localização Exata */}
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Localização Exata</p>
+            <LocalizacaoPicker
+              nameLat="latitude"
+              nameLng="longitude"
+              defaultLat={imovel.latitude}
+              defaultLng={imovel.longitude}
+            />
           </div>
 
           {/* Publicação */}
