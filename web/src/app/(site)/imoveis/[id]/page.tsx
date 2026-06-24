@@ -17,6 +17,8 @@ import { prisma } from "@/lib/db";
 import { imovelToProperty } from "@/lib/data/properties";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PropertyGallery } from "./_components/property-gallery";
+import { PropertyMapViewer } from "./_components/property-map-viewer";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -89,20 +91,12 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Image gallery placeholder */}
-            <div className="relative bg-[var(--brand-dark)] aspect-video flex items-center justify-center">
-              <div className="text-[var(--brand-yellow)]/10 text-9xl font-black uppercase select-none">
-                {typeLabel[property.type]?.[0]}
-              </div>
-              {property.badge && (
-                <div className="absolute top-4 left-4 bg-[var(--brand-yellow)] text-[var(--brand-dark)] text-sm font-black px-3 py-1 uppercase tracking-wide">
-                  {property.badge}
-                </div>
-              )}
-              <div className="absolute bottom-4 right-4 text-xs text-gray-400">
-                Fotos em breve
-              </div>
-            </div>
+            {/* Galeria de fotos */}
+            <PropertyGallery
+              images={property.images}
+              title={property.title}
+              typeLetter={typeLabel[property.type]?.[0]}
+            />
 
             {/* Title block */}
             <div className="bg-white p-6">
@@ -218,6 +212,20 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Mapa de localização */}
+            {imovel.latitude && imovel.longitude && (
+              <div className="bg-white p-6">
+                <h2 className="font-bold text-[var(--brand-dark)] text-lg uppercase tracking-wide mb-3 pb-2 border-b border-gray-100">
+                  Localização
+                </h2>
+                <PropertyMapViewer
+                  lat={imovel.latitude}
+                  lng={imovel.longitude}
+                  title={property.title}
+                />
               </div>
             )}
 

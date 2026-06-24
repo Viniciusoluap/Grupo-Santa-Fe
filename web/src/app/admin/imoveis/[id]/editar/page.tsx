@@ -6,6 +6,7 @@ import { editarImovel } from "@/lib/actions/imoveis";
 import { FotoUpload } from "../../_components/foto-upload";
 import { PrecoInput } from "../../_components/preco-input";
 import { LocalizacaoPicker } from "../../_components/localizacao-picker";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 const tipos = ["casa", "apartamento", "lote", "terreno", "comercial", "chacara"];
 const tipoLabel: Record<string, string> = {
@@ -31,7 +32,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
   if (!imovel) notFound();
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-5 pb-0">
       <div className="flex items-center gap-3">
         <BackButton />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">
@@ -170,10 +171,12 @@ export default async function EditarImovelPage({ params }: PageProps) {
           </div>
 
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <button type="submit"
-              className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
+            <SubmitButton
+              pendingText="Salvando..."
+              className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               Salvar Alterações
-            </button>
+            </SubmitButton>
             <Link href="/admin/imoveis"
               className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
               Cancelar
