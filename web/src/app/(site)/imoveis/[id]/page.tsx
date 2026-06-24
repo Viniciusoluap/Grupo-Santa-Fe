@@ -115,8 +115,13 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                   </h1>
                   <div className="flex items-center gap-1 text-gray-400 text-sm mt-2">
                     <MapPin size={13} />
-                    {property.address.street}, {property.address.neighborhood},{" "}
-                    {property.address.city} — {property.address.state}
+                    {[
+                      property.address.street,
+                      property.address.neighborhood,
+                      `${property.address.city} — ${property.address.state}`,
+                    ]
+                      .filter((s) => s && s.trim())
+                      .join(", ")}
                   </div>
                 </div>
                 <div className="text-right">
