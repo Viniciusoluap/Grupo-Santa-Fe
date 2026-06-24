@@ -5,11 +5,16 @@ import Link from "next/link";
 import {
   FileText, Plus, Upload, RefreshCw, Wrench, CheckCircle2, Clock,
   AlertCircle, Search, X, Building2, ArrowUpRight, ArrowDownRight,
-  Wifi, WifiOff, Landmark, Trash2,
+  Wifi, WifiOff, Landmark, Trash2, BarChart2,
 } from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { criarCobranca, pagarLancamento } from "@/lib/actions/bpo";
 import { criarContaBancaria, excluirContaBancaria, atualizarStatusTransacao } from "@/lib/actions/banco";
+import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
 
 export interface LancamentoComCliente {
   id: string;
@@ -50,13 +55,25 @@ export interface ContaBancariaData {
   transacoes: TransacaoBancariaData[];
 }
 
+interface RelatoriosData {
+  totalImoveis: number;
+  totalLeads: number;
+  totalFinanciamentos: number;
+  monthlySales: { month: string; receita: number; vendas: number; leads: number }[];
+  propertyTypeData: { name: string; value: number; color: string }[];
+  leadFunnelData: { stage: string; count: number; pct: number }[];
+  corretorRanking: { name: string; comissoes: number; vendas: number }[];
+  serviceRevenue: { service: string; receita: number }[];
+}
+
 interface Props {
   lancamentos: LancamentoComCliente[];
   clientes: { id: string; razaoSocial: string }[];
   contas: ContaBancariaData[];
+  relatorios: RelatoriosData;
 }
 
-type Aba = "cobracas" | "despesas" | "dre" | "bancos";
+type Aba = "cobracas" | "despesas" | "dre" | "bancos" | "relatorios";
 type StatusFilter = "todas" | "pendentes" | "pagas" | "vencidas" | "parciais";
 type TipoFilter = "todos" | "honorario" | "reembolso" | "outros";
 
@@ -80,7 +97,173 @@ function isPendente(l: LancamentoComCliente) {
   return !l.pago && new Date(l.vencimento) >= nowDate();
 }
 
-export function BpoClient({ lancamentos, clientes, contas: initialContas }: Props) {
+function fmt(v: number) {
+  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}K`;
+  return `R$ ${v}`;
+}
+
+function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
+  const { totalImoveis, totalLeads, totalFinanciamentos, monthlySales, propertyTypeData, leadFunnelData, corretorRanking, serviceRevenue } = relatorios;
+  const totalReceita = monthlySales.reduce((s, m) => s + m.receita, 0);
+  const totalVendas = monthlySales.reduce((s, m) => s + m.vendas, 0);
+  const ticketMedio = totalVendas > 0 ? Math.round(totalReceita / totalVendas) : 0;
+
+  const now = new Date();
+  const periodoLabel = (() => {
+    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const startLabel = start.toLocaleString("pt-BR", { month: "short", year: "numeric" });
+    const endLabel = now.toLocaleString("pt-BR", { month: "short", year: "numeric" });
+    return `${startLabel} – ${endLabel}`;
+  })();
+
+  const kpis = [
+    { label: "Receita Total (12m)", value: formatCurrency(totalReceita), icon: DollarSign, delta: `${totalVendas} comissões pagas` },
+    { label: "Imóveis Ativos",      value: String(totalImoveis),          icon: Building2,  delta: `${totalFinanciamentos} financiamentos` },
+    { label: "Leads Captados",      value: String(totalLeads),            icon: Users,       delta: totalVendas > 0 ? `${((totalVendas / totalLeads) * 100).toFixed(1)}% taxa de conversão` : "Sem conversões" },
+    { label: "Ticket Médio",        value: ticketMedio > 0 ? formatCurrency(ticketMedio) : "—", icon: TrendingUp, delta: "por comissão paga" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <p className="text-xs text-gray-400 mt-1">Últimos 12 meses · {periodoLabel}</p>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((k) => (
+          <div key={k.label} className="bg-white border border-gray-100 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{k.label}</p>
+              <k.icon size={16} className="text-gray-300" />
+            </div>
+            <p className="font-black text-[var(--brand-dark)] text-2xl leading-none">{k.value}</p>
+            <p className="text-xs mt-1 text-green-500">{k.delta}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white border border-gray-100 p-5">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Receita Mensal (R$)</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={monthlySales} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradReceitaBpo" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F5C400" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#F5C400" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} />
+            <YAxis tickFormatter={fmt} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={60} />
+            <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), "Receita"]} />
+            <Area type="monotone" dataKey="receita" stroke="#F5C400" strokeWidth={2.5} fill="url(#gradReceitaBpo)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="bg-white border border-gray-100 p-5">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Vendas vs Leads por Mês</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={monthlySales} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 9 }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+              <Tooltip />
+              <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="leads" name="Leads" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="vendas" name="Vendas" fill="#F5C400" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white border border-gray-100 p-5">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Distribuição por Tipo</p>
+          {propertyTypeData.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-8">Nenhum imóvel cadastrado.</p>
+          ) : (
+            <div className="flex items-center gap-6">
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie data={propertyTypeData} cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="value" strokeWidth={0}>
+                    {propertyTypeData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => [Number(v ?? 0), "Imóveis"]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2 flex-1">
+                {propertyTypeData.map((d) => (
+                  <div key={d.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
+                      <span className="text-sm text-gray-600">{d.name}</span>
+                    </div>
+                    <span className="text-xs font-black text-[var(--brand-dark)]">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="bg-white border border-gray-100 p-5">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Funil de Conversão</p>
+          <div className="space-y-2">
+            {leadFunnelData.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">Nenhum lead cadastrado.</p>
+            ) : leadFunnelData.map((s) => (
+              <div key={s.stage}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-600">{s.stage}</span>
+                  <span className="font-bold text-[var(--brand-dark)]">{s.count} <span className="text-gray-400 font-normal">({s.pct}%)</span></span>
+                </div>
+                <div className="h-2 bg-gray-100 overflow-hidden">
+                  <div className="h-full bg-[var(--brand-yellow)] transition-all" style={{ width: `${s.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-100 p-5">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Ranking de Corretores</p>
+          <div className="space-y-3">
+            {corretorRanking.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">Nenhuma comissão paga ainda.</p>
+            ) : corretorRanking.map((c, i) => (
+              <div key={c.name} className="flex items-center gap-3">
+                <div className={`w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs font-black ${i === 0 ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-500"}`}>
+                  {i === 0 ? <Award size={12} /> : i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{c.name}</p>
+                  <p className="text-xs text-gray-400">{c.vendas} comissões</p>
+                </div>
+                <p className="text-sm font-black text-[var(--brand-dark)] flex-shrink-0">{formatCurrency(c.comissoes)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 p-5">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Receita por Serviço</p>
+        <ResponsiveContainer width="100%" height={Math.max(80, serviceRevenue.length * 40)}>
+          <BarChart data={serviceRevenue} layout="vertical" margin={{ top: 0, right: 16, left: 80, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+            <XAxis type="number" tickFormatter={fmt} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+            <YAxis type="category" dataKey="service" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={80} />
+            <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), "Receita"]} />
+            <Bar dataKey="receita" fill="#F5C400" radius={[0, 2, 2, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+export function BpoClient({ lancamentos, clientes, contas: initialContas, relatorios }: Props) {
   const [aba, setAba] = useState<Aba>("cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -345,10 +528,13 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas }: Prop
             {contas.length > 0 && <span className="bg-[var(--brand-yellow)] text-[var(--brand-dark)] text-[9px] font-black px-1.5 py-0.5 rounded-sm">{contas.length}</span>}
           </span>
         </button>
+        <button className={abaClass("relatorios")} onClick={() => setAba("relatorios")}>
+          <span className="flex items-center gap-1.5"><BarChart2 size={13} /> Relatórios</span>
+        </button>
       </div>
 
-      {/* KPI Cards — not shown in DRE or Bancos */}
-      {aba !== "dre" && aba !== "bancos" && (
+      {/* KPI Cards — not shown in DRE, Bancos or Relatórios */}
+      {aba !== "dre" && aba !== "bancos" && aba !== "relatorios" && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {aba === "cobracas" ? (<>
             <div className="bg-white border border-gray-100 p-4">
@@ -813,6 +999,11 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas }: Prop
       )}
 
       {/* ─── MODAL: Setup Pluggy ─── */}
+      {/* ─── RELATÓRIOS ─── */}
+      {aba === "relatorios" && (
+        <BpoRelatorios relatorios={relatorios} />
+      )}
+
       {showSetupPluggy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white w-full max-w-lg mx-4 shadow-2xl">
