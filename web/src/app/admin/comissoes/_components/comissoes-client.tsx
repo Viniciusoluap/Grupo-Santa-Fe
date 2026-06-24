@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { DollarSign, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
-import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
+import { excluirComissao } from "@/lib/actions/comissoes";
+import { ComissaoForm } from "./comissao-form";
+
+type Corretor = { id: string; nome: string };
 
 type DbComissao = {
   id: string;
@@ -18,16 +21,41 @@ type DbComissao = {
   vencimento: Date;
   pagamentoEm: Date | null;
   notas: string;
-  corretor: { id: string; nome: string };
+  corretor: Corretor;
   contrato: { id: string; numero: string } | null;
 };
 
 interface ComissoesClientProps {
   comissoes: DbComissao[];
+  corretores: Corretor[];
 }
 
-export function ComissoesClient({ comissoes }: ComissoesClientProps) {
+function ExcluirComissaoBtn({ id }: { id: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleClick() {
+    if (!confirm("Excluir esta comissão? Esta ação não pode ser desfeita.")) return;
+    startTransition(async () => {
+      await excluirComissao(id);
+    });
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isPending}
+      title="Excluir comissão"
+      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded"
+    >
+      <Trash2 size={14} />
+    </button>
+  );
+}
+
+export function ComissoesClient({ comissoes, corretores }: ComissoesClientProps) {
   const [statusFilter, setStatusFilter] = useState<CommissionStatus | "todas">("todas");
+  const [showForm, setShowForm] = useState(false);
+  const [editando, setEditando] = useState<DbComissao | null>(null);
 
   const filtered = comissoes
     .filter((cm) => statusFilter === "todas" || cm.status === statusFilter)
@@ -40,10 +68,19 @@ export function ComissoesClient({ comissoes }: ComissoesClientProps) {
 
   return (
     <div className="space-y-5">
-      <div>
-        <BackButton className="mb-1" />
-        <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Comissões</h1>
-        <p className="text-gray-400 text-sm mt-0.5">{comissoes.length} registros no total</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <BackButton className="mb-1" />
+          <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Comissões</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{comissoes.length} registros no total</p>
+        </div>
+        <button
+          onClick={() => { setEditando(null); setShowForm(true); }}
+          className="flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors mt-6"
+        >
+          <Plus size={14} />
+          Nova Comissão
+        </button>
       </div>
 
       {/* KPIs */}
@@ -98,6 +135,7 @@ export function ComissoesClient({ comissoes }: ComissoesClientProps) {
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Comissão</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase hidden lg:table-cell">Vencimento</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -106,9 +144,7 @@ export function ComissoesClient({ comissoes }: ComissoesClientProps) {
                 return (
                   <tr key={cm.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link href={`/admin/corretores/${cm.corretorId}`} className="font-medium text-[var(--brand-dark)] hover:text-[var(--brand-yellow)] transition-colors">
-                        {cm.corretor.nome}
-                      </Link>
+                      <span className="font-medium text-[var(--brand-dark)]">{cm.corretor.nome}</span>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <p className="text-[var(--brand-dark)] text-sm">{cm.imovel}</p>
@@ -127,18 +163,38 @@ export function ComissoesClient({ comissoes }: ComissoesClientProps) {
                       {new Date(cm.vencimento).toLocaleDateString("pt-BR")}
                       {cm.pagamentoEm && <span className="block text-green-600">Pago {new Date(cm.pagamentoEm).toLocaleDateString("pt-BR")}</span>}
                     </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => { setEditando(cm); setShowForm(true); }}
+                          title="Editar comissão"
+                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <ExcluirComissaoBtn id={cm.id} />
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">Nenhuma comissão encontrada.</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">Nenhuma comissão encontrada.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {showForm && (
+        <ComissaoForm
+          corretores={corretores}
+          comissao={editando ?? undefined}
+          onClose={() => { setShowForm(false); setEditando(null); }}
+        />
+      )}
     </div>
   );
 }
