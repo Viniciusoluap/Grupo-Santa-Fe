@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -130,7 +130,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
             <p className="text-gray-400 text-sm mt-0.5">{f.imovel}</p>
             <div className="mt-4 space-y-2">
               <a href={`tel:${f.clienteTel}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
-                <Phone size={14} /> {f.clienteTel}
+                <Phone size={14} /> {formatTelefone(f.clienteTel)}
               </a>
               {f.clienteEmail && (
                 <a href={`mailto:${f.clienteEmail}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">

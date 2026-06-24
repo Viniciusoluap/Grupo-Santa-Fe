@@ -49,6 +49,7 @@ model Imovel {
   leads           Lead[]
   contratos       Contrato[]
   visitas         Visita[]
+  financiamentos  Financiamento[] @relation("FinanciamentoImovel")
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
 
@@ -73,6 +74,9 @@ model Lead {
   notas             String   @default("")
   interacoes        Interacao[]
   visitas           Visita[]
+  financiamentos    Financiamento[]
+  obras             Obra[]
+  projetos          Projeto[]        @relation("ProjetoLead")
   criadoEm          DateTime @default(now())
   atualizadoEm      DateTime @updatedAt
 
@@ -174,11 +178,15 @@ model Financiamento {
   parcela         Float?
   status          String          @default("analise_credito")
   protocolo       String?
-  corretorId      String?
-  corretor        Corretor?       @relation(fields: [corretorId], references: [id])
-  checklist       ChecklistItem[]
-  criadoEm        DateTime        @default(now())
-  atualizadoEm    DateTime        @updatedAt
+  leadId              String?
+  leadVinculado       Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  imovelVinculadoId   String?
+  imovelVinculado     Imovel?         @relation("FinanciamentoImovel", fields: [imovelVinculadoId], references: [id], onDelete: SetNull)
+  corretorId          String?
+  corretor            Corretor?       @relation(fields: [corretorId], references: [id])
+  checklist           ChecklistItem[]
+  criadoEm            DateTime        @default(now())
+  atualizadoEm        DateTime        @updatedAt
 
   @@map("financiamentos")
 }
@@ -214,6 +222,10 @@ model Obra {
   dataInicio      DateTime?
   dataPrevisaoFim DateTime?
   dataConclusao   DateTime?
+  leadId          String?
+  leadVinculado   Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  latitude        Float?
+  longitude       Float?
   descricao       String       @default("")
   etapas          ObraEtapa[]
   diario          ObraDiario[]
@@ -264,6 +276,8 @@ model Projeto {
   valorProjeto Float
   valorPago    Float     @default(0)
   prazoEntrega DateTime?
+  leadId       String?
+  leadVinculado Lead?    @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
   descricao    String    @default("")
   arquivos     String    @default("[]")
   criadoEm     DateTime  @default(now())

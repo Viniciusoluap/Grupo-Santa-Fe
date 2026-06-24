@@ -4,7 +4,7 @@ import { Phone, MessageSquare, Mail, Calendar, User, Clock } from "lucide-react"
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG, LeadStatus, InteractionType } from "@/lib/types/crm";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { AddInteractionForm } from "./add-interaction-form";
 
 interface PageProps {
@@ -103,7 +103,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
                 <Phone size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-gray-400">Telefone</p>
-                  <p className="text-sm font-medium">{lead.telefone}</p>
+                  <p className="text-sm font-medium">{formatTelefone(lead.telefone)}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
