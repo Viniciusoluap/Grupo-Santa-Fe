@@ -48,6 +48,32 @@ export async function enviarContato(formData: FormData) {
   redirect("/contato?enviado=1");
 }
 
+export async function editarLead(formData: FormData) {
+  const id = formData.get("id") as string;
+  const servicos = formData.getAll("servicos") as string[];
+  await prisma.lead.update({
+    where: { id },
+    data: {
+      nome: formData.get("nome") as string,
+      telefone: formData.get("telefone") as string,
+      email: (formData.get("email") as string) || undefined,
+      servico: JSON.stringify(servicos.length > 0 ? servicos : ["Outro"]),
+      origem: (formData.get("origem") as string) || "site",
+      orcamento: formData.get("orcamento") ? parseFloat(formData.get("orcamento") as string) : null,
+      notas: (formData.get("notas") as string) || "",
+      corretorId: (formData.get("corretorId") as string) || undefined,
+    },
+  });
+  revalidatePath("/admin/leads");
+  revalidatePath(`/admin/leads/${id}`);
+  redirect(`/admin/leads/${id}`);
+}
+
+export async function excluirLead(id: string) {
+  await prisma.lead.delete({ where: { id } });
+  revalidatePath("/admin/leads");
+}
+
 export async function adicionarInteracao(formData: FormData) {
   const leadId = formData.get("leadId") as string;
   await prisma.interacao.create({

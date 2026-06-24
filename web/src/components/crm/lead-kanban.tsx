@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Phone, MessageSquare, Calendar, User, ArrowRight } from "lucide-react";
+import { Phone, MessageSquare, Calendar, User, ArrowRight, Pencil, Trash2 } from "lucide-react";
+import { useTransition } from "react";
 import { LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
 import { formatCurrency } from "@/lib/utils";
+import { excluirLead } from "@/lib/actions/leads";
 
 type DbVisita = {
   id: string;
@@ -34,6 +36,29 @@ const KANBAN_COLUMNS: LeadStatus[] = [
   "ganho",
   "perdido",
 ];
+
+function ExcluirLeadBtn({ id }: { id: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Excluir este lead? Esta ação não pode ser desfeita.")) return;
+    startTransition(async () => {
+      await excluirLead(id);
+    });
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isPending}
+      title="Excluir lead"
+      className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+    >
+      <Trash2 size={12} />
+    </button>
+  );
+}
 
 function LeadCard({ lead }: { lead: DbLead }) {
   const agendada = lead.visitas.find((v) => v.status === "agendada");
@@ -82,6 +107,7 @@ function LeadCard({ lead }: { lead: DbLead }) {
       <div className="flex gap-1 pt-2 border-t border-gray-50">
         <a
           href={`tel:${lead.telefone}`}
+          title="Ligar"
           className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-50 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
@@ -91,17 +117,28 @@ function LeadCard({ lead }: { lead: DbLead }) {
           href={`https://wa.me/55${lead.telefone.replace(/\D/g, "")}`}
           target="_blank"
           rel="noopener noreferrer"
+          title="WhatsApp"
           className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-green-500 hover:bg-green-50 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           <MessageSquare size={12} />
         </a>
         <Link
+          href={`/admin/leads/${lead.id}/editar`}
+          title="Editar lead"
+          className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Pencil size={12} />
+        </Link>
+        <Link
           href={`/admin/leads/${lead.id}`}
+          title="Ver detalhes"
           className="flex-1 flex items-center justify-center py-1 text-gray-400 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors"
         >
           <ArrowRight size={12} />
         </Link>
+        <ExcluirLeadBtn id={lead.id} />
       </div>
     </div>
   );
@@ -117,7 +154,6 @@ export function LeadKanban({ leads }: { leads: DbLead[] }) {
         const col = byStatus(status);
         return (
           <div key={status} className="flex-shrink-0 w-60">
-            {/* Column header */}
             <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] font-black px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>
@@ -129,7 +165,6 @@ export function LeadKanban({ leads }: { leads: DbLead[] }) {
               </span>
             </div>
 
-            {/* Cards */}
             <div className="space-y-2 min-h-20">
               {col.map((lead) => (
                 <LeadCard key={lead.id} lead={lead} />
