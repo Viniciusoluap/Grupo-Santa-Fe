@@ -38,8 +38,10 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const markerRef = useRef<import("leaflet").Marker | null>(null);
-  const leafletRef = useRef<typeof import("leaflet").default | null>(null);
-  const iconRef = useRef<import("leaflet").DivIcon | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const leafletRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const iconRef = useRef<any>(null);
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     defaultLat && defaultLng ? { lat: defaultLat, lng: defaultLng } : null
