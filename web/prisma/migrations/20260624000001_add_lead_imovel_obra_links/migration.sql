@@ -15,3 +15,7 @@ ALTER TABLE "obras" ADD CONSTRAINT "obras_leadId_fkey" FOREIGN KEY ("leadId") RE
 -- AlterTable projetos: vincular lead
 ALTER TABLE "projetos" ADD COLUMN "leadId" TEXT;
 ALTER TABLE "projetos" ADD CONSTRAINT "projetos_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AlterTable regularizacoes: vincular lead
+ALTER TABLE "regularizacoes" ADD COLUMN "leadId" TEXT;
+ALTER TABLE "regularizacoes" ADD CONSTRAINT "regularizacoes_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;

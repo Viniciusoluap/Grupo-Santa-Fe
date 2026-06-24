@@ -77,6 +77,7 @@ model Lead {
   financiamentos    Financiamento[]
   obras             Obra[]
   projetos          Projeto[]        @relation("ProjetoLead")
+  regularizacoes    Regularizacao[]  @relation("RegularizacaoLead")
   criadoEm          DateTime @default(now())
   atualizadoEm      DateTime @updatedAt
 
@@ -299,6 +300,8 @@ model Regularizacao {
   matricula    String?
   cartorio     String?
   responsavel  String
+  leadId       String?
+  leadVinculado Lead?          @relation("RegularizacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
   valorServico Float
   valorPago    Float          @default(0)
   previsaoFim  DateTime?
