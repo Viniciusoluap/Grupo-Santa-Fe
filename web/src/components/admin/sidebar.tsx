@@ -21,8 +21,6 @@ import {
   MessageCircle,
   Map,
   Rss,
-  BarChart2,
-  Globe,
   X,
   Scale,
   Briefcase,
@@ -96,18 +94,6 @@ const navItems = [
     label: "WhatsApp",
     href: "/admin/whatsapp",
     icon: MessageCircle,
-  },
-  {
-    label: "Agregador",
-    href: "/admin/agregador",
-    icon: Globe,
-    adminOnly: true,
-  },
-  {
-    label: "Relatórios",
-    href: "/admin/relatorios",
-    icon: BarChart2,
-    adminOnly: true,
   },
   {
     label: "Feeds XML",

@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarObra(formData: FormData) {
+  const leadId = (formData.get("leadId") as string) || undefined;
+  const latStr = formData.get("latitude") as string;
+  const lngStr = formData.get("longitude") as string;
+
   await prisma.obra.create({
     data: {
       nome: formData.get("nome") as string,
@@ -16,6 +20,9 @@ export async function criarObra(formData: FormData) {
       valorTotal: parseFloat(formData.get("valorTotal") as string) || 0,
       engenheiroResp: formData.get("engenheiroResp") as string,
       descricao: (formData.get("descricao") as string) || "",
+      leadId,
+      latitude: latStr ? parseFloat(latStr) : null,
+      longitude: lngStr ? parseFloat(lngStr) : null,
     },
   });
   const nomeObra = formData.get("nome") as string;

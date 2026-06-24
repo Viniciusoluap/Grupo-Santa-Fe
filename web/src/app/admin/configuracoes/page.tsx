@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
+import { FeedsAgregadorClient } from "./_components/feeds-agregador-client";
 
 const SECTIONS = [
   {
@@ -43,13 +44,17 @@ export default async function ConfiguracoesPage() {
   const session = await auth();
   if ((session?.user as { role?: string })?.role !== "admin") redirect("/admin");
 
-  const [configs, usuarios] = await Promise.all([
+  const [configs, usuarios, feedsConfig] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
       where: { papel: { in: ["admin", "colaborador"] } },
       orderBy: { criadoEm: "asc" },
     }),
+    prisma.configuracao.findUnique({ where: { chave: "agregador_feeds" } }),
   ]);
+  const feedUrls: string[] = (() => {
+    try { return feedsConfig?.valor ? (JSON.parse(feedsConfig.valor) as string[]) : []; } catch { return []; }
+  })();
   const valoresSalvos = Object.fromEntries(configs.map((c) => [c.chave, c.valor]));
 
   return (
@@ -63,6 +68,8 @@ export default async function ConfiguracoesPage() {
       </div>
 
       <ConfiguracoesClient sections={SECTIONS} valoresSalvos={valoresSalvos} />
+
+      <FeedsAgregadorClient feedUrls={feedUrls} />
 
       <UsuariosClient usuarios={usuarios.map((u) => ({
         id: u.id,

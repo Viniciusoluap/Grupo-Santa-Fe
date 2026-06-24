@@ -116,7 +116,11 @@ export function MapaClient({ imoveis }: MapaClientProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white border border-gray-100 overflow-hidden">
-          <PropertyMap pins={pins} height="480px" onPinClick={setSelectedPin} />
+          <PropertyMap
+            pins={selectedPin ? pins.filter((p) => p.id === selectedPin.id) : pins}
+            height="480px"
+            onPinClick={(pin) => setSelectedPin(selectedPin?.id === pin.id ? null : pin)}
+          />
         </div>
 
         <div className="space-y-3">
@@ -180,7 +184,7 @@ export function MapaClient({ imoveis }: MapaClientProps) {
               {filtered.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setSelectedPin(pins.find((pin) => pin.id === p.id) ?? null)}
+                  onClick={() => setSelectedPin(selectedPin?.id === p.id ? null : (pins.find((pin) => pin.id === p.id) ?? null))}
                   className={`w-full text-left p-2.5 border transition-colors text-sm ${selectedPin?.id === p.id ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)]/5" : "border-gray-100 hover:border-gray-300"}`}
                 >
                   <p className="font-medium text-[var(--brand-dark)] truncate">{p.titulo}</p>

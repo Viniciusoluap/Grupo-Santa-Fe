@@ -6,7 +6,7 @@ import { Plus, LayoutGrid, List, Search } from "lucide-react";
 import { BackButton } from "@/components/ui/back-button";
 import { LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
 import { LeadKanban } from "@/components/crm/lead-kanban";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 
 type DbLead = {
   id: string;
@@ -144,7 +144,7 @@ export function LeadsClient({ leads }: LeadsClientProps) {
                     <tr key={lead.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <p className="font-medium text-[var(--brand-dark)]">{lead.nome}</p>
-                        <p className="text-xs text-gray-400">{lead.telefone}</p>
+                        <p className="text-xs text-gray-400">{formatTelefone(lead.telefone)}</p>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-sm text-gray-500">
                         <div className="flex flex-wrap gap-1">
