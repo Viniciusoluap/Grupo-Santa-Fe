@@ -3,6 +3,7 @@ import { Plus, ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { BackButton } from "@/components/ui/back-button";
+import { ExcluirAvaliacaoBtn } from "./_components/excluir-avaliacao-btn";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:        { label: "Solicitada",       bg: "bg-gray-100",    text: "text-gray-600",   order: 1 },
@@ -121,8 +122,9 @@ export default async function AvaliacoesPage() {
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         <Link href={`/admin/avaliacoes/${a.id}`} className="text-xs font-bold text-[var(--brand-yellow)] hover:underline">Ver</Link>
+                        <ExcluirAvaliacaoBtn id={a.id} />
                       </td>
                     </tr>
                   );

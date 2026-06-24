@@ -53,6 +53,11 @@ export async function atualizarStatusAvaliacao(formData: FormData) {
   revalidatePath("/admin/avaliacoes");
 }
 
+export async function excluirAvaliacao(id: string) {
+  await prisma.avaliacao.delete({ where: { id } });
+  revalidatePath("/admin/avaliacoes");
+}
+
 export async function salvarChecklistAvaliacao(id: string, dados: string) {
   await prisma.avaliacao.update({
     where: { id },
