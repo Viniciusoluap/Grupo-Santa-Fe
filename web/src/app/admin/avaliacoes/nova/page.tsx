@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { criarAvaliacao } from "@/lib/actions/avaliacoes";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export default function NovaAvaliacaoPage() {
   return (
@@ -128,9 +129,12 @@ export default function NovaAvaliacaoPage() {
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-gray-100">
-          <button type="submit" className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
+          <SubmitButton
+            pendingText="Salvando..."
+            className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
             Abrir Avaliação
-          </button>
+          </SubmitButton>
           <Link href="/admin/avaliacoes" className="px-4 py-2.5 border border-gray-200 text-xs font-bold uppercase text-gray-500 hover:bg-gray-50 transition-colors">
             Cancelar
           </Link>
