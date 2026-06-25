@@ -7,7 +7,14 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
 export async function excluirCorretor(id: string) {
-  await prisma.corretor.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.lead.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
+    prisma.visita.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
+    prisma.comissao.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
+    prisma.financiamento.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
+    prisma.imovel.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
+    prisma.corretor.delete({ where: { id } }),
+  ]);
   revalidatePath("/admin/corretores");
 }
 
