@@ -149,10 +149,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Close bell/profile dropdowns on outside click */}
+      {/* Close bell/profile dropdowns on outside click — z-10 stays below header z-20 */}
       {(bellOpen || profileOpen) && (
         <div
-          className="fixed inset-0 z-30"
+          className="fixed inset-0 z-10"
           onClick={() => {
             setBellOpen(false);
             setProfileOpen(false);
