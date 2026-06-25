@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -124,7 +124,7 @@ export default async function RegDetailPage({ params }: PageProps) {
             <p className="text-gray-400 text-xs mt-1">{r.endereco}</p>
             {r.matricula && <p className="text-gray-400 text-xs mt-0.5">{r.matricula}</p>}
             <a href={`tel:${r.clienteTel}`} className="mt-3 flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
-              <Phone size={14} /> {r.clienteTel}
+              <Phone size={14} /> {formatTelefone(r.clienteTel)}
             </a>
           </div>
 

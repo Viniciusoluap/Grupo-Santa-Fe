@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, FileCheck } from "lucide-react";
+import { Plus, Search, FileCheck, Pencil, Trash2 } from "lucide-react";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency } from "@/lib/utils";
+import { excluirFinanciamento } from "@/lib/actions/financiamentos";
 
 interface ChecklistItem {
   id: string;
@@ -36,6 +37,20 @@ interface Financiamento {
 
 interface Props {
   financiamentos: Financiamento[];
+}
+
+function ExcluirFinanciamentoBtn({ id, nome }: { id: string; nome: string }) {
+  const [isPending, startTransition] = useTransition();
+  function handleClick() {
+    if (!confirm(`Excluir financiamento de "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    startTransition(async () => { await excluirFinanciamento(id); });
+  }
+  return (
+    <button onClick={handleClick} disabled={isPending} title="Excluir"
+      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
+      <Trash2 size={14} />
+    </button>
+  );
 }
 
 export function FinanciamentosClient({ financiamentos }: Props) {
@@ -175,7 +190,15 @@ export function FinanciamentosClient({ financiamentos }: Props) {
                       <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Link href={`/admin/financiamentos/${f.id}`} className="text-xs font-bold text-[var(--brand-yellow)] hover:underline">Ver</Link>
+                      <div className="flex items-center justify-center gap-1">
+                        <Link href={`/admin/financiamentos/${f.id}`} className="p-1.5 text-gray-400 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
+                          <FileCheck size={14} />
+                        </Link>
+                        <Link href={`/admin/financiamentos/${f.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
+                          <Pencil size={14} />
+                        </Link>
+                        <ExcluirFinanciamentoBtn id={f.id} nome={f.clienteNome} />
+                      </div>
                     </td>
                   </tr>
                 );

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -50,7 +50,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             <p className="text-white font-bold">{p.clienteNome}</p>
             <div className="mt-3 space-y-2">
               <a href={`tel:${p.clienteTel}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2 px-3 transition-colors">
-                <Phone size={14} /> {p.clienteTel}
+                <Phone size={14} /> {formatTelefone(p.clienteTel)}
               </a>
             </div>
           </div>

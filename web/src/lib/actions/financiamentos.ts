@@ -30,3 +30,31 @@ export async function criarFinanciamento(formData: FormData) {
   revalidatePath("/admin/financiamentos");
   redirect(`/admin/financiamentos/${fin.id}`);
 }
+
+export async function excluirFinanciamento(id: string) {
+  await prisma.financiamento.delete({ where: { id } });
+  revalidatePath("/admin/financiamentos");
+}
+
+export async function editarFinanciamento(formData: FormData) {
+  const id = formData.get("id") as string;
+  await prisma.financiamento.update({
+    where: { id },
+    data: {
+      clienteNome: formData.get("clienteNome") as string,
+      clienteTel: formData.get("clienteTel") as string,
+      clienteEmail: (formData.get("clienteEmail") as string) || null,
+      clienteCpf: (formData.get("clienteCpf") as string) || null,
+      imovel: formData.get("imovel") as string,
+      tipo: formData.get("tipo") as string,
+      banco: formData.get("banco") as string,
+      valorImovel: parseFloat(formData.get("valorImovel") as string) || 0,
+      valorFinanciado: parseFloat(formData.get("valorFinanciado") as string) || 0,
+      entrada: parseFloat(formData.get("entrada") as string) || 0,
+      taxa: parseFloat(formData.get("taxa") as string) || 0,
+      prazo: parseInt(formData.get("prazo") as string) || 360,
+    },
+  });
+  revalidatePath("/admin/financiamentos");
+  redirect(`/admin/financiamentos/${id}`);
+}

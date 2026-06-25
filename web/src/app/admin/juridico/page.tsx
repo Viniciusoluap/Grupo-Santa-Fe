@@ -2,7 +2,6 @@ import { FileText, Plus, Scale } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
-import { BackButton } from "@/components/ui/back-button";
 import { criarContrato } from "@/lib/actions/contratos";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -27,7 +26,6 @@ export default async function JuridicoPage() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide flex items-center gap-2">
             <Scale size={20} /> Jurídico
           </h1>

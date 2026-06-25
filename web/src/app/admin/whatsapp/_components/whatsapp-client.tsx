@@ -5,7 +5,6 @@ import {
   MessageCircle, CheckCircle2, Clock, AlertCircle, Wifi, WifiOff,
   Search, X, Send, Smartphone, Plus, Eye, Users,
 } from "lucide-react";
-import { BackButton } from "@/components/ui/back-button";
 import { salvarConexaoBusiness } from "@/lib/actions/whatsapp";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -161,7 +160,6 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       <div>
-        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Central WhatsApp</h1>
         <p className="text-gray-400 text-sm mt-0.5">{totalLeads} leads disponíveis para envio</p>
       </div>

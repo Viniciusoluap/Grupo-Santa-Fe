@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Phone, TrendingUp, Building2, Award, Search, Mail } from "lucide-react";
-import { BackButton } from "@/components/ui/back-button";
+import { Plus, Phone, TrendingUp, Building2, Award, Search, Mail, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { excluirCorretor } from "@/lib/actions/corretores";
 import { COMMISSION_STATUS_CONFIG } from "@/lib/types/corretor";
 
 type DbComissao = {
@@ -38,6 +38,12 @@ interface CorretoresClientProps {
 export function CorretoresClient({ corretores }: CorretoresClientProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"todos" | "ativos" | "inativos">("ativos");
+  const [isPending, startTransition] = useTransition();
+
+  function handleExcluir(id: string, nome: string) {
+    if (!confirm(`Excluir o corretor "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    startTransition(async () => { await excluirCorretor(id); });
+  }
 
   const filtered = corretores.filter((c) => {
     const especialidades: string[] = (() => {
@@ -74,7 +80,6 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Corretores</h1>
           <p className="text-gray-400 text-sm mt-0.5">
             {corretores.filter((c) => c.ativo).length} ativos · {corretores.length} cadastrados
@@ -218,18 +223,22 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
                 >
                   Ver Perfil
                 </Link>
-                <a
-                  href={`tel:${c.telefone}`}
-                  className="flex items-center gap-1 text-xs border border-gray-200 hover:border-[var(--brand-yellow)] text-gray-500 font-bold px-3 py-2 transition-colors"
-                >
+                <a href={`tel:${c.telefone}`}
+                  className="flex items-center gap-1 text-xs border border-gray-200 hover:border-[var(--brand-yellow)] text-gray-500 font-bold px-3 py-2 transition-colors">
                   <Phone size={12} />
                 </a>
-                <a
-                  href={`mailto:${c.email}`}
-                  className="flex items-center gap-1 text-xs border border-gray-200 hover:border-[var(--brand-yellow)] text-gray-500 font-bold px-3 py-2 transition-colors"
-                >
+                <a href={`mailto:${c.email}`}
+                  className="flex items-center gap-1 text-xs border border-gray-200 hover:border-[var(--brand-yellow)] text-gray-500 font-bold px-3 py-2 transition-colors">
                   <Mail size={12} />
                 </a>
+                <Link href={`/admin/corretores/${c.id}/editar`}
+                  className="flex items-center gap-1 text-xs border border-gray-200 hover:border-[var(--brand-yellow)] text-gray-500 font-bold px-3 py-2 transition-colors">
+                  <Pencil size={12} />
+                </Link>
+                <button onClick={() => handleExcluir(c.id, c.nome)} disabled={isPending}
+                  className="flex items-center gap-1 text-xs border border-gray-200 hover:border-red-300 hover:text-red-500 text-gray-500 font-bold px-3 py-2 transition-colors disabled:opacity-50">
+                  <Trash2 size={12} />
+                </button>
               </div>
             </div>
           );
