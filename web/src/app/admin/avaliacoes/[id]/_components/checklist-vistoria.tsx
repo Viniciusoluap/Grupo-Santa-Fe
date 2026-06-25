@@ -182,7 +182,7 @@ function compressImage(file: File): Promise<string> {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_WIDTH = 1000;
+        const MAX_WIDTH = 800;
         let { width, height } = img;
         if (width > MAX_WIDTH) {
           height = Math.round((height * MAX_WIDTH) / width);
@@ -194,7 +194,7 @@ function compressImage(file: File): Promise<string> {
         const ctx = canvas.getContext("2d");
         if (!ctx) { reject(new Error("canvas context failed")); return; }
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
+        resolve(canvas.toDataURL("image/jpeg", 0.60));
       };
       img.onerror = reject;
       img.src = e.target?.result as string;
@@ -254,7 +254,11 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
     if (!files.length) return;
     const remaining = 15 - data.fotos.length;
     const toProcess = files.slice(0, remaining);
-    const compressed = await Promise.all(toProcess.map(compressImage));
+    const compressed: string[] = [];
+    for (const file of toProcess) {
+      const c = await compressImage(file);
+      compressed.push(c);
+    }
     setData((prev) => ({ ...prev, fotos: [...prev.fotos, ...compressed] }));
     // reset input so same files can be re-added if removed
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -437,7 +441,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
       <div className="px-5 py-5 border-t border-gray-100">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Fotos da Vistoria</p>
         <p className="text-[10px] text-gray-400 mb-3">
-          Max. 15 fotos · cada foto reduzida automaticamente para max 1000px / JPEG 75%
+          Max. 15 fotos · cada foto reduzida automaticamente para max 800px / JPEG 60%
         </p>
 
         {data.fotos.length < 15 && (
