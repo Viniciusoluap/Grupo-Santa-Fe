@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { criarComissao, editarComissao } from "@/lib/actions/comissoes";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type Corretor = { id: string; nome: string };
+type NegocioItem = { id: string; label: string };
 
 type ComissaoData = {
   id: string;
@@ -22,24 +24,44 @@ type ComissaoData = {
 interface Props {
   corretores: Corretor[];
   comissao?: ComissaoData;
+  negociosPorTipo: Record<string, NegocioItem[]>;
   onClose: () => void;
 }
 
+const TIPO_NEGOCIO_OPTIONS = [
+  { value: "imovel",        label: "Venda de Imóvel" },
+  { value: "financiamento", label: "Financiamento" },
+  { value: "obra",          label: "Obra" },
+  { value: "projeto",       label: "Projeto de Engenharia" },
+  { value: "regularizacao", label: "Regularização" },
+  { value: "avaliacao",     label: "Avaliação de Imóvel" },
+  { value: "bpo",           label: "BPO Financeiro" },
+];
+
 const STATUS_OPTIONS = [
-  { value: "pendente", label: "Pendente" },
-  { value: "aprovada", label: "Aprovada" },
-  { value: "paga", label: "Paga" },
+  { value: "pendente",  label: "Pendente" },
+  { value: "aprovada",  label: "Aprovada" },
+  { value: "paga",      label: "Paga" },
   { value: "cancelada", label: "Cancelada" },
 ];
 
 function toDateInputValue(d: Date | null | undefined) {
   if (!d) return "";
-  const dt = new Date(d);
-  return dt.toISOString().split("T")[0];
+  return new Date(d).toISOString().split("T")[0];
 }
 
-export function ComissaoForm({ corretores, comissao, onClose }: Props) {
+export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }: Props) {
   const isEdit = !!comissao;
+  const [tipoNegocio, setTipoNegocio] = useState("imovel");
+  const [imovelLabel, setImovelLabel] = useState(comissao?.imovel ?? "");
+
+  const itens = negociosPorTipo[tipoNegocio] ?? [];
+
+  function handleNegocioChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const opt = itens.find((i) => i.id === e.target.value);
+    if (opt) setImovelLabel(`${opt.label} [${TIPO_NEGOCIO_OPTIONS.find((t) => t.value === tipoNegocio)?.label ?? tipoNegocio}]`);
+    else setImovelLabel("");
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -55,6 +77,7 @@ export function ComissaoForm({ corretores, comissao, onClose }: Props) {
 
         <form action={isEdit ? editarComissao : criarComissao} className="p-6 space-y-4">
           {isEdit && <input type="hidden" name="id" value={comissao.id} />}
+          <input type="hidden" name="imovel" value={imovelLabel} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
@@ -68,21 +91,49 @@ export function ComissaoForm({ corretores, comissao, onClose }: Props) {
               </select>
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Imóvel / Negócio *</label>
-              <input type="text" name="imovel" required placeholder="Ex: Apto 302, Residencial Aurora"
-                defaultValue={comissao?.imovel ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
+            {!isEdit && (
+              <>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Negócio *</label>
+                  <select value={tipoNegocio} onChange={(e) => { setTipoNegocio(e.target.value); setImovelLabel(""); }}
+                    className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                    {TIPO_NEGOCIO_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                    {TIPO_NEGOCIO_OPTIONS.find((t) => t.value === tipoNegocio)?.label ?? "Negócio"} *
+                  </label>
+                  {itens.length > 0 ? (
+                    <select required onChange={handleNegocioChange} defaultValue=""
+                      className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                      <option value="">Selecione...</option>
+                      {itens.map((item) => (
+                        <option key={item.id} value={item.id}>{item.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic py-2">Nenhum registro encontrado para este tipo.</p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {isEdit && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Imóvel / Negócio *</label>
+                <input type="text" value={imovelLabel} onChange={(e) => setImovelLabel(e.target.value)} required
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor da Comissão *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                <input type="number" name="valor" required step="0.01" min="0" placeholder="0,00"
-                  defaultValue={comissao?.valor ?? ""}
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
+              <CurrencyInput name="valor" required defaultValue={comissao?.valor}
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
 
             <div>

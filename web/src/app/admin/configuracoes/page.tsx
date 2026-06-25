@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FeedsAgregadorClient } from "./_components/feeds-agregador-client";
+import { FotoPerfilClient } from "./_components/foto-perfil-client";
 
 const SECTIONS = [
   {
@@ -42,7 +43,9 @@ const SECTIONS = [
 
 export default async function ConfiguracoesPage() {
   const session = await auth();
-  if ((session?.user as { role?: string })?.role !== "admin") redirect("/admin");
+  const sessionUser = session?.user as { role?: string; name?: string } | undefined;
+  if (sessionUser?.role !== "admin") redirect("/admin");
+  const userName = sessionUser?.name ?? "Usuário";
 
   const [configs, usuarios, feedsConfig] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
@@ -66,6 +69,8 @@ export default async function ConfiguracoesPage() {
           <p className="text-gray-400 text-sm mt-0.5">Dados da empresa e preferências do sistema</p>
         </div>
       </div>
+
+      <FotoPerfilClient userName={userName} />
 
       <ConfiguracoesClient sections={SECTIONS} valoresSalvos={valoresSalvos} />
 

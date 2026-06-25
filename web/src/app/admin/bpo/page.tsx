@@ -9,6 +9,7 @@ export default async function BpoPage() {
   const [
     lancamentos,
     clientes,
+    leads,
     contasRaw,
     totalImoveis,
     totalLeads,
@@ -26,6 +27,10 @@ export default async function BpoPage() {
       where: { status: "ativo" },
       select: { id: true, razaoSocial: true },
       orderBy: { razaoSocial: "asc" },
+    }),
+    prisma.lead.findMany({
+      select: { id: true, nome: true, telefone: true, email: true },
+      orderBy: { nome: "asc" },
     }),
     prisma.contaBancaria.findMany({
       where: { ativo: true },
@@ -108,7 +113,8 @@ export default async function BpoPage() {
   const mapped = lancamentos.map((l) => ({
     id: l.id,
     clienteId: l.clienteId,
-    clienteNome: l.cliente.razaoSocial,
+    clienteNome: l.cliente?.razaoSocial ?? l.clienteNomeLivre ?? "—",
+    clienteNomeLivre: l.clienteNomeLivre,
     tipo: l.tipo,
     descricao: l.descricao,
     valor: l.valor,
@@ -116,6 +122,7 @@ export default async function BpoPage() {
     pago: l.pago,
     pagoEm: l.pagoEm?.toISOString() ?? null,
     competencia: l.competencia,
+    centroCustos: l.centroCustos,
   }));
 
   const contas = contasRaw.map((c) => ({
@@ -129,6 +136,7 @@ export default async function BpoPage() {
     ativo: c.ativo,
     pluggyItemId: c.pluggyItemId,
     pluggyAccountId: c.pluggyAccountId,
+    webhookUrl: c.webhookUrl,
     ultimaSincronizacao: c.ultimaSincronizacao?.toISOString() ?? null,
     transacoes: c.transacoes.map((t) => ({
       id: t.id,
@@ -142,5 +150,5 @@ export default async function BpoPage() {
     })),
   }));
 
-  return <BpoClient lancamentos={mapped} clientes={clientes} contas={contas} relatorios={relatoriosData} />;
+  return <BpoClient lancamentos={mapped} clientes={clientes} leads={leads} contas={contas} relatorios={relatoriosData} />;
 }

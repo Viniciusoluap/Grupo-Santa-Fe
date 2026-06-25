@@ -46,7 +46,7 @@ export async function GET() {
           id: `cobranca-${c.id}`,
           tipo: "cobranca_vencendo",
           titulo: "Cobrança vencendo",
-          mensagem: `${c.cliente.razaoSocial} — R$ ${c.valor.toFixed(2)} vence em ${new Date(c.vencimento).toLocaleDateString("pt-BR")}`,
+          mensagem: `${c.cliente?.razaoSocial ?? c.clienteNomeLivre ?? "Cliente"} — R$ ${c.valor.toFixed(2)} vence em ${new Date(c.vencimento).toLocaleDateString("pt-BR")}`,
           link: "/admin/bpo",
           lida: false,
           criadoEm: new Date().toISOString(),

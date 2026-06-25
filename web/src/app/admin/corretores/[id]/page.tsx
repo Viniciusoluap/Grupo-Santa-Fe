@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Calendar } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { COMMISSION_STATUS_CONFIG } from "@/lib/types/corretor";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -126,7 +126,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
                       <tr key={lead.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <p className="font-medium text-[var(--brand-dark)]">{lead.nome}</p>
-                          <p className="text-xs text-gray-400">{lead.telefone}</p>
+                          <p className="text-xs text-gray-400">{formatTelefone(lead.telefone ?? "")}</p>
                         </td>
                         <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                           {(() => { try { return (JSON.parse(lead.servico) as string[]).join(", "); } catch { return lead.servico; } })()}
@@ -161,7 +161,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
             )}
             <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
               <a href={`tel:${c.telefone}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors">
-                <Phone size={14} /> {c.telefone}
+                <Phone size={14} /> {formatTelefone(c.telefone ?? "")}
               </a>
               <a href={`mailto:${c.email}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors">
                 <Mail size={14} /> E-mail

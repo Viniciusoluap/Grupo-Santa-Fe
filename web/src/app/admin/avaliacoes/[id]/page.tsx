@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, Calendar } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
 import { ChecklistVistoria } from "./_components/checklist-vistoria";
 
@@ -61,7 +61,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
             <p className="font-bold text-[var(--brand-dark)]">{a.clienteNome}</p>
             {a.clienteCpf && <p className="text-xs text-gray-500">CPF: {a.clienteCpf}</p>}
             <a href={`tel:${a.clienteTel}`} className="flex items-center gap-2 text-sm text-[var(--brand-dark)] hover:text-[var(--brand-yellow)]">
-              <Phone size={13} /> {a.clienteTel}
+              <Phone size={13} /> {formatTelefone(a.clienteTel)}
             </a>
             {a.clienteEmail && (
               <a href={`mailto:${a.clienteEmail}`} className="flex items-center gap-2 text-sm text-[var(--brand-dark)] hover:text-[var(--brand-yellow)]">

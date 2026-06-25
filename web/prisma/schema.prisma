@@ -413,17 +413,19 @@ model BpoCliente {
 }
 
 model BpoLancamento {
-  id          String     @id @default(cuid())
-  clienteId   String
-  cliente     BpoCliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  tipo        String     // honorario, despesa, reembolso
-  descricao   String
-  valor       Float
-  vencimento  DateTime
-  pago        Boolean    @default(false)
-  pagoEm      DateTime?
-  competencia String     // "2026-06"
-  criadoEm    DateTime   @default(now())
+  id               String      @id @default(cuid())
+  clienteId        String?
+  cliente          BpoCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteNomeLivre String?     // nome do lead/cliente quando não há clienteId
+  tipo             String      // honorario, despesa, reembolso
+  descricao        String
+  valor            Float
+  vencimento       DateTime
+  pago             Boolean     @default(false)
+  pagoEm           DateTime?
+  competencia      String      // "2026-06"
+  centroCustos     String?
+  criadoEm         DateTime    @default(now())
 
   @@map("bpo_lancamentos")
 }
@@ -496,6 +498,7 @@ model ContaBancaria {
   ativo               Boolean             @default(true)
   pluggyItemId        String?
   pluggyAccountId     String?
+  webhookUrl          String?
   ultimaSincronizacao DateTime?
   transacoes          TransacaoBancaria[]
   criadoEm            DateTime            @default(now())

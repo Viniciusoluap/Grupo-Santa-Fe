@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, Ruler } from "lucide-react";
+import { Plus, Search, Ruler, Pencil, Trash2 } from "lucide-react";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG, ProjetoStatus } from "@/lib/types/projeto";
 import { formatCurrency } from "@/lib/utils";
+import { excluirProjeto } from "@/lib/actions/projetos";
 
 interface Projeto {
   id: string;
@@ -21,6 +22,36 @@ interface Projeto {
 
 interface Props {
   projetos: Projeto[];
+}
+
+function parseTipos(raw: string): string[] {
+  try { return JSON.parse(raw) as string[]; } catch { return [raw]; }
+}
+
+function TiposResumo({ raw }: { raw: string }) {
+  const tipos = parseTipos(raw);
+  if (tipos.length === 0) return <span className="text-gray-400 text-xs">—</span>;
+  const first = PROJETO_TIPO_CONFIG[tipos[0] as keyof typeof PROJETO_TIPO_CONFIG];
+  const label = first ? `${first.icon} ${first.label}` : tipos[0];
+  return (
+    <span className="text-xs text-gray-500">
+      {label}{tipos.length > 1 && <span className="text-gray-400 ml-1">+{tipos.length - 1}</span>}
+    </span>
+  );
+}
+
+function ExcluirProjetoBtn({ id, nome }: { id: string; nome: string }) {
+  const [isPending, startTransition] = useTransition();
+  function handleClick() {
+    if (!confirm(`Excluir projeto "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    startTransition(async () => { await excluirProjeto(id); });
+  }
+  return (
+    <button onClick={handleClick} disabled={isPending} title="Excluir"
+      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
+      <Trash2 size={14} />
+    </button>
+  );
 }
 
 export function ProjetosClient({ projetos }: Props) {
@@ -99,7 +130,7 @@ export function ProjetosClient({ projetos }: Props) {
         </div>
       </div>
 
-      {/* List */}
+      {/* Table */}
       <div className="bg-white border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -118,18 +149,11 @@ export function ProjetosClient({ projetos }: Props) {
               {filtered.map((p) => {
                 const statusKey = p.status as ProjetoStatus;
                 const cfg = PROJETO_STATUS_CONFIG[statusKey] ?? PROJETO_STATUS_CONFIG["solicitado"];
-                const tipoKey = p.tipo as keyof typeof PROJETO_TIPO_CONFIG;
-                const tipo = PROJETO_TIPO_CONFIG[tipoKey] ?? { icon: "📐", label: p.tipo };
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="flex items-start gap-2">
-                        <span className="text-base shrink-0 mt-0.5">{tipo.icon}</span>
-                        <div>
-                          <p className="font-medium text-[var(--brand-dark)] leading-tight">{p.nome}</p>
-                          <p className="text-xs text-gray-400">{tipo.label}</p>
-                        </div>
-                      </div>
+                      <p className="font-medium text-[var(--brand-dark)] leading-tight">{p.nome}</p>
+                      <TiposResumo raw={p.tipo} />
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <p className="text-sm text-gray-700">{p.clienteNome}</p>
@@ -148,7 +172,15 @@ export function ProjetosClient({ projetos }: Props) {
                       <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Link href={`/admin/projetos/${p.id}`} className="text-xs font-bold text-[var(--brand-yellow)] hover:underline">Ver</Link>
+                      <div className="flex items-center justify-center gap-1">
+                        <Link href={`/admin/projetos/${p.id}`} className="p-1.5 text-gray-400 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
+                          <Ruler size={14} />
+                        </Link>
+                        <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
+                          <Pencil size={14} />
+                        </Link>
+                        <ExcluirProjetoBtn id={p.id} nome={p.nome} />
+                      </div>
                     </td>
                   </tr>
                 );

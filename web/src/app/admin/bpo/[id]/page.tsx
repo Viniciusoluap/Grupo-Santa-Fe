@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, CheckCircle2, Clock } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { criarLancamentoBpo, marcarLancamentoPago, atualizarStatusBpoCliente } from "@/lib/actions/bpo";
 
 const STATUS_CONFIG = {
@@ -61,7 +61,7 @@ export default async function BpoClientePage({ params }: PageProps) {
             {cliente.cpf && <p className="text-sm text-gray-600"><span className="text-gray-400">CPF:</span> {cliente.cpf}</p>}
             <p className="text-sm text-gray-600"><span className="text-gray-400">Responsável:</span> {cliente.responsavel}</p>
             <a href={`tel:${cliente.telefone}`} className="flex items-center gap-2 text-sm text-[var(--brand-dark)] hover:text-[var(--brand-yellow)]">
-              <Phone size={13} /> {cliente.telefone}
+              <Phone size={13} /> {formatTelefone(cliente.telefone)}
             </a>
             {cliente.email && (
               <a href={`mailto:${cliente.email}`} className="flex items-center gap-2 text-sm text-[var(--brand-dark)] hover:text-[var(--brand-yellow)]">

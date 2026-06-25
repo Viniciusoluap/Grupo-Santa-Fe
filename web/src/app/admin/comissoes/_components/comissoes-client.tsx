@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
-import { BackButton } from "@/components/ui/back-button";
 import { excluirComissao } from "@/lib/actions/comissoes";
 import { ComissaoForm } from "./comissao-form";
 
 type Corretor = { id: string; nome: string };
+type NegocioItem = { id: string; label: string };
 
 type DbComissao = {
   id: string;
@@ -28,6 +28,7 @@ type DbComissao = {
 interface ComissoesClientProps {
   comissoes: DbComissao[];
   corretores: Corretor[];
+  negociosPorTipo: Record<string, NegocioItem[]>;
 }
 
 function ExcluirComissaoBtn({ id }: { id: string }) {
@@ -52,7 +53,7 @@ function ExcluirComissaoBtn({ id }: { id: string }) {
   );
 }
 
-export function ComissoesClient({ comissoes, corretores }: ComissoesClientProps) {
+export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: ComissoesClientProps) {
   const [statusFilter, setStatusFilter] = useState<CommissionStatus | "todas">("todas");
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<DbComissao | null>(null);
@@ -70,7 +71,6 @@ export function ComissoesClient({ comissoes, corretores }: ComissoesClientProps)
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Comissões</h1>
           <p className="text-gray-400 text-sm mt-0.5">{comissoes.length} registros no total</p>
         </div>
@@ -192,6 +192,7 @@ export function ComissoesClient({ comissoes, corretores }: ComissoesClientProps)
         <ComissaoForm
           corretores={corretores}
           comissao={editando ?? undefined}
+          negociosPorTipo={negociosPorTipo}
           onClose={() => { setShowForm(false); setEditando(null); }}
         />
       )}

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Plus, ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
-import { BackButton } from "@/components/ui/back-button";
 import { ExcluirAvaliacaoBtn } from "./_components/excluir-avaliacao-btn";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
@@ -38,7 +37,6 @@ export default async function AvaliacoesPage() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Avaliação de Imóveis</h1>
           <p className="text-gray-400 text-sm mt-0.5">{avaliacoes.length} laudo{avaliacoes.length !== 1 ? "s" : ""} · Laudos e pareceres de avaliação</p>
         </div>

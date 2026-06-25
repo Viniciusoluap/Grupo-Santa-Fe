@@ -59,16 +59,19 @@ export async function marcarLancamentoPago(formData: FormData) {
 }
 
 export async function criarCobranca(formData: FormData) {
-  const clienteId = formData.get("clienteId") as string;
+  const clienteId = (formData.get("clienteId") as string) || null;
+  const clienteNomeLivre = (formData.get("clienteNomeLivre") as string) || null;
 
   await prisma.bpoLancamento.create({
     data: {
       clienteId,
+      clienteNomeLivre,
       tipo: formData.get("tipo") as string,
       descricao: formData.get("descricao") as string,
       valor: parseFloat(formData.get("valor") as string),
       vencimento: new Date(formData.get("vencimento") as string),
       competencia: formData.get("competencia") as string,
+      centroCustos: (formData.get("centroCustos") as string) || null,
     },
   });
 

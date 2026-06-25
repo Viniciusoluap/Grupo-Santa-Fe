@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, HardHat } from "lucide-react";
+import { Plus, Search, HardHat, Pencil, Trash2 } from "lucide-react";
 import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, ObraStatus } from "@/lib/types/obra";
 import { formatCurrency } from "@/lib/utils";
+import { excluirObra } from "@/lib/actions/obras";
 
 interface ObraEtapa {
   id: string;
@@ -32,6 +33,20 @@ interface Obra {
 
 interface Props {
   obras: Obra[];
+}
+
+function ExcluirObraBtn({ id, nome }: { id: string; nome: string }) {
+  const [isPending, startTransition] = useTransition();
+  function handleClick() {
+    if (!confirm(`Excluir obra "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    startTransition(async () => { await excluirObra(id); });
+  }
+  return (
+    <button onClick={handleClick} disabled={isPending} title="Excluir"
+      className="text-xs border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 font-bold px-3 py-2 transition-colors disabled:opacity-40 flex items-center gap-1">
+      <Trash2 size={12} /> Excluir
+    </button>
+  );
 }
 
 export function ObrasClient({ obras }: Props) {
@@ -159,10 +174,14 @@ export function ObrasClient({ obras }: Props) {
                 </div>
               </div>
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex gap-2 flex-wrap">
                 <Link href={`/admin/obras/${o.id}`} className="text-xs bg-[var(--brand-dark)] hover:bg-[var(--brand-dark-secondary)] text-[var(--brand-yellow)] font-bold uppercase tracking-wider px-4 py-2 transition-colors">
                   Abrir Obra
                 </Link>
+                <Link href={`/admin/obras/${o.id}/editar`} className="text-xs border border-gray-200 hover:border-blue-300 hover:text-blue-500 text-gray-500 font-bold px-3 py-2 transition-colors flex items-center gap-1">
+                  <Pencil size={12} /> Editar
+                </Link>
+                <ExcluirObraBtn id={o.id} nome={o.nome} />
               </div>
             </div>
           );
