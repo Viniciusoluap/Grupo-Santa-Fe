@@ -169,7 +169,7 @@ export function ProjetosClient({ projetos }: Props) {
                       {p.prazoEntrega ? new Date(p.prazoEntrega).toLocaleDateString("pt-BR") : "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+                      <StatusSelectProjeto id={p.id} status={p.status} />
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">

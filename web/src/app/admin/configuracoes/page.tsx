@@ -84,6 +84,7 @@ export default async function ConfiguracoesPage() {
         ativo: u.ativo,
         creci: u.creci,
         telefone: u.telefone,
+        permissoes: u.permissoes,
       }))} />
     </div>
   );

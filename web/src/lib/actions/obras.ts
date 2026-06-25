@@ -4,6 +4,19 @@ import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+export async function criarDiarioObra(obraId: string, formData: FormData) {
+  await prisma.obraDiario.create({
+    data: {
+      obraId,
+      data: new Date(formData.get("data") as string),
+      descricao: formData.get("descricao") as string,
+      responsavel: formData.get("responsavel") as string,
+      clima: (formData.get("clima") as string) || null,
+    },
+  });
+  revalidatePath(`/admin/obras/${obraId}`);
+}
+
 export async function criarObra(formData: FormData) {
   const leadId = (formData.get("leadId") as string) || undefined;
   const latStr = formData.get("latitude") as string;

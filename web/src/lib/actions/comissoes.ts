@@ -58,3 +58,14 @@ export async function excluirComissao(id: string) {
   await prisma.comissao.delete({ where: { id } });
   revalidatePath("/admin/comissoes");
 }
+
+export async function alterarStatusComissao(id: string, status: string) {
+  await prisma.comissao.update({
+    where: { id },
+    data: {
+      status,
+      pagamentoEm: status === "paga" ? new Date() : null,
+    },
+  });
+  revalidatePath("/admin/comissoes");
+}

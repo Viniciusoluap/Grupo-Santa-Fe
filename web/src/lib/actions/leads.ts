@@ -10,6 +10,8 @@ export async function criarLead(formData: FormData) {
   const nome = formData.get("nome") as string;
   const telefone = formData.get("telefone") as string;
 
+  const senhaRaw = (formData.get("senha") as string) || null;
+
   const lead = await prisma.lead.create({
     data: {
       nome,
@@ -22,6 +24,7 @@ export async function criarLead(formData: FormData) {
         : null,
       notas: (formData.get("notas") as string) || "",
       corretorId: (formData.get("corretorId") as string) || undefined,
+      senhaAcesso: senhaRaw || null,
     },
   });
 

@@ -3,6 +3,31 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+export async function alterarStatusProjeto(id: string, status: string) {
+  await prisma.projeto.update({
+    where: { id },
+    data: { status },
+  });
+  revalidatePath("/admin/projetos");
+  revalidatePath(`/admin/projetos/${id}`);
+}
+
+export async function salvarChecklistProjeto(id: string, checklist: string) {
+  await prisma.projeto.update({ where: { id }, data: { checklist } });
+  revalidatePath(`/admin/projetos/${id}`);
+}
+
+export async function salvarArquivosProjeto(id: string, arquivos: string) {
+  await prisma.projeto.update({ where: { id }, data: { arquivos } });
+  revalidatePath(`/admin/projetos/${id}`);
+}
+
+export async function alterarStatusProjetoFromDetail(id: string, status: string) {
+  await prisma.projeto.update({ where: { id }, data: { status } });
+  revalidatePath("/admin/projetos");
+  revalidatePath(`/admin/projetos/${id}`);
+}
+
 export async function criarProjeto(formData: FormData) {
   const tipos = formData.getAll("tipos") as string[];
   const leadId = (formData.get("leadId") as string) || undefined;

@@ -39,6 +39,8 @@ export async function criarCorretor(formData: FormData) {
     }
   }
 
+  const senhaRaw = (formData.get("senha") as string) || null;
+
   await prisma.corretor.create({
     data: {
       nome: formData.get("nome") as string,
@@ -47,6 +49,7 @@ export async function criarCorretor(formData: FormData) {
       email: formData.get("email") as string,
       especialidades: JSON.stringify(especialidadesList),
       ativo: true,
+      senhaAcesso: senhaRaw || null,
     },
   });
   const nome = formData.get("nome") as string;

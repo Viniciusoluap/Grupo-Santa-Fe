@@ -53,6 +53,39 @@ export async function atualizarStatusAvaliacao(formData: FormData) {
   revalidatePath("/admin/avaliacoes");
 }
 
+export async function editarAvaliacao(formData: FormData) {
+  const id = formData.get("id") as string;
+  await prisma.avaliacao.update({
+    where: { id },
+    data: {
+      tipo: formData.get("tipo") as string,
+      finalidade: formData.get("finalidade") as string,
+      clienteNome: formData.get("clienteNome") as string,
+      clienteCpf: (formData.get("clienteCpf") as string) || null,
+      clienteTel: formData.get("clienteTel") as string,
+      clienteEmail: (formData.get("clienteEmail") as string) || null,
+      endereco: formData.get("endereco") as string,
+      bairro: formData.get("bairro") as string,
+      cidade: (formData.get("cidade") as string) || "Canaã dos Carajás",
+      estado: (formData.get("estado") as string) || "PA",
+      areaConstruida: formData.get("areaConstruida") ? parseFloat(formData.get("areaConstruida") as string) : null,
+      areaTerreno: formData.get("areaTerreno") ? parseFloat(formData.get("areaTerreno") as string) : null,
+      quartos: formData.get("quartos") ? parseInt(formData.get("quartos") as string) : null,
+      banheiros: formData.get("banheiros") ? parseInt(formData.get("banheiros") as string) : null,
+      vagas: formData.get("vagas") ? parseInt(formData.get("vagas") as string) : null,
+      metodologia: (formData.get("metodologia") as string) || "comparativo",
+      avaliador: formData.get("avaliador") as string,
+      dataVistoria: formData.get("dataVistoria") ? new Date(formData.get("dataVistoria") as string) : null,
+      prazoEntrega: formData.get("prazoEntrega") ? new Date(formData.get("prazoEntrega") as string) : null,
+      observacoes: (formData.get("observacoes") as string) || "",
+    },
+  });
+
+  revalidatePath("/admin/avaliacoes");
+  revalidatePath(`/admin/avaliacoes/${id}`);
+  redirect(`/admin/avaliacoes/${id}`);
+}
+
 export async function excluirAvaliacao(id: string) {
   await prisma.avaliacao.delete({ where: { id } });
   revalidatePath("/admin/avaliacoes");
@@ -63,5 +96,7 @@ export async function salvarChecklistAvaliacao(id: string, dados: string) {
     where: { id },
     data: { caracteristicas: dados },
   });
-  revalidatePath(`/admin/avaliacoes/${id}`);
+  // revalidatePath omitido intencionalmente: a resposta com fotos em base64
+  // estoura o limite de tamanho do SSR do Vercel ao tentar re-renderizar a página.
+  // O componente cliente já exibe "Salvo!" sem precisar de reload.
 }

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2, Building2, UserCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
-import { excluirComissao } from "@/lib/actions/comissoes";
+import { excluirComissao, alterarStatusComissao } from "@/lib/actions/comissoes";
 import { ComissaoForm } from "./comissao-form";
 
 type Corretor = { id: string; nome: string };
@@ -152,7 +152,6 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((cm) => {
-                const cfg = COMMISSION_STATUS_CONFIG[cm.status as CommissionStatus];
                 return (
                   <tr key={cm.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -176,11 +175,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
                     <td className="px-4 py-3 text-center text-gray-500 text-xs hidden md:table-cell">{cm.percentual}%</td>
                     <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">{formatCurrency(cm.valor)}</td>
                     <td className="px-4 py-3 text-center">
-                      {cfg ? (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
-                      ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-500">{cm.status}</span>
-                      )}
+                      <StatusSelectComissao id={cm.id} status={cm.status} />
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-400 hidden lg:table-cell">
                       {new Date(cm.vencimento).toLocaleDateString("pt-BR")}

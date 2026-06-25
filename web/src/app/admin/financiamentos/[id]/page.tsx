@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Phone, Mail } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import FinanciamentoChecklistClient from "./_components/financiamento-checklist-client";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -32,15 +33,6 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
   const bancoLabel = BANCO_CONFIG[f.banco as keyof typeof BANCO_CONFIG]?.label ?? f.banco;
 
   // Group checklist items by grupo
-  const checklistByGroup = f.checklist.reduce((acc, item) => {
-    if (!acc[item.grupo]) acc[item.grupo] = [];
-    acc[item.grupo].push(item);
-    return acc;
-  }, {} as Record<string, typeof f.checklist>);
-
-  const totalChecklist = f.checklist.length;
-  const doneChecklist = f.checklist.filter((i) => i.concluido).length;
-  const progressPct = totalChecklist > 0 ? Math.round((doneChecklist / totalChecklist) * 100) : 0;
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -75,50 +67,11 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: checklist */}
         <div className="lg:col-span-2 space-y-5">
-          {/* Checklist progress */}
-          <div className="bg-white border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Checklist Documental</h2>
-              <span className="text-xs font-bold text-gray-500">{doneChecklist}/{totalChecklist} concluídos</span>
-            </div>
-            <div className="h-2 bg-gray-100 mb-5 overflow-hidden">
-              <div className={`h-full transition-all ${progressPct === 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`} style={{ width: `${progressPct}%` }} />
-            </div>
-
-            {totalChecklist === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">Nenhum item no checklist.</p>
-            ) : (
-              Object.entries(checklistByGroup).map(([grupo, items]) => (
-                <div key={grupo} className="mb-4">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">{grupo}</p>
-                  <div className="space-y-2">
-                    {items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-3 p-2.5 bg-gray-50">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {item.concluido
-                            ? <CheckCircle2 size={14} className="text-green-600" />
-                            : <AlertCircle size={14} className="text-orange-400" />
-                          }
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-[var(--brand-dark)] truncate">{item.item}</p>
-                            {item.concluidoEm && (
-                              <p className="text-xs text-gray-400">
-                                Concluído em {new Date(item.concluidoEm).toLocaleDateString("pt-BR")}
-                              </p>
-                            )}
-                            {item.notas && <p className="text-xs text-red-500">{item.notas}</p>}
-                          </div>
-                        </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 uppercase shrink-0 ${item.concluido ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-600"}`}>
-                          {item.concluido ? "Concluído" : "Pendente"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <FinanciamentoChecklistClient
+            financiamentoId={f.id}
+            checklist={f.checklist.map((i) => ({ ...i }))}
+            statusAtual={f.status}
+          />
         </div>
 
         {/* Right: sidebar */}
