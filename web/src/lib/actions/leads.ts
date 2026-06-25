@@ -80,7 +80,7 @@ async function criarProcessosDoLead(leadId: string, nome: string, telefone: stri
         prisma.projeto.create({
           data: {
             nome: `Projeto — ${nome}`,
-            tipo: JSON.stringify(["engenharia"]),
+            tipo: "projeto_completo",
             clienteNome: nome,
             clienteTel: telefone,
             engenheiro: "A definir",
@@ -96,7 +96,7 @@ async function criarProcessosDoLead(leadId: string, nome: string, telefone: stri
         prisma.regularizacao.create({
           data: {
             nome: `Regularização — ${nome}`,
-            tipo: JSON.stringify(["regularizacao"]),
+            tipo: "regularizacao_escritura",
             clienteNome: nome,
             clienteTel: telefone,
             endereco: "A definir",

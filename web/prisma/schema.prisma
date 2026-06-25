@@ -143,8 +143,10 @@ model Corretor {
 
 model Comissao {
   id           String    @id @default(cuid())
-  corretorId   String
-  corretor     Corretor  @relation(fields: [corretorId], references: [id])
+  beneficiario String    @default("corretor") // "empresa" | "corretor"
+  tipoNegocio  String    @default("venda_imovel")
+  corretorId   String?
+  corretor     Corretor? @relation(fields: [corretorId], references: [id])
   contratoId   String?
   contrato     Contrato? @relation(fields: [contratoId], references: [id])
   imovel       String

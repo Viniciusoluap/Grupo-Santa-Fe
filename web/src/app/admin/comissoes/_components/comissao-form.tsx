@@ -11,7 +11,9 @@ type NegocioItem = { id: string; label: string };
 
 type ComissaoData = {
   id: string;
-  corretorId: string;
+  beneficiario: string;
+  tipoNegocio: string;
+  corretorId: string | null;
   imovel: string;
   valor: number;
   percentual: number;
@@ -23,6 +25,7 @@ type ComissaoData = {
 
 interface Props {
   corretores: Corretor[];
+  imoveis?: Imovel[];
   comissao?: ComissaoData;
   negociosPorTipo: Record<string, NegocioItem[]>;
   onClose: () => void;
@@ -80,13 +83,36 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
           <input type="hidden" name="imovel" value={imovelLabel} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Corretor — só quando beneficiário = corretor */}
+            {beneficiario === "corretor" && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor *</label>
+                <select
+                  name="corretorId"
+                  required
+                  defaultValue={comissao?.corretorId ?? ""}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
+                >
+                  <option value="">Selecione um corretor</option>
+                  {corretores.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Tipo de Negócio */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor *</label>
-              <select name="corretorId" required defaultValue={comissao?.corretorId ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                <option value="">Selecione um corretor</option>
-                {corretores.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Negócio *</label>
+              <select
+                name="tipoNegocio"
+                required
+                value={tipoNegocio}
+                onChange={(e) => setTipoNegocio(e.target.value)}
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
+              >
+                {TIPOS_NEGOCIO.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
@@ -138,15 +164,25 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Percentual (%)</label>
-              <input type="number" name="percentual" step="0.01" min="0" max="100" placeholder="6"
+              <input
+                type="number"
+                name="percentual"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="6"
                 defaultValue={comissao?.percentual ?? "6"}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
-              <select name="status" defaultValue={comissao?.status ?? "pendente"}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+              <select
+                name="status"
+                defaultValue={comissao?.status ?? "pendente"}
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
+              >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
@@ -155,23 +191,34 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vencimento *</label>
-              <input type="date" name="vencimento" required
+              <input
+                type="date"
+                name="vencimento"
+                required
                 defaultValue={toDateInputValue(comissao?.vencimento)}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+              />
             </div>
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data de Pagamento</label>
-              <input type="date" name="pagamentoEm"
+              <input
+                type="date"
+                name="pagamentoEm"
                 defaultValue={toDateInputValue(comissao?.pagamentoEm)}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+              />
             </div>
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Observações</label>
-              <textarea name="notas" rows={3} placeholder="Notas adicionais..."
+              <textarea
+                name="notas"
+                rows={3}
+                placeholder="Notas adicionais..."
                 defaultValue={comissao?.notas ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none" />
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none"
+              />
             </div>
           </div>
 
@@ -182,8 +229,11 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
             >
               {isEdit ? "Salvar Alterações" : "Cadastrar Comissão"}
             </SubmitButton>
-            <button type="button" onClick={onClose}
-              className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors"
+            >
               Cancelar
             </button>
           </div>

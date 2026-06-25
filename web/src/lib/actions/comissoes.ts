@@ -7,10 +7,14 @@ import { redirect } from "next/navigation";
 export async function criarComissao(formData: FormData) {
   const vencimentoStr = formData.get("vencimento") as string;
   const pagamentoStr = formData.get("pagamentoEm") as string;
+  const beneficiario = (formData.get("beneficiario") as string) || "corretor";
+  const corretorId = (formData.get("corretorId") as string) || null;
 
   await prisma.comissao.create({
     data: {
-      corretorId: formData.get("corretorId") as string,
+      beneficiario,
+      tipoNegocio: (formData.get("tipoNegocio") as string) || "venda_imovel",
+      corretorId: beneficiario === "corretor" ? corretorId : null,
       imovel: formData.get("imovel") as string,
       valor: parseFloat(formData.get("valor") as string),
       percentual: parseFloat((formData.get("percentual") as string) || "6"),
@@ -28,11 +32,15 @@ export async function editarComissao(formData: FormData) {
   const id = formData.get("id") as string;
   const vencimentoStr = formData.get("vencimento") as string;
   const pagamentoStr = formData.get("pagamentoEm") as string;
+  const beneficiario = (formData.get("beneficiario") as string) || "corretor";
+  const corretorId = (formData.get("corretorId") as string) || null;
 
   await prisma.comissao.update({
     where: { id },
     data: {
-      corretorId: formData.get("corretorId") as string,
+      beneficiario,
+      tipoNegocio: (formData.get("tipoNegocio") as string) || "venda_imovel",
+      corretorId: beneficiario === "corretor" ? corretorId : null,
       imovel: formData.get("imovel") as string,
       valor: parseFloat(formData.get("valor") as string),
       percentual: parseFloat((formData.get("percentual") as string) || "6"),

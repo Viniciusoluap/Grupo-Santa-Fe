@@ -64,9 +64,9 @@ export async function executarAgregacao(): Promise<{ ok: boolean; importados: nu
           const externalId = extractXmlTag(listing, "ListingID") || extractXmlTag(listing, "ExternalID");
           if (!externalId) continue;
 
-          // Skip if already imported
+          // Skip if already imported (id is prefixed with "agr-" + first 20 chars of externalId)
           const exists = await prisma.imovel.findFirst({
-            where: { slug: { contains: externalId.slice(-6) } },
+            where: { id: { startsWith: `agr-${externalId.slice(0, 20)}` } },
             select: { id: true },
           });
           if (exists) continue;

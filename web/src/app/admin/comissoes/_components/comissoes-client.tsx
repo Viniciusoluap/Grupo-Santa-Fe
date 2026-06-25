@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2 } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2, Building2, UserCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
 import { excluirComissao } from "@/lib/actions/comissoes";
@@ -12,7 +12,9 @@ type NegocioItem = { id: string; label: string };
 
 type DbComissao = {
   id: string;
-  corretorId: string;
+  beneficiario: string;
+  tipoNegocio: string;
+  corretorId: string | null;
   contratoId: string | null;
   imovel: string;
   valor: number;
@@ -21,7 +23,7 @@ type DbComissao = {
   vencimento: Date;
   pagamentoEm: Date | null;
   notas: string;
-  corretor: Corretor;
+  corretor: Corretor | null;
   contrato: { id: string; numero: string } | null;
 };
 
@@ -30,6 +32,16 @@ interface ComissoesClientProps {
   corretores: Corretor[];
   negociosPorTipo: Record<string, NegocioItem[]>;
 }
+
+const TIPO_NEGOCIO_LABELS: Record<string, string> = {
+  venda_imovel: "Venda de Imóvel",
+  locacao_imovel: "Locação de Imóvel",
+  financiamento: "Financiamento",
+  obra: "Obra",
+  projeto: "Projeto",
+  regularizacao: "Regularização",
+  avaliacao: "Avaliação",
+};
 
 function ExcluirComissaoBtn({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
@@ -129,7 +141,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
           <table className="w-full text-sm">
             <thead className="bg-[var(--brand-dark)]">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Corretor</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Beneficiário</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Negócio</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Taxa</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Comissão</th>
@@ -144,10 +156,21 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
                 return (
                   <tr key={cm.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <span className="font-medium text-[var(--brand-dark)]">{cm.corretor.nome}</span>
+                      {cm.beneficiario === "empresa" ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-[var(--brand-dark)]">
+                          <Building2 size={13} className="text-gray-400" />
+                          Empresa
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--brand-dark)]">
+                          <UserCheck size={13} className="text-gray-400" />
+                          {cm.corretor?.nome ?? "—"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <p className="text-[var(--brand-dark)] text-sm">{cm.imovel}</p>
+                      <p className="text-[var(--brand-dark)] text-sm">{TIPO_NEGOCIO_LABELS[cm.tipoNegocio] ?? cm.tipoNegocio}</p>
+                      <p className="text-gray-400 text-xs">{cm.imovel}</p>
                       {cm.contrato && <p className="text-gray-400 text-xs">Contrato {cm.contrato.numero}</p>}
                     </td>
                     <td className="px-4 py-3 text-center text-gray-500 text-xs hidden md:table-cell">{cm.percentual}%</td>
@@ -191,6 +214,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
       {showForm && (
         <ComissaoForm
           corretores={corretores}
+          imoveis={imoveis}
           comissao={editando ?? undefined}
           negociosPorTipo={negociosPorTipo}
           onClose={() => { setShowForm(false); setEditando(null); }}
