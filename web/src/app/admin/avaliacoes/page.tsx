@@ -121,7 +121,7 @@ export default async function AvaliacoesPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <Link href={`/admin/avaliacoes/${a.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-[var(--brand-yellow)] hover:underline"><Pencil size={12} />Editar</Link>
+                        <Link href={`/admin/avaliacoes/${a.id}/editar`} className="inline-flex items-center gap-1 text-xs font-bold text-[var(--brand-yellow)] hover:underline"><Pencil size={12} />Editar</Link>
                         <ExcluirAvaliacaoBtn id={a.id} />
                       </td>
                     </tr>
