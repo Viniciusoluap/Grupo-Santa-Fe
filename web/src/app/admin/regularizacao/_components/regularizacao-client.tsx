@@ -28,26 +28,6 @@ function parseTipoIconReg(tipo: string): string {
   return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
 }
 
-function parseTiposLabelReg(tipo: string): string {
-  try {
-    const arr = JSON.parse(tipo);
-    if (Array.isArray(arr)) {
-      return arr.map((t: string) => REG_TIPO_CONFIG[t as keyof typeof REG_TIPO_CONFIG]?.label ?? t).join(", ");
-    }
-  } catch {}
-  return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.label ?? tipo;
-}
-
-function parseTipoIconReg(tipo: string): string {
-  try {
-    const arr = JSON.parse(tipo);
-    if (Array.isArray(arr) && arr.length > 0) {
-      return REG_TIPO_CONFIG[arr[0] as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
-    }
-  } catch {}
-  return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
-}
-
 interface RegDocumento {
   id: string;
   status: string;
