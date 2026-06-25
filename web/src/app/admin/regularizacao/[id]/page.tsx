@@ -4,6 +4,8 @@ import { ArrowLeft, Phone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
+import RegDocumentosClient from "./_components/reg-documentos-client";
 
 interface PageProps { params: Promise<{ id: string }> }
 

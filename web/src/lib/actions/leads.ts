@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
 
 export async function criarLead(formData: FormData) {
   const servicos = formData.getAll("servicos") as string[];
@@ -11,6 +12,7 @@ export async function criarLead(formData: FormData) {
   const telefone = formData.get("telefone") as string;
 
   const senhaRaw = (formData.get("senha") as string) || null;
+  const senhaHash = senhaRaw ? await bcrypt.hash(senhaRaw, 10) : null;
 
   const lead = await prisma.lead.create({
     data: {
@@ -24,7 +26,7 @@ export async function criarLead(formData: FormData) {
         : null,
       notas: (formData.get("notas") as string) || "",
       corretorId: (formData.get("corretorId") as string) || undefined,
-      senhaAcesso: senhaRaw || null,
+      senhaAcesso: senhaHash,
     },
   });
 

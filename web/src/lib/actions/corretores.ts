@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
 
 export async function excluirCorretor(id: string) {
   await prisma.corretor.delete({ where: { id } });
@@ -40,6 +41,7 @@ export async function criarCorretor(formData: FormData) {
   }
 
   const senhaRaw = (formData.get("senha") as string) || null;
+  const senhaHash = senhaRaw ? await bcrypt.hash(senhaRaw, 10) : null;
 
   await prisma.corretor.create({
     data: {
@@ -49,7 +51,7 @@ export async function criarCorretor(formData: FormData) {
       email: formData.get("email") as string,
       especialidades: JSON.stringify(especialidadesList),
       ativo: true,
-      senhaAcesso: senhaRaw || null,
+      senhaAcesso: senhaHash,
     },
   });
   const nome = formData.get("nome") as string;

@@ -4,6 +4,7 @@ import { ArrowLeft, Phone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import ProjetoDetailClient from "./_components/projeto-detail-client";
 
 interface PageProps { params: Promise<{ id: string }> }
 
