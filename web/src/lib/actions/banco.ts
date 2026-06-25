@@ -12,6 +12,8 @@ export async function criarContaBancaria(formData: FormData) {
       tipo: (formData.get("tipo") as string) || "corrente",
       descricao: (formData.get("descricao") as string) || null,
       saldoAtual: parseFloat((formData.get("saldoAtual") as string) || "0"),
+      pluggyAccountId: (formData.get("pluggyAccountId") as string) || null,
+      webhookUrl: (formData.get("webhookUrl") as string) || null,
     },
   });
   revalidatePath("/admin/bpo");

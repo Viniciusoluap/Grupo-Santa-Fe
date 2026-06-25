@@ -18,8 +18,9 @@ import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
 
 export interface LancamentoComCliente {
   id: string;
-  clienteId: string;
+  clienteId: string | null;
   clienteNome: string;
+  clienteNomeLivre: string | null;
   tipo: string;
   descricao: string;
   valor: number;
@@ -27,6 +28,7 @@ export interface LancamentoComCliente {
   pago: boolean;
   pagoEm: string | null;
   competencia: string;
+  centroCustos: string | null;
 }
 
 export interface TransacaoBancariaData {
@@ -51,6 +53,7 @@ export interface ContaBancariaData {
   ativo: boolean;
   pluggyItemId: string | null;
   pluggyAccountId: string | null;
+  webhookUrl: string | null;
   ultimaSincronizacao: string | null;
   transacoes: TransacaoBancariaData[];
 }
@@ -69,11 +72,12 @@ interface RelatoriosData {
 interface Props {
   lancamentos: LancamentoComCliente[];
   clientes: { id: string; razaoSocial: string }[];
+  leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
   relatorios: RelatoriosData;
 }
 
-type Aba = "cobracas" | "despesas" | "dre" | "bancos" | "relatorios";
+type Aba = "cobracas" | "despesas" | "dre" | "bancos" | "relatorios" | "contabilidade";
 type StatusFilter = "todas" | "pendentes" | "pagas" | "vencidas" | "parciais";
 type TipoFilter = "todos" | "honorario" | "reembolso" | "outros";
 
@@ -263,7 +267,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ lancamentos, clientes, contas: initialContas, relatorios }: Props) {
+export function BpoClient({ lancamentos, clientes, leads, contas: initialContas, relatorios }: Props) {
   const [aba, setAba] = useState<Aba>("cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -272,6 +276,10 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
   const [mesFilter, setMesFilter] = useState("");
   const [anoFilter, setAnoFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [modalTipo, setModalTipo] = useState<"cobranca" | "despesa" | null>(null);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadSelectedId, setLeadSelectedId] = useState("");
+  const [leadSelectedNome, setLeadSelectedNome] = useState("");
   const [showAddConta, setShowAddConta] = useState(false);
   const [showSetupPluggy, setShowSetupPluggy] = useState(false);
   const [contaExpandida, setContaExpandida] = useState<string | null>(null);
@@ -351,13 +359,21 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
     startTransition(async () => { await pagarLancamento(id); });
   }
 
+  function closeModal() {
+    setShowModal(false);
+    setModalTipo(null);
+    setLeadSearch("");
+    setLeadSelectedId("");
+    setLeadSelectedNome("");
+  }
+
   async function handleCriarCobranca(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       await criarCobranca(formData);
-      setShowModal(false);
-      setModalFeedback("Cobrança criada com sucesso!");
+      closeModal();
+      setModalFeedback(modalTipo === "despesa" ? "Despesa registrada!" : "Cobrança criada com sucesso!");
       setTimeout(() => setModalFeedback(null), 3000);
     });
   }
@@ -491,9 +507,9 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
           className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
           <FileText size={13} /> Gerar PDF
         </button>
-        <button onClick={() => setShowModal(true)}
+        <button onClick={() => { setShowModal(true); setModalTipo(null); }}
           className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2 transition-colors">
-          <Plus size={13} /> Nova Cobrança
+          <Plus size={13} /> Novo
         </button>
         <button onClick={() => alert("Funcionalidade em breve")}
           className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
@@ -530,6 +546,9 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
         </button>
         <button className={abaClass("relatorios")} onClick={() => setAba("relatorios")}>
           <span className="flex items-center gap-1.5"><BarChart2 size={13} /> Relatórios</span>
+        </button>
+        <button className={abaClass("contabilidade")} onClick={() => setAba("contabilidade")}>
+          <span className="flex items-center gap-1.5"><FileText size={13} /> Contabilidade</span>
         </button>
       </div>
 
@@ -879,61 +898,214 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
         </div>
       )}
 
-      {/* ─── MODAL: Nova Cobrança ─── */}
+      {/* ─── MODAL: Novo (Cobrança ou Despesa) ─── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md mx-4 shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Nova Cobrança</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
+                {modalTipo === null ? "Novo Lançamento" : modalTipo === "cobranca" ? "Nova Cobrança" : "Nova Despesa"}
+              </h2>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
             </div>
-            <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
-                <select name="clienteId" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                  <option value="">Selecionar cliente...</option>
-                  {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
-                </select>
+
+            {/* Step 1: type selection */}
+            {modalTipo === null && (
+              <div className="px-6 py-8">
+                <p className="text-sm text-gray-500 mb-6 text-center">O que deseja registrar?</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => setModalTipo("cobranca")}
+                    className="border-2 border-gray-100 hover:border-[var(--brand-yellow)] p-6 text-center transition-all group">
+                    <ArrowUpRight size={28} className="text-green-500 mx-auto mb-3" />
+                    <p className="font-black text-[var(--brand-dark)] uppercase text-sm">Cobrança</p>
+                    <p className="text-xs text-gray-400 mt-1">Honorários, reembolsos e recebimentos</p>
+                  </button>
+                  <button onClick={() => setModalTipo("despesa")}
+                    className="border-2 border-gray-100 hover:border-[var(--brand-yellow)] p-6 text-center transition-all group">
+                    <ArrowDownRight size={28} className="text-red-500 mx-auto mb-3" />
+                    <p className="font-black text-[var(--brand-dark)] uppercase text-sm">Despesa</p>
+                    <p className="text-xs text-gray-400 mt-1">Gastos, fornecedores e custos</p>
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo *</label>
-                <select name="tipo" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                  <option value="honorario">Honorário</option>
-                  <option value="despesa">Despesa</option>
-                  <option value="reembolso">Reembolso</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
-                <input name="descricao" type="text" required placeholder="Ex: Honorários BPO — junho/2026"
-                  className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            )}
+
+            {/* Step 2a: Cobrança form */}
+            {modalTipo === "cobranca" && (
+              <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
+                <input type="hidden" name="tipo" value="honorario" />
+
+                {/* Client: BPO client or lead */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
-                  <input name="valor" type="number" step="0.01" min="0" required
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar cliente BPO ou lead..."
+                      value={leadSearch}
+                      onChange={(e) => { setLeadSearch(e.target.value); setLeadSelectedId(""); setLeadSelectedNome(""); }}
+                      className="w-full pl-8 pr-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+                    />
+                    {leadSearch && !leadSelectedId && (
+                      <div className="absolute z-20 w-full bg-white border border-gray-200 shadow-lg mt-0.5 max-h-40 overflow-y-auto">
+                        {clientes.filter((c) => c.razaoSocial.toLowerCase().includes(leadSearch.toLowerCase())).map((c) => (
+                          <button key={c.id} type="button"
+                            onClick={() => { setLeadSelectedId(c.id); setLeadSelectedNome(c.razaoSocial); setLeadSearch(c.razaoSocial); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                            <span className="font-medium">{c.razaoSocial}</span>
+                            <span className="text-gray-400 text-xs ml-2">BPO</span>
+                          </button>
+                        ))}
+                        {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
+                          <button key={l.id} type="button"
+                            onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                            <span className="font-medium">{l.nome}</span>
+                            <span className="text-gray-400 text-xs ml-2">Lead</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input type="hidden" name="clienteId" value={leadSelectedId} />
+                  <input type="hidden" name="clienteNomeLivre" value={leadSelectedId ? "" : leadSelectedNome} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Cobrança *</label>
+                  <select name="tipo" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                    <option value="honorario">Honorário Mensal</option>
+                    <option value="reembolso">Reembolso</option>
+                    <option value="outros">Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Centro de Custos</label>
+                  <input name="centroCustos" type="text" placeholder="Ex: BPO, Corretagem, Obras..."
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Competência *</label>
-                  <input name="competencia" type="month" required defaultValue={currentMonth}
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
+                  <input name="descricao" type="text" required placeholder="Ex: Honorários BPO — julho/2026"
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vencimento *</label>
-                <input name="vencimento" type="date" required
-                  className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Cancelar</button>
-                <button type="submit" disabled={isPending}
-                  className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
-                  {isPending ? "Salvando..." : "Criar Cobrança"}
-                </button>
-              </div>
-            </form>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
+                    <input name="valor" type="number" step="0.01" min="0" required
+                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Competência *</label>
+                    <input name="competencia" type="month" required defaultValue={currentMonth}
+                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vencimento *</label>
+                  <input name="vencimento" type="date" required
+                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setModalTipo(null)}
+                    className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
+                  <button type="submit" disabled={isPending || (!leadSelectedId && !leadSelectedNome)}
+                    className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
+                    {isPending ? "Salvando..." : "Criar Cobrança"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Step 2b: Despesa form */}
+            {modalTipo === "despesa" && (
+              <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
+                {/* Client: BPO client or lead */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente / Referência *</label>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar cliente BPO ou lead..."
+                      value={leadSearch}
+                      onChange={(e) => { setLeadSearch(e.target.value); setLeadSelectedId(""); setLeadSelectedNome(""); }}
+                      className="w-full pl-8 pr-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+                    />
+                    {leadSearch && !leadSelectedId && (
+                      <div className="absolute z-20 w-full bg-white border border-gray-200 shadow-lg mt-0.5 max-h-40 overflow-y-auto">
+                        {clientes.filter((c) => c.razaoSocial.toLowerCase().includes(leadSearch.toLowerCase())).map((c) => (
+                          <button key={c.id} type="button"
+                            onClick={() => { setLeadSelectedId(c.id); setLeadSelectedNome(c.razaoSocial); setLeadSearch(c.razaoSocial); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                            <span className="font-medium">{c.razaoSocial}</span>
+                            <span className="text-gray-400 text-xs ml-2">BPO</span>
+                          </button>
+                        ))}
+                        {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
+                          <button key={l.id} type="button"
+                            onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                            <span className="font-medium">{l.nome}</span>
+                            <span className="text-gray-400 text-xs ml-2">Lead</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input type="hidden" name="clienteId" value={leadSelectedId} />
+                  <input type="hidden" name="clienteNomeLivre" value={leadSelectedId ? "" : leadSelectedNome} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Despesa *</label>
+                  <select name="tipo" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                    <option value="despesa">Despesa Operacional</option>
+                    <option value="despesa_pessoal">Folha / Pessoal</option>
+                    <option value="despesa_marketing">Marketing</option>
+                    <option value="despesa_imposto">Impostos / Taxas</option>
+                    <option value="despesa_aluguel">Aluguel / Infraestrutura</option>
+                    <option value="despesa_fornecedor">Fornecedor / Serviços</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Centro de Custos</label>
+                  <input name="centroCustos" type="text" placeholder="Ex: Administrativo, BPO, Obras..."
+                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
+                  <input name="descricao" type="text" required placeholder="Ex: Aluguel sala comercial — julho/2026"
+                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
+                    <input name="valor" type="number" step="0.01" min="0" required
+                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Competência *</label>
+                    <input name="competencia" type="month" required defaultValue={currentMonth}
+                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vencimento *</label>
+                  <input name="vencimento" type="date" required
+                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setModalTipo(null)}
+                    className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
+                  <button type="submit" disabled={isPending || (!leadSelectedId && !leadSelectedNome)}
+                    className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
+                    {isPending ? "Salvando..." : "Registrar Despesa"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -985,6 +1157,25 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
                 <input name="saldoAtual" type="number" step="0.01" defaultValue="0"
                   className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Integração / Open Finance (opcional)</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">ID da Conta na API (Pluggy Account ID)</label>
+                    <input name="pluggyAccountId" type="text" placeholder="Ex: a1b2c3d4-e5f6-..."
+                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 font-mono text-xs" />
+                    <p className="text-[10px] text-gray-400 mt-1">ID retornado pelo Pluggy após conectar o banco. Habilita sincronização automática.</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">URL do Webhook</label>
+                    <input name="webhookUrl" type="url" placeholder="https://seusite.com/api/banco/webhook"
+                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 font-mono text-xs" />
+                    <p className="text-[10px] text-gray-400 mt-1">URL que receberá notificações do banco em tempo real. Registre no painel do Pluggy.</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowAddConta(false)}
                   className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Cancelar</button>
@@ -1002,6 +1193,80 @@ export function BpoClient({ lancamentos, clientes, contas: initialContas, relato
       {/* ─── RELATÓRIOS ─── */}
       {aba === "relatorios" && (
         <BpoRelatorios relatorios={relatorios} />
+      )}
+
+      {/* ─── CONTABILIDADE ─── */}
+      {aba === "contabilidade" && (
+        <div className="space-y-6">
+          <p className="text-xs text-gray-400">Dados fiscais e controle de impostos · Grupo Santa Fé</p>
+
+          {/* Nota Fiscal */}
+          <div className="bg-white border border-gray-100 p-6">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Dados para Emissão de Nota Fiscal</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Regime Tributário</label>
+                <select className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]">
+                  <option>Simples Nacional</option>
+                  <option>Lucro Presumido</option>
+                  <option>Lucro Real</option>
+                  <option>MEI</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CNPJ do Emitente</label>
+                <input type="text" placeholder="00.000.000/0001-00" className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CNAE Principal</label>
+                <input type="text" placeholder="Ex: 6821-8/02 — Corretagem" className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Alíquota ISS (%)</label>
+                <input type="number" step="0.01" placeholder="2.00" className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição Padrão do Serviço</label>
+                <input type="text" placeholder="Ex: Prestação de serviços de corretagem imobiliária" className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
+              <div className="flex-1 bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700">
+                💡 Configure sua prefeitura em <strong>Configurações → Empresa</strong> para geração automática de NFS-e via API.
+              </div>
+            </div>
+          </div>
+
+          {/* Controle de Impostos */}
+          <div className="bg-white border border-gray-100 p-6">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Controle de Pagamento de Impostos</p>
+            <div className="space-y-3">
+              {[
+                { nome: "DAS — Simples Nacional", vencimento: "20/07/2026", status: "pendente", valor: 0 },
+                { nome: "ISS Municipal", vencimento: "10/07/2026", status: "pendente", valor: 0 },
+                { nome: "INSS (Pró-Labore)", vencimento: "20/07/2026", status: "pendente", valor: 0 },
+                { nome: "IRPJ / CSLL (Trim.)", vencimento: "31/07/2026", status: "pendente", valor: 0 },
+              ].map((imposto) => (
+                <div key={imposto.nome} className="flex items-center justify-between gap-4 py-3 border-b border-gray-50 last:border-0">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm text-[var(--brand-dark)]">{imposto.nome}</p>
+                    <p className="text-xs text-gray-400">Venc. {imposto.vencimento}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-sm text-[var(--brand-dark)]">{imposto.valor > 0 ? formatCurrency(imposto.valor) : "—"}</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-yellow-100 text-yellow-700 uppercase">Pendente</span>
+                  </div>
+                  <button className="text-xs font-bold border border-gray-200 px-3 py-1.5 text-gray-500 hover:bg-gray-50 transition-colors">
+                    Registrar pagamento
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-400">⚠️ Os valores dos impostos devem ser inseridos manualmente ou importados do contador. Vencimentos são estimativas — verifique com seu contador.</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {showSetupPluggy && (

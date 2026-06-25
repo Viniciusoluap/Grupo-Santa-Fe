@@ -114,12 +114,6 @@ const navItems = [
     adminOnly: true,
   },
   {
-    label: "Contabilidade",
-    href: "/admin/contabilidade",
-    icon: BookOpen,
-    adminOnly: true,
-  },
-  {
     label: "Jurídico",
     href: "/admin/juridico",
     icon: Scale,
