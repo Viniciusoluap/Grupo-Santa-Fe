@@ -72,6 +72,7 @@ model Lead {
   imovelInteresse   Imovel?  @relation(fields: [imovelInteresseId], references: [id])
   orcamento         Float?
   notas             String   @default("")
+  senhaAcesso       String?
   interacoes        Interacao[]
   visitas           Visita[]
   financiamentos    Financiamento[]
@@ -99,20 +100,22 @@ model Interacao {
 // ─── AGENDA / VISITAS ─────────────────────────────────────────────────────────
 
 model Visita {
-  id           String    @id @default(cuid())
-  leadId       String?
-  lead         Lead?     @relation(fields: [leadId], references: [id])
-  imovelId     String?
-  imovel       Imovel?   @relation(fields: [imovelId], references: [id])
-  corretorId   String?
-  corretor     Corretor? @relation(fields: [corretorId], references: [id])
-  clienteNome  String
-  clienteTel   String
-  agendadaPara DateTime
-  status       String    @default("agendada")
-  notas        String    @default("")
-  criadoEm     DateTime  @default(now())
-  atualizadoEm DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  leadId          String?
+  lead            Lead?     @relation(fields: [leadId], references: [id])
+  imovelId        String?
+  imovel          Imovel?   @relation(fields: [imovelId], references: [id])
+  corretorId      String?
+  corretor        Corretor? @relation(fields: [corretorId], references: [id])
+  clienteNome     String
+  clienteTel      String
+  agendadaPara    DateTime
+  status          String    @default("agendada")
+  tipoVisita      String    @default("imovel")
+  colaboradorNome String?
+  notas           String    @default("")
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
 
   @@map("visitas")
 }
@@ -128,6 +131,7 @@ model Corretor {
   foto             String?
   ativo            Boolean   @default(true)
   especialidades   String    @default("[]")
+  senhaAcesso      String?
   imoveis          Imovel[]
   leads            Lead[]
   visitas          Visita[]
@@ -143,8 +147,10 @@ model Corretor {
 
 model Comissao {
   id           String    @id @default(cuid())
-  corretorId   String
-  corretor     Corretor  @relation(fields: [corretorId], references: [id])
+  beneficiario String    @default("corretor") // "empresa" | "corretor"
+  tipoNegocio  String    @default("venda_imovel")
+  corretorId   String?
+  corretor     Corretor? @relation(fields: [corretorId], references: [id])
   contratoId   String?
   contrato     Contrato? @relation(fields: [contratoId], references: [id])
   imovel       String
@@ -281,6 +287,7 @@ model Projeto {
   leadVinculado Lead?    @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
   descricao    String    @default("")
   arquivos     String    @default("[]")
+  checklist    String    @default("[]")
   criadoEm     DateTime  @default(now())
   atualizadoEm DateTime  @updatedAt
 
@@ -329,23 +336,24 @@ model RegDocumento {
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
 
 model Contrato {
-  id          String     @id @default(cuid())
-  numero      String     @unique
-  tipo        String
-  status      String     @default("rascunho")
-  parteA      String
-  parteADoc   String?
-  parteB      String
-  parteBDoc   String?
-  imovelId    String?
-  imovel      Imovel?    @relation(fields: [imovelId], references: [id])
-  valor       Float
-  vencimento  DateTime?
-  descricao   String     @default("")
-  clausulas   String     @default("")
-  comissoes   Comissao[]
-  criadoEm    DateTime   @default(now())
-  atualizadoEm DateTime  @updatedAt
+  id                  String     @id @default(cuid())
+  numero              String     @unique
+  tipo                String
+  status              String     @default("rascunho")
+  parteA              String
+  parteADoc           String?
+  parteB              String
+  parteBDoc           String?
+  imovelId            String?
+  imovel              Imovel?    @relation(fields: [imovelId], references: [id])
+  valor               Float
+  vencimento          DateTime?
+  descricao           String     @default("")
+  clausulas           String     @default("")
+  contratoAssinadoUrl String?
+  comissoes           Comissao[]
+  criadoEm            DateTime   @default(now())
+  atualizadoEm        DateTime   @updatedAt
 
   @@map("contratos")
 }
@@ -478,6 +486,7 @@ model Usuario {
   creci             String?
   telefone          String?
   foto              String?
+  permissoes        String           @default("[]")
   criadoEm          DateTime         @default(now())
   conexaoWhatsApp   ConexaoWhatsApp?
   atualizadoEm      DateTime         @updatedAt

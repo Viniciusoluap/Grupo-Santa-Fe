@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, ClipboardList } from "lucide-react";
+import { Plus, ClipboardList, Pencil } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { ExcluirAvaliacaoBtn } from "./_components/excluir-avaliacao-btn";
@@ -109,7 +109,7 @@ export default async function AvaliacoesPage() {
                     <tr key={a.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">{a.numero}</td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-[var(--brand-dark)]">{a.clienteNome}</p>
+                        <Link href={`/admin/avaliacoes/${a.id}`} className="font-medium text-[var(--brand-dark)] hover:text-[var(--brand-yellow)] hover:underline">{a.clienteNome}</Link>
                         <p className="text-xs text-gray-400">{a.endereco}, {a.bairro}</p>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-600">{TIPO_LABELS[a.tipo] ?? a.tipo}</td>
@@ -121,7 +121,7 @@ export default async function AvaliacoesPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <Link href={`/admin/avaliacoes/${a.id}`} className="text-xs font-bold text-[var(--brand-yellow)] hover:underline">Ver</Link>
+                        <Link href={`/admin/avaliacoes/${a.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-[var(--brand-yellow)] hover:underline"><Pencil size={12} />Editar</Link>
                         <ExcluirAvaliacaoBtn id={a.id} />
                       </td>
                     </tr>

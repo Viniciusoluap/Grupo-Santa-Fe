@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Plus, Search, Ruler, Pencil, Trash2 } from "lucide-react";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG, ProjetoStatus } from "@/lib/types/projeto";
 import { formatCurrency } from "@/lib/utils";
-import { excluirProjeto } from "@/lib/actions/projetos";
+import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
 
 interface Projeto {
   id: string;
@@ -37,6 +37,23 @@ function TiposResumo({ raw }: { raw: string }) {
     <span className="text-xs text-gray-500">
       {label}{tipos.length > 1 && <span className="text-gray-400 ml-1">+{tipos.length - 1}</span>}
     </span>
+  );
+}
+
+function StatusSelectProjeto({ id, status }: { id: string; status: string }) {
+  const [isPending, startTransition] = useTransition();
+  return (
+    <select
+      value={status}
+      disabled={isPending}
+      onChange={(e) => startTransition(async () => { await alterarStatusProjeto(id, e.target.value); })}
+      className="text-[10px] font-bold uppercase px-2 py-0.5 border-0 bg-transparent cursor-pointer focus:outline-none"
+      style={{ color: PROJETO_STATUS_CONFIG[status as ProjetoStatus]?.color?.replace("text-", "") ?? "inherit" }}
+    >
+      {Object.entries(PROJETO_STATUS_CONFIG).map(([v, cfg]) => (
+        <option key={v} value={v}>{cfg.label}</option>
+      ))}
+    </select>
   );
 }
 
@@ -169,7 +186,7 @@ export function ProjetosClient({ projetos }: Props) {
                       {p.prazoEntrega ? new Date(p.prazoEntrega).toLocaleDateString("pt-BR") : "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+                      <StatusSelectProjeto id={p.id} status={p.status} />
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">

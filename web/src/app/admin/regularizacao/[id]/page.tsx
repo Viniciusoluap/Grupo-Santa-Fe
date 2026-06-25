@@ -1,29 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Phone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
+import RegDocumentosClient from "./_components/reg-documentos-client";
 
 interface PageProps { params: Promise<{ id: string }> }
 
 const stageOrder: Array<import("@/lib/types/regularizacao").RegStatus> = [
   "analise_inicial", "documentacao", "protocolo", "em_analise_orgao", "pendencias", "aprovado", "registrado", "concluido"
 ];
-
-const docStatusIcon: Record<string, React.ReactNode> = {
-  aprovado: <CheckCircle2 size={14} className="text-green-600" />,
-  obtido: <CheckCircle2 size={14} className="text-blue-500" />,
-  protocolado: <Clock size={14} className="text-purple-500" />,
-  pendente: <AlertCircle size={14} className="text-orange-400" />,
-};
-
-const docStatusLabel: Record<string, { label: string; bg: string; color: string }> = {
-  aprovado: { label: "Aprovado", bg: "bg-green-100", color: "text-green-700" },
-  obtido: { label: "Obtido", bg: "bg-blue-100", color: "text-blue-600" },
-  protocolado: { label: "Protocolado", bg: "bg-purple-100", color: "text-purple-700" },
-  pendente: { label: "Pendente", bg: "bg-orange-100", color: "text-orange-600" },
-};
 
 export default async function RegDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -39,10 +27,25 @@ export default async function RegDetailPage({ params }: PageProps) {
     color: "text-gray-600",
     order: 0,
   };
-  const tipo = REG_TIPO_CONFIG[r.tipo as keyof typeof REG_TIPO_CONFIG] ?? {
-    label: r.tipo,
-    icon: "📁",
-  };
+  function parseTiposLabelReg(tipoStr: string): string {
+    try {
+      const arr = JSON.parse(tipoStr);
+      if (Array.isArray(arr)) {
+        return arr.map((t: string) => REG_TIPO_CONFIG[t as keyof typeof REG_TIPO_CONFIG]?.label ?? t).join(", ");
+      }
+    } catch {}
+    return REG_TIPO_CONFIG[tipoStr as keyof typeof REG_TIPO_CONFIG]?.label ?? tipoStr;
+  }
+  function parseTipoIconReg(tipoStr: string): string {
+    try {
+      const arr = JSON.parse(tipoStr);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return REG_TIPO_CONFIG[arr[0] as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📁";
+      }
+    } catch {}
+    return REG_TIPO_CONFIG[tipoStr as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📁";
+  }
+  const tipo = { label: parseTiposLabelReg(r.tipo), icon: parseTipoIconReg(r.tipo) };
   const currentOrder = cfg.order;
 
   return (
@@ -75,37 +78,41 @@ export default async function RegDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* Status change */}
+      <div className="bg-white border border-gray-100 p-4 flex items-center gap-4 flex-wrap">
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Alterar Status:</span>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(REG_STATUS_CONFIG).map(([status, sc]) => {
+            const isActive = status === r.status;
+            return (
+              <form key={status} action={alterarStatusRegularizacao.bind(null, r.id, status)}>
+                <button
+                  type="submit"
+                  className={`text-[10px] font-bold px-3 py-1.5 uppercase transition-colors border ${isActive ? `${sc.bgColor} ${sc.color} border-transparent cursor-default` : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
+                  disabled={isActive}
+                >
+                  {sc.label}
+                </button>
+              </form>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main */}
         <div className="lg:col-span-2 space-y-5">
-          {/* Documents */}
-          <div className="bg-white border border-gray-100 p-5">
-            <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">
-              Documentos ({r.documentos.filter((d) => d.status === "aprovado" || d.status === "obtido").length}/{r.documentos.length} em ordem)
-            </h2>
-            {r.documentos.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">Nenhum documento cadastrado.</p>
-            ) : (
-              <div className="space-y-2">
-                {r.documentos.map((doc) => {
-                  const dsc = docStatusLabel[doc.status] ?? { label: doc.status, bg: "bg-gray-100", color: "text-gray-600" };
-                  const icon = docStatusIcon[doc.status] ?? <AlertCircle size={14} className="text-gray-400" />;
-                  return (
-                    <div key={doc.id} className="flex items-center justify-between gap-3 p-2.5 bg-gray-50">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {icon}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[var(--brand-dark)] truncate">{doc.nome}</p>
-                          {doc.observacao && <p className="text-xs text-orange-500">{doc.observacao}</p>}
-                        </div>
-                      </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 uppercase shrink-0 ${dsc.bg} ${dsc.color}`}>{dsc.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Documents — interactive client component */}
+          <RegDocumentosClient
+            regularizacaoId={r.id}
+            documentos={r.documentos.map((d) => ({
+              id: d.id,
+              nome: d.nome,
+              status: d.status,
+              observacao: d.observacao,
+            }))}
+            currentStatus={r.status}
+          />
 
           {/* Descrição */}
           {r.descricao && (

@@ -11,7 +11,9 @@ type NegocioItem = { id: string; label: string };
 
 type ComissaoData = {
   id: string;
-  corretorId: string;
+  beneficiario: string;
+  tipoNegocio: string;
+  corretorId: string | null;
   imovel: string;
   valor: number;
   percentual: number;
@@ -52,7 +54,8 @@ function toDateInputValue(d: Date | null | undefined) {
 
 export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }: Props) {
   const isEdit = !!comissao;
-  const [tipoNegocio, setTipoNegocio] = useState("imovel");
+  const [beneficiario, setBeneficiario] = useState(comissao?.beneficiario ?? "corretor");
+  const [tipoNegocio, setTipoNegocio] = useState(comissao?.tipoNegocio ?? "imovel");
   const [imovelLabel, setImovelLabel] = useState(comissao?.imovel ?? "");
 
   const itens = negociosPorTipo[tipoNegocio] ?? [];
@@ -78,19 +81,48 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
         <form action={isEdit ? editarComissao : criarComissao} className="p-6 space-y-4">
           {isEdit && <input type="hidden" name="id" value={comissao.id} />}
           <input type="hidden" name="imovel" value={imovelLabel} />
+          <input type="hidden" name="tipoNegocio" value={tipoNegocio} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Beneficiário */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor *</label>
-              <select name="corretorId" required defaultValue={comissao?.corretorId ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                <option value="">Selecione um corretor</option>
-                {corretores.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Beneficiário *</label>
+              <div className="flex gap-3">
+                {[
+                  { value: "corretor", label: "Corretor" },
+                  { value: "empresa",  label: "Empresa" },
+                ].map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="beneficiario"
+                      value={opt.value}
+                      checked={beneficiario === opt.value}
+                      onChange={() => setBeneficiario(opt.value)}
+                      className="accent-[var(--brand-yellow)]"
+                    />
+                    <span className="text-sm text-gray-700">{opt.label}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
+            {/* Corretor — só quando beneficiário = corretor */}
+            {beneficiario === "corretor" && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor *</label>
+                <select name="corretorId" required={beneficiario === "corretor"}
+                  defaultValue={comissao?.corretorId ?? ""}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                  <option value="">Selecione um corretor</option>
+                  {corretores.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Tipo de Negócio */}
             {!isEdit && (
               <>
                 <div className="sm:col-span-2">

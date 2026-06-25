@@ -7,6 +7,26 @@ import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regul
 import { formatCurrency } from "@/lib/utils";
 import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
 
+function parseTiposLabelReg(tipo: string): string {
+  try {
+    const arr = JSON.parse(tipo);
+    if (Array.isArray(arr)) {
+      return arr.map((t: string) => REG_TIPO_CONFIG[t as keyof typeof REG_TIPO_CONFIG]?.label ?? t).join(", ");
+    }
+  } catch {}
+  return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.label ?? tipo;
+}
+
+function parseTipoIconReg(tipo: string): string {
+  try {
+    const arr = JSON.parse(tipo);
+    if (Array.isArray(arr) && arr.length > 0) {
+      return REG_TIPO_CONFIG[arr[0] as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
+    }
+  } catch {}
+  return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
+}
+
 interface RegDocumento {
   id: string;
   status: string;
@@ -127,8 +147,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
         {filtered.map((r) => {
           const statusKey = r.status as RegStatus;
           const cfg = REG_STATUS_CONFIG[statusKey] ?? REG_STATUS_CONFIG["analise_inicial"];
-          const tipoKey = r.tipo as keyof typeof REG_TIPO_CONFIG;
-          const tipo = REG_TIPO_CONFIG[tipoKey] ?? { icon: "📋", label: r.tipo };
+          const tipo = { icon: parseTipoIconReg(r.tipo), label: parseTiposLabelReg(r.tipo) };
           const docsOk = r.documentos.filter((d) => d.status === "aprovado" || d.status === "obtido").length;
           return (
             <div key={r.id} className="bg-white border border-gray-100 p-5">

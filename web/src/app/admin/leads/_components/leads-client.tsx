@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, LayoutGrid, List, Search } from "lucide-react";
-import { BackButton } from "@/components/ui/back-button";
 import { LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
 import { LeadKanban } from "@/components/crm/lead-kanban";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
@@ -59,7 +58,6 @@ export function LeadsClient({ leads }: LeadsClientProps) {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <BackButton className="mb-1" />
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">CRM — Leads</h1>
           <p className="text-gray-400 text-sm mt-0.5">{leads.length} leads no total</p>
         </div>

@@ -45,3 +45,11 @@ export async function excluirUsuario(id: string) {
   await prisma.usuario.delete({ where: { id } });
   revalidatePath("/admin/configuracoes");
 }
+
+export async function salvarPermissoes(id: string, permissoes: string[]) {
+  await prisma.usuario.update({
+    where: { id },
+    data: { permissoes: JSON.stringify(permissoes) },
+  });
+  revalidatePath("/admin/configuracoes");
+}

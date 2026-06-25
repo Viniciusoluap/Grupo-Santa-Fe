@@ -46,6 +46,11 @@ export default function NovoCorretorPage() {
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Senha de Acesso</label>
+              <input type="text" name="senha" placeholder="Senha para login do corretor"
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            </div>
+            <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data de Admissão</label>
               <input type="date" name="dataAdmissao"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />

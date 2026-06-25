@@ -4,13 +4,20 @@ import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
 
 export async function criarLead(formData: FormData) {
   const servicos = formData.getAll("servicos") as string[];
-  await prisma.lead.create({
+  const nome = formData.get("nome") as string;
+  const telefone = formData.get("telefone") as string;
+
+  const senhaRaw = (formData.get("senha") as string) || null;
+  const senhaHash = senhaRaw ? await bcrypt.hash(senhaRaw, 10) : null;
+
+  const lead = await prisma.lead.create({
     data: {
-      nome: formData.get("nome") as string,
-      telefone: formData.get("telefone") as string,
+      nome,
+      telefone,
       email: (formData.get("email") as string) || undefined,
       servico: JSON.stringify(servicos.length > 0 ? servicos : ["Outro"]),
       origem: (formData.get("origem") as string) || "site",
@@ -19,11 +26,113 @@ export async function criarLead(formData: FormData) {
         : null,
       notas: (formData.get("notas") as string) || "",
       corretorId: (formData.get("corretorId") as string) || undefined,
+      senhaAcesso: senhaHash,
     },
   });
-  await notificarAdmins("novo_lead", "Novo lead cadastrado", `${formData.get("nome")} — ${JSON.stringify(servicos)}`, "/admin/leads").catch(() => {});
+
+  // Auto-criar processos para cada serviço selecionado
+  await criarProcessosDoLead(lead.id, nome, telefone, servicos);
+
+  await notificarAdmins("novo_lead", "Novo lead cadastrado", `${nome} — ${JSON.stringify(servicos)}`, "/admin/leads").catch(() => {});
   revalidatePath("/admin/leads");
   redirect("/admin/leads");
+}
+
+async function criarProcessosDoLead(leadId: string, nome: string, telefone: string, servicos: string[]) {
+  const tarefas: Promise<unknown>[] = [];
+
+  for (const servico of servicos) {
+    if (servico === "Financiamento MCMV" || servico === "Financiamento Convencional") {
+      tarefas.push(
+        prisma.financiamento.create({
+          data: {
+            clienteNome: nome,
+            clienteTel: telefone,
+            imovel: "A definir",
+            tipo: servico === "Financiamento MCMV" ? "MCMV" : "Convencional",
+            banco: "A definir",
+            valorImovel: 0,
+            valorFinanciado: 0,
+            entrada: 0,
+            taxa: 0,
+            prazo: 0,
+            leadId,
+          },
+        })
+      );
+    }
+
+    if (servico === "Obra e reforma") {
+      tarefas.push(
+        prisma.obra.create({
+          data: {
+            nome: `Obra — ${nome}`,
+            tipo: "reforma",
+            clienteNome: nome,
+            clienteTel: telefone,
+            endereco: "A definir",
+            area: 0,
+            valorTotal: 0,
+            engenheiroResp: "A definir",
+            leadId,
+          },
+        })
+      );
+    }
+
+    if (servico === "Projeto de engenharia") {
+      tarefas.push(
+        prisma.projeto.create({
+          data: {
+            nome: `Projeto — ${nome}`,
+            tipo: "projeto_completo",
+            clienteNome: nome,
+            clienteTel: telefone,
+            engenheiro: "A definir",
+            valorProjeto: 0,
+            leadId,
+          },
+        })
+      );
+    }
+
+    if (servico === "Regularização imobiliária") {
+      tarefas.push(
+        prisma.regularizacao.create({
+          data: {
+            nome: `Regularização — ${nome}`,
+            tipo: "regularizacao_escritura",
+            clienteNome: nome,
+            clienteTel: telefone,
+            endereco: "A definir",
+            responsavel: "A definir",
+            valorServico: 0,
+            leadId,
+          },
+        })
+      );
+    }
+
+    if (servico === "Avaliação de imóvel") {
+      const numero = `AVL-${Date.now()}`;
+      tarefas.push(
+        prisma.avaliacao.create({
+          data: {
+            numero,
+            tipo: "mercado",
+            finalidade: "compra_venda",
+            clienteNome: nome,
+            clienteTel: telefone,
+            endereco: "A definir",
+            bairro: "A definir",
+            avaliador: "A definir",
+          },
+        })
+      );
+    }
+  }
+
+  await Promise.allSettled(tarefas);
 }
 
 export async function enviarContato(formData: FormData) {

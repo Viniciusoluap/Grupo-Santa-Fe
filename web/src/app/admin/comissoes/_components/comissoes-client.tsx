@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2 } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2, Building2, UserCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
-import { excluirComissao } from "@/lib/actions/comissoes";
+import { excluirComissao, alterarStatusComissao } from "@/lib/actions/comissoes";
 import { ComissaoForm } from "./comissao-form";
 
 type Corretor = { id: string; nome: string };
@@ -12,7 +12,9 @@ type NegocioItem = { id: string; label: string };
 
 type DbComissao = {
   id: string;
-  corretorId: string;
+  beneficiario: string;
+  tipoNegocio: string;
+  corretorId: string | null;
   contratoId: string | null;
   imovel: string;
   valor: number;
@@ -21,7 +23,7 @@ type DbComissao = {
   vencimento: Date;
   pagamentoEm: Date | null;
   notas: string;
-  corretor: Corretor;
+  corretor: Corretor | null;
   contrato: { id: string; numero: string } | null;
 };
 
@@ -31,23 +33,44 @@ interface ComissoesClientProps {
   negociosPorTipo: Record<string, NegocioItem[]>;
 }
 
+const TIPO_NEGOCIO_LABELS: Record<string, string> = {
+  imovel: "Venda de Imóvel",
+  financiamento: "Financiamento",
+  obra: "Obra",
+  projeto: "Projeto de Engenharia",
+  regularizacao: "Regularização",
+  avaliacao: "Avaliação",
+  bpo: "BPO Financeiro",
+};
+
+function StatusSelectComissao({ id, status }: { id: string; status: string }) {
+  const [isPending, startTransition] = useTransition();
+  const cfg = COMMISSION_STATUS_CONFIG[status as CommissionStatus];
+  return (
+    <select
+      value={status}
+      disabled={isPending}
+      onChange={(e) => startTransition(async () => { await alterarStatusComissao(id, e.target.value); })}
+      className={`text-[10px] font-bold uppercase px-2 py-0.5 border rounded cursor-pointer focus:outline-none ${cfg ? `${cfg.bgColor} ${cfg.color}` : "bg-gray-100 text-gray-500"}`}
+    >
+      {Object.entries(COMMISSION_STATUS_CONFIG).map(([v, c]) => (
+        <option key={v} value={v}>{c.label}</option>
+      ))}
+    </select>
+  );
+}
+
 function ExcluirComissaoBtn({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
     if (!confirm("Excluir esta comissão? Esta ação não pode ser desfeita.")) return;
-    startTransition(async () => {
-      await excluirComissao(id);
-    });
+    startTransition(async () => { await excluirComissao(id); });
   }
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isPending}
-      title="Excluir comissão"
-      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded"
-    >
+    <button onClick={handleClick} disabled={isPending} title="Excluir comissão"
+      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
       <Trash2 size={14} />
     </button>
   );
@@ -103,20 +126,15 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setStatusFilter("todas")}
-          className={`px-4 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todas" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}
-        >
+        <button onClick={() => setStatusFilter("todas")}
+          className={`px-4 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todas" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
           Todas ({comissoes.length})
         </button>
         {(Object.entries(COMMISSION_STATUS_CONFIG) as [CommissionStatus, typeof COMMISSION_STATUS_CONFIG[CommissionStatus]][]).map(([status, cfg]) => {
           const count = comissoes.filter((c) => c.status === status).length;
           return (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}
-            >
+            <button key={status} onClick={() => setStatusFilter(status)}
+              className={`px-4 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
               {cfg.label} ({count})
             </button>
           );
@@ -129,7 +147,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
           <table className="w-full text-sm">
             <thead className="bg-[var(--brand-dark)]">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Corretor</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Beneficiário</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Negócio</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Taxa</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Comissão</th>
@@ -139,45 +157,46 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((cm) => {
-                const cfg = COMMISSION_STATUS_CONFIG[cm.status as CommissionStatus];
-                return (
-                  <tr key={cm.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-[var(--brand-dark)]">{cm.corretor.nome}</span>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <p className="text-[var(--brand-dark)] text-sm">{cm.imovel}</p>
-                      {cm.contrato && <p className="text-gray-400 text-xs">Contrato {cm.contrato.numero}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-center text-gray-500 text-xs hidden md:table-cell">{cm.percentual}%</td>
-                    <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">{formatCurrency(cm.valor)}</td>
-                    <td className="px-4 py-3 text-center">
-                      {cfg ? (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
-                      ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-500">{cm.status}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center text-xs text-gray-400 hidden lg:table-cell">
-                      {new Date(cm.vencimento).toLocaleDateString("pt-BR")}
-                      {cm.pagamentoEm && <span className="block text-green-600">Pago {new Date(cm.pagamentoEm).toLocaleDateString("pt-BR")}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => { setEditando(cm); setShowForm(true); }}
-                          title="Editar comissão"
-                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <ExcluirComissaoBtn id={cm.id} />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map((cm) => (
+                <tr key={cm.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    {cm.beneficiario === "empresa" ? (
+                      <span className="flex items-center gap-1.5">
+                        <Building2 size={14} className="text-gray-400" />
+                        <span className="font-medium text-[var(--brand-dark)]">Empresa</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        <UserCheck size={14} className="text-gray-400" />
+                        <span className="font-medium text-[var(--brand-dark)]">{cm.corretor?.nome ?? "—"}</span>
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <p className="text-gray-500 text-xs">{TIPO_NEGOCIO_LABELS[cm.tipoNegocio] ?? cm.tipoNegocio}</p>
+                    <p className="text-[var(--brand-dark)] text-sm">{cm.imovel}</p>
+                    {cm.contrato && <p className="text-gray-400 text-xs">Contrato {cm.contrato.numero}</p>}
+                  </td>
+                  <td className="px-4 py-3 text-center text-gray-500 text-xs hidden md:table-cell">{cm.percentual}%</td>
+                  <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">{formatCurrency(cm.valor)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <StatusSelectComissao id={cm.id} status={cm.status} />
+                  </td>
+                  <td className="px-4 py-3 text-center text-xs text-gray-400 hidden lg:table-cell">
+                    {new Date(cm.vencimento).toLocaleDateString("pt-BR")}
+                    {cm.pagamentoEm && <span className="block text-green-600">Pago {new Date(cm.pagamentoEm).toLocaleDateString("pt-BR")}</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => { setEditando(cm); setShowForm(true); }} title="Editar comissão"
+                        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded">
+                        <Pencil size={14} />
+                      </button>
+                      <ExcluirComissaoBtn id={cm.id} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">Nenhuma comissão encontrada.</td>

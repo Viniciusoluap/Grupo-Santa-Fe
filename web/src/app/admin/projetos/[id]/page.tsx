@@ -4,6 +4,7 @@ import { ArrowLeft, Phone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import ProjetoDetailClient from "./_components/projeto-detail-client";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -17,10 +18,33 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
     bgColor: "bg-gray-100",
     color: "text-gray-600",
   };
-  const tipo = PROJETO_TIPO_CONFIG[p.tipo as keyof typeof PROJETO_TIPO_CONFIG] ?? {
-    label: p.tipo,
-    icon: "📁",
-  };
+  function parseTiposLabel(tipoStr: string): string {
+    try {
+      const arr = JSON.parse(tipoStr);
+      if (Array.isArray(arr)) {
+        return arr.map((t: string) => PROJETO_TIPO_CONFIG[t as keyof typeof PROJETO_TIPO_CONFIG]?.label ?? t).join(", ");
+      }
+    } catch {}
+    return PROJETO_TIPO_CONFIG[tipoStr as keyof typeof PROJETO_TIPO_CONFIG]?.label ?? tipoStr;
+  }
+  function parseTipoIcon(tipoStr: string): string {
+    try {
+      const arr = JSON.parse(tipoStr);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return PROJETO_TIPO_CONFIG[arr[0] as keyof typeof PROJETO_TIPO_CONFIG]?.icon ?? "📁";
+      }
+    } catch {}
+    return PROJETO_TIPO_CONFIG[tipoStr as keyof typeof PROJETO_TIPO_CONFIG]?.icon ?? "📁";
+  }
+  const tipo = { label: parseTiposLabel(p.tipo), icon: parseTipoIcon(p.tipo) };
+
+  // Strip non-serializable fields from statusConfig
+  const statusConfig = Object.fromEntries(
+    Object.entries(PROJETO_STATUS_CONFIG).map(([k, v]) => [
+      k,
+      { label: v.label, bgColor: v.bgColor, color: v.color },
+    ])
+  );
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -35,6 +59,15 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main */}
         <div className="lg:col-span-2 space-y-5">
+          {/* Interactive sections: status, checklist, arquivos */}
+          <ProjetoDetailClient
+            projetoId={p.id}
+            checklistJson={p.checklist}
+            arquivosJson={p.arquivos}
+            status={p.status}
+            statusConfig={statusConfig}
+          />
+
           {/* Description */}
           <div className="bg-white border border-gray-100 p-5">
             <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Descrição</h2>

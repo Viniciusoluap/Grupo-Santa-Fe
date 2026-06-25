@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Plus } from "lucide-react";
+import { ArrowLeft, Phone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, WEATHER_CONFIG, ObraStatus, ObraTipo } from "@/lib/types/obra";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import { ObraDiarioClient } from "./_components/obra-diario-client";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -13,7 +14,7 @@ export default async function ObraDetailPage({ params }: PageProps) {
     where: { id },
     include: {
       etapas: { orderBy: { ordem: "asc" } },
-      diario: { orderBy: { data: "desc" }, take: 5 },
+      diario: { orderBy: { data: "desc" }, take: 20 },
     },
   });
   if (!o) notFound();
@@ -92,59 +93,11 @@ export default async function ObraDetailPage({ params }: PageProps) {
           </div>
 
           {/* Diário de obra */}
-          <div className="bg-white border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
-              <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">
-                Diário de Obra ({o.diario.length > 0 ? `${o.diario.length} registros recentes` : "sem registros"})
-              </h2>
-              <button className="flex items-center gap-1 text-xs bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold uppercase tracking-wide px-3 py-1.5 transition-colors">
-                <Plus size={11} /> Novo Registro
-              </button>
-            </div>
-
-            {o.diario.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-6">Nenhum registro no diário ainda.</p>
-            ) : (
-              <div className="space-y-4">
-                {o.diario.map((entry) => {
-                  const weather = entry.clima ? (WEATHER_CONFIG[entry.clima as keyof typeof WEATHER_CONFIG] ?? { label: entry.clima, icon: "🌤️" }) : null;
-                  let fotos: string[] = [];
-                  try { fotos = JSON.parse(entry.fotos) as string[]; } catch { /* ignore */ }
-                  return (
-                    <div key={entry.id} className="border border-gray-100 p-4">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-[var(--brand-dark)] text-sm">
-                              {new Date(entry.data).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-0.5">por {entry.responsavel}</p>
-                        </div>
-                        {weather && (
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className="text-center">
-                              <span className="text-xl">{weather.icon}</span>
-                              <p className="text-[9px] text-gray-400">{weather.label}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase mb-0.5">Descrição</p>
-                          <p className="text-sm text-gray-700">{entry.descricao}</p>
-                        </div>
-                        {fotos.length > 0 && (
-                          <p className="text-xs text-gray-400">{fotos.length} foto(s) anexada(s)</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <ObraDiarioClient
+            obraId={o.id}
+            diario={o.diario.map((e) => ({ ...e }))}
+            weatherConfig={WEATHER_CONFIG}
+          />
         </div>
 
         {/* Sidebar */}

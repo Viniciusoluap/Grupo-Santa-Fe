@@ -4,6 +4,27 @@ import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+const CHECKLIST_PADRAO = [
+  // Documento do Comprador
+  { grupo: "Comprador", item: "RG e CPF (cópia autenticada)" },
+  { grupo: "Comprador", item: "Certidão de nascimento ou casamento" },
+  { grupo: "Comprador", item: "Comprovante de residência (últimos 3 meses)" },
+  { grupo: "Comprador", item: "Comprovante de renda (holerite ou IR)" },
+  { grupo: "Comprador", item: "Extrato bancário (3 meses)" },
+  { grupo: "Comprador", item: "CTPS ou contrato de trabalho" },
+  // Documento do Imóvel
+  { grupo: "Imóvel", item: "Matrícula atualizada do imóvel" },
+  { grupo: "Imóvel", item: "Certidão de ônus e ações reais" },
+  { grupo: "Imóvel", item: "IPTU (exercício atual)" },
+  { grupo: "Imóvel", item: "Planta baixa aprovada" },
+  { grupo: "Imóvel", item: "Habite-se ou auto de conclusão" },
+  // Banco
+  { grupo: "Banco", item: "Proposta de financiamento assinada" },
+  { grupo: "Banco", item: "Laudo de avaliação do imóvel" },
+  { grupo: "Banco", item: "Aprovação de crédito" },
+  { grupo: "Banco", item: "Minuta do contrato assinada" },
+];
+
 export async function criarFinanciamento(formData: FormData) {
   const leadId = (formData.get("leadId") as string) || undefined;
   const imovelVinculadoId = (formData.get("imovelVinculadoId") as string) || undefined;
@@ -26,6 +47,11 @@ export async function criarFinanciamento(formData: FormData) {
       imovelVinculadoId,
     },
   });
+
+  await prisma.checklistItem.createMany({
+    data: CHECKLIST_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
+  });
+
   await notificarAdmins("novo_financiamento", "Novo financiamento cadastrado", `${fin.clienteNome} — ${fin.banco}`, "/admin/financiamentos").catch(() => {});
   revalidatePath("/admin/financiamentos");
   redirect(`/admin/financiamentos/${fin.id}`);
@@ -57,4 +83,20 @@ export async function editarFinanciamento(formData: FormData) {
   });
   revalidatePath("/admin/financiamentos");
   redirect(`/admin/financiamentos/${id}`);
+}
+
+export async function toggleChecklistItem(id: string, concluido: boolean, financiamentoId: string) {
+  await prisma.checklistItem.update({ where: { id }, data: { concluido } });
+  revalidatePath(`/admin/financiamentos/${financiamentoId}`);
+}
+
+export async function atualizarNotasChecklist(id: string, notas: string, financiamentoId: string) {
+  await prisma.checklistItem.update({ where: { id }, data: { notas } });
+  revalidatePath(`/admin/financiamentos/${financiamentoId}`);
+}
+
+export async function alterarStatusFinanciamento(id: string, status: string) {
+  await prisma.financiamento.update({ where: { id }, data: { status } });
+  revalidatePath(`/admin/financiamentos/${id}`);
+  revalidatePath("/admin/financiamentos");
 }

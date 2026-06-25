@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X } from "lucide-react";
-import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario } from "@/lib/actions/usuarios";
+import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield } from "lucide-react";
+import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes } from "@/lib/actions/usuarios";
 
 type Papel = "admin" | "colaborador";
 
@@ -14,11 +14,32 @@ interface Usuario {
   ativo: boolean;
   creci: string | null;
   telefone: string | null;
+  permissoes: string | null;  // JSON string
 }
 
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
   { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
   { value: "colaborador", label: "Colaborador", cor: "bg-purple-100 text-purple-700" },
+];
+
+const MODULOS = [
+  { id: "imoveis",        label: "Imóveis" },
+  { id: "leads",          label: "Leads / CRM" },
+  { id: "agenda",         label: "Agenda de Visitas" },
+  { id: "obras",          label: "Obras" },
+  { id: "projetos",       label: "Projetos" },
+  { id: "regularizacao",  label: "Regularização" },
+  { id: "financiamentos", label: "Financiamentos" },
+  { id: "contratos",      label: "Contratos" },
+  { id: "comissoes",      label: "Comissões" },
+  { id: "corretores",     label: "Corretores" },
+  { id: "avaliacao",      label: "Avaliações" },
+  { id: "bpo",            label: "BPO Financeiro" },
+  { id: "contabilidade",  label: "Contabilidade" },
+  { id: "banco",          label: "Integração Bancária" },
+  { id: "whatsapp",       label: "WhatsApp" },
+  { id: "agregador",      label: "Agregador XML" },
+  { id: "configuracoes",  label: "Configurações" },
 ];
 
 function Badge({ papel }: { papel: string }) {
@@ -38,6 +59,7 @@ export function UsuariosClient({ usuarios }: Props) {
   const [aba, setAba] = useState<Papel | "todos">("todos");
   const [showForm, setShowForm] = useState(false);
   const [resetId, setResetId] = useState<string | null>(null);
+  const [permissoesId, setPermissoesId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -82,6 +104,16 @@ export function UsuariosClient({ usuarios }: Props) {
     startTransition(async () => {
       await excluirUsuario(id);
       feedback("Usuário excluído.");
+    });
+  }
+
+  async function handleTogglePerm(userId: string, moduloId: string, currentPerms: string[]) {
+    const newPerms = currentPerms.includes(moduloId)
+      ? currentPerms.filter((p) => p !== moduloId)
+      : [...currentPerms, moduloId];
+    startTransition(async () => {
+      await salvarPermissoes(userId, newPerms);
+      feedback(`Permissão ${newPerms.includes(moduloId) ? "concedida" : "removida"}`);
     });
   }
 
@@ -154,6 +186,14 @@ export function UsuariosClient({ usuarios }: Props) {
                 {u.ativo ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
               </button>
               <button
+                onClick={() => setPermissoesId(permissoesId === u.id ? null : u.id)}
+                title="Gerenciar permissões"
+                disabled={u.papel === "admin"}
+                className="text-gray-400 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Shield size={15} />
+              </button>
+              <button
                 onClick={() => setResetId(u.id)}
                 title="Redefinir senha"
                 className="text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
@@ -169,6 +209,39 @@ export function UsuariosClient({ usuarios }: Props) {
                 <Trash2 size={15} />
               </button>
             </div>
+
+            {/* Permissões inline */}
+            {permissoesId === u.id && (
+              <div className="w-full pt-2 border-t border-gray-100 mt-1">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Permissões de Acesso</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {MODULOS.map((m) => {
+                    const perms: string[] = (() => { try { return JSON.parse(u.permissoes || "[]"); } catch { return []; } })();
+                    const checked = u.papel === "admin" || perms.includes(m.id);
+                    const isAdmin = u.papel === "admin";
+                    return (
+                      <label key={m.id} className={`flex items-center gap-1.5 text-xs cursor-pointer ${isAdmin ? "opacity-50 cursor-not-allowed" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={isAdmin}
+                          onChange={() => handleTogglePerm(u.id, m.id, perms)}
+                          className="accent-[var(--brand-yellow)]"
+                        />
+                        {m.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPermissoesId(null)}
+                  className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
 
             {/* Reset senha inline */}
             {resetId === u.id && (
