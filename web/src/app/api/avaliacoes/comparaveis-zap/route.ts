@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export interface ZapInput {
   bairro: string;
@@ -27,160 +28,67 @@ export interface ZapResult {
   url: string;
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .trim();
-}
-
 export async function POST(req: NextRequest) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "ANTHROPIC_API_KEY não configurada nas variáveis de ambiente do Vercel." },
+      { status: 503 }
+    );
+  }
+
   const body = (await req.json()) as ZapInput;
+  const client = new Anthropic({ apiKey });
 
   const negocio = body.tipo === "locacao" ? "aluguel" : "venda";
-  const estadoSlug = slugify(body.estado);
-  const cidadeSlug = slugify(body.cidade);
-  const bairroSlug = slugify(body.bairro);
+  const zapUrl = `https://www.zapimoveis.com.br/${negocio}/imoveis/${body.estado.toLowerCase()}+${body.cidade.toLowerCase().replace(/\s/g, "-")}+${body.bairro.toLowerCase().replace(/\s/g, "-")}/`;
 
-  const url = `https://www.zapimoveis.com.br/${negocio}/imoveis/${estadoSlug}+${cidadeSlug}+${bairroSlug}/`;
+  const prompt = `Busque anúncios reais de imóveis para ${negocio} em ${body.bairro}, ${body.cidade}/${body.estado} nos portais ZAP Imóveis e VivaReal.
 
-  let html: string;
+Retorne SOMENTE o JSON abaixo preenchido, sem texto extra, sem markdown:
+{"comparaveis":[{"descricao":"","preco":0,"area":0,"precoPorM2":0}],"valorMedio":0,"precoPorM2Medio":0,"totalEncontrados":0,"bairroConsultado":"${body.bairro}","url":"${zapUrl}"}
+
+Regras:
+- Inclua 4 a 6 anúncios reais encontrados nos portais com preço e área válidos
+- descricao: endereço ou descrição resumida do imóvel
+- preco e area devem ser inteiros (sem decimais)
+- precoPorM2 = preco dividido por area, arredondado
+- valorMedio = média dos preços, precoPorM2Medio = média dos precoPorM2
+- totalEncontrados = quantidade de anúncios encontrados nos portais (pode ser maior que os listados)
+- Se não encontrar anúncios reais com preços, retorne o JSON com arrays vazios e zeros`;
+
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-      },
-      signal: AbortSignal.timeout(20_000),
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [{ role: "user", content: prompt }],
     });
 
-    if (!res.ok) {
+    let jsonText = "";
+    for (const block of response.content) {
+      if (block.type === "text") jsonText += block.text;
+    }
+
+    jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const start = jsonText.indexOf("{");
+    const end = jsonText.lastIndexOf("}");
+    if (start === -1 || end === -1) {
+      throw new Error("Nenhum JSON encontrado na resposta.");
+    }
+
+    const result = JSON.parse(jsonText.slice(start, end + 1)) as ZapResult;
+
+    if (!result.comparaveis?.length) {
       return NextResponse.json(
-        {
-          error: `ZAP retornou status ${res.status}. O site pode estar bloqueando a requisição — tente a Sugestão IA como alternativa.`,
-        },
-        { status: 502 }
+        { error: `Nenhum imóvel encontrado no ZAP/VivaReal para ${body.bairro}, ${body.cidade}.` },
+        { status: 404 }
       );
     }
 
-    html = await res.text();
+    return NextResponse.json(result);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json(
-      {
-        error: `Não foi possível conectar ao ZAP (${msg}). Tente a Sugestão IA como alternativa.`,
-      },
-      { status: 502 }
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  // Extract __NEXT_DATA__ JSON embedded in the page
-  const match = html.match(
-    /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/
-  );
-  if (!match) {
-    return NextResponse.json(
-      {
-        error:
-          "Não foi possível extrair dados do ZAP. O site pode ter bloqueado a requisição ou mudado sua estrutura — tente a Sugestão IA.",
-      },
-      { status: 502 }
-    );
-  }
-
-  let nextData: Record<string, unknown>;
-  try {
-    nextData = JSON.parse(match[1]) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json(
-      { error: "Erro ao processar dados do ZAP." },
-      { status: 502 }
-    );
-  }
-
-  // Navigate through possible data paths
-  type AnyObj = Record<string, unknown>;
-  const pageProps = ((nextData?.props as AnyObj)?.pageProps as AnyObj) ?? {};
-  const searchResult =
-    ((pageProps?.initialSearch as AnyObj)?.result as AnyObj) ??
-    ((pageProps?.search as AnyObj)?.result as AnyObj) ??
-    {};
-  const listings = (searchResult?.listings as unknown[]) ?? [];
-
-  if (!listings.length) {
-    return NextResponse.json(
-      {
-        error: `Nenhum imóvel encontrado no ZAP para ${body.bairro}, ${body.cidade}. Tente a Sugestão IA.`,
-      },
-      { status: 404 }
-    );
-  }
-
-  const businessType = body.tipo === "locacao" ? "RENTAL" : "SALE";
-  const comparaveis: ZapComparavel[] = [];
-
-  for (const item of listings.slice(0, 12)) {
-    const listing =
-      ((item as AnyObj)?.listing as AnyObj) ?? (item as AnyObj);
-    const pricingInfos = (listing?.pricingInfos as AnyObj[]) ?? [];
-    const priceInfo =
-      pricingInfos.find((p) => p?.businessType === businessType) ??
-      pricingInfos[0];
-    const preco = parseInt(String(priceInfo?.price ?? "0"), 10);
-    if (!preco || preco < 1000) continue;
-
-    const usable = (listing?.usableAreas as string[]) ?? [];
-    const total = (listing?.totalAreas as string[]) ?? [];
-    const area = parseInt(usable[0] ?? total[0] ?? "0", 10);
-    if (!area) continue;
-
-    const address = (listing?.address as AnyObj) ?? {};
-    const rua = String(address?.street ?? "");
-    const bairroNome = String(address?.neighborhood ?? body.bairro);
-    const quartos = (listing?.bedrooms as string[])?.[0];
-    const descricao = [rua, bairroNome, quartos ? `${quartos} qts` : ""]
-      .filter(Boolean)
-      .join(" · ");
-
-    comparaveis.push({
-      descricao,
-      preco,
-      area,
-      precoPorM2: Math.round(preco / area),
-    });
-  }
-
-  if (!comparaveis.length) {
-    return NextResponse.json(
-      {
-        error:
-          "Imóveis encontrados, mas sem preços/áreas válidos para calcular. Tente a Sugestão IA.",
-      },
-      { status: 404 }
-    );
-  }
-
-  const valorMedio = Math.round(
-    comparaveis.reduce((s, c) => s + c.preco, 0) / comparaveis.length
-  );
-  const precoPorM2Medio = Math.round(
-    comparaveis.reduce((s, c) => s + c.precoPorM2, 0) / comparaveis.length
-  );
-
-  return NextResponse.json({
-    comparaveis,
-    valorMedio,
-    precoPorM2Medio,
-    totalEncontrados: listings.length,
-    bairroConsultado: body.bairro,
-    url,
-  } satisfies ZapResult);
 }
