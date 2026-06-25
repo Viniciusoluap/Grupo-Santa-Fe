@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
 import { ChecklistVistoria } from "./_components/checklist-vistoria";
+import { SugestaoAvaliacaoBtn } from "./_components/sugestao-btn";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:  { label: "Solicitada",    bg: "bg-gray-100",   text: "text-gray-600",   order: 1 },
@@ -139,7 +140,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
             {a.valorEstimado ? (
               <p className="font-black text-[var(--brand-dark)] text-3xl">{formatCurrency(a.valorEstimado)}</p>
             ) : (
-              <form action={atualizarStatusAvaliacao} className="flex gap-3 items-end">
+              <form id={`form-valor-${id}`} action={atualizarStatusAvaliacao} className="flex gap-3 items-end">
                 <input type="hidden" name="id" value={id} />
                 <input type="hidden" name="status" value={a.status} />
                 <div className="flex-1">
@@ -151,6 +152,20 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
                 </button>
               </form>
             )}
+            <div className="mt-3">
+              <SugestaoAvaliacaoBtn
+                avaliacaoId={id}
+                endereco={a.endereco}
+                bairro={a.bairro}
+                cidade={a.cidade}
+                estado={a.estado}
+                tipo={a.tipo}
+                areaConstruida={a.areaConstruida}
+                areaTerreno={a.areaTerreno}
+                quartos={a.quartos}
+                banheiros={a.banheiros ?? null}
+              />
+            </div>
             {a.dataEntrega && (
               <p className="text-xs text-green-600 mt-2">Entregue em {new Date(a.dataEntrega).toLocaleDateString("pt-BR")}</p>
             )}
