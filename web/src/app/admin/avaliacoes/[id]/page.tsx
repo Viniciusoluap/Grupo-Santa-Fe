@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
@@ -50,6 +50,13 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
           </h1>
         </div>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
+        <Link
+          href={`/admin/avaliacoes/${id}/laudo`}
+          target="_blank"
+          className="ml-auto flex items-center gap-1.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-black transition-colors"
+        >
+          <FileText size={13} /> Gerar Laudo PDF
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
