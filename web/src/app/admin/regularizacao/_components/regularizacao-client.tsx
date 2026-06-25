@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, FileCheck } from "lucide-react";
+import { Plus, Search, FileCheck, Pencil, Trash2 } from "lucide-react";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
+import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
 
 interface RegDocumento {
   id: string;
@@ -29,6 +30,20 @@ interface Regularizacao {
 
 interface Props {
   regularizacoes: Regularizacao[];
+}
+
+function ExcluirRegBtn({ id, nome }: { id: string; nome: string }) {
+  const [isPending, startTransition] = useTransition();
+  function handleClick() {
+    if (!confirm(`Excluir regularização "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    startTransition(async () => { await excluirRegularizacao(id); });
+  }
+  return (
+    <button onClick={handleClick} disabled={isPending} title="Excluir"
+      className="text-xs border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 font-bold px-3 py-1.5 transition-colors disabled:opacity-40 flex items-center gap-1">
+      <Trash2 size={12} /> Excluir
+    </button>
+  );
 }
 
 export function RegularizacaoClient({ regularizacoes }: Props) {
@@ -142,9 +157,15 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                   <span>Docs: {docsOk}/{r.documentos.length} em ordem</span>
                   {r.previsaoFim && <span>Previsão: {new Date(r.previsaoFim).toLocaleDateString("pt-BR")}</span>}
                 </div>
-                <Link href={`/admin/regularizacao/${r.id}`} className="text-xs bg-[var(--brand-dark)] hover:bg-[var(--brand-dark-secondary)] text-[var(--brand-yellow)] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors">
-                  Ver Processo
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link href={`/admin/regularizacao/${r.id}`} className="text-xs bg-[var(--brand-dark)] hover:bg-[var(--brand-dark-secondary)] text-[var(--brand-yellow)] font-bold uppercase tracking-wider px-4 py-1.5 transition-colors">
+                    Ver Processo
+                  </Link>
+                  <Link href={`/admin/regularizacao/${r.id}/editar`} className="text-xs border border-gray-200 hover:border-blue-300 hover:text-blue-500 text-gray-500 font-bold px-3 py-1.5 transition-colors flex items-center gap-1">
+                    <Pencil size={12} /> Editar
+                  </Link>
+                  <ExcluirRegBtn id={r.id} nome={r.nome} />
+                </div>
               </div>
             </div>
           );

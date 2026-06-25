@@ -26,3 +26,30 @@ export async function criarRegularizacao(formData: FormData) {
   revalidatePath("/admin/regularizacao");
   redirect("/admin/regularizacao");
 }
+
+export async function excluirRegularizacao(id: string) {
+  await prisma.regularizacao.delete({ where: { id } });
+  revalidatePath("/admin/regularizacao");
+}
+
+export async function editarRegularizacao(formData: FormData) {
+  const id = formData.get("id") as string;
+  await prisma.regularizacao.update({
+    where: { id },
+    data: {
+      nome: formData.get("nome") as string,
+      tipo: formData.get("tipo") as string,
+      status: formData.get("status") as string,
+      clienteNome: formData.get("clienteNome") as string,
+      clienteTel: formData.get("clienteTel") as string,
+      endereco: formData.get("endereco") as string,
+      responsavel: formData.get("responsavel") as string,
+      valorServico: parseFloat(formData.get("valorServico") as string) || 0,
+      descricao: (formData.get("descricao") as string) || "",
+      matricula: (formData.get("matricula") as string) || null,
+      previsaoFim: (formData.get("previsaoFim") as string) ? new Date(formData.get("previsaoFim") as string) : null,
+    },
+  });
+  revalidatePath("/admin/regularizacao");
+  redirect(`/admin/regularizacao/${id}`);
+}
