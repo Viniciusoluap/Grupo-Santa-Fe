@@ -42,6 +42,12 @@ const navItems = [
     icon: Building2,
   },
   {
+    label: "Feeds XML",
+    href: "/admin/feeds",
+    icon: Rss,
+    adminOnly: true,
+  },
+  {
     label: "Leads",
     href: "/admin/leads",
     icon: Users,
@@ -94,12 +100,6 @@ const navItems = [
     label: "WhatsApp",
     href: "/admin/whatsapp",
     icon: MessageCircle,
-  },
-  {
-    label: "Feeds XML",
-    href: "/admin/feeds",
-    icon: Rss,
-    adminOnly: true,
   },
   {
     label: "BPO Financeiro",
