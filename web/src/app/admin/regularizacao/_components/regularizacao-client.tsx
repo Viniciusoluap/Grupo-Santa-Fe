@@ -6,6 +6,7 @@ import { Plus, Search, FileCheck, Pencil, Trash2 } from "lucide-react";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
 import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
+import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
 
 function parseTiposLabelReg(tipo: string): string {
   try {
@@ -50,6 +51,22 @@ interface Regularizacao {
 
 interface Props {
   regularizacoes: Regularizacao[];
+}
+
+function StatusSelectReg({ id, status }: { id: string; status: string }) {
+  const [isPending, startTransition] = useTransition();
+  return (
+    <select
+      value={status}
+      disabled={isPending}
+      onChange={(e) => startTransition(async () => { await alterarStatusRegularizacao(id, e.target.value); })}
+      className="text-[10px] font-bold uppercase border border-gray-200 bg-white px-2 py-1 focus:outline-none focus:border-[var(--brand-yellow)] disabled:opacity-60 cursor-pointer"
+    >
+      {(Object.entries(REG_STATUS_CONFIG) as [RegStatus, typeof REG_STATUS_CONFIG[RegStatus]][])
+        .sort(([, a], [, b]) => a.order - b.order)
+        .map(([s, cfg]) => <option key={s} value={s}>{cfg.label}</option>)}
+    </select>
+  );
 }
 
 function ExcluirRegBtn({ id, nome }: { id: string; nome: string }) {
@@ -157,7 +174,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className="font-bold text-[var(--brand-dark)]">{r.nome}</h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+                      <StatusSelectReg id={r.id} status={r.status} />
                     </div>
                     <p className="text-gray-500 text-sm">{r.clienteNome}</p>
                     <p className="text-gray-400 text-xs mt-0.5">{r.endereco}</p>
