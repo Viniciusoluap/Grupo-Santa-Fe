@@ -56,38 +56,22 @@ export async function POST(req: NextRequest) {
 
   const prompt = `Você é um perito avaliador imobiliário especializado no mercado do Pará e Sudeste do Pará.
 
-Preciso de uma sugestão de valor de mercado para o seguinte imóvel:
+Imóvel a avaliar:
 - Endereço: ${body.endereco}, ${body.bairro}, ${body.cidade}/${body.estado}
 - Tipo: ${tipoDesc}
 - Características: ${areaDesc}${terrenoDesc}${quartosDesc}${banheirosDesc}
 
-INSTRUÇÕES:
-1. Use a ferramenta de busca web para pesquisar imóveis similares à venda ou aluguel em ${body.cidade} - ${body.bairro} ou bairros próximos
-2. Busque em portais como ZAP Imóveis, VivaReal, OLX Imóveis, Imovelweb
-3. Pesquise também o valor do metro quadrado em ${body.cidade}/${body.estado} atualmente
-4. Calcule o preço médio por metro quadrado com base nos comparáveis encontrados
-5. Aplique o método comparativo: preço/m² × ${body.areaConstruida ?? "área construída"}
+Faça UMA busca web por imóveis similares em ${body.cidade} - ${body.bairro} (ZAP, VivaReal, OLX ou Imovelweb). Com os dados encontrados, calcule o valor de mercado pelo método comparativo.
 
-Retorne EXCLUSIVAMENTE um JSON válido neste formato (sem markdown, sem texto extra):
-{
-  "valorSugerido": <número em reais>,
-  "valorMin": <número em reais>,
-  "valorMax": <número em reais>,
-  "precoPorM2": <número em reais>,
-  "estadoGeral": "<descrição do mercado local>",
-  "comparaveis": [
-    {"descricao": "<endereço/descrição>", "preco": <número>, "area": <m²>, "precoPorM2": <número>}
-  ],
-  "fontes": ["<fonte1>", "<fonte2>"],
-  "metodologia": "<como foi calculado>",
-  "confiabilidade": "<alta|media|baixa>",
-  "observacoes": "<notas importantes sobre a avaliação>"
-}`;
+Retorne SOMENTE o JSON abaixo, sem texto extra, sem markdown, sem explicações — apenas o JSON puro:
+{"valorSugerido":0,"valorMin":0,"valorMax":0,"precoPorM2":0,"estadoGeral":"","comparaveis":[{"descricao":"","preco":0,"area":0,"precoPorM2":0}],"fontes":[""],"metodologia":"","confiabilidade":"media","observacoes":""}
+
+Preencha com no máximo 4 comparáveis. Todos os valores numéricos devem ser inteiros sem decimais.`;
 
   try {
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2000,
+      max_tokens: 4096,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{ role: "user", content: prompt }],
     });
