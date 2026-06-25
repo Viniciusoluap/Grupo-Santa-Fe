@@ -1,8 +1,7 @@
 import { FileText, Plus, Scale } from "lucide-react";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
-import { criarContrato } from "@/lib/actions/contratos";
+import { JuridicoNovoContrato } from "./_components/juridico-novo-contrato";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   rascunho:  { bg: "bg-gray-100",   text: "text-gray-600" },
@@ -13,10 +12,25 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export default async function JuridicoPage() {
-  const contratos = await prisma.contrato.findMany({
-    orderBy: { criadoEm: "desc" },
-    include: { imovel: true, comissoes: { include: { corretor: true } } },
-  });
+  const [contratos, leads, configsDB] = await Promise.all([
+    prisma.contrato.findMany({
+      orderBy: { criadoEm: "desc" },
+      include: { imovel: true, comissoes: { include: { corretor: true } } },
+    }),
+    prisma.lead.findMany({
+      select: { id: true, nome: true, telefone: true, email: true },
+      orderBy: { nome: "asc" },
+    }),
+    prisma.configuracao.findMany({
+      where: { chave: { in: ["razao_social", "cnpj"] } },
+    }),
+  ]);
+
+  const configMap = Object.fromEntries(configsDB.map((c) => [c.chave, c.valor]));
+  const empresa = {
+    razaoSocial: configMap["razao_social"] ?? "Grupo Santa Fé",
+    cnpj: configMap["cnpj"] ?? "",
+  };
 
   const ativos = contratos.filter((c) => c.status === "ativo").length;
   const rascunhos = contratos.filter((c) => c.status === "rascunho").length;
@@ -55,53 +69,7 @@ export default async function JuridicoPage() {
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
           <Plus size={12} /> Novo Contrato
         </p>
-        <form action={criarContrato} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo *</label>
-            <select name="tipo" required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-              <option value="compra_venda">Compra e Venda</option>
-              <option value="locacao">Locação</option>
-              <option value="permuta">Permuta</option>
-              <option value="comodato">Comodato</option>
-              <option value="prestacao_servicos">Prestação de Serviços</option>
-              <option value="parceria">Parceria</option>
-              <option value="outro">Outro</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Parte A (Vendedor) *</label>
-            <input name="parteA" type="text" required placeholder="Nome do vendedor/contratante" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF/CNPJ — Parte A</label>
-            <input name="parteADoc" type="text" placeholder="000.000.000-00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Parte B (Comprador) *</label>
-            <input name="parteB" type="text" required placeholder="Nome do comprador/contratado" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF/CNPJ — Parte B</label>
-            <input name="parteBDoc" type="text" placeholder="000.000.000-00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
-            <input name="valor" type="number" step="0.01" required placeholder="Ex: 350000" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vencimento</label>
-            <input name="vencimento" type="date" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>
-            <input name="descricao" type="text" placeholder="Resumo do contrato..." className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
-            <button type="submit" className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
-              Criar Contrato
-            </button>
-          </div>
-        </form>
+        <JuridicoNovoContrato leads={leads} empresa={empresa} />
       </div>
 
       {/* Contracts list */}
