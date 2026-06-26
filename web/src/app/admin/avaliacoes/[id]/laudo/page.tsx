@@ -186,6 +186,8 @@ export default async function LaudoPage({ params }: PageProps) {
           .no-print { display: none !important; }
           body { margin: 0; }
           @page { margin: 15mm 12mm; }
+          .print-break-before { break-before: page; page-break-before: always; }
+          .print-break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
         }
       `}</style>
 
@@ -457,7 +459,7 @@ export default async function LaudoPage({ params }: PageProps) {
 
         {/* Fotos */}
         {checklist.fotos.length > 0 && (
-          <div className="break-before-page">
+          <div className="print-break-before">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-3">
               Registro Fotográfico ({checklist.fotos.length} fotos)
             </p>
@@ -473,21 +475,30 @@ export default async function LaudoPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Assinatura */}
-        <div className="break-inside-avoid pt-8 border-t border-gray-200 mt-8">
+        {/* Assinatura — sempre em nova página para garantir impressão em iOS */}
+        <div className="print-break-before print-break-inside-avoid pt-8 border-t-2 border-[#1A1A1A] mt-8">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8">Assinaturas</p>
           <div className="grid grid-cols-2 gap-12">
             <div>
-              <div className="border-b border-[#1A1A1A] mb-2 pb-6" />
+              {/* Espaço para assinatura digital */}
+              <div className="border border-dashed border-gray-300 mb-3 h-24 flex items-end justify-center pb-2">
+                <span className="text-[9px] text-gray-300 uppercase tracking-widest">Assinar aqui</span>
+              </div>
+              <div className="border-b border-[#1A1A1A] mb-2" />
               <p className="text-xs font-bold text-[#1A1A1A]">{a.avaliador}</p>
               <p className="text-[10px] text-gray-400">Avaliador Responsável</p>
             </div>
             <div>
-              <div className="border-b border-[#1A1A1A] mb-2 pb-6" />
+              {/* Espaço para assinatura digital */}
+              <div className="border border-dashed border-gray-300 mb-3 h-24 flex items-end justify-center pb-2">
+                <span className="text-[9px] text-gray-300 uppercase tracking-widest">Assinar aqui</span>
+              </div>
+              <div className="border-b border-[#1A1A1A] mb-2" />
               <p className="text-xs font-bold text-[#1A1A1A]">{a.clienteNome}</p>
               <p className="text-[10px] text-gray-400">Solicitante</p>
             </div>
           </div>
-          <p className="text-[9px] text-gray-400 text-center mt-6">
+          <p className="text-[9px] text-gray-400 text-center mt-8">
             Laudo emitido em {hoje} · Grupo Santa Fé · gruposantafee.com.br · {a.numero}
           </p>
         </div>
