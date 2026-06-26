@@ -120,7 +120,7 @@ export function ProspeccaoModule({ apiConfigurada }: { apiConfigurada: boolean }
           <div>
             <p className="font-bold">Configuração necessária</p>
             <p className="mt-0.5">
-              Adicione <code className="bg-yellow-100 px-1">BRAVE_SEARCH_API_KEY</code> e <code className="bg-yellow-100 px-1">ANTHROPIC_API_KEY</code> nas variáveis de ambiente do Vercel para ativar a busca automática.
+              Adicione <code className="bg-yellow-100 px-1">ANTHROPIC_API_KEY</code> nas variáveis de ambiente do Vercel para ativar a busca automática.
               Opcionalmente, configure <code className="bg-yellow-100 px-1">PROSPECCAO_CIDADE</code> com o nome da cidade (padrão: &quot;Canaã dos Carajás PA&quot;).
             </p>
           </div>

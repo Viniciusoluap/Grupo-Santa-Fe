@@ -4,7 +4,7 @@ import { FeedCopyButton } from "./feed-copy-button";
 import { ProspeccaoModule } from "./_components/prospeccao-module";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gruposantafe.com.br";
-const BRAVE_CONFIGURED = !!process.env.BRAVE_SEARCH_API_KEY && !!process.env.ANTHROPIC_API_KEY;
+const PROSPECCAO_CONFIGURADA = !!process.env.ANTHROPIC_API_KEY;
 
 const feeds = [
   {
@@ -166,7 +166,7 @@ export default async function FeedsPage() {
       {/* AI Prospection module */}
       <div>
         <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Prospecção Automática</p>
-        <ProspeccaoModule apiConfigurada={BRAVE_CONFIGURED} />
+        <ProspeccaoModule apiConfigurada={PROSPECCAO_CONFIGURADA} />
       </div>
     </div>
   );
