@@ -30,9 +30,18 @@ export function PropertyCard({ property }: { property: Property }) {
     <Card className="overflow-hidden group hover:-translate-y-1 transition-transform duration-200">
       {/* Image */}
       <div className="relative h-52 bg-[var(--brand-dark)] flex items-center justify-center overflow-hidden">
-        <div className="text-[var(--brand-yellow)]/10 text-8xl font-black uppercase select-none">
-          {typeLabel[property.type]?.[0]}
-        </div>
+        {property.images && property.images.length > 0 ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={property.images[0]}
+            alt={property.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="text-[var(--brand-yellow)]/10 text-8xl font-black uppercase select-none">
+            {typeLabel[property.type]?.[0]}
+          </div>
+        )}
 
         {property.badge && (
           <div className="absolute top-3 left-3 bg-[var(--brand-yellow)] text-[var(--brand-dark)] text-xs font-black px-2 py-1 uppercase tracking-wide">

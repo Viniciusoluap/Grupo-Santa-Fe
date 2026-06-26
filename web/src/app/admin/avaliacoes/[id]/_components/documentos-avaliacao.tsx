@@ -20,7 +20,7 @@ interface Props {
 
 const MAX_FILES = 5;
 const MAX_TOTAL_BYTES = 50 * 1024 * 1024; // 50 MB total across all files
-const UPLOAD_TIMEOUT_MS = 180_000; // 3 min — enough for large PDFs on slow mobile
+const UPLOAD_TIMEOUT_MS = 90_000; // 90s — if no progress after 90s, network is stalled
 
 function formatSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -40,6 +40,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
   const [docs, setDocs] = useState<Documento[]>(() => parseDocumentos(initialData));
   const [uploading, setUploading] = useState(false);
   const [uploadingName, setUploadingName] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,10 +86,12 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
       for (const file of toUpload) {
         if (controller.signal.aborted) break;
         setUploadingName(file.name);
+        setUploadProgress(0);
         const blob = await upload(file.name, file, {
           access: "public",
           handleUploadUrl: "/api/avaliacoes/documentos",
           abortSignal: controller.signal,
+          onUploadProgress: ({ percentage }) => setUploadProgress(Math.round(percentage)),
         });
         novos.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -120,6 +123,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
       abortCtrlRef.current = null;
       setUploading(false);
       setUploadingName(null);
+      setUploadProgress(0);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -205,16 +209,27 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
       )}
 
       {uploading && uploadingName && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2">
-          <Loader2 size={12} className="animate-spin text-[var(--brand-yellow)] shrink-0" />
-          <span className="truncate flex-1">Enviando <strong>{uploadingName}</strong>...</span>
-          <button
-            type="button"
-            onClick={handleCancelar}
-            className="shrink-0 text-xs text-red-400 hover:text-red-600 font-medium"
-          >
-            Cancelar
-          </button>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2">
+            <Loader2 size={12} className="animate-spin text-[var(--brand-yellow)] shrink-0" />
+            <span className="truncate flex-1">
+              Enviando <strong>{uploadingName}</strong>
+              {uploadProgress > 0 && <span className="text-[var(--brand-dark)] font-bold ml-1">{uploadProgress}%</span>}
+            </span>
+            <button
+              type="button"
+              onClick={handleCancelar}
+              className="shrink-0 text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 hover:border-red-400 px-2 py-0.5 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+          <div className="h-1 bg-gray-100 overflow-hidden mx-3">
+            <div
+              className="h-full bg-[var(--brand-yellow)] transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
         </div>
       )}
 
