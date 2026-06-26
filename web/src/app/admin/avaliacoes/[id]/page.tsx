@@ -36,7 +36,6 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
   const a = await prisma.avaliacao.findUnique({ where: { id }, include: { lead: { select: { id: true, nome: true, telefone: true } } } });
   if (!a) notFound();
 
-  const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
   const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.solicitada;
   const nextStatuses = Object.entries(STATUS_CONFIG)
     .filter(([s]) => s !== a.status && s !== "cancelada")
@@ -217,7 +216,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
           </div>
 
           {/* Documentos */}
-          <DocumentosAvaliacao avaliacaoId={id} initialData={a.documentos ?? "[]"} blobConfigured={blobConfigured} />
+          <DocumentosAvaliacao avaliacaoId={id} initialData={a.documentos ?? "[]"} />
 
           {/* Observações */}
           {a.observacoes && (

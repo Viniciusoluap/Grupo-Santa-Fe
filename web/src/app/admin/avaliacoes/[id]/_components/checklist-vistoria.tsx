@@ -581,7 +581,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                 <button
                   type="button"
                   onClick={() => removePhoto(idx)}
-                  className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1"
+                  className="absolute top-1.5 right-1.5 bg-black/75 text-white rounded-full p-1.5"
                 >
                   <X size={12} />
                 </button>
