@@ -104,5 +104,7 @@ export async function salvarChecklistAvaliacao(id: string, dados: string) {
 
 export async function salvarDocumentosAvaliacao(id: string, documentos: string) {
   await prisma.avaliacao.update({ where: { id }, data: { documentos } });
-  revalidatePath(`/admin/avaliacoes/${id}`);
+  // revalidatePath omitido intencionalmente: a página de avaliação contém fotos
+  // em base64 no checklist; re-render via server action envia esses dados no
+  // response HTML e estoura o limite de memória do iOS Safari.
 }
