@@ -41,7 +41,8 @@ function safeName(name: string) {
 }
 
 const MAX_RETRIES = 3;
-const STALL_MS = 30000; // aborta a tentativa se o progresso não avançar por 30s
+const STALL_MS = 25000;   // aborta se o progresso não avançar por 25s
+const ATTEMPT_TIMEOUT_MS = 40000; // deadline duro por tentativa — garante falha mesmo se SDK ignorar AbortSignal
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -58,9 +59,11 @@ async function checkBlobLanded(pathname: string): Promise<string | null> {
   return null;
 }
 
-// Uma tentativa de upload. Um watchdog aborta a tentativa se o progresso travar
-// (comum no iOS Safari, onde a conexão congela no meio da transferência — ex.: 82%
-// — ou pendura em 100% depois que os bytes já chegaram).
+// Uma tentativa de upload com dois mecanismos de segurança contra travamento:
+// 1. Watchdog de progresso — aborta se os bytes pararem de fluir por STALL_MS
+// 2. Promise.race com deadline duro — garante falha mesmo que o SDK ignore o AbortSignal
+//    (problema conhecido no iOS Safari durante a fase de geração do token, quando
+//    progress=0% e o AbortSignal não é respeitado pelo fetch interno do SDK)
 async function uploadAttempt(
   file: File,
   pathname: string,
@@ -80,18 +83,31 @@ async function uploadAttempt(
     }
   }, 5000);
 
+  // Deadline duro: rejeita a Promise independentemente do SDK honrar o AbortSignal
+  const hardDeadline = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new DOMException("Upload excedeu o tempo limite.", "TimeoutError")),
+      ATTEMPT_TIMEOUT_MS
+    )
+  );
+
   try {
-    const blob = await upload(pathname, file, {
-      access: "public",
-      handleUploadUrl: "/api/avaliacoes/documentos",
-      multipart: true,           // chunked: mais resiliente a quedas de conexão no iOS
-      abortSignal: inner.signal,
-      onUploadProgress: ({ percentage }) => {
-        const pct = Math.round(percentage);
-        if (pct > lastPct) { lastPct = pct; lastProgressAt = Date.now(); }
-        onProgress(pct);
-      },
-    });
+    const blob = await Promise.race([
+      upload(pathname, file, {
+        access: "public",
+        handleUploadUrl: "/api/avaliacoes/documentos",
+        // multipart:true removido — exige round-trips extras de "create session" que
+        // travam em 0% no iOS quando o token não chega a tempo (SDK ignora AbortSignal
+        // nessa fase); o upload single-chunk é igualmente robusto com o watchdog ativo.
+        abortSignal: inner.signal,
+        onUploadProgress: ({ percentage }) => {
+          const pct = Math.round(percentage);
+          if (pct > lastPct) { lastPct = pct; lastProgressAt = Date.now(); }
+          onProgress(pct);
+        },
+      }),
+      hardDeadline,
+    ]);
     return blob.url;
   } finally {
     clearInterval(watchdog);
@@ -204,12 +220,14 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         setError("Upload cancelado.");
+      } else if (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "StallError")) {
+        setError("Upload excedeu o tempo limite. Verifique sua conexão e tente novamente.");
       } else {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes("BLOB_READ_WRITE_TOKEN") || msg.toLowerCase().includes("token") || msg.includes("Unauthorized")) {
           setError("Blob Storage não configurado. Adicione BLOB_READ_WRITE_TOKEN nas variáveis de ambiente do Vercel.");
         } else {
-          setError(msg);
+          setError(msg || "Falha no upload. Tente novamente.");
         }
       }
     } finally {
@@ -306,9 +324,10 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
           <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2">
             <Loader2 size={12} className="animate-spin text-[var(--brand-yellow)] shrink-0" />
             <span className="truncate flex-1">
-              Enviando <strong>{uploadingName}</strong>
-              {uploadProgress > 0 && <span className="text-[var(--brand-dark)] font-bold ml-1">{uploadProgress}%</span>}
-              {uploadProgress >= 100 && <span className="text-gray-400 ml-1 text-[10px]">· finalizando…</span>}
+              {uploadProgress === 0
+                ? <><span className="text-gray-400">Conectando…</span> <strong>{uploadingName}</strong></>
+                : <>Enviando <strong>{uploadingName}</strong> <span className="text-[var(--brand-dark)] font-bold ml-1">{uploadProgress}%</span>{uploadProgress >= 100 && <span className="text-gray-400 ml-1 text-[10px]">· finalizando…</span>}</>
+              }
             </span>
             <button
               type="button"

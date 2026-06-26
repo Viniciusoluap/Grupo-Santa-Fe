@@ -39,11 +39,10 @@ export async function POST(request: NextRequest) {
           "image/png",
           "image/webp",
         ],
-        maximumSizeInBytes: 50 * 1024 * 1024, // 50 MB per file (total enforced client-side)
-        // Deterministic path + overwrite so stall/retry re-uploads land on the same
-        // key (no orphan blobs) and the GET path-check matches exactly.
+        maximumSizeInBytes: 50 * 1024 * 1024,
+        // addRandomSuffix:false makes retentativas converge no mesmo path (sem blobs órfãos)
         addRandomSuffix: false,
-        allowOverwrite: true,
+        // allowOverwrite é opção de put() server-side, não de onBeforeGenerateToken — removido
       }),
       onUploadCompleted: async () => {
         // URL is saved client-side after upload completes
