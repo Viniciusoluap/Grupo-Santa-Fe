@@ -5,24 +5,17 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const CIDADE_BUSCA = process.env.PROSPECCAO_CIDADE ?? "Canaã dos Carajás PA";
 
 const QUERIES = [
-  `casa venda ${CIDADE_BUSCA}`,
-  `apartamento venda ${CIDADE_BUSCA}`,
-  `terreno lote venda ${CIDADE_BUSCA}`,
-  `casa aluguel ${CIDADE_BUSCA}`,
-  `imóvel venda ${CIDADE_BUSCA} whatsapp`,
+  `casa à venda ${CIDADE_BUSCA}`,
+  `apartamento à venda ${CIDADE_BUSCA}`,
+  `terreno lote à venda ${CIDADE_BUSCA}`,
+  `casa para alugar ${CIDADE_BUSCA}`,
+  `imóvel à venda ${CIDADE_BUSCA} whatsapp`,
 ];
-
-interface BraveResult {
-  title: string;
-  url: string;
-  description: string;
-}
 
 interface ProspeccaoImovel {
   titulo: string;
@@ -54,41 +47,20 @@ function parseDraftDesc(raw: string): { descricao: string; contato: string | nul
   return { descricao: raw, contato: null, origemUrl: null };
 }
 
-async function buscaBrave(query: string): Promise<BraveResult[]> {
-  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&country=br&search_lang=pt`;
-  const res = await fetch(url, {
-    headers: {
-      "Accept": "application/json",
-      "X-Subscription-Token": BRAVE_API_KEY!,
-    },
-  });
-  if (!res.ok) return [];
-  const data = await res.json() as { web?: { results?: Array<{ title: string; url: string; description: string }> } };
-  return (data.web?.results ?? []).map((r) => ({
-    title: r.title,
-    url: r.url,
-    description: r.description,
-  }));
-}
-
-async function extrairComClaude(resultados: BraveResult[]): Promise<ProspeccaoImovel[]> {
+// Busca imóveis na web usando a busca web nativa da Claude (sem dependência do Brave).
+// A Claude executa as buscas server-side e devolve os imóveis já extraídos em JSON.
+async function buscaImoveisComClaude(): Promise<ProspeccaoImovel[]> {
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-  const texto = resultados
-    .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.description}`)
-    .join("\n\n---\n\n");
+  const prompt = `Pesquise na web imóveis à venda e para locação em ${CIDADE_BUSCA}. Faça buscas para cada um destes termos e analise os anúncios encontrados (portais imobiliários, OLX, Facebook Marketplace, sites de imobiliárias locais):
 
-  const msg = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
-    messages: [
-      {
-        role: "user",
-        content: `Analise os resultados de busca abaixo e extraia todos os imóveis encontrados à venda ou para locação. Para cada imóvel, retorne um JSON array com os campos:
+${QUERIES.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
+Extraia todos os imóveis reais que encontrar. Para cada imóvel, monte um objeto com os campos:
 - titulo (string)
 - tipo: "casa" | "apartamento" | "terreno" | "lote" | "comercial" | "chacara"
 - status: "venda" | "locacao"
-- preco (number, 0 se não encontrado)
+- preco (number em reais, 0 se não encontrado)
 - area (number em m², 0 se não encontrado)
 - quartos (number | null)
 - banheiros (number | null)
@@ -98,22 +70,44 @@ async function extrairComClaude(resultados: BraveResult[]): Promise<ProspeccaoIm
 - estado (string, ex: "PA")
 - descricao (string resumida)
 - contato (telefone ou email encontrado, string vazia se não houver)
-- origemUrl (URL da fonte)
+- origemUrl (URL da fonte do anúncio)
 
-Retorne APENAS o JSON array, sem markdown, sem explicação.
+Não invente imóveis: inclua apenas os que aparecem de fato nos resultados de busca. Retorne APENAS um JSON array com os imóveis, sem markdown e sem explicação.`;
 
-Resultados:
-${texto}`,
-      },
-    ],
+  // web_search é uma server tool: a Claude pode pausar (pause_turn) entre rodadas
+  // de busca. Repetimos a chamada reenviando o histórico até o turno terminar.
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
+  let response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
+    tools: [{ type: "web_search_20250305", name: "web_search" }],
+    messages,
   });
 
-  const content = msg.content[0];
-  if (content.type !== "text") return [];
+  let guard = 0;
+  while (response.stop_reason === "pause_turn" && guard < 5) {
+    messages.push({ role: "assistant", content: response.content });
+    response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages,
+    });
+    guard++;
+  }
+
+  let jsonText = "";
+  for (const block of response.content) {
+    if (block.type === "text") jsonText += block.text;
+  }
+  jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+  const start = jsonText.indexOf("[");
+  const end = jsonText.lastIndexOf("]");
+  if (start === -1 || end === -1) return [];
 
   try {
-    const raw = content.text.trim().replace(/^```json\n?/, "").replace(/\n?```$/, "");
-    const parsed = JSON.parse(raw) as ProspeccaoImovel[];
+    const parsed = JSON.parse(jsonText.slice(start, end + 1)) as ProspeccaoImovel[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -146,32 +140,16 @@ export async function GET() {
 
 // POST — run prospection search
 export async function POST() {
-  if (!BRAVE_API_KEY) {
-    return NextResponse.json({ error: "BRAVE_SEARCH_API_KEY não configurada nas variáveis de ambiente do Vercel." }, { status: 400 });
-  }
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY não configurada nas variáveis de ambiente do Vercel." }, { status: 400 });
   }
 
   try {
-    const allResults: BraveResult[] = [];
-    for (const q of QUERIES) {
-      const results = await buscaBrave(q);
-      allResults.push(...results);
+    const imoveis = await buscaImoveisComClaude();
+
+    if (imoveis.length === 0) {
+      return NextResponse.json({ created: 0, message: "Nenhum imóvel encontrado na busca." });
     }
-
-    const seen = new Set<string>();
-    const unique = allResults.filter((r) => {
-      if (seen.has(r.url)) return false;
-      seen.add(r.url);
-      return true;
-    });
-
-    if (unique.length === 0) {
-      return NextResponse.json({ created: 0, message: "Nenhum resultado encontrado." });
-    }
-
-    const imoveis = await extrairComClaude(unique);
 
     // Deduplicate against existing drafts by price + bairro
     const existing = await prisma.imovel.findMany({
