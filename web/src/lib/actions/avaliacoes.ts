@@ -100,3 +100,8 @@ export async function salvarChecklistAvaliacao(id: string, dados: string) {
   // estoura o limite de tamanho do SSR do Vercel ao tentar re-renderizar a página.
   // O componente cliente já exibe "Salvo!" sem precisar de reload.
 }
+
+export async function salvarDocumentosAvaliacao(id: string, documentos: string) {
+  await prisma.avaliacao.update({ where: { id }, data: { documentos } });
+  revalidatePath(`/admin/avaliacoes/${id}`);
+}

@@ -468,6 +468,7 @@ model Avaliacao {
   dataEntrega    DateTime?
   observacoes    String    @default("")
   laudo          String?
+  documentos     String    @default("[]")
   criadoEm       DateTime  @default(now())
   atualizadoEm   DateTime  @updatedAt
 

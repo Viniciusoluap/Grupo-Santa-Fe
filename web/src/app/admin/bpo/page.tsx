@@ -21,6 +21,7 @@ export default async function BpoPage() {
   ] = await Promise.all([
     prisma.bpoLancamento.findMany({
       orderBy: { vencimento: "desc" },
+      take: 300,
       include: { cliente: { select: { razaoSocial: true } } },
     }),
     prisma.bpoCliente.findMany({
@@ -31,16 +32,17 @@ export default async function BpoPage() {
     prisma.lead.findMany({
       select: { id: true, nome: true, telefone: true, email: true },
       orderBy: { nome: "asc" },
+      take: 300,
     }),
     prisma.contaBancaria.findMany({
       where: { ativo: true },
       orderBy: { criadoEm: "desc" },
-      include: { transacoes: { orderBy: { data: "desc" }, take: 100 } },
+      include: { transacoes: { orderBy: { data: "desc" }, take: 30 } },
     }),
     prisma.imovel.count(),
     prisma.lead.count(),
     prisma.lead.groupBy({ by: ["status"], _count: { id: true } }),
-    prisma.comissao.findMany({ where: { status: "paga" }, orderBy: { pagamentoEm: "asc" } }),
+    prisma.comissao.findMany({ where: { status: "paga" }, orderBy: { pagamentoEm: "asc" }, take: 500 }),
     prisma.imovel.groupBy({ by: ["tipo"], _count: { id: true } }),
     prisma.financiamento.count(),
     prisma.corretor.findMany({
