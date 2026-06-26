@@ -86,7 +86,7 @@ const feeds = [
 
 export default async function FeedsPage() {
   const imoveis = await prisma.imovel.findMany({
-    where: { publicadoSite: true, rascunho: false, status: { notIn: ["vendido", "locado"] } },
+    where: { publicadoSite: true, status: { notIn: ["vendido", "locado"] } },
     orderBy: { criadoEm: "desc" },
     select: { id: true, status: true },
   });

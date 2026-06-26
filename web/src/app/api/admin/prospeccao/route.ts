@@ -26,8 +26,8 @@ interface BraveResult {
 
 interface ProspeccaoImovel {
   titulo: string;
-  tipo: "casa" | "apartamento" | "terreno" | "lote" | "comercial" | "chacara";
-  status: "venda" | "locacao";
+  tipo: string;
+  status: string;
   preco: number;
   area: number;
   quartos: number | null;
@@ -39,6 +39,19 @@ interface ProspeccaoImovel {
   descricao: string;
   contato: string;
   origemUrl: string;
+}
+
+// Prospection drafts are identified by publicadoSite=false + slug prefix "rsc-"
+// Contact and origin URL are stored in the descricao field as JSON:
+// {"_desc": "...", "_contato": "...", "_origem": "..."}
+function parseDraftDesc(raw: string): { descricao: string; contato: string | null; origemUrl: string | null } {
+  try {
+    const p = JSON.parse(raw) as Record<string, string>;
+    if (p._desc !== undefined) {
+      return { descricao: p._desc ?? "", contato: p._contato ?? null, origemUrl: p._origem ?? null };
+    }
+  } catch { /* not JSON */ }
+  return { descricao: raw, contato: null, origemUrl: null };
 }
 
 async function buscaBrave(query: string): Promise<BraveResult[]> {
@@ -107,19 +120,25 @@ ${texto}`,
   }
 }
 
-// GET — list pending prospection drafts
+// GET — list pending prospection drafts (publicadoSite=false, slug starts with "rsc-")
 export async function GET() {
   try {
     const drafts = await prisma.imovel.findMany({
-      where: { rascunho: true },
+      where: { publicadoSite: false, slug: { startsWith: "rsc-" } },
       orderBy: { criadoEm: "desc" },
       select: {
         id: true, titulo: true, tipo: true, status: true, preco: true, area: true,
         quartos: true, bairro: true, cidade: true, estado: true,
-        contatoOrigem: true, origemUrl: true, criadoEm: true,
+        descricao: true, criadoEm: true,
       },
     });
-    return NextResponse.json({ drafts });
+
+    const parsed = drafts.map((d) => {
+      const { descricao, contato, origemUrl } = parseDraftDesc(d.descricao);
+      return { ...d, descricao, contatoOrigem: contato, origemUrl, criadoEm: d.criadoEm.toISOString() };
+    });
+
+    return NextResponse.json({ drafts: parsed });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
@@ -135,14 +154,12 @@ export async function POST() {
   }
 
   try {
-    // Search
     const allResults: BraveResult[] = [];
     for (const q of QUERIES) {
       const results = await buscaBrave(q);
       allResults.push(...results);
     }
 
-    // Deduplicate by URL
     const seen = new Set<string>();
     const unique = allResults.filter((r) => {
       if (seen.has(r.url)) return false;
@@ -154,12 +171,11 @@ export async function POST() {
       return NextResponse.json({ created: 0, message: "Nenhum resultado encontrado." });
     }
 
-    // Extract with Claude
     const imoveis = await extrairComClaude(unique);
 
-    // Deduplicate against existing (by price + bairro)
+    // Deduplicate against existing drafts by price + bairro
     const existing = await prisma.imovel.findMany({
-      where: { rascunho: true },
+      where: { publicadoSite: false, slug: { startsWith: "rsc-" } },
       select: { preco: true, bairro: true },
     });
     const existingKeys = new Set(existing.map((e) => `${e.preco}-${e.bairro}`));
@@ -169,17 +185,22 @@ export async function POST() {
       return !existingKeys.has(`${im.preco}-${im.bairro}`);
     });
 
-    // Save as drafts
     let created = 0;
     for (const im of novos) {
-      const slug = `prospeccao-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const slug = `rsc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      // Store contact and origin in descricao as JSON
+      const descricaoJson = JSON.stringify({
+        _desc: im.descricao || "",
+        _contato: im.contato || "",
+        _origem: im.origemUrl || "",
+      });
       await prisma.imovel.create({
         data: {
           slug,
-          tipo: im.tipo,
-          status: im.status,
+          tipo: im.tipo || "casa",
+          status: im.status || "venda",
           titulo: im.titulo || "Imóvel prospectado",
-          descricao: im.descricao || "",
+          descricao: descricaoJson,
           preco: im.preco,
           area: im.area || 1,
           quartos: im.quartos,
@@ -189,9 +210,6 @@ export async function POST() {
           cidade: im.cidade || CIDADE_BUSCA.split(" ")[0],
           estado: im.estado || "PA",
           publicadoSite: false,
-          rascunho: true,
-          contatoOrigem: im.contato || null,
-          origemUrl: im.origemUrl || null,
         },
       });
       created++;
@@ -215,9 +233,12 @@ export async function PATCH(request: NextRequest) {
     if (action === "descartar") {
       await prisma.imovel.delete({ where: { id } });
     } else {
+      // Restore plain description when approving
+      const imovel = await prisma.imovel.findUnique({ where: { id }, select: { descricao: true } });
+      const { descricao } = parseDraftDesc(imovel?.descricao ?? "");
       await prisma.imovel.update({
         where: { id },
-        data: { rascunho: false, publicadoSite: true },
+        data: { publicadoSite: true, descricao },
       });
     }
     return NextResponse.json({ ok: true });

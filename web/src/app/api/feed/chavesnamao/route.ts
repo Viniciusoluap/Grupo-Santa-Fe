@@ -18,7 +18,7 @@ function tipoCNM(tipo: string): string {
 
 export async function GET() {
   const properties = await prisma.imovel
-    .findMany({ where: { publicadoSite: true, rascunho: false } })
+    .findMany({ where: { publicadoSite: true } })
     .then((list) => list.map(imovelToProperty));
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
