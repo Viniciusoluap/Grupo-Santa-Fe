@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { upload } from "@vercel/blob/client";
 import { Paperclip, Trash2, FileText, FileImage, Loader2, Upload, AlertCircle, X } from "lucide-react";
 import { salvarDocumentosAvaliacao } from "@/lib/actions/avaliacoes";
 
@@ -18,9 +19,7 @@ interface Props {
 }
 
 const MAX_FILES = 5;
-// 4 MB per file — matches /api/avaliacoes/upload-doc server limit (Vercel 4.5 MB body)
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB total (5 × 4 MB)
+const MAX_TOTAL_BYTES = 50 * 1024 * 1024; // 50 MB total across all files
 
 function formatSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -36,46 +35,91 @@ function parseDocumentos(raw: string): Documento[] {
   try { return JSON.parse(raw) as Documento[]; } catch { return []; }
 }
 
-// XHR-based upload — avoids the @vercel/blob/client two-step handshake that
-// hangs after CDN PUT on iOS Safari (post-upload completion callback never resolves).
-function uploadFileXHR(
+// Sanitize filename to safe URL chars
+function safeName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+// Upload a file using @vercel/blob/client (file goes directly to CDN — no serverless body limit).
+// On iOS Safari the post-CDN completion callback sometimes hangs indefinitely (progress shows 100%
+// but the Promise never resolves). After 5 s at 100%, we fall back to asking the server whether
+// the blob already landed in storage and return its URL directly.
+async function uploadComFallback(
   file: File,
+  avaliacaoId: string,
   onProgress: (pct: number) => void,
   signal: AbortSignal
-): Promise<{ url: string }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const fd = new FormData();
-    fd.append("file", file);
+): Promise<string> {
+  const pathname = `docs-avaliacao/${avaliacaoId}/${Date.now()}-${safeName(file.name)}`;
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
+    function settle(url: string) {
+      if (settled) return;
+      settled = true;
+      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+      resolve(url);
+    }
+
+    function fail(err: unknown) {
+      if (settled) return;
+      settled = true;
+      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+      reject(err);
+    }
+
+    // Fallback: after reaching 100% with no SDK resolution, poll the server for the blob URL.
+    function startFallback() {
+      if (fallbackTimer || settled) return;
+      fallbackTimer = setTimeout(async () => {
+        if (settled) return;
+        const check = async () => {
+          const res = await fetch(`/api/avaliacoes/documentos?path=${encodeURIComponent(pathname)}`);
+          if (res.ok) {
+            const { url } = (await res.json()) as { url: string };
+            settle(url);
+          }
+        };
         try {
-          resolve(JSON.parse(xhr.responseText) as { url: string });
-        } catch {
-          reject(new Error("Resposta inválida do servidor."));
+          await check();
+          if (!settled) {
+            // Retry once more after 3 s — blob indexing might have brief lag
+            setTimeout(async () => {
+              if (settled) return;
+              try { await check(); } catch { /* ignore */ }
+              if (!settled) fail(new Error("Upload concluído no servidor mas URL não encontrada. Tente novamente."));
+            }, 3000);
+          }
+        } catch (e) {
+          if (!settled) fail(e);
         }
-      } else {
-        try {
-          const json = JSON.parse(xhr.responseText) as { error?: string };
-          reject(new Error(json.error ?? `Erro HTTP ${xhr.status}`));
-        } catch {
-          reject(new Error(`Erro HTTP ${xhr.status}`));
+      }, 5000);
+    }
+
+    signal.addEventListener("abort", () => fail(new DOMException("Upload cancelado.", "AbortError")), { once: true });
+
+    upload(pathname, file, {
+      access: "public",
+      handleUploadUrl: "/api/avaliacoes/documentos",
+      abortSignal: signal,
+      onUploadProgress: ({ percentage }) => {
+        const pct = Math.round(percentage);
+        onProgress(pct);
+        if (pct >= 100) startFallback();
+      },
+    })
+      .then((blob) => settle(blob.url))
+      .catch((err: unknown) => {
+        // Distinguish abort from real errors
+        const msg = err instanceof Error ? err.message : String(err);
+        if (signal.aborted || msg.toLowerCase().includes("abort")) {
+          fail(new DOMException("Upload cancelado.", "AbortError"));
+        } else {
+          fail(err);
         }
-      }
-    };
-
-    xhr.onerror = () => reject(new Error("Erro de rede ao enviar arquivo."));
-    xhr.onabort = () => reject(new DOMException("Upload cancelado.", "AbortError"));
-
-    signal.addEventListener("abort", () => xhr.abort(), { once: true });
-
-    xhr.open("POST", "/api/avaliacoes/upload-doc");
-    xhr.send(fd);
+      });
   });
 }
 
@@ -106,19 +150,11 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
 
     const toUpload = files.slice(0, remaining);
 
-    // Per-file size check
-    const oversized = toUpload.find((f) => f.size > MAX_FILE_BYTES);
-    if (oversized) {
-      setError(`"${oversized.name}" excede 4 MB. Reduza o tamanho do arquivo.`);
-      return;
-    }
-
-    // Total size check (existing + new)
     const newBytes = toUpload.reduce((sum, f) => sum + f.size, 0);
     if (totalBytes + newBytes > MAX_TOTAL_BYTES) {
       const usedMB = (totalBytes / 1024 / 1024).toFixed(1);
       const addMB = (newBytes / 1024 / 1024).toFixed(1);
-      setError(`Limite de 20 MB total excedido. Já usado: ${usedMB} MB + novo: ${addMB} MB.`);
+      setError(`Limite de 50 MB total excedido. Já usado: ${usedMB} MB + novo: ${addMB} MB.`);
       return;
     }
 
@@ -133,7 +169,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
         setUploadingName(file.name);
         setUploadProgress(0);
 
-        const { url } = await uploadFileXHR(file, setUploadProgress, controller.signal);
+        const url = await uploadComFallback(file, avaliacaoId, setUploadProgress, controller.signal);
 
         novos.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -153,7 +189,12 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
       if (e instanceof DOMException && e.name === "AbortError") {
         setError("Upload cancelado.");
       } else {
-        setError(e instanceof Error ? e.message : String(e));
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("BLOB_READ_WRITE_TOKEN") || msg.toLowerCase().includes("token") || msg.includes("Unauthorized")) {
+          setError("Blob Storage não configurado. Adicione BLOB_READ_WRITE_TOKEN nas variáveis de ambiente do Vercel.");
+        } else {
+          setError(msg);
+        }
       }
     } finally {
       abortCtrlRef.current = null;
@@ -185,7 +226,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             Documentos ({docs.length}/{MAX_FILES})
           </p>
           {docs.length > 0 && (
-            <p className="text-[10px] text-gray-400 mt-0.5">{totalMB} MB / 20 MB usados</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">{totalMB} MB / 50 MB usados</p>
           )}
         </div>
         {uploading ? (
@@ -240,7 +281,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
         >
           <Paperclip size={20} className="text-gray-300 mx-auto mb-2" />
           <p className="text-xs text-gray-400">Clique para anexar documentos</p>
-          <p className="text-[10px] text-gray-300 mt-1">PDF, Word, Excel, imagens · até 4 MB por arquivo · até 5 arquivos</p>
+          <p className="text-[10px] text-gray-300 mt-1">PDF, Word, Excel, imagens · até 50 MB no total · até 5 arquivos</p>
         </div>
       )}
 
@@ -251,6 +292,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             <span className="truncate flex-1">
               Enviando <strong>{uploadingName}</strong>
               {uploadProgress > 0 && <span className="text-[var(--brand-dark)] font-bold ml-1">{uploadProgress}%</span>}
+              {uploadProgress >= 100 && <span className="text-gray-400 ml-1 text-[10px]">· finalizando…</span>}
             </span>
             <button
               type="button"

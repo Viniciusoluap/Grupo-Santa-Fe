@@ -44,6 +44,9 @@ model Imovel {
   publicadoZap    Boolean  @default(false)
   publicadoOlx    Boolean  @default(false)
   publicadoViva   Boolean  @default(false)
+  rascunho        Boolean  @default(false)   // prospection draft — not published
+  contatoOrigem   String?                    // contact from prospection (admin/collaborator only)
+  origemUrl       String?                    // source URL where property was found
   corretorId      String?
   corretor        Corretor?    @relation(fields: [corretorId], references: [id])
   leads           Lead[]
