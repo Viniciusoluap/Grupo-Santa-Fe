@@ -15,6 +15,7 @@ interface Props {
   areaTerreno: number | null;
   quartos: number | null;
   banheiros: number | null;
+  caracteristicas?: string;
 }
 
 interface Comparavel {
@@ -58,7 +59,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
       const res = await fetch("/api/avaliacoes/sugestao", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...props }),
+        body: JSON.stringify({ ...props, caracteristicas: props.caracteristicas ?? "" }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Erro desconhecido");
