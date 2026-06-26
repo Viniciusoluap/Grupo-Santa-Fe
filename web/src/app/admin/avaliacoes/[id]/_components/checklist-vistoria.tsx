@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { salvarChecklistAvaliacao } from "@/lib/actions/avaliacoes";
 import { ChevronDown, ChevronRight, X, Plus, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 
 interface Props {
@@ -266,7 +265,13 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
 
   function handleSave() {
     startTransition(async () => {
-      await salvarChecklistAvaliacao(avaliacaoId, JSON.stringify(data));
+      // Use a direct API call instead of a server action to prevent Next.js
+      // from re-rendering the page with base64 photos in the response, which crashes iOS Safari.
+      await fetch(`/api/avaliacoes/${avaliacaoId}/checklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dados: JSON.stringify(data) }),
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     });
