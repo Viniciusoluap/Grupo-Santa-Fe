@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/utils";
 import { PrintButton } from "./_components/print-button";
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -88,11 +87,54 @@ const CHECKLIST_GROUPS = [
 type ItemState = { ok: boolean | null; nota: string };
 type ChecklistData = { estadoGeral: string; items: Record<string, ItemState>; fotos: string[] };
 
+interface SugestaoResult {
+  valorSugerido: number;
+  valorMin: number;
+  valorMax: number;
+  precoPorM2: number;
+  estadoGeral?: string;
+  comparaveis: Array<{ descricao: string; preco: number; area: number; precoPorM2: number }>;
+  fontes: string[];
+  metodologia: string;
+  confiabilidade: "alta" | "media" | "baixa";
+  observacoes: string;
+}
+
+interface Documento {
+  id: string;
+  nome: string;
+  url: string;
+  tipo: string;
+  tamanho: number;
+}
+
+// Robust pt-BR value formatter — no Intl.NumberFormat dependency
+function formatValorBR(value: number): string {
+  const fixed = value.toFixed(2);
+  const [int, dec] = fixed.split(".");
+  const intFormatted = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${intFormatted},${dec}`;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
 function parseChecklist(raw: string): ChecklistData {
   try {
     const p = JSON.parse(raw) as Partial<ChecklistData>;
     return { estadoGeral: p.estadoGeral ?? "", items: p.items ?? {}, fotos: p.fotos ?? [] };
   } catch { return { estadoGeral: "", items: {}, fotos: [] }; }
+}
+
+function parseSugestao(raw: string | null | undefined): SugestaoResult | null {
+  if (!raw) return null;
+  try { return JSON.parse(raw) as SugestaoResult; } catch { return null; }
+}
+
+function parseDocumentos(raw: string): Documento[] {
+  try { return JSON.parse(raw) as Documento[]; } catch { return []; }
 }
 
 export default async function LaudoPage({ params }: PageProps) {
@@ -101,12 +143,41 @@ export default async function LaudoPage({ params }: PageProps) {
   if (!a) notFound();
 
   const checklist = parseChecklist(a.caracteristicas ?? "");
+  const sugestao = parseSugestao(a.sugestaoJson);
+  const documentos = parseDocumentos(a.documentos ?? "[]");
   const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
   const totalItems = CHECKLIST_GROUPS.reduce((acc, g) => acc + g.items.length, 0);
   const checkedItems = Object.values(checklist.items).filter((v) => v.ok !== null).length;
   const conformes = Object.values(checklist.items).filter((v) => v.ok === true).length;
   const naoConformes = Object.values(checklist.items).filter((v) => v.ok === false).length;
+
+  // Build resumo paragraph from available data
+  const resumoParts: string[] = [];
+  const tipoLabel = TIPO_LABELS[a.tipo] ?? a.tipo;
+  const finalidadeLabel = FINALIDADE_LABELS[a.finalidade] ?? a.finalidade;
+  resumoParts.push(
+    `O presente laudo contempla ${tipoLabel.toLowerCase()} realizada para fins de ${finalidadeLabel.toLowerCase()}, referente ao imóvel localizado em ${a.endereco}, ${a.bairro}, ${a.cidade}/${a.estado}.`
+  );
+  const detalhes: string[] = [];
+  if (a.areaConstruida != null) detalhes.push(`área construída de ${a.areaConstruida} m²`);
+  if (a.areaTerreno != null) detalhes.push(`área de terreno de ${a.areaTerreno} m²`);
+  if (a.quartos != null) detalhes.push(`${a.quartos} quartos`);
+  if (a.banheiros != null) detalhes.push(`${a.banheiros} banheiros`);
+  if (detalhes.length > 0) resumoParts.push(`O imóvel possui ${detalhes.join(", ")}.`);
+  if (checkedItems > 0) {
+    const estadoLabel = checklist.estadoGeral ? (ESTADO_GERAL_LABELS[checklist.estadoGeral] ?? checklist.estadoGeral).toLowerCase() : null;
+    resumoParts.push(
+      `A vistoria técnica verificou ${checkedItems} itens do checklist ABNT NBR 14653, com ${conformes} conformes e ${naoConformes} não conformes${estadoLabel ? `, indicando estado geral ${estadoLabel}` : ""}.`
+    );
+  }
+  if (a.valorEstimado) {
+    const metodoLabel = METODOLOGIA_LABELS[a.metodologia] ?? a.metodologia;
+    resumoParts.push(
+      `Pelo ${metodoLabel.toLowerCase()}, o valor estimado de mercado é de ${formatValorBR(a.valorEstimado)}${sugestao ? `, com faixa indicativa entre ${formatValorBR(sugestao.valorMin)} e ${formatValorBR(sugestao.valorMax)}` : ""}.`
+    );
+  }
+  const resumo = resumoParts.join(" ");
 
   return (
     <>
@@ -192,8 +263,14 @@ export default async function LaudoPage({ params }: PageProps) {
         <div className="bg-gray-50 border border-gray-200 p-4 flex items-center justify-between">
           <p className="text-xs font-black uppercase tracking-widest text-gray-500">Valor Estimado de Mercado</p>
           <p className="font-black text-2xl text-[#1A1A1A]">
-            {a.valorEstimado ? formatCurrency(a.valorEstimado) : "A definir"}
+            {a.valorEstimado ? formatValorBR(a.valorEstimado) : "A definir"}
           </p>
+        </div>
+
+        {/* Resumo da Avaliação */}
+        <div className="break-inside-avoid">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Resumo da Avaliação</p>
+          <p className="text-sm text-gray-700 leading-relaxed">{resumo}</p>
         </div>
 
         {/* Resumo checklist */}
@@ -243,6 +320,98 @@ export default async function LaudoPage({ params }: PageProps) {
           <div className="break-inside-avoid">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Observações</p>
             <p className="text-xs text-gray-600 whitespace-pre-line">{a.observacoes}</p>
+          </div>
+        )}
+
+        {/* Análise de Mercado (IA) */}
+        {sugestao && (
+          <div className="break-inside-avoid space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1">
+              Análise de Mercado — Referência Comparativa
+            </p>
+
+            {/* Metodologia */}
+            {sugestao.metodologia && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Metodologia Aplicada</p>
+                <p className="text-[11px] text-gray-600">{sugestao.metodologia}</p>
+              </div>
+            )}
+
+            {/* Métricas resumidas */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-gray-50 p-2 text-center">
+                <p className="text-[9px] text-gray-400 uppercase">Valor/m²</p>
+                <p className="text-xs font-black text-[#1A1A1A]">{formatValorBR(sugestao.precoPorM2)}</p>
+              </div>
+              <div className="bg-gray-50 p-2 text-center">
+                <p className="text-[9px] text-gray-400 uppercase">Mínimo</p>
+                <p className="text-xs font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMin)}</p>
+              </div>
+              <div className="bg-gray-50 p-2 text-center">
+                <p className="text-[9px] text-gray-400 uppercase">Máximo</p>
+                <p className="text-xs font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMax)}</p>
+              </div>
+            </div>
+
+            {/* Comparáveis */}
+            {sugestao.comparaveis.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">
+                  Imóveis Comparáveis ({sugestao.comparaveis.length})
+                </p>
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="text-left px-2 py-1 font-black text-gray-500 uppercase text-[9px]">Descrição</th>
+                      <th className="text-right px-2 py-1 font-black text-gray-500 uppercase text-[9px]">Área</th>
+                      <th className="text-right px-2 py-1 font-black text-gray-500 uppercase text-[9px]">Valor</th>
+                      <th className="text-right px-2 py-1 font-black text-gray-500 uppercase text-[9px]">R$/m²</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sugestao.comparaveis.map((c, i) => (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="px-2 py-1 text-gray-700">{c.descricao}</td>
+                        <td className="px-2 py-1 text-right text-gray-600">{c.area} m²</td>
+                        <td className="px-2 py-1 text-right font-bold text-[#1A1A1A]">{formatValorBR(c.preco)}</td>
+                        <td className="px-2 py-1 text-right text-gray-600">{formatValorBR(c.precoPorM2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Observações de mercado */}
+            {sugestao.observacoes && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Observações de Mercado</p>
+                <p className="text-[11px] text-gray-600">{sugestao.observacoes}</p>
+              </div>
+            )}
+
+            {/* Fontes */}
+            {sugestao.fontes.length > 0 && (
+              <p className="text-[9px] text-gray-400">Fontes: {sugestao.fontes.join(" · ")}</p>
+            )}
+          </div>
+        )}
+
+        {/* Documentos Anexados */}
+        {documentos.length > 0 && (
+          <div className="break-inside-avoid">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">
+              Documentos Anexados ({documentos.length})
+            </p>
+            <div className="space-y-1">
+              {documentos.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between py-1 border-b border-gray-50 gap-3">
+                  <p className="text-xs text-gray-700 flex-1 min-w-0 truncate">{doc.nome}</p>
+                  <span className="text-[10px] text-gray-400 shrink-0">{formatSize(doc.tamanho)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
