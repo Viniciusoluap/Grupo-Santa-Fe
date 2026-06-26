@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { ChevronDown, ChevronRight, X, Plus, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Plus, CheckCircle2, XCircle, MinusCircle, Home, TreePine } from "lucide-react";
 
 interface Props {
   avaliacaoId: string;
@@ -11,12 +11,21 @@ interface Props {
 type ItemState = { ok: boolean | null; nota: string };
 
 type ChecklistData = {
+  tipoChecklist: "imovel" | "terreno";
   estadoGeral: string;
   items: Record<string, ItemState>;
   fotos: string[];
 };
 
-const ESTADO_GERAL_OPTIONS = [
+type ChecklistGroup = {
+  id: string;
+  label: string;
+  items: { key: string; label: string }[];
+};
+
+// ── Checklist Imóvel Pronto (ABNT NBR 14653-2) ──────────────────────────────
+
+const ESTADO_GERAL_IMOVEL = [
   { value: "novo",                  label: "Novo / Em construção" },
   { value: "otimo",                 label: "Ótimo estado" },
   { value: "conservado",            label: "Conservado" },
@@ -26,13 +35,7 @@ const ESTADO_GERAL_OPTIONS = [
   { value: "ruim",                  label: "Ruim" },
 ];
 
-type ChecklistGroup = {
-  id: string;
-  label: string;
-  items: { key: string; label: string }[];
-};
-
-const CHECKLIST_GROUPS: ChecklistGroup[] = [
+const CHECKLIST_IMOVEL: ChecklistGroup[] = [
   {
     id: "localizacao",
     label: "Localização e Infraestrutura",
@@ -157,21 +160,101 @@ const CHECKLIST_GROUPS: ChecklistGroup[] = [
   },
 ];
 
-const TOTAL_ITEMS = CHECKLIST_GROUPS.reduce((acc, g) => acc + g.items.length, 0);
+// ── Checklist Terreno (ABNT NBR 14653-2 para terrenos) ──────────────────────
+
+const ESTADO_GERAL_TERRENO = [
+  { value: "excelente",   label: "Excelente aptidão" },
+  { value: "bom",         label: "Boa aptidão" },
+  { value: "regular",     label: "Aptidão regular" },
+  { value: "restricoes",  label: "Com restrições relevantes" },
+  { value: "inapropriado", label: "Inapropriado para construção" },
+];
+
+const CHECKLIST_TERRENO: ChecklistGroup[] = [
+  {
+    id: "ter_localizacao",
+    label: "Localização e Infraestrutura",
+    items: [
+      { key: "ter_loc_01", label: "Rede de água encanada disponível" },
+      { key: "ter_loc_02", label: "Rede de esgoto disponível (ou possibilidade de fossa)" },
+      { key: "ter_loc_03", label: "Energia elétrica disponível" },
+      { key: "ter_loc_04", label: "Via pública pavimentada" },
+      { key: "ter_loc_05", label: "Iluminação pública" },
+      { key: "ter_loc_06", label: "Transporte público próximo" },
+      { key: "ter_loc_07", label: "Comércio e serviços nas proximidades" },
+      { key: "ter_loc_08", label: "Escola / creche próxima" },
+      { key: "ter_loc_09", label: "Unidade de saúde próxima" },
+      { key: "ter_loc_10", label: "Segurança satisfatória na região" },
+    ],
+  },
+  {
+    id: "ter_documentacao",
+    label: "Documentação e Situação Legal",
+    items: [
+      { key: "ter_doc_01", label: "Matrícula atualizada no cartório" },
+      { key: "ter_doc_02", label: "Escritura / contrato de compra e venda" },
+      { key: "ter_doc_03", label: "Sem ônus (hipotecas ou penhoras)" },
+      { key: "ter_doc_04", label: "IPTU em dia" },
+      { key: "ter_doc_05", label: "Área conforme consta na matrícula" },
+      { key: "ter_doc_06", label: "Conformidade com zoneamento municipal" },
+      { key: "ter_doc_07", label: "Aprovação de loteamento / desmembramento regularizado" },
+      { key: "ter_doc_08", label: "Levantamento topográfico disponível" },
+      { key: "ter_doc_09", label: "Sem sobreposição com área pública ou tombada" },
+    ],
+  },
+  {
+    id: "ter_fisicas",
+    label: "Características Físicas",
+    items: [
+      { key: "ter_fis_01", label: "Topografia plana ou levemente inclinada" },
+      { key: "ter_fis_02", label: "Ausência de alagamentos / área não inundável" },
+      { key: "ter_fis_03", label: "Solo sem contaminação aparente" },
+      { key: "ter_fis_04", label: "Ausência de vegetação de preservação permanente (APP)" },
+      { key: "ter_fis_05", label: "Ausência de mata nativa / reserva legal" },
+      { key: "ter_fis_06", label: "Forma regular (quadrada / retangular)" },
+      { key: "ter_fis_07", label: "Testada adequada para edificação" },
+      { key: "ter_fis_08", label: "Acesso por logradouro oficial" },
+      { key: "ter_fis_09", label: "Sem risco geológico visível (erosão, deslizamento)" },
+    ],
+  },
+  {
+    id: "ter_aptidao",
+    label: "Aptidão para Construção",
+    items: [
+      { key: "ter_apt_01", label: "Zoneamento permite uso residencial" },
+      { key: "ter_apt_02", label: "Zoneamento permite uso comercial / misto" },
+      { key: "ter_apt_03", label: "Coeficiente de aproveitamento compatível" },
+      { key: "ter_apt_04", label: "Taxa de ocupação favorável" },
+      { key: "ter_apt_05", label: "Recuos viáveis para construção" },
+      { key: "ter_apt_06", label: "Ausência de dutos / linhas de alta tensão sobre o terreno" },
+      { key: "ter_apt_07", label: "Solo com capacidade de suporte aparente" },
+    ],
+  },
+  {
+    id: "ter_estado",
+    label: "Estado Atual do Terreno",
+    items: [
+      { key: "ter_est_01", label: "Terreno limpo e sem entulho" },
+      { key: "ter_est_02", label: "Sem construções irregulares ou invasões" },
+      { key: "ter_est_03", label: "Muro / cerca no perímetro" },
+      { key: "ter_est_04", label: "Marcos de divisa identificáveis" },
+      { key: "ter_est_05", label: "Ausência de corpos d'água ou nascentes no interior" },
+    ],
+  },
+];
 
 function parseInitial(raw: string): ChecklistData {
-  if (!raw) {
-    return { estadoGeral: "", items: {}, fotos: [] };
-  }
+  if (!raw) return { tipoChecklist: "imovel", estadoGeral: "", items: {}, fotos: [] };
   try {
     const parsed = JSON.parse(raw) as Partial<ChecklistData>;
     return {
+      tipoChecklist: parsed.tipoChecklist ?? "imovel",
       estadoGeral: parsed.estadoGeral ?? "",
       items: parsed.items ?? {},
       fotos: parsed.fotos ?? [],
     };
   } catch {
-    return { estadoGeral: "", items: {}, fotos: [] };
+    return { tipoChecklist: "imovel", estadoGeral: "", items: {}, fotos: [] };
   }
 }
 
@@ -205,13 +288,22 @@ function compressImage(file: File): Promise<string> {
 
 export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
   const [data, setData] = useState<ChecklistData>(() => parseInitial(initialData));
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ localizacao: true });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ localizacao: true, ter_localizacao: true });
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const activeGroups = data.tipoChecklist === "terreno" ? CHECKLIST_TERRENO : CHECKLIST_IMOVEL;
+  const estadoOptions = data.tipoChecklist === "terreno" ? ESTADO_GERAL_TERRENO : ESTADO_GERAL_IMOVEL;
+  const TOTAL_ITEMS = activeGroups.reduce((acc, g) => acc + g.items.length, 0);
   const verifiedCount = Object.values(data.items).filter((v) => v.ok !== null).length;
+
+  function setTipo(tipo: "imovel" | "terreno") {
+    setData((prev) => ({ ...prev, tipoChecklist: tipo, estadoGeral: "", items: {} }));
+    setOpenGroups(tipo === "terreno" ? { ter_localizacao: true } : { localizacao: true });
+    setExpandedNotes({});
+  }
 
   function toggleGroup(id: string) {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -224,28 +316,19 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
   function setItemOk(key: string, val: boolean | null) {
     setData((prev) => ({
       ...prev,
-      items: {
-        ...prev.items,
-        [key]: { ok: val, nota: prev.items[key]?.nota ?? "" },
-      },
+      items: { ...prev.items, [key]: { ok: val, nota: prev.items[key]?.nota ?? "" } },
     }));
   }
 
   function setItemNota(key: string, nota: string) {
     setData((prev) => ({
       ...prev,
-      items: {
-        ...prev.items,
-        [key]: { ok: prev.items[key]?.ok ?? null, nota },
-      },
+      items: { ...prev.items, [key]: { ok: prev.items[key]?.ok ?? null, nota } },
     }));
   }
 
   function removePhoto(idx: number) {
-    setData((prev) => ({
-      ...prev,
-      fotos: prev.fotos.filter((_, i) => i !== idx),
-    }));
+    setData((prev) => ({ ...prev, fotos: prev.fotos.filter((_, i) => i !== idx) }));
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -259,14 +342,13 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
       compressed.push(c);
     }
     setData((prev) => ({ ...prev, fotos: [...prev.fotos, ...compressed] }));
-    // reset input so same files can be re-added if removed
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function handleSave() {
     startTransition(async () => {
-      // Use a direct API call instead of a server action to prevent Next.js
-      // from re-rendering the page with base64 photos in the response, which crashes iOS Safari.
+      // Use direct API call — server actions cause a full page re-render with
+      // base64 photos in the response, which crashes iOS Safari.
       await fetch(`/api/avaliacoes/${avaliacaoId}/checklist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -281,13 +363,50 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
 
   return (
     <div className="bg-white border border-gray-100">
-      {/* Header */}
+
+      {/* Seletor de tipo */}
       <div className="px-5 pt-5 pb-4 border-b border-gray-100">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Tipo de Vistoria</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setTipo("imovel")}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
+              data.tipoChecklist === "imovel"
+                ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)] border-[var(--brand-dark)]"
+                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+            }`}
+          >
+            <Home size={13} /> Imóvel Pronto
+          </button>
+          <button
+            type="button"
+            onClick={() => setTipo("terreno")}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
+              data.tipoChecklist === "terreno"
+                ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)] border-[var(--brand-dark)]"
+                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+            }`}
+          >
+            <TreePine size={13} /> Terreno
+          </button>
+        </div>
+        {data.tipoChecklist === "terreno" && (
+          <p className="text-[10px] text-gray-400 mt-2">
+            Checklist específico para avaliação de terrenos — ABNT NBR 14653-2
+          </p>
+        )}
+      </div>
+
+      {/* Header com progresso */}
+      <div className="px-5 py-4 border-b border-gray-100">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">
-          Checklist de Vistoria — ABNT NBR 14653
+          {data.tipoChecklist === "terreno"
+            ? "Checklist de Vistoria — Terreno"
+            : "Checklist de Vistoria — ABNT NBR 14653"}
         </p>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-[180px]">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-gray-400">{verifiedCount} de {TOTAL_ITEMS} itens verificados</span>
               <span className="text-xs font-bold text-[var(--brand-dark)]">{progressPct}%</span>
@@ -307,9 +426,11 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
 
       {/* Estado Geral */}
       <div className="px-5 py-4 border-b border-gray-100">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Estado Geral do Imóvel</p>
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+          {data.tipoChecklist === "terreno" ? "Aptidão Geral do Terreno" : "Estado Geral do Imóvel"}
+        </p>
         <div className="flex flex-wrap gap-2">
-          {ESTADO_GERAL_OPTIONS.map((opt) => (
+          {estadoOptions.map((opt) => (
             <button
               key={opt.value}
               type="button"
@@ -328,7 +449,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
 
       {/* Checklist Groups */}
       <div className="divide-y divide-gray-100">
-        {CHECKLIST_GROUPS.map((group) => {
+        {activeGroups.map((group) => {
           const isOpen = !!openGroups[group.id];
           const groupVerified = group.items.filter((it) => (data.items[it.key]?.ok ?? null) !== null).length;
           const groupNonConformes = group.items.filter((it) => data.items[it.key]?.ok === false).length;
@@ -371,7 +492,6 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                     return (
                       <div key={item.key} className="px-5 py-2">
                         <div className="flex items-center gap-2">
-                          {/* Status buttons */}
                           <button
                             type="button"
                             title="Conforme"
@@ -395,21 +515,13 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                           {state.ok === null && (
                             <MinusCircle size={18} className="text-gray-200 shrink-0 pointer-events-none" />
                           )}
-
-                          {/* Label */}
                           <span
                             className={`flex-1 text-sm ${
-                              state.ok === true
-                                ? "text-gray-600"
-                                : state.ok === false
-                                ? "text-red-500"
-                                : "text-gray-400"
+                              state.ok === true ? "text-gray-600" : state.ok === false ? "text-red-500" : "text-gray-400"
                             }`}
                           >
                             {item.label}
                           </span>
-
-                          {/* Add note button */}
                           <button
                             type="button"
                             title={noteOpen ? "Fechar nota" : "Adicionar nota"}
@@ -419,8 +531,6 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                             <Plus size={14} />
                           </button>
                         </div>
-
-                        {/* Note textarea */}
                         {noteOpen && (
                           <div className="mt-1 ml-14">
                             <textarea
@@ -442,13 +552,12 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
         })}
       </div>
 
-      {/* Photo section */}
+      {/* Fotos */}
       <div className="px-5 py-5 border-t border-gray-100">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Fotos da Vistoria</p>
         <p className="text-[10px] text-gray-400 mb-3">
           Max. 15 fotos · cada foto reduzida automaticamente para max 800px / JPEG 60%
         </p>
-
         {data.fotos.length < 15 && (
           <label className="inline-flex items-center gap-2 cursor-pointer bg-gray-50 border border-dashed border-gray-300 hover:border-[var(--brand-yellow)] px-4 py-2 text-xs text-gray-500 hover:text-[var(--brand-dark)] transition-colors mb-4">
             <Plus size={14} />
@@ -463,17 +572,12 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
             />
           </label>
         )}
-
         {data.fotos.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
             {data.fotos.map((src, idx) => (
               <div key={idx} className="relative aspect-[4/3] bg-gray-100 overflow-hidden group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
-                  alt={`Foto ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                />
+                <img src={src} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removePhoto(idx)}
@@ -490,7 +594,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
         )}
       </div>
 
-      {/* Save */}
+      {/* Salvar */}
       <div className="px-5 pb-5 flex items-center gap-3">
         <button
           type="button"
@@ -501,9 +605,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
           {isPending ? "Salvando..." : "Salvar checklist"}
         </button>
         {saved && (
-          <span className="text-xs font-bold text-green-600 uppercase tracking-wide">
-            Salvo!
-          </span>
+          <span className="text-xs font-bold text-green-600 uppercase tracking-wide">Salvo!</span>
         )}
       </div>
     </div>
