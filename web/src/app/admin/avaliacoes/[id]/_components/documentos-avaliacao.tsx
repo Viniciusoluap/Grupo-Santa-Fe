@@ -40,10 +40,68 @@ function safeName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-// Upload a file using @vercel/blob/client (file goes directly to CDN — no serverless body limit).
-// On iOS Safari the post-CDN completion callback sometimes hangs indefinitely (progress shows 100%
-// but the Promise never resolves). After 5 s at 100%, we fall back to asking the server whether
-// the blob already landed in storage and return its URL directly.
+const MAX_RETRIES = 3;
+const STALL_MS = 30000; // aborta a tentativa se o progresso não avançar por 30s
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Pergunta ao servidor se o blob já chegou no storage. Cobre o caso do iOS em que
+// o upload termina mas o callback do SDK nunca resolve (trava em 100%).
+async function checkBlobLanded(pathname: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/avaliacoes/documentos?path=${encodeURIComponent(pathname)}`);
+    if (res.ok) {
+      const { url } = (await res.json()) as { url?: string };
+      return url ?? null;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+// Uma tentativa de upload. Um watchdog aborta a tentativa se o progresso travar
+// (comum no iOS Safari, onde a conexão congela no meio da transferência — ex.: 82%
+// — ou pendura em 100% depois que os bytes já chegaram).
+async function uploadAttempt(
+  file: File,
+  pathname: string,
+  onProgress: (pct: number) => void,
+  userSignal: AbortSignal
+): Promise<string> {
+  const inner = new AbortController();
+  const onUserAbort = () => inner.abort(new DOMException("Upload cancelado.", "AbortError"));
+  if (userSignal.aborted) onUserAbort();
+  else userSignal.addEventListener("abort", onUserAbort, { once: true });
+
+  let lastProgressAt = Date.now();
+  let lastPct = 0;
+  const watchdog = setInterval(() => {
+    if (Date.now() - lastProgressAt > STALL_MS) {
+      inner.abort(new DOMException("Upload travou (sem progresso).", "StallError"));
+    }
+  }, 5000);
+
+  try {
+    const blob = await upload(pathname, file, {
+      access: "public",
+      handleUploadUrl: "/api/avaliacoes/documentos",
+      multipart: true,           // chunked: mais resiliente a quedas de conexão no iOS
+      abortSignal: inner.signal,
+      onUploadProgress: ({ percentage }) => {
+        const pct = Math.round(percentage);
+        if (pct > lastPct) { lastPct = pct; lastProgressAt = Date.now(); }
+        onProgress(pct);
+      },
+    });
+    return blob.url;
+  } finally {
+    clearInterval(watchdog);
+    userSignal.removeEventListener("abort", onUserAbort);
+  }
+}
+
+// Upload robusto: path determinístico + multipart + watchdog de travamento + retentativas,
+// com verificação no servidor entre as tentativas — assim um upload que de fato concluiu
+// (mas cujo callback se perdeu no iOS) é recuperado em vez de reenviado.
 async function uploadComFallback(
   file: File,
   avaliacaoId: string,
@@ -51,76 +109,34 @@ async function uploadComFallback(
   signal: AbortSignal
 ): Promise<string> {
   const pathname = `docs-avaliacao/${avaliacaoId}/${Date.now()}-${safeName(file.name)}`;
+  let lastErr: unknown = null;
 
-  return new Promise<string>((resolve, reject) => {
-    let settled = false;
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    if (signal.aborted) throw new DOMException("Upload cancelado.", "AbortError");
+    try {
+      return await uploadAttempt(file, pathname, onProgress, signal);
+    } catch (err) {
+      // Cancelamento real do usuário — propaga, sem retentar.
+      if (signal.aborted) throw new DOMException("Upload cancelado.", "AbortError");
 
-    function settle(url: string) {
-      if (settled) return;
-      settled = true;
-      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
-      resolve(url);
+      // Os bytes podem já estar no storage (callback perdido no iOS ou travamento em 100%).
+      const landed = await checkBlobLanded(pathname);
+      if (landed) return landed;
+
+      lastErr = err;
+      if (attempt < MAX_RETRIES) {
+        onProgress(0); // reseta a barra para a nova tentativa
+        await delay(1500 * attempt); // backoff linear
+      }
     }
+  }
 
-    function fail(err: unknown) {
-      if (settled) return;
-      settled = true;
-      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
-      reject(err);
-    }
+  // Última chance: talvez a tentativa final tenha chegado logo após desistirmos.
+  const landed = await checkBlobLanded(pathname);
+  if (landed) return landed;
 
-    // Fallback: after reaching 100% with no SDK resolution, poll the server for the blob URL.
-    function startFallback() {
-      if (fallbackTimer || settled) return;
-      fallbackTimer = setTimeout(async () => {
-        if (settled) return;
-        const check = async () => {
-          const res = await fetch(`/api/avaliacoes/documentos?path=${encodeURIComponent(pathname)}`);
-          if (res.ok) {
-            const { url } = (await res.json()) as { url: string };
-            settle(url);
-          }
-        };
-        try {
-          await check();
-          if (!settled) {
-            // Retry once more after 3 s — blob indexing might have brief lag
-            setTimeout(async () => {
-              if (settled) return;
-              try { await check(); } catch { /* ignore */ }
-              if (!settled) fail(new Error("Upload concluído no servidor mas URL não encontrada. Tente novamente."));
-            }, 3000);
-          }
-        } catch (e) {
-          if (!settled) fail(e);
-        }
-      }, 5000);
-    }
-
-    signal.addEventListener("abort", () => fail(new DOMException("Upload cancelado.", "AbortError")), { once: true });
-
-    upload(pathname, file, {
-      access: "public",
-      handleUploadUrl: "/api/avaliacoes/documentos",
-      abortSignal: signal,
-      onUploadProgress: ({ percentage }) => {
-        const pct = Math.round(percentage);
-        onProgress(pct);
-        if (pct >= 100) startFallback();
-      },
-    })
-      .then((blob) => settle(blob.url))
-      .catch((err: unknown) => {
-        // Distinguish abort from real errors
-        const msg = err instanceof Error ? err.message : String(err);
-        if (signal.aborted || msg.toLowerCase().includes("abort")) {
-          fail(new DOMException("Upload cancelado.", "AbortError"));
-        } else {
-          fail(err);
-        }
-      });
-  });
+  const msg = lastErr instanceof Error ? lastErr.message : String(lastErr ?? "desconhecido");
+  throw new Error(`Falha no upload após ${MAX_RETRIES} tentativas: ${msg}`);
 }
 
 export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {

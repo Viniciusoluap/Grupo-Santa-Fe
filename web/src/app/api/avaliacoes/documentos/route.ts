@@ -40,6 +40,10 @@ export async function POST(request: NextRequest) {
           "image/webp",
         ],
         maximumSizeInBytes: 50 * 1024 * 1024, // 50 MB per file (total enforced client-side)
+        // Deterministic path + overwrite so stall/retry re-uploads land on the same
+        // key (no orphan blobs) and the GET path-check matches exactly.
+        addRandomSuffix: false,
+        allowOverwrite: true,
       }),
       onUploadCompleted: async () => {
         // URL is saved client-side after upload completes

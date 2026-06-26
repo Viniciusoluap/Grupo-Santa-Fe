@@ -140,7 +140,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex bg-[var(--brand-gray-light)]">
+    <div className="min-h-screen flex bg-[var(--brand-gray-light)] print:block print:min-h-0 print:bg-white">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -163,7 +163,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar — fixed on desktop, drawer on mobile */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto",
+          "fixed inset-y-0 left-0 z-40 transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto print:hidden",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -178,7 +178,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-100 px-4 md:px-6 h-14 flex items-center justify-between sticky top-0 z-20">
+        <header className="bg-white border-b border-gray-100 px-4 md:px-6 h-14 flex items-center justify-between sticky top-0 z-20 print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-gray-500 hover:text-[var(--brand-dark)] p-1"
@@ -329,7 +329,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6 print:p-0">{children}</main>
       </div>
 
       {/* Photo upload modal */}
