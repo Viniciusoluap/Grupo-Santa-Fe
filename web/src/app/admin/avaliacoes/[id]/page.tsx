@@ -7,6 +7,7 @@ import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
 import { ChecklistVistoria } from "./_components/checklist-vistoria";
 import { SugestaoAvaliacaoBtn } from "./_components/sugestao-btn";
 import { ZapComparaveisBtn } from "./_components/zap-btn";
+import { DocumentosAvaliacao } from "./_components/documentos-avaliacao";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:  { label: "Solicitada",    bg: "bg-gray-100",   text: "text-gray-600",   order: 1 },
@@ -204,6 +205,9 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
+
+          {/* Documentos */}
+          <DocumentosAvaliacao avaliacaoId={id} initialData={a.documentos ?? "[]"} />
 
           {/* Observações */}
           {a.observacoes && (
