@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { upload } from "@vercel/blob/client";
-import { Paperclip, Trash2, FileText, FileImage, Loader2, Upload, AlertCircle } from "lucide-react";
+import { Paperclip, Trash2, FileText, FileImage, Loader2, Upload, AlertCircle, Settings } from "lucide-react";
 import { salvarDocumentosAvaliacao } from "@/lib/actions/avaliacoes";
 
 interface Documento {
@@ -16,6 +16,7 @@ interface Documento {
 interface Props {
   avaliacaoId: string;
   initialData: string; // JSON string
+  blobConfigured?: boolean;
 }
 
 const MAX_FILES = 5;
@@ -35,7 +36,7 @@ function parseDocumentos(raw: string): Documento[] {
   try { return JSON.parse(raw) as Documento[]; } catch { return []; }
 }
 
-export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
+export function DocumentosAvaliacao({ avaliacaoId, initialData, blobConfigured = true }: Props) {
   const [docs, setDocs] = useState<Documento[]>(() => parseDocumentos(initialData));
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              disabled={uploading || isPending}
+              disabled={uploading || isPending || !blobConfigured}
               className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 border border-gray-200 text-[var(--brand-dark)] hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
@@ -131,6 +132,22 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
           </>
         )}
       </div>
+
+      {!blobConfigured && (
+        <div className="bg-amber-50 border border-amber-100 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Settings size={13} className="text-amber-600 shrink-0" />
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Armazenamento não configurado</p>
+          </div>
+          <p className="text-xs text-amber-700">Para habilitar o upload de documentos, configure o Vercel Blob Storage:</p>
+          <ol className="text-xs text-amber-700 space-y-1 list-decimal ml-4">
+            <li>Acesse o <strong>Vercel Dashboard</strong> do projeto</li>
+            <li>Vá em <strong>Storage → Create → Blob Store</strong></li>
+            <li>Conecte ao projeto — isso adiciona <code className="bg-amber-100 px-1">BLOB_READ_WRITE_TOKEN</code> automaticamente</li>
+            <li>Faça um novo deploy</li>
+          </ol>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 bg-red-50 border border-red-100 p-3 text-xs text-red-600">

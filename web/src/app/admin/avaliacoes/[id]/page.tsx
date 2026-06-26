@@ -2,12 +2,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { formatCurrency, formatTelefone } from "@/lib/utils";
+import { formatTelefone } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
 import { ChecklistVistoria } from "./_components/checklist-vistoria";
 import { SugestaoAvaliacaoBtn } from "./_components/sugestao-btn";
 import { ZapComparaveisBtn } from "./_components/zap-btn";
 import { DocumentosAvaliacao } from "./_components/documentos-avaliacao";
+import { ValorEstimadoCard } from "./_components/valor-estimado-card";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:  { label: "Solicitada",    bg: "bg-gray-100",   text: "text-gray-600",   order: 1 },
@@ -35,6 +36,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
   const a = await prisma.avaliacao.findUnique({ where: { id }, include: { lead: { select: { id: true, nome: true, telefone: true } } } });
   if (!a) notFound();
 
+  const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
   const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.solicitada;
   const nextStatuses = Object.entries(STATUS_CONFIG)
     .filter(([s]) => s !== a.status && s !== "cancelada")
@@ -145,7 +147,12 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Valor Estimado</p>
             {a.valorEstimado ? (
-              <p className="font-black text-[var(--brand-dark)] text-3xl">{formatCurrency(a.valorEstimado)}</p>
+              <ValorEstimadoCard
+                avaliacaoId={id}
+                valorEstimado={a.valorEstimado}
+                status={a.status}
+                dataEntrega={a.dataEntrega}
+              />
             ) : (
               <form id={`form-valor-${id}`} action={atualizarStatusAvaliacao} className="flex gap-3 items-end">
                 <input type="hidden" name="id" value={id} />
@@ -182,9 +189,6 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
                 caracteristicas={a.caracteristicas ?? ""}
               />
             </div>
-            {a.dataEntrega && (
-              <p className="text-xs text-green-600 mt-2">Entregue em {new Date(a.dataEntrega).toLocaleDateString("pt-BR")}</p>
-            )}
           </div>
 
           {/* Pipeline */}
@@ -213,7 +217,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
           </div>
 
           {/* Documentos */}
-          <DocumentosAvaliacao avaliacaoId={id} initialData={a.documentos ?? "[]"} />
+          <DocumentosAvaliacao avaliacaoId={id} initialData={a.documentos ?? "[]"} blobConfigured={blobConfigured} />
 
           {/* Observações */}
           {a.observacoes && (

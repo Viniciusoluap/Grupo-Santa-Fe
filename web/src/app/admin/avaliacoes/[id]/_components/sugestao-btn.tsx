@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles, X, TrendingUp, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Sparkles, X, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface Props {
@@ -44,11 +44,33 @@ const CONFIABILIDADE_CONFIG = {
   baixa: { label: "Baixa", color: "text-red-500", bg: "bg-red-50", icon: AlertCircle },
 };
 
+const STAGES = [
+  { until: 28, label: "Buscando imóveis comparáveis..." },
+  { until: 58, label: "Analisando comparativos de mercado..." },
+  { until: 82, label: "Avaliando checklist e documentação..." },
+  { until: 100, label: "Calculando valor estimado..." },
+];
+
 export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<SugestaoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!loading) return;
+    setProgress(0);
+    let elapsed = 0;
+    timerRef.current = setInterval(() => {
+      elapsed += 150;
+      // Ease-out curve: fast at start, slows toward 90%
+      const p = Math.round(90 * (1 - Math.exp(-elapsed / 9000)));
+      setProgress(Math.min(p, 90));
+    }, 150);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [loading]);
 
   async function buscarSugestao() {
     setLoading(true);
@@ -63,8 +85,11 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Erro desconhecido");
+      if (timerRef.current) clearInterval(timerRef.current);
+      setProgress(100);
       setResult(data as SugestaoResult);
     } catch (e) {
+      if (timerRef.current) clearInterval(timerRef.current);
       setError(e instanceof Error ? e.message : "Erro ao buscar sugestão");
     } finally {
       setLoading(false);
@@ -111,10 +136,22 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
 
             <div className="p-5 space-y-4">
               {loading && (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <Loader2 size={32} className="text-[var(--brand-yellow)] animate-spin" />
-                  <p className="text-sm font-bold text-[var(--brand-dark)] uppercase tracking-wide">Pesquisando imóveis similares...</p>
-                  <p className="text-xs text-gray-400 text-center">Buscando comparáveis em {props.cidade}/{props.estado} e calculando R$/m²</p>
+                <div className="py-8 space-y-5">
+                  <p className="text-sm font-bold text-[var(--brand-dark)] uppercase tracking-wide text-center">
+                    {STAGES.find((s) => progress < s.until)?.label ?? "Calculando valor estimado..."}
+                  </p>
+                  <div className="space-y-2">
+                    <div className="w-full bg-gray-100 h-2.5 overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--brand-yellow)] transition-all duration-200"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400">
+                      <span>Buscando em {props.cidade}/{props.estado}...</span>
+                      <span className="font-bold text-[var(--brand-dark)]">{progress}%</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
