@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
           "image/png",
           "image/webp",
         ],
-        maximumSizeInBytes: 30 * 1024 * 1024, // 30 MB per file
+        maximumSizeInBytes: 50 * 1024 * 1024, // 50 MB per file (total enforced client-side)
       }),
       onUploadCompleted: async () => {
         // URL is saved client-side after upload completes
