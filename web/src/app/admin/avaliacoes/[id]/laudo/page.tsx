@@ -457,44 +457,55 @@ export default async function LaudoPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Fotos */}
+        {/* Fotos — o break-before vai na seção inteira; cada linha de 3 tem
+            break-inside-avoid para evitar que a linha seja cortada no meio */}
         {checklist.fotos.length > 0 && (
           <div className="print-break-before">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-3">
               Registro Fotográfico ({checklist.fotos.length} fotos)
             </p>
-            <div className="grid grid-cols-3 gap-3">
-              {checklist.fotos.map((src, idx) => (
-                <div key={idx} className="break-inside-avoid">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={`Foto ${idx + 1}`} className="w-full aspect-[4/3] object-cover border border-gray-200" />
-                  <p className="text-[9px] text-gray-400 text-center mt-0.5">Foto {idx + 1}</p>
+            <div className="space-y-3">
+              {Array.from({ length: Math.ceil(checklist.fotos.length / 3) }, (_, rowIdx) => (
+                <div key={rowIdx} className="print-break-inside-avoid grid grid-cols-3 gap-3">
+                  {checklist.fotos.slice(rowIdx * 3, rowIdx * 3 + 3).map((src, colIdx) => {
+                    const fotoNum = rowIdx * 3 + colIdx + 1;
+                    return (
+                      <div key={colIdx}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt={`Foto ${fotoNum}`} className="w-full aspect-[4/3] object-cover border border-gray-200" />
+                        <p className="text-[9px] text-gray-400 text-center mt-0.5">Foto {fotoNum}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Assinatura — sempre em nova página para garantir impressão em iOS */}
-        <div className="print-break-before print-break-inside-avoid pt-8 border-t-2 border-[#1A1A1A] mt-8">
+        {/* Quebra de página ANTES das assinaturas em elemento separado do conteúdo —
+            WebKit tem bug onde break-before:page + break-inside:avoid no mesmo elemento
+            cria página em branco; separar os dois resolve o problema. */}
+        <div className="print-break-before" />
+
+        {/* Assinaturas — sem break-before aqui; a quebra está no div vazio acima */}
+        <div className="print-break-inside-avoid pt-6 border-t-2 border-[#1A1A1A]">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8">Assinaturas</p>
           <div className="grid grid-cols-2 gap-12">
             <div>
-              {/* Espaço para assinatura digital */}
               <div className="border border-dashed border-gray-300 mb-3 h-24 flex items-end justify-center pb-2">
                 <span className="text-[9px] text-gray-300 uppercase tracking-widest">Assinar aqui</span>
               </div>
               <div className="border-b border-[#1A1A1A] mb-2" />
-              <p className="text-xs font-bold text-[#1A1A1A]">{a.avaliador}</p>
+              <p className="text-xs font-bold text-[#1A1A1A]">{a.avaliador || "—"}</p>
               <p className="text-[10px] text-gray-400">Avaliador Responsável</p>
             </div>
             <div>
-              {/* Espaço para assinatura digital */}
               <div className="border border-dashed border-gray-300 mb-3 h-24 flex items-end justify-center pb-2">
                 <span className="text-[9px] text-gray-300 uppercase tracking-widest">Assinar aqui</span>
               </div>
               <div className="border-b border-[#1A1A1A] mb-2" />
-              <p className="text-xs font-bold text-[#1A1A1A]">{a.clienteNome}</p>
+              <p className="text-xs font-bold text-[#1A1A1A]">{a.clienteNome || "—"}</p>
               <p className="text-[10px] text-gray-400">Solicitante</p>
             </div>
           </div>
