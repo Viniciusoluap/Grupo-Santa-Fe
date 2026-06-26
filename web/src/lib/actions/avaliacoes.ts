@@ -108,3 +108,8 @@ export async function salvarDocumentosAvaliacao(id: string, documentos: string) 
   // em base64 no checklist; re-render via server action envia esses dados no
   // response HTML e estoura o limite de memória do iOS Safari.
 }
+
+export async function salvarSugestaoAvaliacao(id: string, sugestaoJson: string) {
+  await prisma.avaliacao.update({ where: { id }, data: { sugestaoJson } });
+  // revalidatePath omitido intencionalmente: mesma razão das fotos base64.
+}

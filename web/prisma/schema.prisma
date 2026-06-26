@@ -470,6 +470,7 @@ model Avaliacao {
   observacoes    String    @default("")
   laudo          String?
   documentos     String    @default("[]")
+  sugestaoJson   String?
   leadId         String?
   lead           Lead?     @relation("AvaliacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
   criadoEm       DateTime  @default(now())

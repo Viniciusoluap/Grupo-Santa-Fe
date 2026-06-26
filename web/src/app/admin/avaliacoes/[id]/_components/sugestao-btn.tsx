@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, X, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { salvarSugestaoAvaliacao } from "@/lib/actions/avaliacoes";
 
 interface Props {
   avaliacaoId: string;
@@ -98,6 +99,8 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
 
   async function aplicarValor() {
     if (!result) return;
+    // Persist suggestion data for the laudo
+    await salvarSugestaoAvaliacao(avaliacaoId, JSON.stringify(result));
     const form = document.getElementById(`form-valor-${avaliacaoId}`) as HTMLFormElement | null;
     if (form) {
       const input = form.querySelector<HTMLInputElement>('input[name="valorEstimado"]');
