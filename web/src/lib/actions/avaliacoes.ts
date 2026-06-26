@@ -78,6 +78,7 @@ export async function editarAvaliacao(formData: FormData) {
       dataVistoria: formData.get("dataVistoria") ? new Date(formData.get("dataVistoria") as string) : null,
       prazoEntrega: formData.get("prazoEntrega") ? new Date(formData.get("prazoEntrega") as string) : null,
       observacoes: (formData.get("observacoes") as string) || "",
+      leadId: (formData.get("leadId") as string) || null,
     },
   });
 

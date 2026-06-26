@@ -32,7 +32,7 @@ interface PageProps { params: Promise<{ id: string }> }
 
 export default async function AvaliacaoDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const a = await prisma.avaliacao.findUnique({ where: { id } });
+  const a = await prisma.avaliacao.findUnique({ where: { id }, include: { lead: { select: { id: true, nome: true, telefone: true } } } });
   if (!a) notFound();
 
   const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.solicitada;
@@ -77,6 +77,11 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
               <a href={`mailto:${a.clienteEmail}`} className="flex items-center gap-2 text-sm text-[var(--brand-dark)] hover:text-[var(--brand-yellow)]">
                 <Mail size={13} /> {a.clienteEmail}
               </a>
+            )}
+            {a.lead && (
+              <Link href={`/admin/leads/${a.lead.id}`} className="flex items-center gap-1 text-xs text-[var(--brand-yellow)] hover:underline font-bold mt-1">
+                Lead vinculado: {a.lead.nome}
+              </Link>
             )}
           </div>
 

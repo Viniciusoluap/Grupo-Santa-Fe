@@ -10,7 +10,10 @@ interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarAvaliacaoPage({ params }: PageProps) {
   const { id } = await params;
-  const a = await prisma.avaliacao.findUnique({ where: { id } });
+  const [a, leads] = await Promise.all([
+    prisma.avaliacao.findUnique({ where: { id } }),
+    prisma.lead.findMany({ select: { id: true, nome: true, telefone: true }, orderBy: { nome: "asc" } }),
+  ]);
   if (!a) notFound();
 
   const fmt = (d: Date | null) => d ? d.toISOString().slice(0, 10) : "";
@@ -71,6 +74,15 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Dados do Solicitante</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vincular a Lead Cadastrado</label>
+              <select name="leadId" defaultValue={a.leadId ?? ""} className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                <option value="">— Nenhum lead vinculado —</option>
+                {leads.map((l) => (
+                  <option key={l.id} value={l.id}>{l.nome} · {l.telefone}</option>
+                ))}
+              </select>
+            </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome Completo *</label>
               <input name="clienteNome" type="text" required defaultValue={a.clienteNome}
