@@ -1,0 +1,2 @@
+ALTER TABLE "avaliacoes" ADD COLUMN IF NOT EXISTS "leadId" TEXT;
+ALTER TABLE "avaliacoes" ADD CONSTRAINT "avaliacoes_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "leads"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -79,6 +79,7 @@ model Lead {
   obras             Obra[]
   projetos          Projeto[]        @relation("ProjetoLead")
   regularizacoes    Regularizacao[]  @relation("RegularizacaoLead")
+  avaliacoes        Avaliacao[]      @relation("AvaliacaoLead")
   criadoEm          DateTime @default(now())
   atualizadoEm      DateTime @updatedAt
 
@@ -469,6 +470,8 @@ model Avaliacao {
   observacoes    String    @default("")
   laudo          String?
   documentos     String    @default("[]")
+  leadId         String?
+  lead           Lead?     @relation("AvaliacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
   criadoEm       DateTime  @default(now())
   atualizadoEm   DateTime  @updatedAt
 
