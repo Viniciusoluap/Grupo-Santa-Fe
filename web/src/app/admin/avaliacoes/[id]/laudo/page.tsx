@@ -286,29 +286,42 @@ export default async function LaudoPage({ params }: PageProps) {
 
           {CHECKLIST_GROUPS.map((group) => {
             const groupItems = group.items.map((it) => ({ ...it, state: checklist.items[it.key] ?? { ok: null, nota: "" } }));
-            const verifiedInGroup = groupItems.filter((it) => it.state.ok !== null);
-            if (verifiedInGroup.length === 0) return null;
-            const ncInGroup = groupItems.filter((it) => it.state.ok === false);
+            const conformesInGroup = groupItems.filter((it) => it.state.ok === true).length;
+            const ncInGroup = groupItems.filter((it) => it.state.ok === false).length;
+            const naoVerifInGroup = groupItems.filter((it) => it.state.ok === null).length;
             return (
-              <div key={group.id} className="mb-3 break-inside-avoid">
-                <div className="flex items-center justify-between bg-gray-100 px-3 py-1.5 mb-1">
+              <div key={group.id} className="mb-4 break-inside-avoid">
+                <div className="flex items-center justify-between bg-gray-100 px-3 py-2 mb-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">{group.label}</p>
-                  {ncInGroup.length > 0 && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 uppercase">{ncInGroup.length} NC</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {conformesInGroup > 0 && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 bg-green-100 text-green-700 uppercase">{conformesInGroup} C</span>
+                    )}
+                    {ncInGroup > 0 && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 uppercase">{ncInGroup} NC</span>
+                    )}
+                    {naoVerifInGroup > 0 && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 bg-gray-100 text-gray-500 uppercase">{naoVerifInGroup} NV</span>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4">
-                  {groupItems.filter((it) => it.state.ok !== null).map((it) => (
-                    <div key={it.key} className="flex items-start gap-1.5 py-0.5 border-b border-gray-50">
-                      <span className={`mt-0.5 shrink-0 font-bold text-xs ${it.state.ok ? "text-green-600" : "text-red-500"}`}>
-                        {it.state.ok ? "✓" : "✗"}
-                      </span>
-                      <div>
-                        <p className={`text-xs ${it.state.ok ? "text-gray-700" : "text-red-600"}`}>{it.label}</p>
-                        {it.state.nota && <p className="text-[10px] text-gray-400 italic">{it.state.nota}</p>}
+                  {groupItems.map((it) => {
+                    const isConforme = it.state.ok === true;
+                    const isNC = it.state.ok === false;
+                    return (
+                      <div key={it.key} className="flex items-start gap-1.5 py-1 border-b border-gray-50">
+                        <span className={`mt-0.5 shrink-0 font-bold text-xs ${isConforme ? "text-green-600" : isNC ? "text-red-500" : "text-gray-300"}`}>
+                          {isConforme ? "✓" : isNC ? "✗" : "—"}
+                        </span>
+                        <div>
+                          <p className={`text-xs ${isConforme ? "text-gray-700" : isNC ? "text-red-600" : "text-gray-400"}`}>{it.label}</p>
+                          {it.state.nota && <p className="text-[10px] text-gray-400 italic">{it.state.nota}</p>}
+                          {it.state.ok === null && <p className="text-[10px] text-gray-300 italic">Não verificado</p>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -325,57 +338,74 @@ export default async function LaudoPage({ params }: PageProps) {
 
         {/* Análise de Mercado (IA) */}
         {sugestao && (
-          <div className="break-inside-avoid space-y-3">
+          <div className="space-y-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1">
               Análise de Mercado — Referência Comparativa
             </p>
 
             {/* Metodologia */}
             {sugestao.metodologia && (
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Metodologia Aplicada</p>
-                <p className="text-[11px] text-gray-600">{sugestao.metodologia}</p>
+              <div className="break-inside-avoid">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Metodologia Aplicada</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{sugestao.metodologia}</p>
               </div>
             )}
 
-            {/* Métricas resumidas */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gray-50 p-2 text-center">
-                <p className="text-[9px] text-gray-400 uppercase">Valor/m²</p>
-                <p className="text-xs font-black text-[#1A1A1A]">{formatValorBR(sugestao.precoPorM2)}</p>
+            {/* Indicadores principais */}
+            <div className="break-inside-avoid">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Indicadores de Mercado</p>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="bg-[#1A1A1A] text-white p-3 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase mb-1">Valor Sugerido</p>
+                  <p className="text-sm font-black text-[#F5C400]">{formatValorBR(sugestao.valorSugerido)}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 p-3 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase mb-1">Mínimo</p>
+                  <p className="text-sm font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMin)}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 p-3 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase mb-1">Máximo</p>
+                  <p className="text-sm font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMax)}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 p-3 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase mb-1">Valor/m²</p>
+                  <p className="text-sm font-black text-[#1A1A1A]">{formatValorBR(sugestao.precoPorM2)}</p>
+                </div>
               </div>
-              <div className="bg-gray-50 p-2 text-center">
-                <p className="text-[9px] text-gray-400 uppercase">Mínimo</p>
-                <p className="text-xs font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMin)}</p>
-              </div>
-              <div className="bg-gray-50 p-2 text-center">
-                <p className="text-[9px] text-gray-400 uppercase">Máximo</p>
-                <p className="text-xs font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMax)}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <p className="text-xs text-gray-500">Confiabilidade da análise:</p>
+                <span className={`text-xs font-bold px-2 py-0.5 uppercase ${
+                  sugestao.confiabilidade === "alta" ? "bg-green-100 text-green-700" :
+                  sugestao.confiabilidade === "media" ? "bg-yellow-100 text-yellow-700" :
+                  "bg-red-100 text-red-600"
+                }`}>
+                  {sugestao.confiabilidade === "alta" ? "Alta" : sugestao.confiabilidade === "media" ? "Média" : "Baixa"}
+                </span>
               </div>
             </div>
 
-            {/* Comparáveis */}
+            {/* Imóveis Comparáveis */}
             {sugestao.comparaveis.length > 0 && (
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                  Imóveis Comparáveis ({sugestao.comparaveis.length})
+              <div className="break-inside-avoid">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                  Imóveis Comparáveis Pesquisados ({sugestao.comparaveis.length})
                 </p>
-                <table className="w-full text-[10px] border-collapse">
+                <table className="w-full text-xs border-collapse border border-gray-200">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="text-left px-2 py-1 font-black text-gray-500 uppercase text-[9px]">Descrição</th>
-                      <th className="text-right px-2 py-1 font-black text-gray-500 uppercase text-[9px]">Área</th>
-                      <th className="text-right px-2 py-1 font-black text-gray-500 uppercase text-[9px]">Valor</th>
-                      <th className="text-right px-2 py-1 font-black text-gray-500 uppercase text-[9px]">R$/m²</th>
+                      <th className="text-left px-3 py-2 font-black text-gray-600 uppercase text-[10px] border border-gray-200">Imóvel Comparável</th>
+                      <th className="text-right px-3 py-2 font-black text-gray-600 uppercase text-[10px] border border-gray-200">Área (m²)</th>
+                      <th className="text-right px-3 py-2 font-black text-gray-600 uppercase text-[10px] border border-gray-200">Valor de Mercado</th>
+                      <th className="text-right px-3 py-2 font-black text-gray-600 uppercase text-[10px] border border-gray-200">R$/m²</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sugestao.comparaveis.map((c, i) => (
-                      <tr key={i} className="border-b border-gray-100">
-                        <td className="px-2 py-1 text-gray-700">{c.descricao}</td>
-                        <td className="px-2 py-1 text-right text-gray-600">{c.area} m²</td>
-                        <td className="px-2 py-1 text-right font-bold text-[#1A1A1A]">{formatValorBR(c.preco)}</td>
-                        <td className="px-2 py-1 text-right text-gray-600">{formatValorBR(c.precoPorM2)}</td>
+                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-3 py-2 text-gray-700 border border-gray-200">{c.descricao}</td>
+                        <td className="px-3 py-2 text-right text-gray-600 border border-gray-200">{c.area}</td>
+                        <td className="px-3 py-2 text-right font-bold text-[#1A1A1A] border border-gray-200">{formatValorBR(c.preco)}</td>
+                        <td className="px-3 py-2 text-right text-gray-600 border border-gray-200">{formatValorBR(c.precoPorM2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -385,15 +415,25 @@ export default async function LaudoPage({ params }: PageProps) {
 
             {/* Observações de mercado */}
             {sugestao.observacoes && (
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Observações de Mercado</p>
-                <p className="text-[11px] text-gray-600">{sugestao.observacoes}</p>
+              <div className="break-inside-avoid">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Análise e Observações</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{sugestao.observacoes}</p>
               </div>
             )}
 
-            {/* Fontes */}
+            {/* Fontes consultadas */}
             {sugestao.fontes.length > 0 && (
-              <p className="text-[9px] text-gray-400">Fontes: {sugestao.fontes.join(" · ")}</p>
+              <div className="break-inside-avoid">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Fontes Consultadas</p>
+                <ul className="space-y-0.5">
+                  {sugestao.fontes.map((fonte, i) => (
+                    <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                      <span className="text-gray-300 shrink-0 mt-0.5">›</span>
+                      {fonte}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}

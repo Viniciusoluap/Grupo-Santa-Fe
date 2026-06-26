@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { upload } from "@vercel/blob/client";
 import { Paperclip, Trash2, FileText, FileImage, Loader2, Upload, AlertCircle, X } from "lucide-react";
 import { salvarDocumentosAvaliacao } from "@/lib/actions/avaliacoes";
 
@@ -19,8 +18,9 @@ interface Props {
 }
 
 const MAX_FILES = 5;
-const MAX_TOTAL_BYTES = 50 * 1024 * 1024; // 50 MB total across all files
-const UPLOAD_TIMEOUT_MS = 90_000; // 90s — if no progress after 90s, network is stalled
+// 4 MB per file — matches /api/avaliacoes/upload-doc server limit (Vercel 4.5 MB body)
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB total (5 × 4 MB)
 
 function formatSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -34,6 +34,49 @@ function fileIcon(tipo: string) {
 
 function parseDocumentos(raw: string): Documento[] {
   try { return JSON.parse(raw) as Documento[]; } catch { return []; }
+}
+
+// XHR-based upload — avoids the @vercel/blob/client two-step handshake that
+// hangs after CDN PUT on iOS Safari (post-upload completion callback never resolves).
+function uploadFileXHR(
+  file: File,
+  onProgress: (pct: number) => void,
+  signal: AbortSignal
+): Promise<{ url: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fd = new FormData();
+    fd.append("file", file);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as { url: string });
+        } catch {
+          reject(new Error("Resposta inválida do servidor."));
+        }
+      } else {
+        try {
+          const json = JSON.parse(xhr.responseText) as { error?: string };
+          reject(new Error(json.error ?? `Erro HTTP ${xhr.status}`));
+        } catch {
+          reject(new Error(`Erro HTTP ${xhr.status}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Erro de rede ao enviar arquivo."));
+    xhr.onabort = () => reject(new DOMException("Upload cancelado.", "AbortError"));
+
+    signal.addEventListener("abort", () => xhr.abort(), { once: true });
+
+    xhr.open("POST", "/api/avaliacoes/upload-doc");
+    xhr.send(fd);
+  });
 }
 
 export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
@@ -63,12 +106,19 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
 
     const toUpload = files.slice(0, remaining);
 
+    // Per-file size check
+    const oversized = toUpload.find((f) => f.size > MAX_FILE_BYTES);
+    if (oversized) {
+      setError(`"${oversized.name}" excede 4 MB. Reduza o tamanho do arquivo.`);
+      return;
+    }
+
     // Total size check (existing + new)
     const newBytes = toUpload.reduce((sum, f) => sum + f.size, 0);
     if (totalBytes + newBytes > MAX_TOTAL_BYTES) {
       const usedMB = (totalBytes / 1024 / 1024).toFixed(1);
       const addMB = (newBytes / 1024 / 1024).toFixed(1);
-      setError(`Limite de 50 MB total excedido. Já usado: ${usedMB} MB + novo: ${addMB} MB.`);
+      setError(`Limite de 20 MB total excedido. Já usado: ${usedMB} MB + novo: ${addMB} MB.`);
       return;
     }
 
@@ -77,49 +127,35 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
     const controller = new AbortController();
     abortCtrlRef.current = controller;
 
-    // Hard timeout — aborts the actual network request (works even in iOS background tabs)
-    const timeoutId = setTimeout(() => {
-      controller.abort(new Error(`Upload demorou mais de ${UPLOAD_TIMEOUT_MS / 60000} min. Verifique sua conexão e tente novamente.`));
-    }, UPLOAD_TIMEOUT_MS);
-
     try {
       for (const file of toUpload) {
         if (controller.signal.aborted) break;
         setUploadingName(file.name);
         setUploadProgress(0);
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/avaliacoes/documentos",
-          abortSignal: controller.signal,
-          onUploadProgress: ({ percentage }) => setUploadProgress(Math.round(percentage)),
-        });
+
+        const { url } = await uploadFileXHR(file, setUploadProgress, controller.signal);
+
         novos.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           nome: file.name,
-          url: blob.url,
+          url,
           tipo: file.type,
           tamanho: file.size,
         });
       }
+
       if (novos.length > 0) {
         const updated = [...docs, ...novos];
         setDocs(updated);
         await persistir(updated);
       }
     } catch (e) {
-      if (controller.signal.aborted) {
-        const reason = controller.signal.reason;
-        setError(reason instanceof Error ? reason.message : "Upload cancelado.");
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setError("Upload cancelado.");
       } else {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes("BLOB_READ_WRITE_TOKEN") || msg.toLowerCase().includes("token") || msg.includes("Unauthorized")) {
-          setError("Blob Storage não configurado. Adicione BLOB_READ_WRITE_TOKEN nas variáveis de ambiente do Vercel.");
-        } else {
-          setError(msg);
-        }
+        setError(e instanceof Error ? e.message : String(e));
       }
     } finally {
-      clearTimeout(timeoutId);
       abortCtrlRef.current = null;
       setUploading(false);
       setUploadingName(null);
@@ -129,7 +165,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
   }
 
   function handleCancelar() {
-    abortCtrlRef.current?.abort(new Error("Upload cancelado pelo usuário."));
+    abortCtrlRef.current?.abort();
   }
 
   async function handleRemover(docId: string) {
@@ -149,7 +185,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             Documentos ({docs.length}/{MAX_FILES})
           </p>
           {docs.length > 0 && (
-            <p className="text-[10px] text-gray-400 mt-0.5">{totalMB} MB / 50 MB usados</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">{totalMB} MB / 20 MB usados</p>
           )}
         </div>
         {uploading ? (
@@ -204,7 +240,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
         >
           <Paperclip size={20} className="text-gray-300 mx-auto mb-2" />
           <p className="text-xs text-gray-400">Clique para anexar documentos</p>
-          <p className="text-[10px] text-gray-300 mt-1">PDF, Word, Excel, imagens · até 50 MB no total · até 5 arquivos</p>
+          <p className="text-[10px] text-gray-300 mt-1">PDF, Word, Excel, imagens · até 4 MB por arquivo · até 5 arquivos</p>
         </div>
       )}
 
