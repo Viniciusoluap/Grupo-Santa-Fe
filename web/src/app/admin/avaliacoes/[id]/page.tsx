@@ -179,6 +179,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
                 areaTerreno={a.areaTerreno}
                 quartos={a.quartos}
                 banheiros={a.banheiros ?? null}
+                caracteristicas={a.caracteristicas ?? ""}
               />
             </div>
             {a.dataEntrega && (
