@@ -471,6 +471,7 @@ model Avaliacao {
   laudo          String?
   documentos     String    @default("[]")
   sugestaoJson   String?
+  valorServico   Float?    // valor cobrado pelo serviço de avaliação
   leadId         String?
   lead           Lead?     @relation("AvaliacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
   criadoEm       DateTime  @default(now())

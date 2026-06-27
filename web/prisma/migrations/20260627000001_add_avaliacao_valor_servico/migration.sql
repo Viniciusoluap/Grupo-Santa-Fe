@@ -1,0 +1,1 @@
+ALTER TABLE "avaliacoes" ADD COLUMN "valorServico" DOUBLE PRECISION;

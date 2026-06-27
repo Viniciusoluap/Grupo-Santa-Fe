@@ -215,6 +215,17 @@ export function NovaAvaliacaoForm({ leads }: Props) {
           </div>
         </div>
 
+        {/* Valor do Serviço */}
+        <div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Cobrança do Serviço</p>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Serviço (R$)</label>
+            <input name="valorServico" type="number" step="0.01" min="0" placeholder="Ex: 1500,00"
+              className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <p className="text-[10px] text-gray-400 mt-1">Ao marcar a avaliação como entregue, uma cobrança será criada automaticamente no BPO Financeiro.</p>
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Observações</label>
           <textarea name="observacoes" rows={3} placeholder="Informações adicionais sobre o imóvel ou solicitação..."
