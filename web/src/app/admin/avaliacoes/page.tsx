@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Plus, ClipboardList, Pencil } from "lucide-react";
+import { Plus } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/utils";
-import { ExcluirAvaliacaoBtn } from "./_components/excluir-avaliacao-btn";
+import { AvaliacoesClient } from "./_components/avaliacoes-client";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:        { label: "Solicitada",       bg: "bg-gray-100",    text: "text-gray-600",   order: 1 },
@@ -11,13 +10,6 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; o
   revisao:           { label: "Revisão",           bg: "bg-orange-100",  text: "text-orange-700", order: 4 },
   entregue:          { label: "Entregue",          bg: "bg-green-100",   text: "text-green-700",  order: 5 },
   cancelada:         { label: "Cancelada",         bg: "bg-red-100",     text: "text-red-600",    order: 6 },
-};
-
-const TIPO_LABELS: Record<string, string> = {
-  mercado:        "Avaliação de Mercado",
-  locacao:        "Avaliação p/ Locação",
-  judicial:       "Avaliação Judicial",
-  parecer_tecnico: "Parecer Técnico",
 };
 
 export default async function AvaliacoesPage() {
@@ -32,6 +24,18 @@ export default async function AvaliacoesPage() {
   const entregues = statusCounts["entregue"] ?? 0;
   const valorMedio = avaliacoes.filter((a) => a.valorEstimado).reduce((s, a, _, arr) =>
     s + (a.valorEstimado ?? 0) / arr.filter((x) => x.valorEstimado).length, 0);
+
+  const rows = avaliacoes.map((a) => ({
+    id: a.id,
+    numero: a.numero,
+    clienteNome: a.clienteNome,
+    endereco: a.endereco,
+    bairro: a.bairro,
+    tipo: a.tipo,
+    avaliador: a.avaliador,
+    valorEstimado: a.valorEstimado,
+    status: a.status,
+  }));
 
   return (
     <div className="space-y-5">
@@ -73,65 +77,12 @@ export default async function AvaliacoesPage() {
           <p className="text-gray-400 text-xs mt-1 uppercase tracking-wide">Laudos entregues</p>
         </div>
         <div className="bg-white border border-gray-100 p-4">
-          <p className="font-black text-[var(--brand-dark)] text-xl">{valorMedio > 0 ? formatCurrency(valorMedio) : "—"}</p>
+          <p className="font-black text-[var(--brand-dark)] text-xl">{valorMedio > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorMedio) : "—"}</p>
           <p className="text-gray-400 text-xs mt-1 uppercase tracking-wide">Valor médio avaliado</p>
         </div>
       </div>
 
-      {/* List */}
-      {avaliacoes.length === 0 ? (
-        <div className="bg-gray-50 border border-dashed border-gray-200 p-12 text-center">
-          <ClipboardList size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Nenhuma avaliação cadastrada</p>
-          <p className="text-gray-400 text-sm mt-1">
-            <Link href="/admin/avaliacoes/nova" className="text-[var(--brand-yellow)] hover:underline">Solicitar primeira avaliação</Link>
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-[var(--brand-dark)]">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase">Número</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase">Cliente / Endereço</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase hidden md:table-cell">Tipo</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase hidden lg:table-cell">Avaliador</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase hidden lg:table-cell">Valor Estimado</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase">Status</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {avaliacoes.map((a) => {
-                  const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.solicitada;
-                  return (
-                    <tr key={a.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{a.numero}</td>
-                      <td className="px-4 py-3">
-                        <Link href={`/admin/avaliacoes/${a.id}`} className="font-medium text-[var(--brand-dark)] hover:text-[var(--brand-yellow)] hover:underline">{a.clienteNome}</Link>
-                        <p className="text-xs text-gray-400">{a.endereco}, {a.bairro}</p>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-600">{TIPO_LABELS[a.tipo] ?? a.tipo}</td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-600">{a.avaliador}</td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-right font-bold text-[var(--brand-dark)]">
-                        {a.valorEstimado ? formatCurrency(a.valorEstimado) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <Link href={`/admin/avaliacoes/${a.id}/editar`} className="inline-flex items-center gap-1 text-xs font-bold text-[var(--brand-yellow)] hover:underline"><Pencil size={12} />Editar</Link>
-                        <ExcluirAvaliacaoBtn id={a.id} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <AvaliacoesClient avaliacoes={rows} />
     </div>
   );
 }
