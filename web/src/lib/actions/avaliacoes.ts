@@ -33,6 +33,7 @@ export async function criarAvaliacao(formData: FormData) {
       dataVistoria: formData.get("dataVistoria") ? new Date(formData.get("dataVistoria") as string) : null,
       prazoEntrega: formData.get("prazoEntrega") ? new Date(formData.get("prazoEntrega") as string) : null,
       observacoes: (formData.get("observacoes") as string) || "",
+      valorServico: formData.get("valorServico") ? parseFloat(formData.get("valorServico") as string) : null,
     },
   });
 
@@ -48,7 +49,27 @@ export async function atualizarStatusAvaliacao(formData: FormData) {
   if (status === "entregue") data.dataEntrega = new Date();
   if (formData.get("valorEstimado")) data.valorEstimado = parseFloat(formData.get("valorEstimado") as string);
 
-  await prisma.avaliacao.update({ where: { id }, data });
+  const avaliacao = await prisma.avaliacao.update({ where: { id }, data });
+
+  // Ao marcar como entregue, cria cobrança automática no BPO Financeiro
+  if (status === "entregue" && avaliacao.valorServico) {
+    const now = new Date();
+    const competencia = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await prisma.bpoLancamento.create({
+      data: {
+        clienteNomeLivre: avaliacao.clienteNome,
+        tipo: "honorario",
+        descricao: `Laudo de Avaliação Imobiliária — ${avaliacao.numero} · ${avaliacao.clienteNome}`,
+        valor: avaliacao.valorServico,
+        vencimento: now,
+        competencia,
+        centroCustos: "Avaliação Imobiliária",
+        pago: false,
+      },
+    });
+    revalidatePath("/admin/bpo");
+  }
+
   revalidatePath(`/admin/avaliacoes/${id}`);
   revalidatePath("/admin/avaliacoes");
 }
@@ -79,6 +100,7 @@ export async function editarAvaliacao(formData: FormData) {
       prazoEntrega: formData.get("prazoEntrega") ? new Date(formData.get("prazoEntrega") as string) : null,
       observacoes: (formData.get("observacoes") as string) || "",
       leadId: (formData.get("leadId") as string) || null,
+      valorServico: formData.get("valorServico") ? parseFloat(formData.get("valorServico") as string) : null,
     },
   });
 
