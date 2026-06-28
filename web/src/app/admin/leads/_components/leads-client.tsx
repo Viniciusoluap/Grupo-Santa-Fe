@@ -2,10 +2,27 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, LayoutGrid, List, Search } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, MessageCircle } from "lucide-react";
 import { LEAD_STATUS_CONFIG, LeadStatus } from "@/lib/types/crm";
 import { LeadKanban } from "@/components/crm/lead-kanban";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+
+function buildWaLink(telefone: string, nome: string, servico: string): string {
+  const phone = telefone.replace(/\D/g, "");
+  const intl = phone.startsWith("55") ? phone : `55${phone}`;
+  let servicos = servico;
+  try { servicos = (JSON.parse(servico) as string[]).join(" e "); } catch { /* */ }
+  const msg = `Olá ${nome}, tudo bem? Estou entrando em contato sobre ${servicos}. Tenho opções que podem te interessar! 😊`;
+  return `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`;
+}
+
+const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+function fmtVisitaDate(d: Date): string {
+  const dt = new Date(d);
+  return `${DIAS_SEMANA[dt.getDay()]}, ${dt.getDate()} de ${MESES[dt.getMonth()]}`;
+}
 
 type DbLead = {
   id: string;
@@ -32,6 +49,21 @@ interface LeadsClientProps {
 export function LeadsClient({ leads }: LeadsClientProps) {
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [search, setSearch] = useState("");
+
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+  const followUp = leads
+    .filter((l) => !["fechado", "perdido"].includes(l.status) && l.visitas.length > 0)
+    .flatMap((l) => {
+      const lastVisit = [...l.visitas].sort(
+        (a, b) => new Date(b.agendadaPara).getTime() - new Date(a.agendadaPara).getTime()
+      )[0];
+      if (!lastVisit || new Date(lastVisit.agendadaPara) >= tenDaysAgo) return [];
+      const days = Math.floor(
+        (Date.now() - new Date(lastVisit.agendadaPara).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return [{ lead: l, lastVisit, days }];
+    })
+    .sort((a, b) => b.days - a.days);
 
   const statusCounts = leads.reduce((acc, l) => {
     acc[l.status] = (acc[l.status] ?? 0) + 1;
@@ -84,6 +116,70 @@ export function LeadsClient({ leads }: LeadsClientProps) {
           </Link>
         </div>
       </div>
+
+      {/* Follow-up */}
+      {followUp.length > 0 && (
+        <div className="bg-white border border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+            <h2 className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">
+              Follow-up — Clientes para Contatar
+            </h2>
+            <span className="w-5 h-5 rounded-full bg-[var(--brand-yellow)] text-[var(--brand-dark)] text-[10px] font-black flex items-center justify-center">
+              {followUp.length}
+            </span>
+            <p className="text-gray-400 text-xs">Clientes cuja última visita foi há mais de 10 dias.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Nome</th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wide hidden sm:table-cell">WhatsApp</th>
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wide hidden md:table-cell">Última Visita</th>
+                  <th className="px-5 py-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">Dias</th>
+                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-400 uppercase tracking-wide"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {followUp.map(({ lead, lastVisit, days }) => (
+                  <tr key={lead.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3">
+                      <Link href={`/admin/leads/${lead.id}`} className="font-bold text-[var(--brand-dark)] hover:underline text-sm">
+                        {lead.nome}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3 hidden sm:table-cell">
+                      <a
+                        href={`tel:${lead.telefone.replace(/\D/g, "")}`}
+                        className="text-sm text-gray-600 hover:text-[var(--brand-dark)]"
+                      >
+                        {formatTelefone(lead.telefone)}
+                      </a>
+                    </td>
+                    <td className="px-5 py-3 hidden md:table-cell text-sm text-gray-500">
+                      {fmtVisitaDate(lastVisit.agendadaPara)}
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <span className="font-bold text-sm text-[var(--brand-yellow)]">{days}d</span>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <a
+                        href={buildWaLink(lead.telefone, lead.nome, lead.servico)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold px-3 py-1.5 transition-colors"
+                      >
+                        <MessageCircle size={13} />
+                        Contatar
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Funil summary */}
       <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
