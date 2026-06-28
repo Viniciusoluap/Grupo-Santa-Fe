@@ -34,8 +34,12 @@ interface ComissoesClientProps {
 }
 
 const TIPO_NEGOCIO_LABELS: Record<string, string> = {
+  venda: "Comissão de Venda",
+  aluguel: "Comissão de Aluguel",
+  financiamento: "Comissão de Financiamento",
+  extra: "Extra",
+  // legado
   imovel: "Venda de Imóvel",
-  financiamento: "Financiamento",
   obra: "Obra",
   projeto: "Projeto de Engenharia",
   regularizacao: "Regularização",

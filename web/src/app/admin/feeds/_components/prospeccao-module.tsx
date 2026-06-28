@@ -51,7 +51,13 @@ export function ProspeccaoModule({ apiConfigurada }: { apiConfigurada: boolean }
     setMessage(null);
     try {
       const res = await fetch("/api/admin/prospeccao", { method: "POST" });
-      const data = await res.json() as { created?: number; message?: string; error?: string };
+      let data: { created?: number; message?: string; error?: string } = {};
+      try {
+        data = await res.json() as typeof data;
+      } catch {
+        setMessage({ text: "A busca demorou mais de 60 s e foi cancelada pelo servidor. Tente novamente — o resultado depende da velocidade da IA.", type: "error" });
+        return;
+      }
       if (!res.ok) {
         setMessage({ text: data.error ?? "Erro desconhecido.", type: "error" });
       } else {
