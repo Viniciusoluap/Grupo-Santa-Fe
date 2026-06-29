@@ -41,3 +41,34 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Environment & Secrets (AIOX)
+.env
+.env.local
+.env.*.local
+*.key
+
+# Dependencies (AIOX)
+node_modules/
+
+# Build & Logs (AIOX)
+dist/
+build/
+*.log
+logs/
+
+# IDE & OS (AIOX)
+Thumbs.db
+.idea/
+*.swp
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.claude/settings.local.json
+.aiox/install-log.txt
+
+# AIOX core framework (reinstall with: npx --package=@aiox-squads/core aiox install --ci --yes --ide claude-code)
+.aiox-core/
+.cursor/
+.gemini/
+.kimi/
