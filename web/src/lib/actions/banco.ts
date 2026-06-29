@@ -1,9 +1,12 @@
 "use server";
+import { auth } from "@/auth";
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function criarContaBancaria(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.contaBancaria.create({
     data: {
       banco: formData.get("banco") as string,
@@ -20,11 +23,15 @@ export async function criarContaBancaria(formData: FormData) {
 }
 
 export async function excluirContaBancaria(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.contaBancaria.delete({ where: { id } });
   revalidatePath("/admin/bpo");
 }
 
 export async function atualizarSaldoConta(id: string, saldo: number) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.contaBancaria.update({
     where: { id },
     data: { saldoAtual: saldo, ultimaSincronizacao: new Date() },
@@ -33,6 +40,8 @@ export async function atualizarSaldoConta(id: string, saldo: number) {
 }
 
 export async function atualizarStatusTransacao(id: string, status: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.transacaoBancaria.update({ where: { id }, data: { status } });
   revalidatePath("/admin/bpo");
 }
@@ -48,6 +57,8 @@ export async function salvarTransacoes(
     externalId?: string;
   }[]
 ) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   for (const t of transacoes) {
     await prisma.transacaoBancaria.upsert({
       where: { externalId: t.externalId ?? `manual-${contaId}-${Date.now()}-${Math.random()}` },

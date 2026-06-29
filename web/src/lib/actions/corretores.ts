@@ -1,4 +1,5 @@
 "use server";
+import { auth } from "@/auth";
 
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
@@ -7,6 +8,8 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
 export async function excluirCorretor(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.$transaction([
     prisma.lead.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
     prisma.visita.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
@@ -19,6 +22,8 @@ export async function excluirCorretor(id: string) {
 }
 
 export async function editarCorretor(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   const especialidadesList: string[] = [];
   for (const [key, value] of formData.entries()) {
@@ -40,6 +45,8 @@ export async function editarCorretor(formData: FormData) {
 }
 
 export async function criarCorretor(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const especialidadesList: string[] = [];
   for (const [key, value] of formData.entries()) {
     if (key === "especialidades[]") {

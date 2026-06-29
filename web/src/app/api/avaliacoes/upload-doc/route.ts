@@ -1,5 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

@@ -1,4 +1,5 @@
 "use server";
+import { auth } from "@/auth";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -10,6 +11,8 @@ function gerarNumero() {
 }
 
 export async function criarAvaliacao(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.avaliacao.create({
     data: {
       numero: gerarNumero(),
@@ -42,6 +45,8 @@ export async function criarAvaliacao(formData: FormData) {
 }
 
 export async function atualizarStatusAvaliacao(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
   const data: Record<string, unknown> = { status };
@@ -75,6 +80,8 @@ export async function atualizarStatusAvaliacao(formData: FormData) {
 }
 
 export async function editarAvaliacao(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   await prisma.avaliacao.update({
     where: { id },
@@ -110,11 +117,15 @@ export async function editarAvaliacao(formData: FormData) {
 }
 
 export async function excluirAvaliacao(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.avaliacao.delete({ where: { id } });
   revalidatePath("/admin/avaliacoes");
 }
 
 export async function salvarChecklistAvaliacao(id: string, dados: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.avaliacao.update({
     where: { id },
     data: { caracteristicas: dados },
@@ -125,6 +136,8 @@ export async function salvarChecklistAvaliacao(id: string, dados: string) {
 }
 
 export async function salvarDocumentosAvaliacao(id: string, documentos: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.avaliacao.update({ where: { id }, data: { documentos } });
   // revalidatePath omitido intencionalmente: a página de avaliação contém fotos
   // em base64 no checklist; re-render via server action envia esses dados no
@@ -132,6 +145,8 @@ export async function salvarDocumentosAvaliacao(id: string, documentos: string) 
 }
 
 export async function salvarSugestaoAvaliacao(id: string, sugestaoJson: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.avaliacao.update({ where: { id }, data: { sugestaoJson } });
   // revalidatePath omitido intencionalmente: mesma razão das fotos base64.
 }

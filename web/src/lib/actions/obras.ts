@@ -1,10 +1,13 @@
 "use server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarDiarioObra(obraId: string, formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.obraDiario.create({
     data: {
       obraId,
@@ -18,6 +21,8 @@ export async function criarDiarioObra(obraId: string, formData: FormData) {
 }
 
 export async function criarObra(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const leadId = (formData.get("leadId") as string) || undefined;
   const latStr = formData.get("latitude") as string;
   const lngStr = formData.get("longitude") as string;
@@ -45,11 +50,15 @@ export async function criarObra(formData: FormData) {
 }
 
 export async function excluirObra(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.obra.delete({ where: { id } });
   revalidatePath("/admin/obras");
 }
 
 export async function editarObra(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   await prisma.obra.update({
     where: { id },

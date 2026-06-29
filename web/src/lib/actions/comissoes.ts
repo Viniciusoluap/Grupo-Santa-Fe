@@ -1,10 +1,13 @@
 "use server";
+import { auth } from "@/auth";
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarComissao(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const vencimentoStr = formData.get("vencimento") as string;
   const pagamentoStr = formData.get("pagamentoEm") as string;
   const beneficiario = (formData.get("beneficiario") as string) || "corretor";
@@ -29,6 +32,8 @@ export async function criarComissao(formData: FormData) {
 }
 
 export async function editarComissao(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   const vencimentoStr = formData.get("vencimento") as string;
   const pagamentoStr = formData.get("pagamentoEm") as string;
@@ -55,11 +60,15 @@ export async function editarComissao(formData: FormData) {
 }
 
 export async function excluirComissao(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.comissao.delete({ where: { id } });
   revalidatePath("/admin/comissoes");
 }
 
 export async function alterarStatusComissao(id: string, status: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.comissao.update({
     where: { id },
     data: {

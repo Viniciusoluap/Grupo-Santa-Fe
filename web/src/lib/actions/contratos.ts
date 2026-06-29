@@ -1,9 +1,12 @@
 "use server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarContrato(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const numero = `GSF-${Date.now()}`;
   await prisma.contrato.create({
     data: {
@@ -26,6 +29,8 @@ export async function criarContrato(formData: FormData) {
 }
 
 export async function editarContrato(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   await prisma.contrato.update({
     where: { id },
@@ -48,16 +53,22 @@ export async function editarContrato(formData: FormData) {
 }
 
 export async function excluirContrato(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.contrato.delete({ where: { id } });
   revalidatePath("/admin/contratos");
 }
 
 export async function salvarContratoAssinado(id: string, url: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.contrato.update({ where: { id }, data: { contratoAssinadoUrl: url } });
   revalidatePath("/admin/contratos");
 }
 
 export async function alterarStatusContrato(id: string, status: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.contrato.update({ where: { id }, data: { status } });
   revalidatePath("/admin/contratos");
 }

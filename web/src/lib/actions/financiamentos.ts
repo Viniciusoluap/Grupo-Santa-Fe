@@ -1,4 +1,5 @@
 "use server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
@@ -26,6 +27,8 @@ const CHECKLIST_PADRAO = [
 ];
 
 export async function criarFinanciamento(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const leadId = (formData.get("leadId") as string) || undefined;
   const imovelVinculadoId = (formData.get("imovelVinculadoId") as string) || undefined;
 
@@ -58,11 +61,15 @@ export async function criarFinanciamento(formData: FormData) {
 }
 
 export async function excluirFinanciamento(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.financiamento.delete({ where: { id } });
   revalidatePath("/admin/financiamentos");
 }
 
 export async function editarFinanciamento(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   await prisma.financiamento.update({
     where: { id },
@@ -86,16 +93,22 @@ export async function editarFinanciamento(formData: FormData) {
 }
 
 export async function toggleChecklistItem(id: string, concluido: boolean, financiamentoId: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.checklistItem.update({ where: { id }, data: { concluido } });
   revalidatePath(`/admin/financiamentos/${financiamentoId}`);
 }
 
 export async function atualizarNotasChecklist(id: string, notas: string, financiamentoId: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.checklistItem.update({ where: { id }, data: { notas } });
   revalidatePath(`/admin/financiamentos/${financiamentoId}`);
 }
 
 export async function alterarStatusFinanciamento(id: string, status: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.financiamento.update({ where: { id }, data: { status } });
   revalidatePath(`/admin/financiamentos/${id}`);
   revalidatePath("/admin/financiamentos");
