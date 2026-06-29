@@ -1,14 +1,14 @@
 "use server";
 import { auth } from "@/auth";
-
+import { requireActionRole } from "@/lib/auth/rbac";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function criarLancamento(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const data = formData.get("data") as string;
-  const competencia = data.slice(0, 7); // "YYYY-MM"
+  const competencia = data.slice(0, 7);
 
   await prisma.lancamento.create({
     data: {
@@ -32,7 +32,7 @@ export async function criarLancamento(formData: FormData) {
 
 export async function atualizarStatusLancamento(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
 

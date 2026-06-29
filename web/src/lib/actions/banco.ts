@@ -1,12 +1,12 @@
 "use server";
 import { auth } from "@/auth";
-
+import { requireActionRole } from "@/lib/auth/rbac";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function criarContaBancaria(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.contaBancaria.create({
     data: {
       banco: formData.get("banco") as string,
@@ -24,7 +24,7 @@ export async function criarContaBancaria(formData: FormData) {
 
 export async function excluirContaBancaria(id: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.contaBancaria.delete({ where: { id } });
   revalidatePath("/admin/bpo");
 }

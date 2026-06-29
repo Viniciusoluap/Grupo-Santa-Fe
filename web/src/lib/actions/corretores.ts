@@ -1,6 +1,6 @@
 "use server";
 import { auth } from "@/auth";
-
+import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 
 export async function excluirCorretor(id: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.$transaction([
     prisma.lead.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
     prisma.visita.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),

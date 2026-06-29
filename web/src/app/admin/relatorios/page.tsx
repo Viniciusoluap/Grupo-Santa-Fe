@@ -1,3 +1,5 @@
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { RelatoriosClient } from "./relatorios-client";
 
@@ -14,6 +16,9 @@ export default async function RelatoriosPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const sp = await searchParams;
   const now = new Date();
   const defaultFrom = new Date(now.getFullYear(), now.getMonth() - 11, 1);
