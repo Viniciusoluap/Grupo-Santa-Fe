@@ -10,7 +10,8 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:migrate": "npx prisma migrate dev",
     "db:deploy": "npx prisma migrate deploy",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
@@ -51,6 +52,7 @@
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }

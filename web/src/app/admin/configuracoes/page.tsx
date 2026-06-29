@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FeedsAgregadorClient } from "./_components/feeds-agregador-client";
@@ -43,8 +43,8 @@ const SECTIONS = [
 
 export default async function ConfiguracoesPage() {
   const session = await auth();
+  requirePageRole(session, "admin");
   const sessionUser = session?.user as { role?: string; name?: string } | undefined;
-  if (sessionUser?.role !== "admin") redirect("/admin");
   const userName = sessionUser?.name ?? "Usuário";
 
   const [configs, usuarios, feedsConfig] = await Promise.all([

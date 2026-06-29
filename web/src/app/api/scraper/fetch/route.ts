@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { auth } from "@/auth";
-
-const PRIVATE_IP = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1|fc00:|fe80:)/i;
-
-function isSsrfUrl(raw: string): boolean {
-  try {
-    const { hostname, protocol } = new URL(raw);
-    if (protocol !== "http:" && protocol !== "https:") return true;
-    return PRIVATE_IP.test(hostname);
-  } catch {
-    return true;
-  }
-}
+import { isSsrfUrl } from "@/lib/ssrf";
 
 export interface ScrapedData {
   title?: string;
