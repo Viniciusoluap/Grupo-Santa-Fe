@@ -80,6 +80,8 @@ model Lead {
   projetos          Projeto[]        @relation("ProjetoLead")
   regularizacoes    Regularizacao[]  @relation("RegularizacaoLead")
   avaliacoes        Avaliacao[]      @relation("AvaliacaoLead")
+  contratos         Contrato[]       @relation("ContratoLead")
+  chatMensagens     ChatMensagem[]   @relation("ChatLead")
   criadoEm          DateTime @default(now())
   atualizadoEm      DateTime @updatedAt
 
@@ -337,26 +339,55 @@ model RegDocumento {
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
 
 model Contrato {
-  id                  String     @id @default(cuid())
-  numero              String     @unique
+  id                  String              @id @default(cuid())
+  numero              String              @unique
   tipo                String
-  status              String     @default("rascunho")
+  status              String              @default("rascunho")
   parteA              String
   parteADoc           String?
   parteB              String
   parteBDoc           String?
   imovelId            String?
-  imovel              Imovel?    @relation(fields: [imovelId], references: [id])
+  imovel              Imovel?             @relation(fields: [imovelId], references: [id])
+  leadId              String?
+  lead                Lead?               @relation("ContratoLead", fields: [leadId], references: [id], onDelete: SetNull)
   valor               Float
   vencimento          DateTime?
-  descricao           String     @default("")
-  clausulas           String     @default("")
+  descricao           String              @default("")
+  clausulas           String              @default("")
   contratoAssinadoUrl String?
+  assinaturaStatus    String              @default("pendente") // pendente|solicitado|assinado|rejeitado
+  assinaturaGovId     String?
   comissoes           Comissao[]
-  criadoEm            DateTime   @default(now())
-  atualizadoEm        DateTime   @updatedAt
+  documentos          ContratoDocumento[]
+  criadoEm            DateTime            @default(now())
+  atualizadoEm        DateTime            @updatedAt
 
   @@map("contratos")
+}
+
+model ContratoDocumento {
+  id         String   @id @default(cuid())
+  contratoId String
+  contrato   Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  nome       String
+  url        String
+  tipo       String   // contrato_gerado | assinado | anexo
+  criadoEm  DateTime @default(now())
+
+  @@map("contrato_documentos")
+}
+
+model ChatMensagem {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation("ChatLead", fields: [leadId], references: [id], onDelete: Cascade)
+  remetente String   // cliente | corretor | sistema
+  texto     String
+  lido      Boolean  @default(false)
+  criadoEm DateTime @default(now())
+
+  @@map("chat_mensagens")
 }
 
 // ─── AGREGADOR ────────────────────────────────────────────────────────────────

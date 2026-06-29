@@ -12,6 +12,7 @@ interface AppUser {
   role: UserRole;
   creci?: string;
   corretorId?: string;
+  leadId?: string;
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -45,6 +46,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           corretorId = corretor?.id;
         }
 
+        let leadId: string | undefined;
+        if (usuario.papel === "cliente") {
+          const lead = await prisma.lead.findFirst({
+            where: { email: usuario.email },
+            select: { id: true },
+          });
+          leadId = lead?.id;
+        }
+
         return {
           id: usuario.id,
           name: usuario.nome,
@@ -52,6 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: usuario.papel as UserRole,
           creci: usuario.creci ?? undefined,
           corretorId,
+          leadId,
         };
       },
     }),
@@ -62,6 +73,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as AppUser).role;
         token.creci = (user as AppUser).creci;
         token.corretorId = (user as AppUser).corretorId;
+        token.leadId = (user as AppUser).leadId;
         token.name = user.name;
         token.email = user.email;
       }
@@ -73,6 +85,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as unknown as AppUser & { id: string }).role = token.role as UserRole;
         (session.user as unknown as AppUser).creci = token.creci as string | undefined;
         (session.user as unknown as AppUser).corretorId = token.corretorId as string | undefined;
+        (session.user as unknown as AppUser).leadId = token.leadId as string | undefined;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
       }

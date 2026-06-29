@@ -8,6 +8,7 @@ const portalNav = [
   { href: "/portal/documentos", label: "Documentos", icon: FileText },
   { href: "/portal/visitas", label: "Visitas", icon: CalendarDays },
   { href: "/portal/acompanhamento", label: "Acompanhamento", icon: MessageSquare },
+  { href: "/portal/chat", label: "Chat", icon: MessageSquare },
 ];
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
