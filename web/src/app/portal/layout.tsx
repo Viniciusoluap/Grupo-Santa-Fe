@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Home, FileText, CalendarDays, MessageSquare, LogOut } from "lucide-react";
+import { auth } from "@/auth";
 
 const portalNav = [
   { href: "/portal", label: "Início", icon: Home },
@@ -8,7 +10,9 @@ const portalNav = [
   { href: "/portal/acompanhamento", label: "Acompanhamento", icon: MessageSquare },
 ];
 
-export default function PortalLayout({ children }: { children: React.ReactNode }) {
+export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  if (!session) redirect("/login");
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -20,7 +24,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="text-gray-400 text-xs font-medium">Portal do Cliente</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-gray-400 text-xs hidden sm:block">Carlos Mendes</span>
+            <span className="text-gray-400 text-xs hidden sm:block">{session.user?.name}</span>
             <Link href="/" className="flex items-center gap-1 text-gray-400 hover:text-[var(--brand-yellow)] text-xs font-medium transition-colors">
               <LogOut size={13} /> Sair
             </Link>

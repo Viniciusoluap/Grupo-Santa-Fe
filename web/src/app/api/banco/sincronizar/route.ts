@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 
 const PLUGGY_API = "https://api.pluggy.ai";
 
@@ -19,6 +20,9 @@ async function getPluggyToken(): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const { contaId } = await req.json() as { contaId: string };
 
   const conta = await prisma.contaBancaria.findUnique({ where: { id: contaId } });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -116,6 +117,9 @@ Não invente imóveis: inclua apenas os que aparecem de fato nos resultados de b
 
 // GET — list pending prospection drafts (publicadoSite=false, slug starts with "rsc-")
 export async function GET() {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   try {
     const drafts = await prisma.imovel.findMany({
       where: { publicadoSite: false, slug: { startsWith: "rsc-" } },
@@ -140,6 +144,9 @@ export async function GET() {
 
 // POST — run prospection search
 export async function POST() {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY não configurada nas variáveis de ambiente do Vercel." }, { status: 400 });
   }
@@ -201,6 +208,9 @@ export async function POST() {
 
 // PATCH — approve or discard a draft
 export async function PATCH(request: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const { id, action } = (await request.json()) as { id: string; action: "aprovar" | "descartar" };
 
   if (!id || !["aprovar", "descartar"].includes(action)) {

@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { auth } from "@/auth";
+
+const PRIVATE_IP = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1|fc00:|fe80:)/i;
+
+function isSsrfUrl(raw: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(raw);
+    if (protocol !== "http:" && protocol !== "https:") return true;
+    return PRIVATE_IP.test(hostname);
+  } catch {
+    return true;
+  }
+}
 
 export interface ScrapedData {
   title?: string;
@@ -29,6 +42,9 @@ function detectSource(url: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   let url: string;
   try {
     const body = await req.json();
@@ -37,6 +53,10 @@ export async function POST(req: NextRequest) {
     new URL(url); // validate
   } catch {
     return NextResponse.json({ error: "URL inválida" }, { status: 400 });
+  }
+
+  if (isSsrfUrl(url)) {
+    return NextResponse.json({ error: "URL não permitida" }, { status: 400 });
   }
 
   try {

@@ -1,4 +1,5 @@
 "use server";
+import { auth } from "@/auth";
 
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
@@ -7,6 +8,8 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 
 export async function criarLead(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const servicos = formData.getAll("servicos") as string[];
   const nome = formData.get("nome") as string;
   const telefone = formData.get("telefone") as string;
@@ -136,6 +139,8 @@ async function criarProcessosDoLead(leadId: string, nome: string, telefone: stri
 }
 
 export async function enviarContato(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const nome = formData.get("nome") as string;
   const telefone = formData.get("telefone") as string;
   const email = (formData.get("email") as string) || undefined;
@@ -158,6 +163,8 @@ export async function enviarContato(formData: FormData) {
 }
 
 export async function editarLead(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   const servicos = formData.getAll("servicos") as string[];
   await prisma.lead.update({
@@ -179,11 +186,15 @@ export async function editarLead(formData: FormData) {
 }
 
 export async function excluirLead(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.lead.delete({ where: { id } });
   revalidatePath("/admin/leads");
 }
 
 export async function adicionarInteracao(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const leadId = formData.get("leadId") as string;
   await prisma.interacao.create({
     data: {

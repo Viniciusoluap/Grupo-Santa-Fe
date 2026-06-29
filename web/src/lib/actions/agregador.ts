@@ -1,8 +1,11 @@
 "use server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function atualizarStatusAgregador(id: string, status: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.agregadorImovel.update({
     where: { id },
     data: { status },
@@ -17,6 +20,8 @@ export async function criarAgregadorImovel(data: {
   imagens?: string[]; documentoTipo?: string; documentoObs?: string;
   contatoNome?: string; contatoTel?: string; notas?: string;
 }) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.agregadorImovel.create({
     data: {
       titulo: data.titulo,
@@ -41,6 +46,8 @@ export async function criarAgregadorImovel(data: {
 }
 
 export async function importarParaCatalogo(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const ag = await prisma.agregadorImovel.findUnique({ where: { id } });
   if (!ag) return { error: "Imóvel não encontrado" };
 

@@ -1,10 +1,13 @@
 "use server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarImovel(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const titulo = formData.get("titulo") as string;
   const tipo = formData.get("tipo") as string;
   const status = formData.get("status") as string;
@@ -65,6 +68,8 @@ export async function criarImovel(formData: FormData) {
 }
 
 export async function editarImovel(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   const titulo = formData.get("titulo") as string;
   const tipo = formData.get("tipo") as string;
@@ -102,6 +107,8 @@ export async function editarImovel(formData: FormData) {
 }
 
 export async function excluirImovel(id: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   await prisma.imovel.delete({ where: { id } });
   revalidatePath("/admin/imoveis");
 }

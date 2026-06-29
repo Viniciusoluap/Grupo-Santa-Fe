@@ -1,12 +1,16 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 
 // iOS Safari fallback: after progress=100% the SDK completion callback sometimes hangs.
 // Client calls GET with the known blob path to retrieve the URL directly from storage.
 export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const path = request.nextUrl.searchParams.get("path");
   if (!path || !path.startsWith("docs-avaliacao/")) {
     return NextResponse.json({ error: "invalid path" }, { status: 400 });
@@ -22,6 +26,9 @@ export async function GET(request: NextRequest) {
 
 // Token generation for client-side Vercel Blob upload
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const body = (await request.json()) as HandleUploadBody;
 
   try {

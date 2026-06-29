@@ -1,9 +1,12 @@
 "use server";
+import { auth } from "@/auth";
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function criarLancamento(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const data = formData.get("data") as string;
   const competencia = data.slice(0, 7); // "YYYY-MM"
 
@@ -28,6 +31,8 @@ export async function criarLancamento(formData: FormData) {
 }
 
 export async function atualizarStatusLancamento(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
 
