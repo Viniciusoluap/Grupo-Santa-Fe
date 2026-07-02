@@ -45,3 +45,22 @@ export async function getPortalFinanciamentos(leadId: string) {
     orderBy: { criadoEm: "desc" },
   });
 }
+
+export async function getPortalDocumentos(leadId: string) {
+  return prisma.contrato.findMany({
+    where: { leadId },
+    orderBy: { criadoEm: "desc" },
+    select: {
+      id: true,
+      numero: true,
+      tipo: true,
+      status: true,
+      assinaturaStatus: true,
+      criadoEm: true,
+      documentos: {
+        orderBy: { criadoEm: "desc" },
+        select: { id: true, nome: true, url: true, tipo: true, criadoEm: true },
+      },
+    },
+  });
+}
