@@ -9,9 +9,15 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Use DIRECT_URL for migrations to bypass PgBouncer (port 6543 transaction pooler
-    // does not support advisory locks required by prisma migrate deploy).
-    // Falls back to DATABASE_URL if DIRECT_URL is not set.
-    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
+    // Migrations need a DIRECT (non-pooled) connection — o pooler transacional
+    // (PgBouncer) não suporta os advisory locks do `prisma migrate deploy`.
+    // Ordem de preferência:
+    //   1. DIRECT_URL (config manual, se existir)
+    //   2. POSTGRES_URL_NON_POOLING (injetada pela integração Supabase↔Vercel)
+    //   3. DATABASE_URL (fallback)
+    url:
+      process.env["DIRECT_URL"] ??
+      process.env["POSTGRES_URL_NON_POOLING"] ??
+      process.env["DATABASE_URL"],
   },
 });
