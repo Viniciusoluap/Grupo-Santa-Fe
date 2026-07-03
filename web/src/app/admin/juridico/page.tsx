@@ -173,6 +173,7 @@ export default async function JuridicoPage({
                             <ContratoAcoes
                               contratoId={c.id}
                               pdfUrl={pdfDoc?.url}
+                              assinaturaStatus={c.assinaturaStatus}
                             />
                           </td>
                         </tr>
