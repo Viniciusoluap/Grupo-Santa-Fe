@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { FileText, MessageSquare, Download } from "lucide-react";
 import { getPortalDocumentos } from "@/lib/data/portal-real";
 import { BackButton } from "@/components/ui/back-button";
+import { AssinaturaGovBr } from "./_components/assinatura-govbr";
 
 const TIPO_DOC: Record<string, string> = {
   contrato_gerado: "Contrato",
@@ -57,6 +58,7 @@ export default async function PortalDocumentosPage() {
         <div className="space-y-4">
           {contratos.filter((c) => c.documentos.length > 0).map((contrato) => {
             const badge = ASSINATURA_BADGE[contrato.assinaturaStatus] ?? ASSINATURA_BADGE.pendente;
+            const pdfGerado = contrato.documentos.find((d) => d.tipo === "contrato_gerado");
             return (
               <div key={contrato.id} className="bg-white border border-gray-100">
                 <div className="flex items-center justify-between gap-3 flex-wrap px-5 py-3 border-b border-gray-50">
@@ -92,6 +94,13 @@ export default async function PortalDocumentosPage() {
                     </div>
                   ))}
                 </div>
+                {contrato.assinaturaStatus === "solicitado" && pdfGerado && (
+                  <AssinaturaGovBr
+                    contratoId={contrato.id}
+                    numero={contrato.numero}
+                    pdfUrl={pdfGerado.url}
+                  />
+                )}
               </div>
             );
           })}
