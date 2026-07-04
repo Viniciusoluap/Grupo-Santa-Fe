@@ -160,6 +160,27 @@ export async function salvarMercado(
   return { ok: true };
 }
 
+/** Salva os cenários de massa, o escolhido e (opcional) o mix derivado para o EVE. */
+export async function salvarMassa(
+  estudoId: string,
+  payload: unknown,
+  cenarioEscolhidoId?: string | null,
+  mix?: unknown
+) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: {
+      massaCenariosJson: JSON.stringify(payload),
+      cenarioEscolhidoId: cenarioEscolhidoId ?? undefined,
+      mixJson: mix ? JSON.stringify(mix) : undefined,
+    },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Anexa a URL de um relatório PDF gerado. */
 export async function anexarRelatorio(estudoId: string, url: string) {
   const session = await auth();

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { MapPinned, Mountain, Landmark, TrendingUp, Calculator, FileText } from "lucide-react";
+import { MapPinned, Mountain, Landmark, TrendingUp, Grid3x3, Calculator, FileText } from "lucide-react";
 import { TerrenoTab } from "./terreno-tab";
 import { TopografiaTab } from "./topografia-tab";
 import { UrbanisticoTab } from "./urbanistico-tab";
 import { MercadoTab } from "./mercado-tab";
+import { MassaTab } from "./massa-tab";
 import { ViabilidadeTab } from "./viabilidade-tab";
 import { RelatorioTab } from "./relatorio-tab";
 
@@ -28,6 +29,9 @@ export interface EstudoData {
   urbanismoParecer: string | null;
   pesquisaCidadeJson: string | null;
   estudoMercadoJson: string | null;
+  massaCenariosJson: string | null;
+  cenarioEscolhidoId: string | null;
+  mixJson: string | null;
   viabilidadeJson: string | null;
   parecerIa: string | null;
   relatorios: string;
@@ -38,6 +42,7 @@ const TABS = [
   { id: "topografia", label: "Topografia 3D", icon: Mountain },
   { id: "urbanistico", label: "Urbanístico", icon: Landmark },
   { id: "mercado", label: "Cidade & Mercado", icon: TrendingUp },
+  { id: "massa", label: "Estudo de Massa", icon: Grid3x3 },
   { id: "viabilidade", label: "Viabilidade (EVE)", icon: Calculator },
   { id: "relatorio", label: "Relatório", icon: FileText },
 ] as const;
@@ -79,6 +84,7 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
         {tab === "topografia" && <TopografiaTab estudo={estudo} />}
         {tab === "urbanistico" && <UrbanisticoTab estudo={estudo} />}
         {tab === "mercado" && <MercadoTab estudo={estudo} />}
+        {tab === "massa" && <MassaTab estudo={estudo} />}
         {tab === "viabilidade" && <ViabilidadeTab estudo={estudo} />}
         {tab === "relatorio" && <RelatorioTab estudo={estudo} />}
       </div>
