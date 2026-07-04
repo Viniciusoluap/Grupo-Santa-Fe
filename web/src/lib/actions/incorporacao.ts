@@ -123,6 +123,43 @@ export async function salvarViabilidade(
   return { ok: true };
 }
 
+/** Salva parâmetros urbanísticos + potencial construtivo + parecer. */
+export async function salvarUrbanistico(
+  estudoId: string,
+  payload: { parametros: unknown; potencial: unknown; parecer?: string }
+) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: {
+      parametrosJson: JSON.stringify(payload.parametros),
+      potencialJson: JSON.stringify(payload.potencial),
+      urbanismoParecer: payload.parecer ?? undefined,
+    },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
+/** Salva pesquisa da cidade + estudo de mercado. */
+export async function salvarMercado(
+  estudoId: string,
+  payload: { pesquisaCidade: unknown; estudoMercado: unknown }
+) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: {
+      pesquisaCidadeJson: JSON.stringify(payload.pesquisaCidade),
+      estudoMercadoJson: JSON.stringify(payload.estudoMercado),
+    },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Anexa a URL de um relatório PDF gerado. */
 export async function anexarRelatorio(estudoId: string, url: string) {
   const session = await auth();
