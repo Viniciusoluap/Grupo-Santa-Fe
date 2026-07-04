@@ -12,8 +12,10 @@ const num = (v: FormDataEntryValue | null) => parseFloat((v as string) || "0") |
 
 export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const salvo = estudo.viabilidadeJson ? JSON.parse(estudo.viabilidadeJson) : null;
+  // Mix inicial: viabilidade salva > mix vindo do estudo de massa > default.
+  const mixDoEstudoDeMassa: UnidadeMix[] | null = estudo.mixJson ? JSON.parse(estudo.mixJson) : null;
   const [mix, setMix] = useState<UnidadeMix[]>(
-    salvo?.inputs?.mix ?? [{ nome: "Lote padrão", quantidade: 100, areaUnidadeM2: 300, precoM2: 500 }]
+    salvo?.inputs?.mix ?? mixDoEstudoDeMassa ?? [{ nome: "Lote padrão", quantidade: 100, areaUnidadeM2: 300, precoM2: 500 }]
   );
   const [resultado, setResultado] = useState<EveResultado | null>(salvo?.resultado ?? null);
   const [tipoTerreno, setTipoTerreno] = useState<TipoTerreno>(salvo?.inputs?.terreno?.tipo ?? "compra");
