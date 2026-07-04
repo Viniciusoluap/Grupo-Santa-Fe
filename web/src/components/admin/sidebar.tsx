@@ -26,6 +26,7 @@ import {
   Briefcase,
   ClipboardList,
   BookOpen,
+  Mountain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +118,12 @@ const navItems = [
     label: "Jurídico",
     href: "/admin/juridico",
     icon: Scale,
+    adminOnly: true,
+  },
+  {
+    label: "Incorporação",
+    href: "/admin/incorporacao",
+    icon: Mountain,
     adminOnly: true,
   },
   {
