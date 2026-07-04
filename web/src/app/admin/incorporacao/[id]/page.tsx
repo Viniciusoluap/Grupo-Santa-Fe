@@ -1,0 +1,50 @@
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
+import { prisma } from "@/lib/db";
+import { BackButton } from "@/components/ui/back-button";
+import { IncorporacaoDetail } from "../_components/incorporacao-detail";
+
+export default async function EstudoDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
+  const { id } = await params;
+  const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id } });
+  if (!estudo) notFound();
+
+  // Serializa apenas os campos usados no client (evita passar Date cru sem controle).
+  const data = {
+    id: estudo.id,
+    nome: estudo.nome,
+    municipio: estudo.municipio,
+    estado: estudo.estado,
+    status: estudo.status,
+    kmlUrl: estudo.kmlUrl,
+    geojson: estudo.geojson,
+    areaM2: estudo.areaM2,
+    perimetroM: estudo.perimetroM,
+    centroLat: estudo.centroLat,
+    centroLng: estudo.centroLng,
+    elevacaoJson: estudo.elevacaoJson,
+    levantamentoUrl: estudo.levantamentoUrl,
+    viabilidadeJson: estudo.viabilidadeJson,
+    parecerIa: estudo.parecerIa,
+    relatorios: estudo.relatorios,
+  };
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <BackButton className="mb-1" />
+        <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">{estudo.nome}</h1>
+        <p className="text-gray-400 text-sm mt-0.5">{estudo.municipio}/{estudo.estado}</p>
+      </div>
+      <IncorporacaoDetail estudo={data} />
+    </div>
+  );
+}

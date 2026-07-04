@@ -50,6 +50,7 @@ model Imovel {
   contratos       Contrato[]
   visitas         Visita[]
   financiamentos  Financiamento[] @relation("FinanciamentoImovel")
+  estudosIncorp   EstudoIncorporacao[]
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
 
@@ -641,4 +642,60 @@ model Notificacao {
 
   @@index([usuarioId, lida])
   @@map("notificacoes")
+}
+
+// ─── INCORPORAÇÃO (estudos de viabilidade / massa / topografia / urbanístico) ──
+
+model EstudoIncorporacao {
+  id            String   @id @default(cuid())
+  nome          String
+  municipio     String
+  estado        String   @default("PA")
+  responsavel   String?
+  status        String   @default("rascunho") // rascunho | em_estudo | concluido
+
+  // Terreno / geometria
+  imovelId      String?
+  imovel        Imovel?  @relation(fields: [imovelId], references: [id], onDelete: SetNull)
+  kmlUrl        String?
+  geojson       String?  // Feature<Polygon> serializado
+  areaM2        Float    @default(0)
+  perimetroM    Float    @default(0)
+  centroLat     Float?
+  centroLng     Float?
+
+  // Topografia
+  elevacaoJson  String?  // grid de elevações amostrado
+  levantamentoUrl String?
+  corteAterroJson String?
+
+  // Urbanístico (Fase 2)
+  parametrosJson String?
+  potencialJson  String?
+  urbanismoParecer String?
+
+  // Mercado (Fase 2)
+  pesquisaCidadeJson String?
+  estudoMercadoJson  String?
+
+  // Massa generativo (Fase 3)
+  massaCenariosJson String?
+  cenarioEscolhidoId String?
+
+  // Mix de produtos (Fase 3)
+  mixJson       String?
+
+  // Viabilidade econômica (EVE — Fase 1)
+  viabilidadeJson String?
+  cronogramaJson  String?
+  parecerIa       String?
+
+  // Relatórios gerados (URLs de PDF)
+  relatorios    String   @default("[]")
+
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([status])
+  @@map("estudos_incorporacao")
 }
