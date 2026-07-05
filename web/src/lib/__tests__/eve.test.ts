@@ -7,6 +7,7 @@ import {
   tir,
   payback,
   calcularEve,
+  analiseSensibilidade,
   type EveInput,
   type UnidadeMix,
 } from "@/lib/finance/eve";
@@ -112,5 +113,31 @@ describe("calcularEve (integração)", () => {
   it("soma das receitas do fluxo aproxima o VGV (com indexação, ≥ VGV)", () => {
     const totalReceitas = r.fluxo.reduce((s, f) => s + f.receitas, 0);
     expect(totalReceitas).toBeGreaterThan(r.vgv * 0.99);
+  });
+
+  describe("analiseSensibilidade", () => {
+    const sens = analiseSensibilidade(input, [-0.1, 0.1]);
+
+    it("gera 6 cenários (3 variáveis × 2 deltas)", () => {
+      expect(sens.length).toBe(6);
+    });
+    it("preço +10% aumenta VGV e margem; -10% reduz", () => {
+      const mais = sens.find((s) => s.variavel === "preco" && s.delta === 0.1)!;
+      const menos = sens.find((s) => s.variavel === "preco" && s.delta === -0.1)!;
+      expect(mais.vgv).toBeGreaterThan(r.vgv);
+      expect(menos.vgv).toBeLessThan(r.vgv);
+      expect(mais.margemLiquida).toBeGreaterThan(r.margemLiquida);
+      expect(menos.margemLiquida).toBeLessThan(r.margemLiquida);
+    });
+    it("custo +10% reduz a margem; -10% aumenta", () => {
+      const mais = sens.find((s) => s.variavel === "custo" && s.delta === 0.1)!;
+      const menos = sens.find((s) => s.variavel === "custo" && s.delta === -0.1)!;
+      expect(mais.margemLiquida).toBeLessThan(r.margemLiquida);
+      expect(menos.margemLiquida).toBeGreaterThan(r.margemLiquida);
+    });
+    it("VGV não muda com velocidade de vendas (só o fluxo)", () => {
+      const v = sens.find((s) => s.variavel === "velocidade_vendas" && s.delta === 0.1)!;
+      expect(v.vgv).toBe(r.vgv);
+    });
   });
 });

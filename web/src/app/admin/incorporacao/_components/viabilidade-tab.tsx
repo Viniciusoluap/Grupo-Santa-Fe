@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2, Calculator, Sparkles, Loader2, Save } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { calcularEve, type EveInput, type EveResultado, type UnidadeMix, type TipoTerreno } from "@/lib/finance/eve";
+import { calcularEve, analiseSensibilidade, type EveInput, type EveResultado, type UnidadeMix, type TipoTerreno, type CenarioSensibilidade } from "@/lib/finance/eve";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
 
@@ -22,6 +22,9 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const [parecer, setParecer] = useState<string | null>(estudo.parecerIa);
   const [busy, setBusy] = useState(false);
   const [ultimoInput, setUltimoInput] = useState<EveInput | null>(salvo?.inputs ?? null);
+  const [sensibilidade, setSensibilidade] = useState<CenarioSensibilidade[]>(
+    salvo?.inputs ? analiseSensibilidade(salvo.inputs) : []
+  );
 
   function addProduto() {
     setMix([...mix, { nome: "Novo produto", quantidade: 0, areaUnidadeM2: 0, precoM2: 0 }]);
@@ -61,6 +64,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
     };
     setUltimoInput(input);
     setResultado(calcularEve(input));
+    setSensibilidade(analiseSensibilidade(input));
     setParecer(null);
   }
 
@@ -194,6 +198,36 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+
+          {sensibilidade.length > 0 && (
+            <div className="bg-white border border-gray-100 p-5 overflow-x-auto">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Análise de sensibilidade</p>
+              <table className="w-full text-xs min-w-[480px]">
+                <thead>
+                  <tr className="text-left text-gray-400 uppercase text-[10px] tracking-widest">
+                    <th className="py-1.5 pr-3">Cenário</th>
+                    <th className="py-1.5 pr-3">VGV</th>
+                    <th className="py-1.5 pr-3">Margem</th>
+                    <th className="py-1.5 pr-3">VPL</th>
+                    <th className="py-1.5">TIR (a.m.)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {sensibilidade.map((s, i) => (
+                    <tr key={i}>
+                      <td className="py-1.5 pr-3 font-bold text-[var(--brand-dark)]">{s.rotulo}</td>
+                      <td className="py-1.5 pr-3">{formatCurrency(s.vgv)}</td>
+                      <td className={`py-1.5 pr-3 font-bold ${s.margemLiquida >= (resultado?.margemLiquida ?? 0) ? "text-green-600" : "text-red-500"}`}>
+                        {(s.margemLiquida * 100).toFixed(1)}%
+                      </td>
+                      <td className="py-1.5 pr-3">{formatCurrency(s.vpl)}</td>
+                      <td className="py-1.5">{s.tir != null ? `${(s.tir * 100).toFixed(2)}%` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="flex gap-2 flex-wrap">
             <button onClick={gerarParecer} disabled={busy}

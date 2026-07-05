@@ -294,3 +294,72 @@ export function calcularEve(input: EveInput): EveResultado {
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+// ─── Análise de sensibilidade ────────────────────────────────────────────────
+
+export interface CenarioSensibilidade {
+  variavel: "preco" | "custo" | "velocidade_vendas";
+  rotulo: string;
+  delta: number; // ex.: -0.1 = -10%
+  vgv: number;
+  margemLiquida: number;
+  vpl: number;
+  tir: number | null;
+}
+
+/**
+ * Recalcula o EVE variando preço de venda, custo de obra e velocidade de
+ * vendas (± delta), para medir a robustez do resultado. Metodologia clássica
+ * de stress test do EVE.
+ */
+export function analiseSensibilidade(
+  input: EveInput,
+  deltas: number[] = [-0.1, 0.1]
+): CenarioSensibilidade[] {
+  const out: CenarioSensibilidade[] = [];
+
+  for (const d of deltas) {
+    // Preço de venda ±d
+    const precoInput: EveInput = {
+      ...input,
+      mix: input.mix.map((u) => ({ ...u, precoM2: u.precoM2 * (1 + d) })),
+    };
+    const rp = calcularEve(precoInput);
+    out.push({
+      variavel: "preco", delta: d,
+      rotulo: `Preço ${d > 0 ? "+" : ""}${Math.round(d * 100)}%`,
+      vgv: rp.vgv, margemLiquida: rp.margemLiquida, vpl: rp.vpl, tir: rp.tir,
+    });
+
+    // Custo de obra ±d (diretos e indiretos)
+    const custoInput: EveInput = {
+      ...input,
+      custos: {
+        ...input.custos,
+        custoObraM2: input.custos.custoObraM2 * (1 + d),
+        indiretosPercentualVgv: input.custos.indiretosPercentualVgv * (1 + d),
+      },
+    };
+    const rc = calcularEve(custoInput);
+    out.push({
+      variavel: "custo", delta: d,
+      rotulo: `Custo ${d > 0 ? "+" : ""}${Math.round(d * 100)}%`,
+      vgv: rc.vgv, margemLiquida: rc.margemLiquida, vpl: rc.vpl, tir: rc.tir,
+    });
+
+    // Velocidade de vendas ±d (delta positivo = vende mais rápido = menos meses)
+    const mesesAjustados = Math.max(1, Math.round(input.cronograma.mesesVendas / (1 + d)));
+    const vendasInput: EveInput = {
+      ...input,
+      cronograma: { ...input.cronograma, mesesVendas: mesesAjustados },
+    };
+    const rv = calcularEve(vendasInput);
+    out.push({
+      variavel: "velocidade_vendas", delta: d,
+      rotulo: `Vendas ${d > 0 ? "+" : ""}${Math.round(d * 100)}% velocidade`,
+      vgv: rv.vgv, margemLiquida: rv.margemLiquida, vpl: rv.vpl, tir: rv.tir,
+    });
+  }
+
+  return out;
+}
