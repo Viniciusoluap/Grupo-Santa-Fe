@@ -2,7 +2,7 @@
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
-import { put } from "@vercel/blob";
+import { uploadPublico } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
@@ -52,15 +52,18 @@ export async function uploadKml(estudoId: string, formData: FormData) {
     return { error: e instanceof Error ? e.message : "KML inválido." };
   }
 
-  const blob = await put(`incorporacao/${estudoId}/terreno-${Date.now()}.kml`, text, {
-    access: "public",
-    contentType: "application/vnd.google-earth.kml+xml",
-  });
+  // O arquivo KML bruto é opcional — a geometria já foi extraída e é persistida
+  // abaixo. O upload é best-effort: se o Blob falhar, o estudo funciona mesmo assim.
+  const blob = await uploadPublico(
+    `incorporacao/${estudoId}/terreno-${Date.now()}.kml`,
+    text,
+    "application/vnd.google-earth.kml+xml"
+  );
 
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: {
-      kmlUrl: blob.url,
+      kmlUrl: blob.url ?? undefined,
       geojson: JSON.stringify(terreno.feature),
       areaM2: terreno.areaM2,
       perimetroM: terreno.perimetroM,
@@ -92,9 +95,8 @@ export async function uploadLevantamento(estudoId: string, formData: FormData) {
   requireActionRole(session, "admin");
   const file = formData.get("arquivo") as File | null;
   if (!file || file.size === 0) return { error: "Selecione um arquivo." };
-  const blob = await put(`incorporacao/${estudoId}/levantamento-${Date.now()}-${file.name}`, file, {
-    access: "public",
-  });
+  const blob = await uploadPublico(`incorporacao/${estudoId}/levantamento-${Date.now()}-${file.name}`, file);
+  if (!blob.url) return { error: blob.erro };
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { levantamentoUrl: blob.url },

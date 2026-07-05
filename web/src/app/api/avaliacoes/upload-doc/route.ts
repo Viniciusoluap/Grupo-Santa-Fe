@@ -1,6 +1,6 @@
-import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { uploadPublico } from "@/lib/blob";
 
 export const runtime = "nodejs";
 
@@ -40,24 +40,12 @@ export async function POST(request: NextRequest) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const blob = await put(file.name, Buffer.from(arrayBuffer), {
-      access: "public",
-      contentType: file.type,
-    });
+    const blob = await uploadPublico(file.name, Buffer.from(arrayBuffer), file.type);
+    if (!blob.url) return NextResponse.json({ error: blob.erro }, { status: 500 });
 
     return NextResponse.json({ url: blob.url });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (
-      message.includes("BLOB_READ_WRITE_TOKEN") ||
-      message.toLowerCase().includes("token") ||
-      message.includes("Unauthorized")
-    ) {
-      return NextResponse.json(
-        { error: "Blob Storage não configurado. Adicione BLOB_READ_WRITE_TOKEN nas variáveis de ambiente do Vercel." },
-        { status: 500 }
-      );
-    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
