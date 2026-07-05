@@ -651,6 +651,9 @@ model EstudoIncorporacao {
   nome          String
   municipio     String
   estado        String   @default("PA")
+  endereco      String?  // endereço/logradouro (opcional)
+  latitude      Float?   // localização exata (Google Maps)
+  longitude     Float?
   responsavel   String?
   status        String   @default("rascunho") // rascunho | em_estudo | concluido
 
@@ -698,4 +701,17 @@ model EstudoIncorporacao {
 
   @@index([status])
   @@map("estudos_incorporacao")
+}
+
+// ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────
+
+model Arquivo {
+  id        String   @id @default(cuid())
+  nome      String
+  mime      String   @default("application/octet-stream")
+  tamanho   Int      @default(0)
+  dados     Bytes
+  criadoEm  DateTime @default(now())
+
+  @@map("arquivos")
 }

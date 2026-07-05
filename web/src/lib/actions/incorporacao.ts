@@ -6,7 +6,25 @@ import { uploadPublico } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
+import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
 import type { EveResultado } from "@/lib/finance/eve";
+
+// Lê os campos de localização do formulário. Aceita um link do Google Maps (ou
+// um par "lat,lng" colado) e extrai as coordenadas exatas quando possível.
+function lerLocalizacao(formData: FormData): {
+  endereco: string | null;
+  latitude: number | null;
+  longitude: number | null;
+} {
+  const endereco = (formData.get("endereco") as string)?.trim() || null;
+  const localizacao = (formData.get("localizacao") as string)?.trim() || "";
+  const coords = localizacao ? parseGoogleMapsLatLng(localizacao) : null;
+  return {
+    endereco,
+    latitude: coords?.latitude ?? null,
+    longitude: coords?.longitude ?? null,
+  };
+}
 
 export async function criarEstudo(formData: FormData) {
   const session = await auth();
@@ -16,16 +34,41 @@ export async function criarEstudo(formData: FormData) {
   const municipio = (formData.get("municipio") as string)?.trim();
   const estado = ((formData.get("estado") as string) || "PA").trim();
   const responsavel = (formData.get("responsavel") as string)?.trim() || null;
+  const { endereco, latitude, longitude } = lerLocalizacao(formData);
 
   // Campos obrigatórios são enforçados no HTML (required); guarda defensiva.
   if (!nome || !municipio) redirect("/admin/incorporacao/novo");
 
   const estudo = await prisma.estudoIncorporacao.create({
-    data: { nome, municipio, estado, responsavel, status: "rascunho" },
+    data: { nome, municipio, estado, responsavel, endereco, latitude, longitude, status: "rascunho" },
   });
 
   revalidatePath("/admin/incorporacao");
   redirect(`/admin/incorporacao/${estudo.id}`);
+}
+
+/** Edita os dados de identificação/localização de um estudo. */
+export async function editarEstudo(formData: FormData) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+
+  const id = (formData.get("id") as string)?.trim();
+  const nome = (formData.get("nome") as string)?.trim();
+  const municipio = (formData.get("municipio") as string)?.trim();
+  const estado = ((formData.get("estado") as string) || "PA").trim();
+  const responsavel = (formData.get("responsavel") as string)?.trim() || null;
+  const { endereco, latitude, longitude } = lerLocalizacao(formData);
+
+  if (!id || !nome || !municipio) redirect(`/admin/incorporacao/${id}/editar`);
+
+  await prisma.estudoIncorporacao.update({
+    where: { id },
+    data: { nome, municipio, estado, responsavel, endereco, latitude, longitude },
+  });
+
+  revalidatePath("/admin/incorporacao");
+  revalidatePath(`/admin/incorporacao/${id}`);
+  redirect(`/admin/incorporacao/${id}`);
 }
 
 export async function excluirEstudo(id: string) {
