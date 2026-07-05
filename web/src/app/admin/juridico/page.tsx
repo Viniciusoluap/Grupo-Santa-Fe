@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { JuridicoNovoContrato } from "./_components/juridico-novo-contrato";
 import { ContratoAcoes } from "./_components/contrato-acoes";
+import { ContratoEditarExcluir } from "./_components/contrato-editar-excluir";
 import { ContratoDocumentos } from "./_components/contrato-documentos";
 import { ChatAdmin } from "./_components/chat-admin";
 
@@ -170,11 +171,31 @@ export default async function JuridicoPage({
                             </span>
                           </td>
                           <td className="px-3 py-3">
-                            <ContratoAcoes
-                              contratoId={c.id}
-                              pdfUrl={pdfDoc?.url}
-                              assinaturaStatus={c.assinaturaStatus}
-                            />
+                            <div className="flex flex-col gap-1.5">
+                              <ContratoAcoes
+                                contratoId={c.id}
+                                pdfUrl={pdfDoc?.url}
+                                assinaturaStatus={c.assinaturaStatus}
+                              />
+                              <ContratoEditarExcluir
+                                contrato={{
+                                  id: c.id,
+                                  numero: c.numero,
+                                  tipo: c.tipo,
+                                  parteA: c.parteA,
+                                  parteADoc: c.parteADoc,
+                                  parteB: c.parteB,
+                                  parteBDoc: c.parteBDoc,
+                                  valor: c.valor,
+                                  descricao: c.descricao,
+                                  clausulas: c.clausulas,
+                                  status: c.status,
+                                  vencimento: c.vencimento
+                                    ? new Date(c.vencimento).toISOString().slice(0, 10)
+                                    : null,
+                                }}
+                              />
+                            </div>
                           </td>
                         </tr>
                       );

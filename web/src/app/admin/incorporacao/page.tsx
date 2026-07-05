@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
+import { EstudoAcoes } from "./_components/estudo-acoes";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   rascunho:  { label: "Rascunho",  cls: "bg-gray-100 text-gray-500" },
@@ -64,31 +65,35 @@ export default async function IncorporacaoPage() {
               try { vgv = JSON.parse(e.viabilidadeJson)?.resultado?.vgv ?? 0; } catch {}
             }
             return (
-              <Link
+              <div
                 key={e.id}
-                href={`/admin/incorporacao/${e.id}`}
-                className="bg-white border border-gray-100 p-4 hover:border-[var(--brand-yellow)] transition-colors block"
+                className="bg-white border border-gray-100 p-4 hover:border-[var(--brand-yellow)] transition-colors flex flex-col"
               >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="font-bold text-[var(--brand-dark)] truncate">{e.nome}</p>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide shrink-0 ${badge.cls}`}>
-                    {badge.label}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-400 flex items-center gap-1 mb-3">
-                  <MapPin size={12} /> {e.municipio}/{e.estado}
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <p className="text-gray-400">Área</p>
-                    <p className="font-black text-[var(--brand-dark)]">{e.areaM2 > 0 ? hectares(e.areaM2) : "—"}</p>
+                <Link href={`/admin/incorporacao/${e.id}`} className="block">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="font-bold text-[var(--brand-dark)] truncate">{e.nome}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide shrink-0 ${badge.cls}`}>
+                      {badge.label}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-gray-400">VGV</p>
-                    <p className="font-black text-[var(--brand-dark)]">{vgv > 0 ? formatCurrency(vgv) : "—"}</p>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 mb-3">
+                    <MapPin size={12} /> {e.municipio}/{e.estado}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-gray-400">Área</p>
+                      <p className="font-black text-[var(--brand-dark)]">{e.areaM2 > 0 ? hectares(e.areaM2) : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">VGV</p>
+                      <p className="font-black text-[var(--brand-dark)]">{vgv > 0 ? formatCurrency(vgv) : "—"}</p>
+                    </div>
                   </div>
+                </Link>
+                <div className="flex justify-end mt-3 pt-3 border-t border-gray-50">
+                  <EstudoAcoes estudoId={e.id} nome={e.nome} />
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

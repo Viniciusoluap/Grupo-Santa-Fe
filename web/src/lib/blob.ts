@@ -1,36 +1,73 @@
-import { put } from "@vercel/blob";
+import { prisma } from "@/lib/db";
 
-// Wrapper resiliente para o Vercel Blob.
+// Armazenamento de arquivos NO PRÓPRIO BANCO (tabela "arquivos").
 //
-// Problema real observado em produção: se o Blob Store conectado ao projeto for
-// configurado como PRIVADO, chamar put() com access:"public" lança
-// "Cannot use public access on a private store" e derruba a Server Action com
-// erro 500 ("This page couldn't load"). Este wrapper NUNCA lança — devolve
-// { url: null, erro } para o chamador decidir se a falha é fatal ou best-effort.
+// Decisão de arquitetura (regra do projeto: automação primeiro): não dependemos
+// do Vercel Blob nem de nenhum store externo configurado manualmente. Os bytes
+// são gravados no Postgres e servidos por uma rota autenticada (/api/arquivo/[id]).
+// Isso funciona em qualquer deploy, sem nenhuma configuração na Vercel.
+//
+// A assinatura é mantida compatível com o wrapper anterior (uploadPublico) para
+// não quebrar os chamadores existentes (juridico, incorporacao).
 
 export interface UploadResult {
   url: string | null;
   erro?: string;
 }
 
+async function paraBuffer(
+  body: string | Buffer | Blob | ArrayBuffer | File
+): Promise<Buffer> {
+  if (typeof body === "string") return Buffer.from(body, "utf-8");
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof ArrayBuffer) return Buffer.from(body);
+  // Blob | File (têm arrayBuffer())
+  const ab = await (body as Blob).arrayBuffer();
+  return Buffer.from(ab);
+}
+
+function nomeDoPath(pathname: string): string {
+  const partes = pathname.split("/");
+  return partes[partes.length - 1] || "arquivo";
+}
+
+function mimePorExtensao(nome: string, contentType?: string): string {
+  if (contentType) return contentType;
+  const ext = nome.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "pdf": return "application/pdf";
+    case "kml": return "application/vnd.google-earth.kml+xml";
+    case "csv": return "text/csv";
+    case "png": return "image/png";
+    case "jpg":
+    case "jpeg": return "image/jpeg";
+    default: return "application/octet-stream";
+  }
+}
+
+/**
+ * Salva um arquivo no banco e devolve a URL interna de download.
+ * Nunca lança: em caso de falha devolve { url: null, erro }.
+ */
 export async function uploadPublico(
   pathname: string,
   body: string | Buffer | Blob | ArrayBuffer | File,
   contentType?: string
 ): Promise<UploadResult> {
   try {
-    const blob = await put(pathname, body, {
-      access: "public",
-      contentType,
-      addRandomSuffix: false,
+    const buffer = await paraBuffer(body);
+    const nome = nomeDoPath(pathname);
+    const mime = mimePorExtensao(nome, contentType);
+    // Prisma Bytes espera Uint8Array com ArrayBuffer próprio (não SharedArrayBuffer).
+    const dados = new Uint8Array(new ArrayBuffer(buffer.byteLength));
+    dados.set(buffer);
+    const arquivo = await prisma.arquivo.create({
+      data: { nome, mime, tamanho: buffer.length, dados },
+      select: { id: true },
     });
-    return { url: blob.url };
+    return { url: `/api/arquivo/${arquivo.id}` };
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    // Mensagem amigável para o caso mais comum (store privado / sem token).
-    const amigavel = /private store|No token found|BLOB_READ_WRITE_TOKEN/i.test(raw)
-      ? "Armazenamento de arquivos (Vercel Blob) indisponível: conecte um Blob Store PÚBLICO ao projeto na Vercel."
-      : `Falha ao salvar arquivo: ${raw}`;
-    return { url: null, erro: amigavel };
+    return { url: null, erro: `Falha ao salvar arquivo: ${raw}` };
   }
 }
