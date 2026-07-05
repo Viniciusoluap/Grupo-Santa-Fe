@@ -64,4 +64,38 @@ describe("parseKmlTerreno", () => {
     const kmlSemPoligono = `<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><Point><coordinates>-49.87,-6.5,0</coordinates></Point></Placemark></Document></kml>`;
     expect(() => parseKmlTerreno(kmlSemPoligono)).toThrow();
   });
+
+  it("extrai polígono de um KML estilo Google Earth (Document > Folder, tessellate, altitude, quebras de linha)", () => {
+    const kmlGoogleEarth = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+  <Document>
+    <name>Gleba.kml</name>
+    <Folder>
+      <name>Terrenos</name>
+      <Placemark>
+        <name>Gleba 1</name>
+        <styleUrl>#poly</styleUrl>
+        <Polygon>
+          <tessellate>1</tessellate>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+                -49.8790,-6.5000,0
+                -49.8780,-6.5000,0
+                -49.8780,-6.4990,0
+                -49.8790,-6.4990,0
+                -49.8790,-6.5000,0
+              </coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>`;
+    const t = parseKmlTerreno(kmlGoogleEarth);
+    expect(t.areaM2).toBeGreaterThan(10_000);
+    expect(t.areaM2).toBeLessThan(14_000);
+    expect(t.centro[1]).toBeLessThan(-6.498);
+  });
 });

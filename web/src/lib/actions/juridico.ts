@@ -2,7 +2,7 @@
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
-import { put } from "@vercel/blob";
+import { uploadPublico } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 import { jsPDF } from "jspdf";
 
@@ -127,10 +127,8 @@ export async function gerarPdfContrato(contratoId: string) {
   doc.text("Grupo Santa Fé — gruposantafe.com.br — (94) 99304-4689", pw / 2, fh - 4, { align: "center" });
 
   const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-  const blob = await put(`contratos/${contrato.numero}-${Date.now()}.pdf`, pdfBuffer, {
-    access: "public",
-    contentType: "application/pdf",
-  });
+  const blob = await uploadPublico(`contratos/${contrato.numero}-${Date.now()}.pdf`, pdfBuffer, "application/pdf");
+  if (!blob.url) return { error: blob.erro };
 
   await prisma.$transaction([
     prisma.contratoDocumento.create({
@@ -159,10 +157,8 @@ export async function uploadContratoAssinado(contratoId: string, formData: FormD
   const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, select: { numero: true } });
   if (!contrato) throw new Error("Contrato não encontrado");
 
-  const blob = await put(`contratos/assinados/${contrato.numero}-${Date.now()}.pdf`, arquivo, {
-    access: "public",
-    contentType: "application/pdf",
-  });
+  const blob = await uploadPublico(`contratos/assinados/${contrato.numero}-${Date.now()}.pdf`, arquivo, "application/pdf");
+  if (!blob.url) return { error: blob.erro };
 
   await prisma.$transaction([
     prisma.contratoDocumento.create({
