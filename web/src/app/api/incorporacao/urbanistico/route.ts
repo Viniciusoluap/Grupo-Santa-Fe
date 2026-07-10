@@ -13,6 +13,16 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
+  // IA desativada por padrão — evita consumo de créditos e travamentos. O estudo
+  // urbanístico agora é calculado por fórmulas; a IA só roda se explicitamente
+  // habilitada (INCORPORACAO_IA_ATIVA=1).
+  if (process.env.INCORPORACAO_IA_ATIVA !== "1") {
+    return NextResponse.json(
+      { error: "IA desativada. Preencha os parâmetros urbanísticos manualmente — o cálculo é feito por fórmulas." },
+      { status: 503 }
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -41,7 +51,7 @@ Regras: taxaOcupacao e percentuais em fração (0..1); recuos/testada em metros;
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       max_tokens: 2048,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{ role: "user", content: prompt }],
