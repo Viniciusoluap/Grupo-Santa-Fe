@@ -4,6 +4,7 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { editarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
+import { SeletorLocalizacao } from "../../_components/seletor-localizacao";
 
 export default async function EditarEstudoPage({
   params,
@@ -16,12 +17,6 @@ export default async function EditarEstudoPage({
   const { id } = await params;
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id } });
   if (!estudo) notFound();
-
-  // Pré-preenche a localização com as coordenadas salvas (se houver).
-  const localizacao =
-    estudo.latitude != null && estudo.longitude != null
-      ? `${estudo.latitude}, ${estudo.longitude}`
-      : "";
 
   return (
     <div className="space-y-5 max-w-xl">
@@ -51,17 +46,15 @@ export default async function EditarEstudoPage({
           </div>
         </div>
         <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Endereço</label>
-          <input name="endereco" defaultValue={estudo.endereco ?? ""} placeholder="Ex.: Rodovia PA-275, Km 12 — Zona Rural"
-            className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Localização exata (Google Maps)</label>
-          <input name="localizacao" defaultValue={localizacao} placeholder="Cole o link do Google Maps ou as coordenadas: -6.4979, -49.8790"
-            className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
-          <p className="text-[10px] text-gray-400 mt-1">
-            No Google Maps, clique com o botão direito no local → &quot;Copiar coordenadas&quot;, ou use &quot;Compartilhar&quot; → &quot;Copiar link&quot;. Links encurtados (maps.app.goo.gl) não trazem as coordenadas — prefira colar o par lat, lng.
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Localização do terreno</label>
+          <p className="text-[10px] text-gray-400 mb-2">
+            Clique no mapa para marcar/ajustar o ponto — coordenadas e endereço são preenchidos automaticamente.
           </p>
+          <SeletorLocalizacao
+            latInicial={estudo.latitude}
+            lngInicial={estudo.longitude}
+            enderecoInicial={estudo.endereco ?? ""}
+          />
         </div>
         <div>
           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Responsável</label>

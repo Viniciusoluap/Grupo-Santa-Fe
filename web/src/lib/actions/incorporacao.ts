@@ -17,6 +17,17 @@ function lerLocalizacao(formData: FormData): {
   longitude: number | null;
 } {
   const endereco = (formData.get("endereco") as string)?.trim() || null;
+
+  // Preferência: lat/lng explícitos vindos do seletor de mapa (clique no ponto).
+  const latRaw = (formData.get("latitude") as string)?.trim();
+  const lngRaw = (formData.get("longitude") as string)?.trim();
+  const lat = latRaw ? Number(latRaw) : NaN;
+  const lng = lngRaw ? Number(lngRaw) : NaN;
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { endereco, latitude: lat, longitude: lng };
+  }
+
+  // Fallback: par colado / link do Google Maps no campo de texto.
   const localizacao = (formData.get("localizacao") as string)?.trim() || "";
   const coords = localizacao ? parseGoogleMapsLatLng(localizacao) : null;
   return {
