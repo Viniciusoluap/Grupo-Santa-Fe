@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Feature, Polygon, LineString } from "geojson";
 import {
   bbox as turfBbox, buffer as turfBuffer, lineString, polygon as turfPolygon,
-  intersect, difference, featureCollection,
+  intersect, difference, featureCollection, area as turfArea,
+  length as turfLength, polygonToLine,
 } from "@turf/turf";
 
 // Mapa do terreno com base de SATÉLITE colorida (Esri World Imagery, keyless) e
@@ -74,13 +75,26 @@ const CORES = {
   nascente: "#0ea5e9",
 };
 
-const APP_BUFFER_M = 30; // faixa de APP de 30 m ao longo dos cursos d'água (padrão APP hídrica)
+// Largura da APP hídrica conforme o Código Florestal (Lei 12.651/2012, Art. 4º, I),
+// em função da largura do curso d'água. Legislação municipal pode ser mais
+// restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — por isso
+// o usuário pode forçar uma largura no seletor.
+function larguraAppCodigoFlorestal(larguraRioM: number): number {
+  if (larguraRioM < 10) return 30;
+  if (larguraRioM < 50) return 50;
+  if (larguraRioM < 200) return 100;
+  if (larguraRioM < 600) return 200;
+  return 500;
+}
+
+type AppModo = "auto" | "30" | "50" | "100" | "200" | "500";
 
 export function MapaTerreno({ geojson, center, height = 420 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const [carregandoCamadas, setCarregandoCamadas] = useState(false);
   const [resumo, setResumo] = useState<{ agua: number; nascentes: number; rodovias: number; transmissao: number } | null>(null);
+  const [appModo, setAppModo] = useState<AppModo>("auto");
 
   useEffect(() => {
     let cancelled = false;
@@ -158,7 +172,7 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
         if (res.ok) {
           const data = (await res.json()) as { elements: OverpassElement[] };
           const contagem = { agua: 0, nascentes: 0, rodovias: 0, transmissao: 0 };
-          const linhasAgua: LineString[] = [];
+          const linhasAgua: { geom: LineString; tipo: string; larguraTag: number | null }[] = [];
           const aneisAgua: Ponto[][] = [];
 
           for (const el of data.elements) {
@@ -188,7 +202,11 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
               } else if (tags.waterway) {
                 L.polyline(latlngs, { color: CORES.agua, weight: 2.5 }).bindTooltip("Curso d'água").addTo(map);
                 contagem.agua++;
-                linhasAgua.push(lineString(el.geometry.map((g) => [g.lon, g.lat])).geometry);
+                linhasAgua.push({
+                  geom: lineString(el.geometry.map((g) => [g.lon, g.lat])).geometry,
+                  tipo: tags.waterway,
+                  larguraTag: tags.width ? parseFloat(tags.width) || null : null,
+                });
               } else if (tags.highway) {
                 L.polyline(latlngs, { color: CORES.rodovia, weight: 2, opacity: 0.8 }).bindTooltip("Via/Rodovia").addTo(map);
                 contagem.rodovias++;
@@ -200,7 +218,9 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
           }
 
           // Corpos d'água (polígonos): desenha a lâmina d'água e a faixa de APP
-          // medida a partir da MARGEM (buffer do polígono menos a própria água).
+          // medida a partir da MARGEM. Largura da APP: automática pelo Código
+          // Florestal (estimando a largura do rio por área/perímetro) ou forçada
+          // pelo usuário no seletor (ex.: 500 m — lei municipal de Imperatriz).
           for (const anel of aneisAgua) {
             try {
               const agua = turfPolygon([anel]);
@@ -208,25 +228,40 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
                 .bindTooltip("Corpo d'água").addTo(map);
               contagem.agua++;
 
-              const faixaTotal = turfBuffer(agua, APP_BUFFER_M, { units: "meters" });
+              // Largura média ≈ 2 × área / perímetro (boa aproximação p/ formas alongadas).
+              const areaM2 = turfArea(agua);
+              const perimetroKm = turfLength(polygonToLine(agua) as Feature, { units: "kilometers" });
+              const larguraRioM = perimetroKm > 0 ? (2 * areaM2) / (perimetroKm * 1000) : 0;
+              const w = appModo === "auto" ? larguraAppCodigoFlorestal(larguraRioM) : Number(appModo);
+
+              const faixaTotal = turfBuffer(agua, w, { units: "meters" });
               if (!faixaTotal) continue;
               const banda = difference(featureCollection([faixaTotal as Feature<Polygon>, agua])) ?? faixaTotal;
+              const origem = appModo === "auto"
+                ? `Código Florestal — rio com ~${Math.round(larguraRioM)} m de largura`
+                : "largura definida manualmente";
               L.geoJSON(banda, { style: { color: CORES.app, weight: 1, fillColor: CORES.app, fillOpacity: 0.3 } })
-                .bindTooltip(`APP (${APP_BUFFER_M} m da margem)`).addTo(map);
+                .bindTooltip(`APP ${w} m da margem (${origem})`).addTo(map);
             } catch {
               /* anel degenerado — ignora */
             }
           }
 
-          // APP dos cursos d'água em LINHA: buffer, com destaque dentro do terreno.
-          for (const linha of linhasAgua) {
+          // APP dos cursos d'água em LINHA: usa a tag width do OSM quando existir;
+          // sem tag, assume rio (10–50 m → APP 50 m) ou córrego (<10 m → APP 30 m).
+          for (const { geom, tipo, larguraTag } of linhasAgua) {
             try {
-              const faixa = turfBuffer(linha, APP_BUFFER_M, { units: "meters" });
+              const w =
+                appModo !== "auto" ? Number(appModo)
+                : larguraTag != null ? larguraAppCodigoFlorestal(larguraTag)
+                : tipo === "river" ? 50
+                : 30;
+              const faixa = turfBuffer(geom, w, { units: "meters" });
               if (!faixa) continue;
               const dentro = intersect(featureCollection([faixa as Feature<Polygon>, feature]));
               const alvo = dentro ?? faixa;
               L.geoJSON(alvo, { style: { color: CORES.app, weight: 1, fillColor: CORES.app, fillOpacity: 0.25 } })
-                .bindTooltip(`APP (${APP_BUFFER_M} m)`).addTo(map);
+                .bindTooltip(`APP ${w} m (${appModo === "auto" ? "Código Florestal" : "manual"})`).addTo(map);
             } catch {
               /* buffer/interseção pode falhar em geometrias degeneradas */
             }
@@ -248,7 +283,7 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
         mapRef.current = null;
       }
     };
-  }, [geojson, center]);
+  }, [geojson, center, appModo]);
 
   return (
     <div className="space-y-2">
@@ -257,7 +292,7 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
         {[
           { c: CORES.terreno, l: "Terreno" },
           { c: CORES.agua, l: "Curso d'água" },
-          { c: CORES.app, l: `APP (${APP_BUFFER_M} m)` },
+          { c: CORES.app, l: "APP hídrica" },
           { c: CORES.nascente, l: "Nascente" },
           { c: CORES.rodovia, l: "Rodovia" },
           { c: CORES.transmissao, l: "L. transmissão" },
@@ -266,6 +301,21 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
             <span className="inline-block w-3 h-2" style={{ background: c }} /> {l}
           </span>
         ))}
+        <label className="flex items-center gap-1.5">
+          <span className="text-gray-400">Faixa de APP:</span>
+          <select
+            value={appModo}
+            onChange={(e) => setAppModo(e.target.value as AppModo)}
+            className="border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] focus:outline-none focus:border-[var(--brand-yellow)]"
+          >
+            <option value="auto">Automática (Código Florestal)</option>
+            <option value="30">30 m</option>
+            <option value="50">50 m</option>
+            <option value="100">100 m</option>
+            <option value="200">200 m</option>
+            <option value="500">500 m (ex.: lei municipal de Imperatriz)</option>
+          </select>
+        </label>
         {carregandoCamadas && <span className="text-gray-400">carregando camadas…</span>}
         {resumo && !carregandoCamadas && (
           <span className="text-gray-400">
@@ -273,6 +323,9 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
           </span>
         )}
       </div>
+      <p className="text-[10px] text-gray-400">
+        Largura automática conforme o Código Florestal (Lei 12.651/2012, Art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m — estimada pela geometria do rio. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Confirme sempre com o órgão ambiental competente.
+      </p>
     </div>
   );
 }
