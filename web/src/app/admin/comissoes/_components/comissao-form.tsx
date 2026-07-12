@@ -34,6 +34,7 @@ const TIPO_COMISSAO_OPTIONS = [
   { value: "venda",         label: "Comissão de Venda" },
   { value: "aluguel",       label: "Comissão de Aluguel" },
   { value: "financiamento", label: "Comissão de Financiamento" },
+  { value: "obra",          label: "Comissão por Obra", somenteCorretor: true },
   { value: "extra",         label: "Extra" },
 ];
 
@@ -55,7 +56,20 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
   const [tipoNegocio, setTipoNegocio] = useState(comissao?.tipoNegocio ?? "venda");
   const [imovelLabel, setImovelLabel] = useState(comissao?.imovel ?? "");
 
+  const tipoComissaoOpcoes = TIPO_COMISSAO_OPTIONS.filter(
+    (t) => !t.somenteCorretor || beneficiario === "corretor"
+  );
   const itens = negociosPorTipo[tipoNegocio] ?? [];
+
+  function handleBeneficiarioChange(valor: string) {
+    setBeneficiario(valor);
+    // "Comissão por Obra" só existe para corretor — evita ficar com um tipo
+    // selecionado que sumiu da lista ao trocar para Empresa.
+    if (valor !== "corretor" && tipoNegocio === "obra") {
+      setTipoNegocio("venda");
+      setImovelLabel("");
+    }
+  }
 
   function handleNegocioChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const opt = itens.find((i) => i.id === e.target.value);
@@ -95,7 +109,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
                       name="beneficiario"
                       value={opt.value}
                       checked={beneficiario === opt.value}
-                      onChange={() => setBeneficiario(opt.value)}
+                      onChange={() => handleBeneficiarioChange(opt.value)}
                       className="accent-[var(--brand-yellow)]"
                     />
                     <span className="text-sm text-gray-700">{opt.label}</span>
@@ -126,7 +140,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Comissão *</label>
                   <select value={tipoNegocio} onChange={(e) => { setTipoNegocio(e.target.value); setImovelLabel(""); }}
                     className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                    {TIPO_COMISSAO_OPTIONS.map((t) => (
+                    {tipoComissaoOpcoes.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>

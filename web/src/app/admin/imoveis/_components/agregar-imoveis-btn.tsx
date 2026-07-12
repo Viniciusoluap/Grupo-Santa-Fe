@@ -18,9 +18,9 @@ export function AgregarImoveisBtn() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 relative">
       {result && (
-        <span className={`text-xs font-medium ${result.ok ? "text-green-600" : "text-yellow-600"}`}>
+        <span className={`text-xs font-medium max-w-md ${result.ok ? "text-green-600" : "text-yellow-600"}`}>
           {result.msg}
         </span>
       )}

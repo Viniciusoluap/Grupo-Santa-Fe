@@ -192,6 +192,14 @@ export async function excluirLead(id: string) {
   revalidatePath("/admin/leads");
 }
 
+export async function alterarStatusLead(leadId: string, status: string) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
+  await prisma.lead.update({ where: { id: leadId }, data: { status } });
+  revalidatePath("/admin/leads");
+  revalidatePath(`/admin/leads/${leadId}`);
+}
+
 export async function adicionarInteracao(formData: FormData) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");

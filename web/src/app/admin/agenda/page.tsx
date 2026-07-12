@@ -25,6 +25,11 @@ export default async function AgendaPage() {
     select: { id: true, titulo: true },
   });
 
+  const leads = await prisma.lead.findMany({
+    select: { id: true, nome: true, telefone: true },
+    orderBy: { nome: "asc" },
+  });
+
   const visitas = visitasRaw.map((v) => ({
     id: v.id,
     tipoVisita: v.tipoVisita,
@@ -46,6 +51,7 @@ export default async function AgendaPage() {
       visitas={visitas}
       corretores={corretores}
       imoveis={imoveis}
+      leads={leads}
     />
   );
 }
