@@ -18,7 +18,7 @@ const Viewer3D = dynamic(() => import("./viewer-3d").then((m) => m.Viewer3D), {
 
 interface GridElevacao {
   ncols: number; nrows: number; z: number[][]; min: number; max: number;
-  cellsizeX: number; cellsizeY: number; fonte: string;
+  cellsizeX: number; cellsizeY: number; west: number; south: number; fonte: string;
 }
 
 function bboxDoGeojson(geojson: string) {
@@ -129,12 +129,12 @@ export function TopografiaTab({ estudo }: { estudo: EstudoData }) {
           </div>
 
           <div className="bg-white border border-gray-100 p-2">
-            <Viewer3D grid={grid} slopes={slopes} modo={modo} />
+            <Viewer3D grid={grid} geojson={estudo.geojson} modo={modo} />
             {/* Legenda */}
             {modo === "elevacao" ? (
               <div className="flex items-center gap-2 px-2 py-2 text-[11px] text-gray-500">
                 <span>{Math.round(grid.min)} m</span>
-                <span className="flex-1 h-2" style={{ background: "linear-gradient(to right,#1e40af,#16a34a,#a3e635,#eab308,#f97316,#dc2626,#f8fafc)" }} />
+                <span className="flex-1 h-2" style={{ background: "linear-gradient(to right,#2c6fbb,#3f9d8a,#63a45f,#9aa55a,#b3985f,#8a6a45)" }} />
                 <span>{Math.round(grid.max)} m</span>
               </div>
             ) : (
@@ -164,7 +164,7 @@ export function TopografiaTab({ estudo }: { estudo: EstudoData }) {
             </div>
           </div>
 
-          <p className="text-[10px] text-gray-400">Fonte: {grid.fonte}. Relevo com exagero vertical para leitura; declividade calculada por diferenças centrais sobre o DEM.</p>
+          <p className="text-[10px] text-gray-400">Fonte: {grid.fonte}. Superfície recortada no polígono do terreno, suavizada e com curvas de nível cotadas; exagero vertical contido para leitura. Declividade por diferenças centrais sobre o DEM.</p>
         </>
       ) : (
         <div className="bg-white border border-gray-100 p-10 text-center">
