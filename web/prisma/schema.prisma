@@ -693,6 +693,9 @@ model EstudoIncorporacao {
   cronogramaJson  String?
   parecerIa       String?
 
+  // Estudo de loteamento determinístico (premissas do motor, estilo Lotelytics)
+  loteamentoJson  String?
+
   // Relatórios gerados (URLs de PDF)
   relatorios    String   @default("[]")
 
