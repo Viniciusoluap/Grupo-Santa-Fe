@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, Clock } from "lucide-react";
+import { Phone, MessageSquare, Mail, Calendar, User, Clock, FileText, Download, ExternalLink } from "lucide-react";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG, LeadStatus, InteractionType } from "@/lib/types/crm";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { AddInteractionForm } from "./add-interaction-form";
+import { LeadStatusPicker } from "./lead-status-picker";
+import { LeadAgendarVisita } from "./lead-agendar-visita";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -27,6 +29,13 @@ export default async function LeadDetailPage({ params }: PageProps) {
   });
 
   if (!lead) notFound();
+
+  // Documentos vinculados a este lead via Jurídico (contratos gerados/assinados/anexos).
+  const contratosComDocumentos = await prisma.contrato.findMany({
+    where: { leadId: id },
+    include: { documentos: { orderBy: { criadoEm: "desc" } } },
+    orderBy: { criadoEm: "desc" },
+  });
 
   const cfg = LEAD_STATUS_CONFIG[lead.status as LeadStatus] ?? {
     bgColor: "bg-gray-100",
@@ -218,23 +227,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
           {/* Alterar status */}
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Alterar Status</p>
-            <div className="space-y-1">
-              {(Object.entries(LEAD_STATUS_CONFIG) as [LeadStatus, (typeof LEAD_STATUS_CONFIG)[LeadStatus]][])
-                .sort(([, a], [, b]) => a.order - b.order)
-                .map(([status, c]) => (
-                  <div
-                    key={status}
-                    className={`flex items-center gap-2 px-3 py-2 text-xs font-bold cursor-pointer border transition-colors ${
-                      lead.status === status
-                        ? `${c.bgColor} ${c.color} border-transparent`
-                        : "border-gray-100 text-gray-400 hover:border-gray-300"
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${lead.status === status ? "bg-current" : "bg-gray-300"}`} />
-                    {c.label}
-                  </div>
-                ))}
-            </div>
+            <LeadStatusPicker leadId={lead.id} statusAtual={lead.status} />
           </div>
 
           {/* Visits */}
@@ -273,18 +266,50 @@ export default async function LeadDetailPage({ params }: PageProps) {
           {/* Agendar visita */}
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Agendar Visita</p>
-            <input
-              type="datetime-local"
-              className="w-full border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:border-[var(--brand-yellow)] mb-2"
-            />
-            <input
-              type="text"
-              placeholder="Imóvel de interesse..."
-              className="w-full border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:border-[var(--brand-yellow)] mb-2"
-            />
-            <button className="w-full bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2 transition-colors">
-              Agendar
-            </button>
+            <LeadAgendarVisita leadId={lead.id} />
+          </div>
+
+          {/* Documentos */}
+          <div className="bg-white border border-gray-100 p-5">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Documentos</p>
+            {contratosComDocumentos.length === 0 || contratosComDocumentos.every((c) => c.documentos.length === 0) ? (
+              <div className="text-center py-4">
+                <FileText size={22} className="text-gray-200 mx-auto mb-2" />
+                <p className="text-xs text-gray-400">
+                  Nenhum documento vinculado a este lead ainda. Documentos gerados ou enviados em contratos do Jurídico aparecem aqui.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {contratosComDocumentos
+                  .filter((c) => c.documentos.length > 0)
+                  .map((c) => (
+                    <div key={c.id} className="border border-gray-100">
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50">
+                        <Link href={`/admin/juridico`} className="flex items-center gap-1 text-xs font-bold text-[var(--brand-dark)] hover:underline">
+                          <ExternalLink size={10} /> Contrato {c.numero}
+                        </Link>
+                        <span className="text-[9px] text-gray-400 capitalize">{c.tipo.replace(/_/g, " ")}</span>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {c.documentos.map((doc) => (
+                          <a
+                            key={doc.id}
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors"
+                          >
+                            <FileText size={12} className="text-gray-300 shrink-0" />
+                            <span className="flex-1 min-w-0 truncate text-gray-600">{doc.nome}</span>
+                            <Download size={11} className="text-gray-400 shrink-0" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

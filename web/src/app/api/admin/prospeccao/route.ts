@@ -10,13 +10,20 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const CIDADE_BUSCA = process.env.PROSPECCAO_CIDADE ?? "Canaã dos Carajás PA";
 
+// Reduzido de 5 para 3 termos: o diagnóstico em produção (Vercel runtime errors)
+// mostrou "Task timed out after 60 seconds" nesta rota — cada termo pode disparar
+// uma rodada de busca web, e o total ultrapassava o limite da função serverless,
+// deixando o botão girando para sempre sem resposta. Menos termos + timeouts
+// internos (abaixo) garantem que a rota sempre responda dentro do prazo.
 const QUERIES = [
-  `casa à venda ${CIDADE_BUSCA}`,
-  `apartamento à venda ${CIDADE_BUSCA}`,
-  `terreno lote à venda ${CIDADE_BUSCA}`,
-  `casa para alugar ${CIDADE_BUSCA}`,
-  `imóvel à venda ${CIDADE_BUSCA} whatsapp`,
+  `imóvel à venda ${CIDADE_BUSCA}`,
+  `casa ou apartamento para alugar ${CIDADE_BUSCA}`,
+  `terreno lote à venda ${CIDADE_BUSCA} whatsapp`,
 ];
+
+const TIMEOUT_TOTAL_MS = 50_000; // margem de segurança abaixo do maxDuration (60s)
+const TIMEOUT_POR_CHAMADA_MS = 25_000;
+const MAX_RODADAS_BUSCA = 2;
 
 interface ProspeccaoImovel {
   titulo: string;
@@ -77,23 +84,31 @@ Não invente imóveis: inclua apenas os que aparecem de fato nos resultados de b
 
   // web_search é uma server tool: a Claude pode pausar (pause_turn) entre rodadas
   // de busca. Repetimos a chamada reenviando o histórico até o turno terminar.
+  // Cada chamada tem timeout próprio e o nº de rodadas é limitado — sem isso, a
+  // rota podia ultrapassar os 60s da função serverless e travar sem responder.
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
-  let response = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 8192,
-    tools: [{ type: "web_search_20250305", name: "web_search" }],
-    messages,
-  });
-
-  let guard = 0;
-  while (response.stop_reason === "pause_turn" && guard < 5) {
-    messages.push({ role: "assistant", content: response.content });
-    response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+  let response = await client.messages.create(
+    {
+      model: "claude-sonnet-5",
       max_tokens: 8192,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages,
-    });
+    },
+    { timeout: TIMEOUT_POR_CHAMADA_MS }
+  );
+
+  let guard = 0;
+  while (response.stop_reason === "pause_turn" && guard < MAX_RODADAS_BUSCA) {
+    messages.push({ role: "assistant", content: response.content });
+    response = await client.messages.create(
+      {
+        model: "claude-sonnet-5",
+        max_tokens: 8192,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages,
+      },
+      { timeout: TIMEOUT_POR_CHAMADA_MS }
+    );
     guard++;
   }
 
@@ -152,7 +167,16 @@ export async function POST() {
   }
 
   try {
-    const imoveis = await buscaImoveisComClaude();
+    // Corrida contra um prazo total: se a busca (mesmo com os timeouts internos)
+    // ainda assim demorar demais, respondemos com um erro claro em vez de deixar
+    // a função ser encerrada pela Vercel sem devolver nada ao cliente (o botão
+    // "Buscando..." travava para sempre nesse cenário).
+    const imoveis = await Promise.race([
+      buscaImoveisComClaude(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("TIMEOUT_TOTAL")), TIMEOUT_TOTAL_MS)
+      ),
+    ]);
 
     if (imoveis.length === 0) {
       return NextResponse.json({ created: 0, message: "Nenhum imóvel encontrado na busca." });
@@ -202,7 +226,15 @@ export async function POST() {
 
     return NextResponse.json({ created, total: imoveis.length, message: `${created} imóveis novos adicionados para revisão.` });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    const timeout = err instanceof Error && err.message === "TIMEOUT_TOTAL";
+    return NextResponse.json(
+      {
+        error: timeout
+          ? "A busca demorou demais e foi interrompida antes de travar o servidor. Tente novamente — buscas mais curtas tendem a concluir mais rápido."
+          : String(err),
+      },
+      { status: timeout ? 504 : 500 }
+    );
   }
 }
 

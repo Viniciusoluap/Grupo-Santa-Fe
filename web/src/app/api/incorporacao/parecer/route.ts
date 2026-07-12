@@ -28,6 +28,15 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
+  // IA desativada por padrão — evita consumo de créditos e travamentos. O parecer
+  // é opcional; os indicadores (VPL/TIR/ROI/etc.) já vêm das fórmulas.
+  if (process.env.INCORPORACAO_IA_ATIVA !== "1") {
+    return NextResponse.json(
+      { error: "Parecer por IA desativado. Os indicadores de viabilidade já são calculados por fórmulas." },
+      { status: 503 }
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -61,7 +70,7 @@ Escreva um parecer técnico objetivo em português (máx. 4 parágrafos) analisa
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       max_tokens: 2048,
       messages: [{ role: "user", content: prompt }],
     });

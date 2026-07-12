@@ -52,15 +52,32 @@ export async function executarAgregacao(): Promise<{ ok: boolean; importados: nu
 
   let importados = 0;
   let erros = 0;
+  const motivos: string[] = [];
 
   for (const url of urls) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
-      if (!res.ok) { erros++; continue; }
+      if (!res.ok) {
+        erros++;
+        motivos.push(`${url} → o servidor respondeu HTTP ${res.status}.`);
+        continue;
+      }
+      const contentType = res.headers.get("content-type") ?? "";
       const xml = await res.text();
 
       // Split into individual Listing blocks
       const listingMatches = xml.match(/<Listing[\s\S]*?<\/Listing>/gi) ?? [];
+
+      if (listingMatches.length === 0) {
+        erros++;
+        const pareceHtml = contentType.includes("html") || /^\s*<!doctype html/i.test(xml) || /<html[\s>]/i.test(xml);
+        motivos.push(
+          pareceHtml
+            ? `${url} → essa URL retornou uma página HTML, não um feed XML. Configure a URL real do feed (gerada no painel do portal em Conta → Integração de Imóveis), não a URL do site.`
+            : `${url} → nenhuma tag <Listing> encontrada. Confira se é o feed XML correto.`
+        );
+        continue;
+      }
 
       for (const listing of listingMatches) {
         try {
@@ -125,21 +142,26 @@ export async function executarAgregacao(): Promise<{ ok: boolean; importados: nu
             },
           });
           importados++;
-        } catch {
+        } catch (e) {
           erros++;
+          const detalhe = e instanceof Error ? e.message : String(e);
+          motivos.push(`${url} → falha ao gravar um imóvel: ${detalhe}`);
         }
       }
-    } catch {
+    } catch (e) {
       erros++;
+      const detalhe = e instanceof Error ? e.message : String(e);
+      motivos.push(`${url} → falha ao buscar a URL: ${detalhe}`);
     }
   }
 
   revalidatePath("/admin/imoveis");
+  const resumoErros = motivos.slice(0, 3).join(" | ");
   return {
     ok: true,
     importados,
     erros,
-    msg: `${importados} imóvel(is) importado(s)${erros > 0 ? `, ${erros} erro(s)` : ""}.`,
+    msg: `${importados} imóvel(is) importado(s)${erros > 0 ? `, ${erros} erro(s)` : ""}.${resumoErros ? ` ${resumoErros}` : ""}`,
   };
 }
 

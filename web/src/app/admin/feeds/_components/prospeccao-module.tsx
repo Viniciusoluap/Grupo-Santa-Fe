@@ -49,13 +49,18 @@ export function ProspeccaoModule({ apiConfigurada }: { apiConfigurada: boolean }
   async function executarProspeccao() {
     setRunning(true);
     setMessage(null);
+    // Timeout no cliente: garante que o botão nunca fique "Buscando..." para
+    // sempre, mesmo que a resposta do servidor nunca chegue por algum motivo
+    // de rede — sempre recupera a UI em no máximo 58s com uma mensagem clara.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 58_000);
     try {
-      const res = await fetch("/api/admin/prospeccao", { method: "POST" });
+      const res = await fetch("/api/admin/prospeccao", { method: "POST", signal: controller.signal });
       let data: { created?: number; message?: string; error?: string } = {};
       try {
         data = await res.json() as typeof data;
       } catch {
-        setMessage({ text: "A busca demorou mais de 60 s e foi cancelada pelo servidor. Tente novamente — o resultado depende da velocidade da IA.", type: "error" });
+        setMessage({ text: "O servidor não devolveu uma resposta válida. Tente novamente.", type: "error" });
         return;
       }
       if (!res.ok) {
@@ -65,8 +70,15 @@ export function ProspeccaoModule({ apiConfigurada }: { apiConfigurada: boolean }
         await fetchDrafts();
       }
     } catch (e) {
-      setMessage({ text: String(e), type: "error" });
+      const isAbort = e instanceof DOMException && e.name === "AbortError";
+      setMessage({
+        text: isAbort
+          ? "A busca demorou demais e foi cancelada. Tente novamente."
+          : String(e),
+        type: "error",
+      });
     } finally {
+      clearTimeout(timeoutId);
       setRunning(false);
     }
   }

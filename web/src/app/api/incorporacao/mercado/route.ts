@@ -13,6 +13,14 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
+  // IA desativada por padrão — evita consumo de créditos e travamentos.
+  if (process.env.INCORPORACAO_IA_ATIVA !== "1") {
+    return NextResponse.json(
+      { error: "IA desativada. Informe os comparáveis de mercado manualmente." },
+      { status: 503 }
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -47,7 +55,7 @@ Valores em R$ inteiros. Máx. 4 concorrentes e 4 comparáveis. Em "resumo", 2-3 
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       max_tokens: 4096,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{ role: "user", content: prompt }],

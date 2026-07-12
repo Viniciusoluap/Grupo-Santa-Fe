@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, User, Clock,
   CheckCircle2, XCircle, Home, MapPin, Wrench, Building2, FileText,
-  DollarSign, Calendar, Scale,
+  DollarSign, Calendar, Scale, Search, X as XIcon,
 } from "lucide-react";
 import { criarVisita, editarVisita, excluirVisita, atualizarStatusVisita } from "@/lib/actions/agenda";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 type Corretor = { id: string; nome: string };
 type ImovelItem = { id: string; titulo: string };
+type LeadItem = { id: string; nome: string; telefone: string };
 
 type VisitaData = {
   id: string;
@@ -33,6 +34,7 @@ interface Props {
   visitas: VisitaData[];
   corretores: Corretor[];
   imoveis: ImovelItem[];
+  leads: LeadItem[];
 }
 
 const TIPO_VISITA_OPTIONS = [
@@ -226,19 +228,117 @@ function VisitaCard({ v, onEdit }: { v: VisitaData; onEdit: () => void }) {
   );
 }
 
+/* ────────── Busca de lead (obrigatória — não permite nome avulso) ────────── */
+// Componente controlado: o valor selecionado é mantido pelo VisitaModal (que
+// também valida no submit), não por um input hidden com `required` — atributo
+// que o navegador ignora em campos ocultos.
+function LeadSearch({
+  leads, selecionado, onChange,
+}: {
+  leads: LeadItem[];
+  selecionado: LeadItem | null;
+  onChange: (lead: LeadItem | null) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(false);
+
+  const filtrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return leads
+      .filter((l) => l.nome.toLowerCase().includes(q) || l.telefone.includes(q))
+      .slice(0, 8);
+  }, [leads, busca]);
+
+  if (selecionado) {
+    return (
+      <div>
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente (lead) *</label>
+        <div className="flex items-center justify-between gap-2 border border-gray-200 px-3 py-2.5 bg-gray-50">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{selecionado.nome}</p>
+            <p className="text-xs text-gray-400">{selecionado.telefone}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { onChange(null); setBusca(""); }}
+            className="shrink-0 text-gray-400 hover:text-red-500 transition-colors"
+            title="Trocar cliente"
+          >
+            <XIcon size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente (lead) *</label>
+      <div className="relative">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
+        <input
+          type="text"
+          value={busca}
+          onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+          onFocus={() => setAberto(true)}
+          onBlur={() => setTimeout(() => setAberto(false), 150)}
+          placeholder="Buscar lead cadastrado por nome ou telefone..."
+          className="w-full border border-gray-200 pl-8 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+        />
+      </div>
+      <p className="text-[10px] text-gray-400 mt-1">
+        Só é possível agendar visita para um lead já cadastrado. Não encontrou? Cadastre o lead primeiro.
+      </p>
+      {aberto && busca.trim().length >= 2 && (
+        <div className="absolute z-40 left-0 right-0 bg-white border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
+          {filtrados.length > 0 ? (
+            filtrados.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onMouseDown={() => { onChange(l); setBusca(""); setAberto(false); }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0"
+              >
+                <span className="font-medium text-gray-800">{l.nome}</span>
+                <span className="text-gray-400 ml-2 text-xs">{l.telefone}</span>
+              </button>
+            ))
+          ) : (
+            <p className="px-3 py-2 text-xs text-gray-400">Nenhum lead encontrado.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ────────── Modal de formulário ────────── */
 function VisitaModal({
-  onClose, visita, corretores, imoveis,
+  onClose, visita, corretores, imoveis, leads,
 }: {
   onClose: () => void;
   visita?: VisitaData;
   corretores: Corretor[];
   imoveis: ImovelItem[];
+  leads: LeadItem[];
 }) {
   const isEdit = !!visita;
   const [tipoAcomp, setTipoAcomp] = useState<"nenhum" | "corretor" | "colaborador">(
     visita?.corretorId ? "corretor" : visita?.colaboradorNome ? "colaborador" : "nenhum"
   );
+  const [lead, setLead] = useState<LeadItem | null>(() => {
+    if (!visita?.leadId) return null;
+    return leads.find((l) => l.id === visita.leadId) ?? { id: visita.leadId, nome: visita.clienteNome, telefone: visita.clienteTel };
+  });
+  const [erroLead, setErroLead] = useState(false);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (!lead) {
+      e.preventDefault();
+      setErroLead(true);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -252,8 +352,9 @@ function VisitaModal({
           </button>
         </div>
 
-        <form action={isEdit ? editarVisita : criarVisita} className="p-6 space-y-4">
+        <form action={isEdit ? editarVisita : criarVisita} onSubmit={handleSubmit} className="p-6 space-y-4">
           {isEdit && <input type="hidden" name="id" value={visita.id} />}
+          <input type="hidden" name="leadId" value={lead?.id ?? ""} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Tipo */}
@@ -267,17 +368,16 @@ function VisitaModal({
               </select>
             </div>
 
-            {/* Cliente */}
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Cliente *</label>
-              <input type="text" name="clienteNome" required defaultValue={visita?.clienteNome ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone *</label>
-              <input type="tel" name="clienteTel" required defaultValue={visita?.clienteTel ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            {/* Cliente — obrigatoriamente um lead cadastrado */}
+            <div className="sm:col-span-2">
+              <LeadSearch
+                leads={leads}
+                selecionado={lead}
+                onChange={(l) => { setLead(l); if (l) setErroLead(false); }}
+              />
+              {erroLead && (
+                <p className="text-xs text-red-500 mt-1">Selecione um lead cadastrado antes de agendar.</p>
+              )}
             </div>
 
             {/* Data/hora */}
@@ -360,7 +460,7 @@ function VisitaModal({
 }
 
 /* ────────── Componente principal ────────── */
-export function AgendaClient({ visitas, corretores, imoveis }: Props) {
+export function AgendaClient({ visitas, corretores, imoveis, leads }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -535,6 +635,7 @@ export function AgendaClient({ visitas, corretores, imoveis }: Props) {
           visita={editando ?? undefined}
           corretores={corretores}
           imoveis={imoveis}
+          leads={leads}
         />
       )}
     </div>
