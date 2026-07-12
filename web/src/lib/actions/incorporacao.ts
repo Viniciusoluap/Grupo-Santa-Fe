@@ -179,6 +179,18 @@ export async function salvarViabilidade(
   return { ok: true };
 }
 
+/** Salva as premissas do estudo de loteamento determinístico (motor de fórmulas). */
+export async function salvarLoteamento(estudoId: string, premissasJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { loteamentoJson: premissasJson, status: "em_estudo" },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva parâmetros urbanísticos + potencial construtivo + parecer. */
 export async function salvarUrbanistico(
   estudoId: string,

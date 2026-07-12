@@ -42,6 +42,7 @@ export default async function EstudoDetailPage({
     mixJson: estudo.mixJson,
     viabilidadeJson: estudo.viabilidadeJson,
     parecerIa: estudo.parecerIa,
+    loteamentoJson: estudo.loteamentoJson,
     relatorios: estudo.relatorios,
   };
 
