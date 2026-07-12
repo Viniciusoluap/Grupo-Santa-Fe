@@ -4,13 +4,20 @@ import { useMemo, useState, useTransition } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { Save, Loader2, CheckCircle2 } from "lucide-react";
+import { Save, Loader2, CheckCircle2, FileText, Download } from "lucide-react";
 import {
   calcularCenarios,
   type PremissasLoteamento,
   type ResultadoLoteamento,
   type PerfilVendas,
 } from "@/lib/finance/loteamento";
+import {
+  gerarRelatorioExecutivo,
+  gerarRelatorioCustos,
+  gerarRelatorioTerreneiro,
+  recebimentosPorAno,
+  type MetaRelatorio,
+} from "@/lib/pdf/loteamento";
 import { salvarLoteamento } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
 import type { EstudoData } from "./incorporacao-detail";
@@ -201,6 +208,16 @@ export function LoteamentoTab({ estudo }: { estudo: EstudoData }) {
     () => r.fluxo.map((f) => ({ mes: f.mes, saldo: f.saldoAcumulado })),
     [r]
   );
+
+  const anos = useMemo(() => recebimentosPorAno(r), [r]);
+
+  const metaRelatorio: MetaRelatorio = {
+    nome: estudo.nome,
+    municipio: estudo.municipio,
+    estado: estudo.estado,
+    permutaPct: form.permutaPctVgv,
+    taxaDescontoAnual: form.taxaDescontoAnual,
+  };
 
   function salvar() {
     startTransition(async () => {
@@ -412,6 +429,111 @@ export function LoteamentoTab({ estudo }: { estudo: EstudoData }) {
         <p className="text-[10px] text-gray-400 mt-2">
           Valores calculados por fórmulas determinísticas (VPL a {form.taxaDescontoAnual}% a.a., parcelas indexadas, inadimplência e permuta consideradas). Estudo preliminar — não substitui projeto executivo nem análise contratual.
         </p>
+      </div>
+
+      {/* ── Tabela comparativa completa ── */}
+      <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Tabela comparativa completa</p>
+        <table className="w-full text-xs min-w-[560px]">
+          <thead>
+            <tr className="bg-[var(--brand-dark)]">
+              {["Métrica", "Conservador (−10%)", "Ideal", "Agressivo (+10%)"].map((h) => (
+                <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {([
+              ["VGV bruto", (x: ResultadoLoteamento) => formatCurrency(x.vgvGross), false],
+              ["VPL", (x: ResultadoLoteamento) => formatCurrency(x.vpl), true],
+              ["TIR (a.a.)", (x: ResultadoLoteamento) => (x.tirAnual != null ? `${(x.tirAnual * 100).toFixed(2)}%` : "—"), false],
+              ["ROI", (x: ResultadoLoteamento) => fmtPct(x.roi), false],
+              ["Margem líquida", (x: ResultadoLoteamento) => fmtPct(x.margemLiquida), false],
+              ["Payback", (x: ResultadoLoteamento) => (x.paybackMes != null ? `${x.paybackMes} meses` : "não recupera"), false],
+              ["Exposição máxima", (x: ResultadoLoteamento) => formatCurrency(x.exposicaoMaxima), false],
+              ["Custo total", (x: ResultadoLoteamento) => formatCurrency(x.custoTotal), false],
+              ["Recebível (você)", (x: ResultadoLoteamento) => formatCurrency(x.recebiveis.voce), false],
+            ] as [string, (x: ResultadoLoteamento) => string, boolean][]).map(([label, f, colorir]) => (
+              <tr key={label}>
+                <td className="px-3 py-2 text-gray-500 font-medium">{label}</td>
+                {(["conservador", "ideal", "agressivo"] as CenarioId[]).map((id) => {
+                  const c = cenarios[id];
+                  const negVpl = colorir && c.vpl < 0;
+                  return (
+                    <td key={id} className={`px-3 py-2 font-bold ${negVpl ? "text-red-500" : "text-[var(--brand-dark)]"} ${cenarioAtivo === id ? "bg-[var(--brand-yellow)]/10" : ""}`}>
+                      {f(c)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Recebimentos por ano ── */}
+      <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Fluxo de recebimentos por ano</p>
+        <p className="text-[10px] text-gray-400 mb-3">Valores brutos projetados e a divisão entre incorporador e terreneiro (cenário {CENARIO_META.find((c) => c.id === cenarioAtivo)?.label}).</p>
+        <table className="w-full text-xs min-w-[480px]">
+          <thead>
+            <tr className="bg-[var(--brand-dark)]">
+              {["Ano", "Total recebido (bruto)", `Você (${(100 - form.permutaPctVgv).toFixed(0)}%)`, `Terreneiro (${form.permutaPctVgv.toFixed(0)}%)`].map((h) => (
+                <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {anos.map((a) => (
+              <tr key={a.ano}>
+                <td className="px-3 py-2 text-gray-500 font-medium">Ano {a.ano}</td>
+                <td className="px-3 py-2 font-bold text-[var(--brand-dark)]">{formatCurrency(a.bruto)}</td>
+                <td className="px-3 py-2 font-bold text-green-700">{formatCurrency(a.voce)}</td>
+                <td className="px-3 py-2 text-gray-600">{formatCurrency(a.terreneiro)}</td>
+              </tr>
+            ))}
+            <tr className="bg-gray-50">
+              <td className="px-3 py-2 font-black text-[var(--brand-dark)]">Total</td>
+              <td className="px-3 py-2 font-black text-[var(--brand-dark)]">{formatCurrency(r.recebiveis.total)}</td>
+              <td className="px-3 py-2 font-black text-green-700">{formatCurrency(r.recebiveis.voce)}</td>
+              <td className="px-3 py-2 font-black text-gray-700">{formatCurrency(r.recebiveis.terreneiro)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Relatórios PDF ── */}
+      <div className="bg-white border border-gray-100 p-4">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Relatórios</p>
+        <p className="text-[10px] text-gray-400 mb-3">Gerados na hora, no seu navegador, a partir das premissas atuais — sem custo.</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Relatório Executivo", acao: () => gerarRelatorioExecutivo(metaRelatorio, cenarios) },
+            {
+              label: "Relatório de Custos",
+              acao: () => gerarRelatorioCustos(metaRelatorio, cenarios, {
+                projetosLicencas: form.projetosLicencas,
+                marketing: form.marketing,
+                registroPorLote: form.registroPorLote,
+                contingenciaPct: form.contingenciaPctInfra,
+                bdiPct: form.bdiPct,
+                comissaoPct: form.comissaoPctVgv,
+                despesasPct: form.despesasGeraisPctVgv,
+                impostosPct: form.impostosPctVgv,
+              }),
+            },
+            { label: "Relatório do Terreneiro", acao: () => gerarRelatorioTerreneiro(metaRelatorio, cenarios) },
+          ].map(({ label, acao }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={acao}
+              className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-gray-200 text-[var(--brand-dark)] hover:border-[var(--brand-yellow)] transition-colors"
+            >
+              <FileText size={13} /> {label} <Download size={11} className="text-gray-400" />
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
