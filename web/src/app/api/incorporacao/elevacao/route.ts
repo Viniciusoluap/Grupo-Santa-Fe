@@ -105,7 +105,7 @@ export function parseAAIGrid(text: string): GridElevacao {
 async function openTopoData(
   south: number, north: number, west: number, east: number
 ): Promise<GridElevacao> {
-  const N = 16; // 16x16 = 256 pontos → 3 requisições (100/req)
+  const N = 24; // 24x24 = 576 pontos → 6 requisições (100/req) ≈ 12 s, dentro do limite
   const locs: string[] = [];
   const cellsizeY = (north - south) / (N - 1);
   const cellsizeX = (east - west) / (N - 1);

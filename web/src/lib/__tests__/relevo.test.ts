@@ -76,3 +76,69 @@ describe("celulaEmMetros", () => {
     expect(alto).toBeLessThan(eq);
   });
 });
+
+import {
+  upsampleBilinear, suavizarGrade, pontoNoPoligono, passoNivel, isolinhas,
+} from "@/lib/geo/relevo";
+
+describe("upsampleBilinear", () => {
+  it("dobra a resolução preservando os cantos e interpolando o meio", () => {
+    const g: GridElevacaoLike = { ncols: 2, nrows: 2, min: 0, max: 10, z: [[0, 10], [0, 10]] };
+    const up = upsampleBilinear(g, 2);
+    expect(up.ncols).toBe(3);
+    expect(up.nrows).toBe(3);
+    expect(up.z[0][0]).toBeCloseTo(0, 6);
+    expect(up.z[0][2]).toBeCloseTo(10, 6);
+    expect(up.z[1][1]).toBeCloseTo(5, 6); // centro interpolado
+  });
+  it("fator 1 devolve a própria grade", () => {
+    const g: GridElevacaoLike = { ncols: 2, nrows: 2, min: 0, max: 1, z: [[0, 1], [0, 1]] };
+    expect(upsampleBilinear(g, 1)).toBe(g);
+  });
+});
+
+describe("suavizarGrade", () => {
+  it("reduz um pico isolado sem mudar dimensões", () => {
+    const g: GridElevacaoLike = {
+      ncols: 3, nrows: 3, min: 0, max: 90,
+      z: [[0, 0, 0], [0, 90, 0], [0, 0, 0]],
+    };
+    const s = suavizarGrade(g, 1);
+    expect(s.ncols).toBe(3);
+    expect(s.z[1][1]).toBeCloseTo(10, 6); // 90/9
+    expect(s.z[1][1]).toBeLessThan(90);
+  });
+});
+
+describe("pontoNoPoligono", () => {
+  const quadrado: [number, number][] = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]];
+  it("dentro/fora do quadrado", () => {
+    expect(pontoNoPoligono(5, 5, quadrado)).toBe(true);
+    expect(pontoNoPoligono(15, 5, quadrado)).toBe(false);
+    expect(pontoNoPoligono(-1, -1, quadrado)).toBe(false);
+  });
+});
+
+describe("passoNivel", () => {
+  it("escolhe passo redondo com no máx. o alvo de curvas", () => {
+    expect(passoNivel(24, 10)).toBe(2.5);  // 24/2.5 = 9.6 curvas
+    expect(passoNivel(100, 10)).toBe(10);
+    expect(passoNivel(4, 10)).toBe(0.5);
+  });
+});
+
+describe("isolinhas", () => {
+  it("rampa simples gera segmentos contínuos no nível médio", () => {
+    // rampa de 0 a 10 na horizontal; nível 5 deve cruzar no meio (col=0.5 numa grade 2x2 de 0..10)
+    const g: GridElevacaoLike = { ncols: 2, nrows: 2, min: 0, max: 10, z: [[0, 10], [0, 10]] };
+    const segs = isolinhas(g, [5]);
+    expect(segs.length).toBe(1);
+    const s = segs[0];
+    expect(s.a[0]).toBeCloseTo(0.5, 6); // cruza a meia coluna
+    expect(s.b[0]).toBeCloseTo(0.5, 6);
+  });
+  it("nível fora da faixa não gera segmentos", () => {
+    const g: GridElevacaoLike = { ncols: 2, nrows: 2, min: 0, max: 10, z: [[0, 10], [0, 10]] };
+    expect(isolinhas(g, [50])).toHaveLength(0);
+  });
+});
