@@ -1,10 +1,13 @@
-// Motor determinístico de viabilidade de LOTEAMENTO (estilo Lotelytics).
+// Motor determinístico de VIABILIDADE (estilo Lotelytics + metodologia Carolina
+// Caribé / Incorporação na Prática — conferido contra planilha profissional real).
 //
-// A partir das premissas (urbanístico + vendas + terreno + custos) produz, SÓ com
-// matemática (sem IA): área vendável e nº de lotes, VGV bruto/líquido, fluxo de
-// caixa mensal por fases indexado, VPL, TIR, ROI, margem, payback, exposição
-// máxima de caixa (capital necessário), break-even e distribuição de recebíveis
-// entre incorporador e terreneiro (permuta).
+// A partir das premissas (urbanístico + mix de produtos + vendas + terreno +
+// custos) produz, SÓ com matemática (sem IA): mix de produtos (lotes, casas,
+// apartamentos...), VGV bruto/líquido, fluxo de caixa mensal por fases indexado
+// (com correção INCC do custo de obra), VPL, TIR, ROI, margem, payback,
+// exposição máxima de caixa (capital necessário), break-even, custos futuros
+// (nominais) e distribuição de recebíveis entre incorporador e terreneiro
+// (permuta).
 //
 // Reutiliza vpl/tir/payback de eve.ts. Todas as funções são puras e testáveis.
 
@@ -16,30 +19,40 @@ export type PerfilVendas =
   | "constante"
   | "fechamento_forte";
 
+/** Um item do mix de produtos: lotes, casas, área de prédio (apartamentos), comercial etc. */
+export interface ItemMixProduto {
+  nome: string;
+  quantidade: number;
+  areaUnidadeM2: number;
+  precoM2: number;
+}
+
 export interface PremissasLoteamento {
   // ── Urbanístico / terreno ──
   areaBrutaM2: number;
   pctAreaPublica: number;   // fração 0..1
   pctAreaVerde: number;
   pctSistemaViario: number;
-  pctAPP: number;
+  pctAPP: number;           // alimentado automaticamente a partir do mapa (Overpass/Código Florestal)
   pctFaixaServidao: number;
-  areaMediaLoteM2: number;
+
+  // ── Mix de produtos (lotes, casas, apartamentos, comercial...) ──
+  itensMix: ItemMixProduto[];
 
   // ── Preço / vendas ──
-  precoM2: number;
   duracaoVendasMeses: number;
   perfilVendas: PerfilVendas;
-  entradaPct: number;          // fração do valor do lote paga no ato
+  entradaPct: number;          // fração do valor pago no ato
   prazoParcelamentoMeses: number;
   jurosClienteMensal: number;  // fração a.m.
-  indexacaoMensal: number;     // IPCA a.m. (fração)
+  indexacaoMensal: number;     // IPCA/INCC a.m. (fração)
   vendasAVistaPct: number;     // fração das vendas à vista
   descontoAVistaPct: number;   // desconto concedido à vista
   inadimplenciaPct: number;    // fração perdida das parcelas
   comissaoPctVgv: number;      // % do VGV
   despesasGeraisPctVgv: number;// % do VGV
-  impostosPctVgv: number;      // % do VGV (lucro presumido)
+  impostosPctVgv: number;      // % do VGV (lucro presumido/RET)
+  taxaIncorporacaoPctVgv: number; // % do VGV — custos administrativos/legais iniciais
 
   // ── Cronograma ──
   inicioObraMes: number;
@@ -47,18 +60,21 @@ export interface PremissasLoteamento {
   inicioVendasMes: number;
 
   // ── Custos ──
-  custoInfraM2Lote: number;    // R$/m² de área de lote
+  custoInfraM2Lote: number;    // R$/m² de área vendida (obra/infra)
   projetosLicencas: number;
   marketing: number;
-  registroPorLote: number;
+  registroPorUnidade: number;
   contingenciaPctInfra: number;// fração sobre infra
   bdiPct: number;              // fração sobre infra
+  taxaAdministracaoObraPct: number; // % sobre o custo de obra/infra
+  manutencaoPctObra: number;        // % sobre o custo de obra, cobrado após a entrega
+  inccObraMensal: number;           // correção mensal do custo de obra ao longo do tempo (fração a.m.)
 
   // ── Terreno (permuta) ──
   permutaPctVgv: number;       // fração do VGV entregue ao terreneiro
 
   // ── Financeiro ──
-  taxaDescontoAnual: number;   // fração a.a. (VPL)
+  taxaDescontoAnual: number;   // fração a.a. (VPL / TMA)
 }
 
 export interface FluxoMesLote {
@@ -72,6 +88,19 @@ export interface FluxoMesLote {
   saldoAcumulado: number;
 }
 
+export interface ResultadoMixItem extends ItemMixProduto {
+  areaTotalM2: number;
+  vgv: number;
+}
+
+export interface ResultadoMix {
+  itens: ResultadoMixItem[];
+  totalUnidades: number;
+  areaVendidaM2: number;
+  vgv: number;
+  precoMedioUnidade: number;
+}
+
 export interface ResultadoLoteamento {
   urbanistico: {
     areaBrutaM2: number;
@@ -81,16 +110,23 @@ export interface ResultadoLoteamento {
     areaAppM2: number;
     areaServidaoM2: number;
     areaVendavelM2: number;
-    totalLotes: number;
+    capacidadeEstimadaUnidades: number; // capacidade da área vendável dado o tamanho médio do mix atual
     taxaAproveitamento: number; // vendável / bruta
   };
+  mix: ResultadoMix;
   vgvGross: number;
   vgvNet: number;
-  precoLote: number;
   custoInfra: number;
   custosPreVenda: number;
   custosDuranteVenda: number;
   custoTotal: number;
+  custoObraNominalTotal: number; // total efetivamente desembolsado na obra, já com correção INCC (custo futuro)
+  custoTotalNominal: number;     // custoTotal ajustado pela correção INCC da obra
+  custosDetalhados: {
+    taxaAdministracaoObra: number;
+    manutencao: number;
+    taxaIncorporacao: number;
+  };
   recebiveis: { voce: number; terreneiro: number; total: number };
   vpl: number;
   tirMensal: number | null;
@@ -100,7 +136,7 @@ export interface ResultadoLoteamento {
   paybackMes: number | null;
   exposicaoMaxima: number;
   mesPico: number;
-  breakEven: { lotesNecessarios: number; receitaNecessaria: number; prazoMes: number | null };
+  breakEven: { unidadesNecessarias: number; receitaNecessaria: number; prazoMes: number | null };
   fluxo: FluxoMesLote[];
 }
 
@@ -128,8 +164,11 @@ export function pesosCurvaVendas(meses: number, perfil: PerfilVendas): number[] 
   return w.map((x) => x / soma);
 }
 
-/** Distribuição de áreas + nº de lotes a partir dos parâmetros urbanísticos. */
-export function calcularUrbanistico(p: PremissasLoteamento) {
+/** Distribuição de áreas a partir dos parâmetros urbanísticos (independe do produto). */
+export function calcularUrbanistico(p: Pick<
+  PremissasLoteamento,
+  "areaBrutaM2" | "pctAreaPublica" | "pctAreaVerde" | "pctSistemaViario" | "pctAPP" | "pctFaixaServidao"
+>) {
   const bruta = Math.max(0, p.areaBrutaM2);
   const areaPublicaM2 = bruta * p.pctAreaPublica;
   const areaVerdeM2 = bruta * p.pctAreaVerde;
@@ -140,31 +179,51 @@ export function calcularUrbanistico(p: PremissasLoteamento) {
     0,
     bruta - areaPublicaM2 - areaVerdeM2 - areaViarioM2 - areaAppM2 - areaServidaoM2
   );
-  const totalLotes = p.areaMediaLoteM2 > 0 ? Math.floor(areaVendavelM2 / p.areaMediaLoteM2) : 0;
   const taxaAproveitamento = bruta > 0 ? areaVendavelM2 / bruta : 0;
   return {
     areaBrutaM2: bruta, areaPublicaM2, areaVerdeM2, areaViarioM2, areaAppM2,
-    areaServidaoM2, areaVendavelM2, totalLotes, taxaAproveitamento,
+    areaServidaoM2, areaVendavelM2, taxaAproveitamento,
   };
 }
 
-/** Roda o estudo completo de loteamento. */
+/** Agrega o mix de produtos: VGV, área vendida e preço médio por unidade. */
+export function calcularMix(itens: ItemMixProduto[]): ResultadoMix {
+  const resultado: ResultadoMixItem[] = itens.map((it) => ({
+    ...it,
+    areaTotalM2: it.quantidade * it.areaUnidadeM2,
+    vgv: it.quantidade * it.areaUnidadeM2 * it.precoM2,
+  }));
+  const totalUnidades = resultado.reduce((s, i) => s + i.quantidade, 0);
+  const areaVendidaM2 = resultado.reduce((s, i) => s + i.areaTotalM2, 0);
+  const vgvTotal = resultado.reduce((s, i) => s + i.vgv, 0);
+  const precoMedioUnidade = totalUnidades > 0 ? vgvTotal / totalUnidades : 0;
+  return { itens: resultado, totalUnidades, areaVendidaM2, vgv: vgvTotal, precoMedioUnidade };
+}
+
+/** Roda o estudo completo de viabilidade. */
 export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento {
   const urb = calcularUrbanistico(p);
-  const precoLote = p.areaMediaLoteM2 * p.precoM2;
+  const mix = calcularMix(p.itensMix);
+  const vgvGross = mix.vgv;
+  const areaMediaPonderada = mix.totalUnidades > 0 ? mix.areaVendidaM2 / mix.totalUnidades : 0;
+  const capacidadeEstimadaUnidades =
+    areaMediaPonderada > 0 ? Math.floor(urb.areaVendavelM2 / areaMediaPonderada) : 0;
 
-  // VGV bruto = área vendável × preço/m² (equivale a nº lotes × preço do lote).
-  const vgvGross = urb.areaVendavelM2 * p.precoM2;
   const vgvNet =
     vgvGross * (1 - p.comissaoPctVgv - p.despesasGeraisPctVgv - p.impostosPctVgv);
 
-  // Custos.
-  const custoInfraBase = p.custoInfraM2Lote * urb.areaVendavelM2;
+  // Custos de infraestrutura sobre a área efetivamente ocupada pelo mix de produtos.
+  const custoInfraBase = p.custoInfraM2Lote * mix.areaVendidaM2;
   const custoInfra = custoInfraBase * (1 + p.bdiPct);
   const contingencia = custoInfraBase * p.contingenciaPctInfra;
-  const registroTotal = p.registroPorLote * urb.totalLotes;
+  const registroTotal = p.registroPorUnidade * mix.totalUnidades;
+  const taxaAdministracaoObra = custoInfra * p.taxaAdministracaoObraPct;
+  const manutencao = custoInfra * p.manutencaoPctObra;
+  const taxaIncorporacao = vgvGross * p.taxaIncorporacaoPctVgv;
+
   const custosPreVenda =
-    custoInfra + contingencia + p.projetosLicencas + p.marketing + registroTotal;
+    custoInfra + contingencia + p.projetosLicencas + p.marketing + registroTotal +
+    taxaAdministracaoObra + manutencao + taxaIncorporacao;
 
   const comissao = vgvGross * p.comissaoPctVgv;
   const despesas = vgvGross * p.despesasGeraisPctVgv;
@@ -178,7 +237,7 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
     Math.max(
       p.inicioObraMes + p.duracaoObraMeses,
       p.inicioVendasMes + pesos.length + p.prazoParcelamentoMeses
-    ) + 1;
+    ) + 4; // +4 meses de folga para caber a manutenção pós-obra (fim da obra + 3)
 
   const recebimento = new Array(horizonte).fill(0); // 100% (bruto)
   const fator = 1 - p.inadimplenciaPct;
@@ -206,11 +265,21 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
     }
   }
 
-  // ── Fluxo de caixa do incorporador ──
-  const custoPreVendaMes = p.duracaoObraMeses > 0 ? custosPreVenda / p.duracaoObraMeses : 0;
+  // ── Custos mensais de obra (com correção INCC ao longo do tempo) + taxa de
+  //    incorporação (12 primeiros meses do projeto) + manutenção pontual pós-obra ──
+  const custoObraBaseMensal = p.duracaoObraMeses > 0 ? (custoInfra + contingencia) / p.duracaoObraMeses : 0;
+  const taxaAdmMensal = p.duracaoObraMeses > 0 ? taxaAdministracaoObra / p.duracaoObraMeses : 0;
+  const custosFixosMensal = p.duracaoObraMeses > 0
+    ? (p.projetosLicencas + p.marketing + registroTotal) / p.duracaoObraMeses
+    : 0;
+  const taxaIncorpMeses = Math.min(12, horizonte);
+  const taxaIncorpMensal = taxaIncorpMeses > 0 ? taxaIncorporacao / taxaIncorpMeses : 0;
+  const mesManutencao = p.inicioObraMes + p.duracaoObraMeses + 3;
+
   const totalRecebido = recebimento.reduce((s, x) => s + x, 0);
   const fluxo: FluxoMesLote[] = [];
   let acumulado = 0;
+  let obraNominalAcumulado = 0;
 
   for (let mes = 0; mes < horizonte; mes++) {
     const receitaBruta = recebimento[mes];
@@ -219,8 +288,14 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
 
     let custoPreVenda = 0;
     if (mes >= p.inicioObraMes && mes < p.inicioObraMes + p.duracaoObraMeses) {
-      custoPreVenda = custoPreVendaMes;
+      const decorridos = mes - p.inicioObraMes;
+      const obraMesNominal = custoObraBaseMensal * Math.pow(1 + p.inccObraMensal, decorridos);
+      obraNominalAcumulado += obraMesNominal;
+      custoPreVenda += obraMesNominal + taxaAdmMensal + custosFixosMensal;
     }
+    if (mes < taxaIncorpMeses) custoPreVenda += taxaIncorpMensal;
+    if (mes === mesManutencao) custoPreVenda += manutencao;
+
     // Custos durante venda: proporcionais ao recebimento do mês.
     const custoDuranteVenda = totalRecebido > 0 ? (receitaBruta / totalRecebido) * custosDuranteVenda : 0;
 
@@ -237,6 +312,11 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
       saldoAcumulado: round2(acumulado),
     });
   }
+
+  // Custo de obra realmente desembolsado (nominal, já com INCC) vs. o valor-base
+  // de hoje (custoInfra+contingencia) — a diferença é a inflação futura da obra.
+  const custoObraNominalTotal = obraNominalAcumulado;
+  const custoTotalNominal = custoTotal + (custoObraNominalTotal - (custoInfra + contingencia));
 
   const saldos = fluxo.map((f) => f.saldoMes);
   const saldoAcum = fluxo.map((f) => f.saldoAcumulado);
@@ -255,8 +335,8 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
   const roi = custoTotal > 0 ? recebiveisVoce / custoTotal - 1 : 0;
   const margemLiquida = vgvGross > 0 ? lucro / vgvGross : 0;
 
-  // Break-even: quantos lotes cobrem o custo total (receita necessária / preço do lote).
-  const lotesNecessarios = precoLote > 0 ? Math.ceil(custoTotal / precoLote) : 0;
+  // Break-even: quantas unidades (ao preço médio do mix) cobrem o custo total.
+  const unidadesNecessarias = mix.precoMedioUnidade > 0 ? Math.ceil(custoTotal / mix.precoMedioUnidade) : 0;
   const prazoBreakEven = payback(saldoAcum);
 
   return {
@@ -268,16 +348,29 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
       areaAppM2: round2(urb.areaAppM2),
       areaServidaoM2: round2(urb.areaServidaoM2),
       areaVendavelM2: round2(urb.areaVendavelM2),
-      totalLotes: urb.totalLotes,
+      capacidadeEstimadaUnidades,
       taxaAproveitamento: urb.taxaAproveitamento,
+    },
+    mix: {
+      itens: mix.itens.map((i) => ({ ...i, areaTotalM2: round2(i.areaTotalM2), vgv: round2(i.vgv) })),
+      totalUnidades: mix.totalUnidades,
+      areaVendidaM2: round2(mix.areaVendidaM2),
+      vgv: round2(mix.vgv),
+      precoMedioUnidade: round2(mix.precoMedioUnidade),
     },
     vgvGross: round2(vgvGross),
     vgvNet: round2(vgvNet),
-    precoLote: round2(precoLote),
     custoInfra: round2(custoInfra),
     custosPreVenda: round2(custosPreVenda),
     custosDuranteVenda: round2(custosDuranteVenda),
     custoTotal: round2(custoTotal),
+    custoObraNominalTotal: round2(custoObraNominalTotal),
+    custoTotalNominal: round2(custoTotalNominal),
+    custosDetalhados: {
+      taxaAdministracaoObra: round2(taxaAdministracaoObra),
+      manutencao: round2(manutencao),
+      taxaIncorporacao: round2(taxaIncorporacao),
+    },
     recebiveis: {
       voce: round2(recebiveisVoce),
       terreneiro: round2(recebiveisTerreneiro),
@@ -292,7 +385,7 @@ export function calcularLoteamento(p: PremissasLoteamento): ResultadoLoteamento 
     exposicaoMaxima: round2(exposicaoMaxima),
     mesPico: mesPico < 0 ? 0 : mesPico,
     breakEven: {
-      lotesNecessarios,
+      unidadesNecessarias,
       receitaNecessaria: round2(custoTotal),
       prazoMes: prazoBreakEven,
     },
@@ -307,19 +400,22 @@ export interface CenariosLoteamento {
 }
 
 /**
- * Três cenários variando o preço/m² (−10% / base / +10%) e a velocidade de
- * vendas (conservador vende mais devagar; agressivo mais rápido).
+ * Três cenários variando o preço/m² de cada produto do mix (−10% / base / +10%)
+ * e a velocidade de vendas (conservador vende mais devagar; agressivo mais rápido).
  */
 export function calcularCenarios(p: PremissasLoteamento): CenariosLoteamento {
+  const ajustarPreco = (fator: number): ItemMixProduto[] =>
+    p.itensMix.map((it) => ({ ...it, precoM2: it.precoM2 * fator }));
+
   const conservador = calcularLoteamento({
     ...p,
-    precoM2: p.precoM2 * 0.9,
+    itensMix: ajustarPreco(0.9),
     duracaoVendasMeses: Math.round(p.duracaoVendasMeses * 1.4),
   });
   const ideal = calcularLoteamento(p);
   const agressivo = calcularLoteamento({
     ...p,
-    precoM2: p.precoM2 * 1.1,
+    itensMix: ajustarPreco(1.1),
     duracaoVendasMeses: Math.max(1, Math.round(p.duracaoVendasMeses * 0.7)),
   });
   return { conservador, ideal, agressivo };

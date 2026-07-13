@@ -7,17 +7,24 @@ import {
   intersect, difference, featureCollection, area as turfArea,
   length as turfLength, polygonToLine,
 } from "@turf/turf";
+import { salvarApp } from "@/lib/actions/incorporacao";
 
 // Mapa do terreno com base de SATÉLITE colorida (Esri World Imagery, keyless) e
 // camadas de estudo sobre o KML: cursos d'água/nascentes, APP (faixa de proteção
 // calculada por buffer dos rios), rodovias e linhas de transmissão — obtidas do
 // OpenStreetMap via Overpass API (sem chave). Tudo best-effort: se o Overpass
 // não responder, o mapa continua mostrando o terreno normalmente.
+//
+// A área de APP dentro do terreno é sempre calculada automaticamente aqui e
+// salva no estudo (salvarApp) assim que o cálculo termina — sem exigir nenhuma
+// ação do usuário — para alimentar a aba Viabilidade (regra: "área de APP
+// sempre tem que ser calculada automaticamente").
 
 interface Props {
   geojson: string; // Feature<Polygon> serializado
   center?: [number, number]; // [lat, lng]
   height?: number;
+  estudoId?: string; // quando informado, persiste a APP calculada automaticamente
 }
 
 interface OverpassElement {
@@ -89,12 +96,13 @@ function larguraAppCodigoFlorestal(larguraRioM: number): number {
 
 type AppModo = "auto" | "30" | "50" | "100" | "200" | "500";
 
-export function MapaTerreno({ geojson, center, height = 420 }: Props) {
+export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const [carregandoCamadas, setCarregandoCamadas] = useState(false);
   const [resumo, setResumo] = useState<{ agua: number; nascentes: number; rodovias: number; transmissao: number } | null>(null);
   const [appModo, setAppModo] = useState<AppModo>("auto");
+  const [appCalculada, setAppCalculada] = useState<{ areaM2: number; larguraM: number | null } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,6 +182,10 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
           const contagem = { agua: 0, nascentes: 0, rodovias: 0, transmissao: 0 };
           const linhasAgua: { geom: LineString; tipo: string; larguraTag: number | null }[] = [];
           const aneisAgua: Ponto[][] = [];
+          // Acumula a área de APP DENTRO do terreno — calculada automaticamente,
+          // sem qualquer ação do usuário, para alimentar a aba Viabilidade.
+          let appAreaTotalM2 = 0;
+          let appLarguraMax: number | null = null;
 
           for (const el of data.elements) {
             const tags = el.tags ?? {};
@@ -242,6 +254,11 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
                 : "largura definida manualmente";
               L.geoJSON(banda, { style: { color: CORES.app, weight: 1, fillColor: CORES.app, fillOpacity: 0.3 } })
                 .bindTooltip(`APP ${w} m da margem (${origem})`).addTo(map);
+
+              // Só conta a parte da faixa que cai DENTRO do terreno.
+              const bandaDentro = intersect(featureCollection([banda as Feature<Polygon>, feature]));
+              if (bandaDentro) appAreaTotalM2 += turfArea(bandaDentro);
+              appLarguraMax = appLarguraMax == null ? w : Math.max(appLarguraMax, w);
             } catch {
               /* anel degenerado — ignora */
             }
@@ -262,12 +279,25 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
               const alvo = dentro ?? faixa;
               L.geoJSON(alvo, { style: { color: CORES.app, weight: 1, fillColor: CORES.app, fillOpacity: 0.25 } })
                 .bindTooltip(`APP ${w} m (${appModo === "auto" ? "Código Florestal" : "manual"})`).addTo(map);
+
+              if (dentro) appAreaTotalM2 += turfArea(dentro);
+              appLarguraMax = appLarguraMax == null ? w : Math.max(appLarguraMax, w);
             } catch {
               /* buffer/interseção pode falhar em geometrias degeneradas */
             }
           }
 
-          if (!cancelled) setResumo(contagem);
+          if (!cancelled) {
+            setResumo(contagem);
+            setAppCalculada({ areaM2: appAreaTotalM2, larguraM: appLarguraMax });
+            if (estudoId) {
+              salvarApp(estudoId, {
+                areaM2: appAreaTotalM2,
+                larguraM: appLarguraMax,
+                origem: appModo,
+              }).catch(() => { /* melhor esforço — não bloqueia a visualização do mapa */ });
+            }
+          }
         }
       } catch {
         /* Overpass indisponível — mantém o terreno sem overlays */
@@ -283,7 +313,7 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
         mapRef.current = null;
       }
     };
-  }, [geojson, center, appModo]);
+  }, [geojson, center, appModo, estudoId]);
 
   return (
     <div className="space-y-2">
@@ -323,8 +353,14 @@ export function MapaTerreno({ geojson, center, height = 420 }: Props) {
           </span>
         )}
       </div>
+      {appCalculada && !carregandoCamadas && (
+        <p className="text-[11px] font-bold text-green-700 bg-green-50 border border-green-100 px-2.5 py-1.5">
+          APP calculada automaticamente dentro do terreno: {Math.round(appCalculada.areaM2).toLocaleString("pt-BR")} m²
+          {appCalculada.larguraM != null && ` (faixa de ${appCalculada.larguraM} m)`} — já enviada para a aba Viabilidade.
+        </p>
+      )}
       <p className="text-[10px] text-gray-400">
-        Largura automática conforme o Código Florestal (Lei 12.651/2012, Art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m — estimada pela geometria do rio. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Confirme sempre com o órgão ambiental competente.
+        Largura automática conforme o Código Florestal (Lei 12.651/2012, Art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m — estimada pela geometria do rio. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Confirme sempre com o órgão ambiental competente. A área de APP dentro do terreno é sempre recalculada e salva automaticamente.
       </p>
     </div>
   );

@@ -7,7 +7,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
-import type { EveResultado } from "@/lib/finance/eve";
 
 // Lê os campos de localização do formulário. Aceita um link do Google Maps (ou
 // um par "lat,lng" colado) e extrai as coordenadas exatas quando possível.
@@ -159,28 +158,8 @@ export async function uploadLevantamento(estudoId: string, formData: FormData) {
   return { ok: true };
 }
 
-/** Salva o resultado do EVE (viabilidade) + inputs + cronograma + parecer. */
-export async function salvarViabilidade(
-  estudoId: string,
-  payload: { inputs: unknown; resultado: EveResultado; cronograma?: unknown; parecerIa?: string }
-) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.estudoIncorporacao.update({
-    where: { id: estudoId },
-    data: {
-      viabilidadeJson: JSON.stringify({ inputs: payload.inputs, resultado: payload.resultado }),
-      cronogramaJson: payload.cronograma ? JSON.stringify(payload.cronograma) : undefined,
-      parecerIa: payload.parecerIa ?? undefined,
-      status: "concluido",
-    },
-  });
-  revalidatePath(`/admin/incorporacao/${estudoId}`);
-  return { ok: true };
-}
-
-/** Salva as premissas do estudo de loteamento determinístico (motor de fórmulas). */
-export async function salvarLoteamento(estudoId: string, premissasJson: string) {
+/** Salva as premissas do estudo de viabilidade determinístico (motor de fórmulas). */
+export async function salvarViabilidade(estudoId: string, premissasJson: string) {
   const session = await auth();
   requireActionRole(session, "admin");
   await prisma.estudoIncorporacao.update({
@@ -191,19 +170,25 @@ export async function salvarLoteamento(estudoId: string, premissasJson: string) 
   return { ok: true };
 }
 
-/** Salva parâmetros urbanísticos + potencial construtivo + parecer. */
-export async function salvarUrbanistico(
+/**
+ * Salva a área de APP calculada AUTOMATICAMENTE pelo mapa (Overpass + Código
+ * Florestal ou largura manual escolhida no seletor) — nunca é preenchida à mão.
+ * Chamada pelo próprio componente do mapa assim que o cálculo é concluído, para
+ * que a Viabilidade sempre reflita a APP real do terreno sem qualquer ação do
+ * usuário.
+ */
+export async function salvarApp(
   estudoId: string,
-  payload: { parametros: unknown; potencial: unknown; parecer?: string }
+  payload: { areaM2: number; larguraM: number | null; origem: string }
 ) {
   const session = await auth();
   requireActionRole(session, "admin");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: {
-      parametrosJson: JSON.stringify(payload.parametros),
-      potencialJson: JSON.stringify(payload.potencial),
-      urbanismoParecer: payload.parecer ?? undefined,
+      appAreaM2: payload.areaM2,
+      appLarguraM: payload.larguraM ?? undefined,
+      appOrigem: payload.origem,
     },
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
