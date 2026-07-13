@@ -25,7 +25,7 @@ function cabecalho(doc: jsPDF, tituloRelatorio: string, meta: MetaRelatorio) {
   doc.setTextColor(...AMARELO).setFontSize(15).setFont("helvetica", "bold");
   doc.text(tituloRelatorio.toUpperCase(), 14, 16);
   doc.setTextColor(255, 255, 255).setFontSize(9).setFont("helvetica", "normal");
-  doc.text("Grupo Santa Fé — Estudo de Loteamento (motor determinístico)", 14, 23);
+  doc.text("Grupo Santa Fé — Estudo de Viabilidade (motor determinístico)", 14, 23);
   doc.text(new Date().toLocaleDateString("pt-BR"), 14, 29);
 
   const y = 44;
@@ -93,6 +93,23 @@ export function recebimentosPorAno(r: ResultadoLoteamento) {
   return anos.filter((a) => a && (a.bruto > 0.005));
 }
 
+/**
+ * Agrega o fluxo mensal em CUSTOS futuros por ano (pré-venda + durante venda),
+ * já em valores nominais (o custo de obra embute a correção INCC mês a mês).
+ * Responde à "estimativa de custos totais futuros" do estudo.
+ */
+export function custosPorAno(r: ResultadoLoteamento) {
+  const anos: { ano: number; preVenda: number; duranteVenda: number; total: number }[] = [];
+  for (const f of r.fluxo) {
+    const ano = Math.floor(f.mes / 12);
+    if (!anos[ano]) anos[ano] = { ano: ano + 1, preVenda: 0, duranteVenda: 0, total: 0 };
+    anos[ano].preVenda += f.custoPreVenda;
+    anos[ano].duranteVenda += f.custoDuranteVenda;
+    anos[ano].total += f.custoPreVenda + f.custoDuranteVenda;
+  }
+  return anos.filter((a) => a && a.total > 0.005);
+}
+
 function linhasComparativas(c: CenariosLoteamento): (string | number)[][] {
   const col = (r: ResultadoLoteamento) => r;
   const cs = [col(c.conservador), col(c.ideal), col(c.agressivo)];
@@ -121,8 +138,8 @@ export function gerarRelatorioExecutivo(meta: MetaRelatorio, c: CenariosLoteamen
 
   y = titulo(doc, "1. ESTUDO URBANÍSTICO", y);
   y = tabela(doc, y,
-    ["Área bruta", "Área vendável", "Aproveitamento", "Total de lotes", "Preço médio/lote"],
-    [[m2Str(urb.areaBrutaM2), m2Str(urb.areaVendavelM2), pctStr(urb.taxaAproveitamento), urb.totalLotes.toLocaleString("pt-BR"), formatCurrency(r.precoLote)]]
+    ["Área bruta", "Área vendável", "Aproveitamento", "Capacidade estimada", "Preço médio/unidade"],
+    [[m2Str(urb.areaBrutaM2), m2Str(urb.areaVendavelM2), pctStr(urb.taxaAproveitamento), urb.capacidadeEstimadaUnidades.toLocaleString("pt-BR"), formatCurrency(r.mix.precoMedioUnidade)]]
   );
   y = tabela(doc, y,
     ["Dedução", "Área"],
@@ -130,28 +147,35 @@ export function gerarRelatorioExecutivo(meta: MetaRelatorio, c: CenariosLoteamen
       ["Área pública", m2Str(urb.areaPublicaM2)],
       ["Área verde", m2Str(urb.areaVerdeM2)],
       ["Sistema viário", m2Str(urb.areaViarioM2)],
-      ["APP", m2Str(urb.areaAppM2)],
+      ["APP (calculada automaticamente)", m2Str(urb.areaAppM2)],
       ["Faixa de servidão", m2Str(urb.areaServidaoM2)],
     ]
   );
 
-  y = titulo(doc, "2. COMPARAÇÃO DE CENÁRIOS", y);
+  y = titulo(doc, "2. MIX DE PRODUTOS", y);
+  y = tabela(doc, y,
+    ["Produto", "Quantidade", "Área/unidade", "Preço/m²", "VGV do produto"],
+    r.mix.itens.map((i) => [i.nome, i.quantidade.toLocaleString("pt-BR"), m2Str(i.areaUnidadeM2), formatCurrency(i.precoM2), formatCurrency(i.vgv)])
+  );
+
+  y = titulo(doc, "3. COMPARAÇÃO DE CENÁRIOS", y);
   y = tabela(doc, y, ["Métrica", "Conservador (−10%)", "Ideal", "Agressivo (+10%)"], linhasComparativas(c));
 
-  y = titulo(doc, "3. INDICADORES — CENÁRIO IDEAL", y);
+  y = titulo(doc, "4. INDICADORES — CENÁRIO IDEAL", y);
   y = tabela(doc, y,
     ["Indicador", "Valor", "Indicador", "Valor"],
     [
       ["VGV bruto", formatCurrency(r.vgvGross), "VPL", formatCurrency(r.vpl)],
       ["VGV líquido", formatCurrency(r.vgvNet), "TIR", r.tirAnual != null ? `${pctStr(r.tirAnual, 2)} a.a.` : "—"],
-      ["Custo total", formatCurrency(r.custoTotal), "ROI", pctStr(r.roi)],
-      ["Exposição máx. de caixa", formatCurrency(r.exposicaoMaxima), "Margem líquida", pctStr(r.margemLiquida)],
-      ["Mês do pico", `mês ${r.mesPico}`, "Payback", r.paybackMes != null ? `${r.paybackMes} meses` : "não recupera"],
-      ["Break-even", `${r.breakEven.lotesNecessarios.toLocaleString("pt-BR")} lotes`, "Taxa de desconto", `${meta.taxaDescontoAnual}% a.a.`],
+      ["Custo total (hoje)", formatCurrency(r.custoTotal), "ROI", pctStr(r.roi)],
+      ["Custo total nominal (futuro, c/ INCC)", formatCurrency(r.custoTotalNominal), "Margem líquida", pctStr(r.margemLiquida)],
+      ["Exposição máx. de caixa", formatCurrency(r.exposicaoMaxima), "Payback", r.paybackMes != null ? `${r.paybackMes} meses` : "não recupera"],
+      ["Mês do pico", `mês ${r.mesPico}`, "Taxa de desconto", `${meta.taxaDescontoAnual}% a.a.`],
+      ["Break-even", `${r.breakEven.unidadesNecessarias.toLocaleString("pt-BR")} unidades`, "", ""],
     ]
   );
 
-  y = titulo(doc, "4. DISTRIBUIÇÃO DE RECEBÍVEIS (PERMUTA)", y);
+  y = titulo(doc, "5. DISTRIBUIÇÃO DE RECEBÍVEIS (PERMUTA)", y);
   y = tabela(doc, y,
     ["Parte", "Percentual", "Valor"],
     [
@@ -169,13 +193,13 @@ export function gerarRelatorioExecutivo(meta: MetaRelatorio, c: CenariosLoteamen
 export function gerarRelatorioCustos(
   meta: MetaRelatorio,
   c: CenariosLoteamento,
-  extras: { projetosLicencas: number; marketing: number; registroPorLote: number; contingenciaPct: number; bdiPct: number; comissaoPct: number; despesasPct: number; impostosPct: number }
+  extras: { projetosLicencas: number; marketing: number; registroPorUnidade: number; contingenciaPct: number; bdiPct: number; comissaoPct: number; despesasPct: number; impostosPct: number }
 ) {
   const doc = new jsPDF();
   const r = c.ideal;
   let y = cabecalho(doc, "Relatório de Custos", meta);
 
-  const registroTotal = extras.registroPorLote * r.urbanistico.totalLotes;
+  const registroTotal = extras.registroPorUnidade * r.mix.totalUnidades;
   const infraSemBdi = r.custoInfra / (1 + extras.bdiPct / 100);
   const bdi = r.custoInfra - infraSemBdi;
   const contingencia = infraSemBdi * (extras.contingenciaPct / 100);
@@ -192,8 +216,12 @@ export function gerarRelatorioCustos(
       [`Contingência (${extras.contingenciaPct}% da infra)`, formatCurrency(contingencia)],
       ["Projetos e licenças", formatCurrency(extras.projetosLicencas)],
       ["Marketing e lançamento", formatCurrency(extras.marketing)],
-      [`Registro do loteamento (${r.urbanistico.totalLotes.toLocaleString("pt-BR")} lotes × ${formatCurrency(extras.registroPorLote)})`, formatCurrency(registroTotal)],
-      ["Subtotal pré-venda", formatCurrency(r.custosPreVenda)],
+      [`Registro (${r.mix.totalUnidades.toLocaleString("pt-BR")} unidades × ${formatCurrency(extras.registroPorUnidade)})`, formatCurrency(registroTotal)],
+      ["Taxa de administração da obra", formatCurrency(r.custosDetalhados.taxaAdministracaoObra)],
+      ["Manutenção pós-obra", formatCurrency(r.custosDetalhados.manutencao)],
+      ["Taxa de incorporação", formatCurrency(r.custosDetalhados.taxaIncorporacao)],
+      ["Subtotal pré-venda (hoje)", formatCurrency(r.custosPreVenda)],
+      ["Custo de obra nominal (futuro, c/ correção INCC)", formatCurrency(r.custoObraNominalTotal)],
     ]
   );
 
@@ -208,10 +236,17 @@ export function gerarRelatorioCustos(
     ]
   );
 
-  y = titulo(doc, "3. TOTAL GERAL", y);
+  y = titulo(doc, "3. CUSTOS FUTUROS POR ANO (NOMINAL, C/ CORREÇÃO INCC)", y);
+  const anosCusto = custosPorAno(r);
   y = tabela(doc, y,
-    ["Total geral dos custos", "Capital necessário (exposição máx.)", "Mês do pico"],
-    [[formatCurrency(r.custoTotal), formatCurrency(r.exposicaoMaxima), `mês ${r.mesPico}`]]
+    ["Ano", "Pré-venda", "Durante vendas", "Total do ano"],
+    anosCusto.map((a) => [`Ano ${a.ano}`, formatCurrency(a.preVenda), formatCurrency(a.duranteVenda), formatCurrency(a.total)])
+  );
+
+  y = titulo(doc, "4. TOTAL GERAL", y);
+  y = tabela(doc, y,
+    ["Total geral (hoje)", "Total nominal (futuro)", "Capital necessário (exposição máx.)", "Mês do pico"],
+    [[formatCurrency(r.custoTotal), formatCurrency(r.custoTotalNominal), formatCurrency(r.exposicaoMaxima), `mês ${r.mesPico}`]]
   );
 
   ressalva(doc, y);

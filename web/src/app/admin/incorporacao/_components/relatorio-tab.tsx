@@ -5,19 +5,22 @@ import { FileText, Download, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
-import { analiseSensibilidade } from "@/lib/finance/eve";
+import { calcularLoteamento } from "@/lib/finance/loteamento";
+import { montarPremissasLoteamento } from "./viabilidade-tab";
 import type { EstudoData } from "./incorporacao-detail";
 
-// Laudo executivo consolidado: terreno, urbanístico, cidade & mercado,
-// estudo de massa (cenário escolhido), EVE completo e sensibilidade.
+// Laudo executivo consolidado: terreno, cidade & mercado, estudo de massa
+// (cenário escolhido) e viabilidade completa (motor determinístico).
 
 export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
   const [busy, setBusy] = useState(false);
 
-  const viab = estudo.viabilidadeJson ? JSON.parse(estudo.viabilidadeJson) : null;
-  const r = viab?.resultado;
-  const urb = estudo.parametrosJson ? JSON.parse(estudo.parametrosJson) : null;
-  const pot = estudo.potencialJson ? JSON.parse(estudo.potencialJson) : null;
+  // Viabilidade: prioriza o motor determinístico atual (aba Viabilidade); usa o
+  // EVE antigo (viabilidadeJson) só como fallback para estudos legados.
+  const premissas = montarPremissasLoteamento(estudo);
+  const r = premissas ? calcularLoteamento(premissas) : null;
+  const viabLegado = !premissas && estudo.viabilidadeJson ? JSON.parse(estudo.viabilidadeJson) : null;
+  const rLegado = viabLegado?.resultado;
   const cidade = estudo.pesquisaCidadeJson ? JSON.parse(estudo.pesquisaCidadeJson) : null;
   const mercado = estudo.estudoMercadoJson ? JSON.parse(estudo.estudoMercadoJson) : null;
   const massa = estudo.massaCenariosJson ? JSON.parse(estudo.massaCenariosJson) : null;
@@ -27,10 +30,10 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
 
   const secoes = [
     { ok: !!estudo.geojson, label: "Terreno (KML)" },
-    { ok: !!urb, label: "Urbanístico" },
+    { ok: !!estudo.appAreaM2, label: "APP automática" },
     { ok: !!cidade, label: "Cidade & Mercado" },
     { ok: !!cenario, label: "Estudo de massa" },
-    { ok: !!r, label: "Viabilidade (EVE)" },
+    { ok: !!r || !!rLegado, label: "Viabilidade" },
     { ok: !!estudo.parecerIa, label: "Parecer IA" },
   ];
 
@@ -46,7 +49,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
       doc.setTextColor(245, 196, 0).setFontSize(16).setFont("helvetica", "bold");
       doc.text("ESTUDO COMPLETO DE INCORPORAÇÃO", 14, 16);
       doc.setTextColor(255, 255, 255).setFontSize(9).setFont("helvetica", "normal");
-      doc.text("Grupo Santa Fé — metodologia EVE (Carolina Caribé) · estudo de massa generativo", 14, 23);
+      doc.text("Grupo Santa Fé — metodologia Carolina Caribé · estudo de massa generativo", 14, 23);
       doc.text(new Date().toLocaleDateString("pt-BR"), 14, 29);
 
       let y = 44;
@@ -63,36 +66,19 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
         theme: "grid",
         styles: { fontSize: 8 },
         headStyles: { fillColor: [26, 26, 26], textColor: [245, 196, 0] },
-        head: [["Área", "Perímetro", "Centro"]],
+        head: [["Área", "Perímetro", "Centro", "APP (automática)"]],
         body: [[
           `${estudo.areaM2.toLocaleString("pt-BR")} m² (${(estudo.areaM2 / 10000).toFixed(2)} ha)`,
           `${estudo.perimetroM.toLocaleString("pt-BR")} m`,
           estudo.centroLat && estudo.centroLng ? `${estudo.centroLat.toFixed(5)}, ${estudo.centroLng.toFixed(5)}` : "—",
+          estudo.appAreaM2 ? `${Math.round(estudo.appAreaM2).toLocaleString("pt-BR")} m²` : "—",
         ]],
       });
       y = fimTabela(doc, y);
 
-      // 2. Urbanístico
-      if (urb && pot) {
-        y = titulo(doc, "2. ESTUDO URBANÍSTICO", y);
-        autoTable(doc, {
-          startY: y, theme: "grid", styles: { fontSize: 8 },
-          headStyles: { fillColor: [26, 26, 26], textColor: [245, 196, 0] },
-          head: [["Parâmetro", "Valor", "Potencial", "Valor"]],
-          body: [
-            ["Zona", urb.zona || "—", "Área edificável máx.", `${(pot.areaEdificavelMaxM2 ?? 0).toLocaleString("pt-BR")} m²`],
-            ["Taxa de ocupação", `${(urb.taxaOcupacao * 100).toFixed(0)}%`, "Projeção máx. térreo", `${(pot.projecaoMaxTerreoM2 ?? 0).toLocaleString("pt-BR")} m²`],
-            ["Coef. aproveitamento", String(urb.coefAproveitamento), "Área loteável líquida", `${(pot.areaLoteavelLiquidaM2 ?? 0).toLocaleString("pt-BR")} m²`],
-            ["Lote mínimo", `${urb.loteMinimoM2} m²`, "Lotes máx.", String(pot.lotesMax ?? "—")],
-            ["Recuos (F/L/Fu)", `${urb.recuoFrontalM}/${urb.recuoLateralM}/${urb.recuoFundosM} m`, "Doações", `${(pot.areaDoacaoM2 ?? 0).toLocaleString("pt-BR")} m²`],
-          ],
-        });
-        y = fimTabela(doc, y);
-      }
-
-      // 3. Cidade & Mercado
+      // 2. Cidade & Mercado
       if (cidade || mercado) {
-        y = titulo(doc, "3. PESQUISA DA CIDADE & MERCADO", y);
+        y = titulo(doc, "2. PESQUISA DA CIDADE & MERCADO", y);
         if (cidade?.resumo) {
           doc.setFontSize(8).setTextColor(60, 60, 60);
           const linhas = doc.splitTextToSize(cidade.resumo, pw - 28);
@@ -114,9 +100,9 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
         y = fimTabela(doc, y);
       }
 
-      // 4. Estudo de massa
+      // 3. Estudo de massa
       if (cenario) {
-        y = titulo(doc, "4. ESTUDO DE MASSA (CENÁRIO ESCOLHIDO)", y);
+        y = titulo(doc, "3. ESTUDO DE MASSA (CENÁRIO ESCOLHIDO)", y);
         autoTable(doc, {
           startY: y, theme: "grid", styles: { fontSize: 8 },
           headStyles: { fillColor: [26, 26, 26], textColor: [245, 196, 0] },
@@ -133,46 +119,43 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
         y = fimTabela(doc, y);
       }
 
-      // 5. EVE
+      // 4. Viabilidade (motor determinístico atual)
       if (r) {
-        y = titulo(doc, "5. VIABILIDADE ECONÔMICA (EVE)", y);
+        y = titulo(doc, "4. VIABILIDADE ECONÔMICA", y);
         autoTable(doc, {
           startY: y, theme: "grid", styles: { fontSize: 8 },
           headStyles: { fillColor: [26, 26, 26], textColor: [245, 196, 0] },
           head: [["Indicador", "Valor", "Indicador", "Valor"]],
           body: [
-            ["VGV", formatCurrency(r.vgv), "VPL", formatCurrency(r.vpl)],
-            ["Custo total", formatCurrency(r.custoTotal), "TIR", r.tir != null ? `${(r.tir * 100).toFixed(2)}% a.m. (${((Math.pow(1 + r.tir, 12) - 1) * 100).toFixed(1)}% a.a.)` : "—"],
-            ["Custo do terreno", formatCurrency(r.custoTerreno), "Payback", r.paybackMes != null ? `${r.paybackMes} meses` : "—"],
-            ["Lucro bruto", formatCurrency(r.lucroBruto), "Exposição máx.", formatCurrency(r.exposicaoMaxima)],
-            ["Margem líquida", `${(r.margemLiquida * 100).toFixed(1)}%`, "", ""],
+            ["VGV bruto", formatCurrency(r.vgvGross), "VPL", formatCurrency(r.vpl)],
+            ["Custo total (hoje)", formatCurrency(r.custoTotal), "TIR", r.tirAnual != null ? `${(r.tirAnual * 100).toFixed(2)}% a.a.` : "—"],
+            ["Custo total nominal (futuro, c/ INCC)", formatCurrency(r.custoTotalNominal), "Payback", r.paybackMes != null ? `${r.paybackMes} meses` : "—"],
+            ["ROI", `${(r.roi * 100).toFixed(1)}%`, "Exposição máx.", formatCurrency(r.exposicaoMaxima)],
+            ["Margem líquida", `${(r.margemLiquida * 100).toFixed(1)}%`, "Capacidade estimada", `${r.urbanistico.capacidadeEstimadaUnidades.toLocaleString("pt-BR")} unidades`],
           ],
         });
         y = fimTabela(doc, y);
-
-        // 6. Sensibilidade
-        if (viab?.inputs) {
-          const sens = analiseSensibilidade(viab.inputs);
-          y = titulo(doc, "6. ANÁLISE DE SENSIBILIDADE", y);
-          autoTable(doc, {
-            startY: y, theme: "grid", styles: { fontSize: 8 },
-            headStyles: { fillColor: [26, 26, 26], textColor: [245, 196, 0] },
-            head: [["Cenário", "VGV", "Margem", "VPL", "TIR a.m."]],
-            body: sens.map((s) => [
-              s.rotulo,
-              formatCurrency(s.vgv),
-              `${(s.margemLiquida * 100).toFixed(1)}%`,
-              formatCurrency(s.vpl),
-              s.tir != null ? `${(s.tir * 100).toFixed(2)}%` : "—",
-            ]),
-          });
-          y = fimTabela(doc, y);
-        }
+      } else if (rLegado) {
+        // Fallback: estudo legado com o EVE antigo (produto único).
+        y = titulo(doc, "4. VIABILIDADE ECONÔMICA (ESTUDO LEGADO)", y);
+        autoTable(doc, {
+          startY: y, theme: "grid", styles: { fontSize: 8 },
+          headStyles: { fillColor: [26, 26, 26], textColor: [245, 196, 0] },
+          head: [["Indicador", "Valor", "Indicador", "Valor"]],
+          body: [
+            ["VGV", formatCurrency(rLegado.vgv), "VPL", formatCurrency(rLegado.vpl)],
+            ["Custo total", formatCurrency(rLegado.custoTotal), "TIR", rLegado.tir != null ? `${(rLegado.tir * 100).toFixed(2)}% a.m.` : "—"],
+            ["Custo do terreno", formatCurrency(rLegado.custoTerreno), "Payback", rLegado.paybackMes != null ? `${rLegado.paybackMes} meses` : "—"],
+            ["Lucro bruto", formatCurrency(rLegado.lucroBruto), "Exposição máx.", formatCurrency(rLegado.exposicaoMaxima)],
+            ["Margem líquida", `${(rLegado.margemLiquida * 100).toFixed(1)}%`, "", ""],
+          ],
+        });
+        y = fimTabela(doc, y);
       }
 
-      // 7. Parecer
+      // 5. Parecer
       if (estudo.parecerIa) {
-        y = titulo(doc, "7. PARECER DE VIABILIDADE", y);
+        y = titulo(doc, "5. PARECER DE VIABILIDADE", y);
         doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(50, 50, 50);
         const linhas = doc.splitTextToSize(estudo.parecerIa, pw - 28);
         for (const l of linhas) {
@@ -203,7 +186,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
           <FileText size={28} className="text-gray-300 mx-auto mb-3" />
           <p className="font-bold text-[var(--brand-dark)]">Laudo executivo consolidado</p>
           <p className="text-gray-400 text-sm mt-1">
-            Terreno, urbanístico, cidade & mercado, massa, EVE e sensibilidade em um único PDF.
+            Terreno (com APP automática), cidade & mercado, estudo de massa e viabilidade completa em um único PDF.
           </p>
         </div>
 

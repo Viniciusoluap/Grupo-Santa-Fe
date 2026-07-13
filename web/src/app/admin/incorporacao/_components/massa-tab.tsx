@@ -177,7 +177,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
             </button>
             <button onClick={usarNoEve} disabled={busy || !selecionado}
               className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-gray-200 text-[var(--brand-dark)] hover:border-[var(--brand-yellow)] disabled:opacity-50">
-              <Send size={13} /> Usar cenário no EVE (mix de produtos)
+              <Send size={13} /> Usar cenário na Viabilidade (mix de produtos)
             </button>
           </div>
         </>

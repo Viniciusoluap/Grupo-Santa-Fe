@@ -58,7 +58,11 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
           </div>
           {/* Mapa */}
           <div className="bg-white border border-gray-100 p-2">
-            <MapaTerreno geojson={estudo.geojson!} center={estudo.centroLat && estudo.centroLng ? [estudo.centroLat, estudo.centroLng] : undefined} />
+            <MapaTerreno
+              geojson={estudo.geojson!}
+              center={estudo.centroLat && estudo.centroLng ? [estudo.centroLat, estudo.centroLng] : undefined}
+              estudoId={estudo.id}
+            />
           </div>
         </>
       ) : (

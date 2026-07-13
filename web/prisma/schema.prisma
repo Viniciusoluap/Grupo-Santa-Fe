@@ -667,6 +667,12 @@ model EstudoIncorporacao {
   centroLat     Float?
   centroLng     Float?
 
+  // APP (área de preservação permanente) calculada automaticamente a partir do
+  // mapa (Overpass + Código Florestal ou largura manual) — nunca preenchida à mão.
+  appAreaM2     Float?
+  appLarguraM   Float?
+  appOrigem     String?  // "auto" (Código Florestal) | "30"|"50"|"100"|"200"|"500" (manual)
+
   // Topografia
   elevacaoJson  String?  // grid de elevações amostrado
   levantamentoUrl String?
