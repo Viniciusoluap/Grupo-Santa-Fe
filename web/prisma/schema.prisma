@@ -687,6 +687,10 @@ model EstudoIncorporacao {
   pesquisaCidadeJson String?
   estudoMercadoJson  String?
 
+  // Precificação por comparáveis ponderados (2.2 Inteligência de Mercado —
+  // separado do estudoMercadoJson da IA para não ser sobrescrito ao refazer a pesquisa)
+  precificacaoComparaveisJson String?
+
   // Massa generativo (Fase 3)
   massaCenariosJson String?
   cenarioEscolhidoId String?

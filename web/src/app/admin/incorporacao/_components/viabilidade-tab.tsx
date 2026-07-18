@@ -13,6 +13,11 @@ import {
   type PerfilVendas,
 } from "@/lib/finance/loteamento";
 import {
+  calcularPrecificacaoPorComparaveis,
+  type AtributoComparavel,
+  type Comparavel,
+} from "@/lib/mercado/precificacao";
+import {
   gerarRelatorioExecutivo,
   gerarRelatorioCustos,
   gerarRelatorioTerreneiro,
@@ -123,15 +128,25 @@ function defaultsMix(estudo: EstudoData): ItemMixProduto[] {
       if (Array.isArray(mix) && mix.length > 0) return mix;
     } catch { /* ignora JSON corrompido */ }
   }
-  // 2) preço sugerido pela pesquisa de Cidade & Mercado, se existir.
-  let precoM2 = 500;
-  if (estudo.estudoMercadoJson) {
+  // 2) preço sugerido pela precificação por comparáveis ponderados (2.2), se existir.
+  let precoM2 = 0;
+  if (estudo.precificacaoComparaveisJson) {
+    try {
+      const salvo = JSON.parse(estudo.precificacaoComparaveisJson) as {
+        atributos: AtributoComparavel[]; notasNovo: number[]; comparaveis: Comparavel[];
+      };
+      const r = calcularPrecificacaoPorComparaveis(salvo.atributos, salvo.notasNovo, salvo.comparaveis);
+      if (r.precoSugeridoM2 > 0) precoM2 = r.precoSugeridoM2;
+    } catch { /* ignora */ }
+  }
+  // 3) senão, preço sugerido pela pesquisa de Cidade & Mercado (IA), se existir.
+  if (!precoM2 && estudo.estudoMercadoJson) {
     try {
       const m = JSON.parse(estudo.estudoMercadoJson) as { precoM2Lote?: number };
       if (m.precoM2Lote) precoM2 = m.precoM2Lote;
     } catch { /* ignora */ }
   }
-  return [{ nome: "Lotes", quantidade: 100, areaUnidadeM2: 160, precoM2 }];
+  return [{ nome: "Lotes", quantidade: 100, areaUnidadeM2: 160, precoM2: precoM2 || 500 }];
 }
 
 function paraMotor(f: PremissasForm, itensMix: ItemMixProduto[], pctAPP: number): PremissasLoteamento {
