@@ -301,6 +301,18 @@ export async function salvarRegistroIncorporacao(estudoId: string, dadosJson: st
   return { ok: true };
 }
 
+/** Salva o orçamento preliminar de obra por disciplina — etapa 3.5. */
+export async function salvarOrcamentoPreliminar(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { orcamentoPreliminarJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   const session = await auth();

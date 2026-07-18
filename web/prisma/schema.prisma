@@ -719,6 +719,9 @@ model EstudoIncorporacao {
   // Registro da Incorporação (3.4 Incorporação e Produto)
   registroIncorporacaoJson String?
 
+  // Orçamento Preliminar e EVE (3.5 Incorporação e Produto)
+  orcamentoPreliminarJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 

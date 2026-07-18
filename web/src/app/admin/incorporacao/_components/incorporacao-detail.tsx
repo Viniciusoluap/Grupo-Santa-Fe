@@ -14,6 +14,7 @@ import { BusinessPlanTab } from "./business-plan-tab";
 import { ProjetistasTab } from "./projetistas-tab";
 import { AprovacaoProjetoTab } from "./aprovacao-projeto-tab";
 import { RegistroIncorporacaoTab } from "./registro-incorporacao-tab";
+import { OrcamentoPreliminarTab } from "./orcamento-preliminar-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -22,6 +23,7 @@ import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-pr
 import { projetistasCompatibilizadosDoJson } from "@/lib/incorporacao/projetistas";
 import { projetoTotalmenteAprovadoDoJson } from "@/lib/incorporacao/aprovacao-projeto";
 import { registroCompletoDoJson } from "@/lib/incorporacao/registro-incorporacao";
+import { orcamentoPreliminarPreenchidoDoJson } from "@/lib/incorporacao/orcamento-preliminar";
 
 export interface EstudoData {
   id: string;
@@ -54,6 +56,7 @@ export interface EstudoData {
   projetistasJson: string | null;
   aprovacaoProjetoJson: string | null;
   registroIncorporacaoJson: string | null;
+  orcamentoPreliminarJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -177,8 +180,8 @@ const FASES: Fase[] = [
         id: "orcamento-preliminar-eve",
         numero: "3.5",
         titulo: "Orçamento Preliminar e EVE",
-        descricao:
-          "Orçamento preliminar de obra detalhado por disciplina, reconciliado com o Estudo de Viabilidade Econômica já existente na fase de Novos Negócios.",
+        componente: OrcamentoPreliminarTab,
+        concluida: (e) => orcamentoPreliminarPreenchidoDoJson(e.orcamentoPreliminarJson),
       },
     ],
   },

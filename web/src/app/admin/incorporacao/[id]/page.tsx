@@ -49,6 +49,7 @@ export default async function EstudoDetailPage({
     projetistasJson: estudo.projetistasJson,
     aprovacaoProjetoJson: estudo.aprovacaoProjetoJson,
     registroIncorporacaoJson: estudo.registroIncorporacaoJson,
+    orcamentoPreliminarJson: estudo.orcamentoPreliminarJson,
     massaCenariosJson: estudo.massaCenariosJson,
     cenarioEscolhidoId: estudo.cenarioEscolhidoId,
     mixJson: estudo.mixJson,
