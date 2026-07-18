@@ -15,6 +15,7 @@ import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
 import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
+import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-primaria";
 
 export interface EstudoData {
   id: string;
@@ -39,6 +40,7 @@ export interface EstudoData {
   pesquisaCidadeJson: string | null;
   estudoMercadoJson: string | null;
   precificacaoComparaveisJson: string | null;
+  pesquisaPrimariaJson: string | null;
   quadroAreasJson: string | null;
   orcamentoParametrizadoJson: string | null;
   businessPlanJson: string | null;
@@ -103,7 +105,7 @@ const FASES: Fase[] = [
     etapas: [
       { id: "terreno", numero: "2.1", titulo: "Documentos do Terreno", componente: TerrenoTab, concluida: (e) => !!e.geojson },
       { id: "topografia", numero: "2.1", titulo: "Topografia 3D", componente: TopografiaTab, concluida: (e) => !!e.elevacaoJson },
-      { id: "mercado", numero: "2.2", titulo: "Inteligência de Mercado", componente: MercadoTab, concluida: (e) => !!e.pesquisaCidadeJson || !!e.estudoMercadoJson || !!e.precificacaoComparaveisJson },
+      { id: "mercado", numero: "2.2", titulo: "Inteligência de Mercado", componente: MercadoTab, concluida: (e) => !!e.pesquisaCidadeJson || !!e.estudoMercadoJson || !!e.precificacaoComparaveisJson || pesquisaPrimariaPreenchidaDoJson(e.pesquisaPrimariaJson) },
       { id: "massa", numero: "2.3", titulo: "Estudo de Massa e Quadro de Áreas", componente: MassaTab, concluida: (e) => !!e.massaCenariosJson },
       {
         id: "orcamento-parametrizado",
