@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MapPinned, Mountain, TrendingUp, Grid3x3, Calculator, FileText } from "lucide-react";
 import { TerrenoTab } from "./terreno-tab";
 import { TopografiaTab } from "./topografia-tab";
@@ -8,6 +8,7 @@ import { MercadoTab } from "./mercado-tab";
 import { MassaTab } from "./massa-tab";
 import { ViabilidadeTab } from "./viabilidade-tab";
 import { RelatorioTab } from "./relatorio-tab";
+import { EmBreve } from "./em-breve";
 
 export interface EstudoData {
   id: string;
@@ -21,6 +22,9 @@ export interface EstudoData {
   perimetroM: number;
   centroLat: number | null;
   centroLng: number | null;
+  appAreaM2: number | null;
+  appLarguraM: number | null;
+  appOrigem: string | null;
   elevacaoJson: string | null;
   levantamentoUrl: string | null;
   parametrosJson: string | null;
@@ -34,65 +38,303 @@ export interface EstudoData {
   viabilidadeJson: string | null;
   parecerIa: string | null;
   loteamentoJson: string | null;
-  appAreaM2: number | null;
-  appLarguraM: number | null;
-  appOrigem: string | null;
   relatorios: string;
 }
 
-const TABS = [
-  { id: "terreno", label: "Terreno", icon: MapPinned },
-  { id: "topografia", label: "Topografia 3D", icon: Mountain },
-  { id: "mercado", label: "Cidade & Mercado", icon: TrendingUp },
-  { id: "massa", label: "Estudo de Massa", icon: Grid3x3 },
-  { id: "viabilidade", label: "Viabilidade", icon: Calculator },
-  { id: "relatorio", label: "Relatório", icon: FileText },
-] as const;
+// Estrutura fiel às 5 fases da metodologia Carolina Caribé (Incorporação na
+// Prática), replicando a organização de pastas usada pelo Grupo Santa Fé
+// (1. Planejamento → 2. Novos Negócios → 3. Incorporação e Produto →
+// 4. Lançamento, Marketing e Vendas → 5. Projetos Executivos e Obras).
+// As etapas com "componente" já funcionam; as demais ficam como placeholder
+// ("Em breve") até serem construídas uma a uma, com a lógica correta.
 
-type TabId = (typeof TABS)[number]["id"];
+interface Etapa {
+  id: string;
+  numero: string;
+  titulo: string;
+  componente?: React.ComponentType<{ estudo: EstudoData }>;
+  descricao?: string; // usada apenas nas etapas "em breve"
+}
+
+interface Fase {
+  id: string;
+  numero: number;
+  titulo: string;
+  etapas: Etapa[];
+}
+
+const FASES: Fase[] = [
+  {
+    id: "planejamento",
+    numero: 1,
+    titulo: "Planejamento",
+    etapas: [
+      {
+        id: "planejamento-geral",
+        numero: "1.1",
+        titulo: "Planejamento do Empreendimento",
+        descricao:
+          "Diretrizes gerais do empreendimento antes de abrir o estudo de novos negócios: nome, localização, responsável e premissas iniciais — hoje preenchidos na criação do estudo.",
+      },
+    ],
+  },
+  {
+    id: "novos-negocios",
+    numero: 2,
+    titulo: "Novos Negócios",
+    etapas: [
+      { id: "terreno", numero: "2.1", titulo: "Documentos do Terreno", componente: TerrenoTab },
+      { id: "topografia", numero: "2.1", titulo: "Topografia 3D", componente: TopografiaTab },
+      { id: "mercado", numero: "2.2", titulo: "Inteligência de Mercado", componente: MercadoTab },
+      { id: "massa", numero: "2.3", titulo: "Estudo de Massa e Quadro de Áreas", componente: MassaTab },
+      {
+        id: "orcamento-parametrizado",
+        numero: "2.4",
+        titulo: "Orçamento Parametrizado",
+        descricao:
+          "Orçamento de obra por m² equivalente, discriminado por pavimento e disciplina (coeficientes de equivalência estilo NBR 12721) — antecede o orçamento preliminar formal da fase seguinte.",
+      },
+      { id: "viabilidade", numero: "2.5", titulo: "Estudo de Viabilidade Econômica", componente: ViabilidadeTab },
+      {
+        id: "business-plan",
+        numero: "2.6",
+        titulo: "Business Plan e Investidores",
+        descricao:
+          "Simulação de captação com fundos/investidores: capital inicial, remuneração mensal/anual e prazos de resgate — comparando cenários de captação sobre o resultado da Viabilidade.",
+      },
+      {
+        id: "negociacao-terreno",
+        numero: "2.7",
+        titulo: "Negociação do Terreno",
+        descricao:
+          "Registro e acompanhamento da negociação com o proprietário/terreneiro: propostas, condições (compra, permuta física ou financeira) e status até o fechamento.",
+      },
+    ],
+  },
+  {
+    id: "incorporacao-produto",
+    numero: 3,
+    titulo: "Incorporação e Produto",
+    etapas: [
+      {
+        id: "contratacao-projetistas",
+        numero: "3.1",
+        titulo: "Contratação de Projetistas",
+        descricao:
+          "Gestão dos projetistas contratados (arquitetura, estrutural, instalações), com cronograma de entrega e compatibilização técnica entre disciplinas.",
+      },
+      {
+        id: "projeto-aprovado",
+        numero: "3.2",
+        titulo: "Projeto Aprovado",
+        descricao: "Controle da aprovação do projeto legal junto à prefeitura e demais órgãos competentes.",
+      },
+      {
+        id: "quadro-nbr-12721",
+        numero: "3.3",
+        titulo: "Quadro da NBR 12721",
+        descricao:
+          "Quadro de áreas oficial conforme a NBR 12721, exigido para o registro de incorporação — deriva do mesmo cálculo do Estudo de Massa, com o detalhamento normativo completo.",
+      },
+      {
+        id: "registro-incorporacao",
+        numero: "3.4",
+        titulo: "Registro da Incorporação",
+        descricao: "Checklist e documentos do registro da incorporação em cartório.",
+      },
+      {
+        id: "orcamento-preliminar-eve",
+        numero: "3.5",
+        titulo: "Orçamento Preliminar e EVE",
+        descricao:
+          "Orçamento preliminar de obra detalhado por disciplina, reconciliado com o Estudo de Viabilidade Econômica já existente na fase de Novos Negócios.",
+      },
+    ],
+  },
+  {
+    id: "lancamento-mkt-vendas",
+    numero: 4,
+    titulo: "Lançamento, Marketing e Vendas",
+    etapas: [
+      {
+        id: "planejamento-lancamento",
+        numero: "4.1",
+        titulo: "Planejamento do Lançamento",
+        descricao: "Cronograma e estratégia do lançamento comercial do empreendimento.",
+      },
+      {
+        id: "contratacao-fornecedores",
+        numero: "4.2",
+        titulo: "Contratação de Fornecedores",
+        descricao: "Gestão de fornecedores de marketing, estande de vendas, decoração e eventos do lançamento.",
+      },
+      {
+        id: "material-publicitario",
+        numero: "4.3",
+        titulo: "Material Publicitário",
+        descricao: "Repositório e aprovação de peças publicitárias (site, folder, vídeos, redes sociais).",
+      },
+      {
+        id: "lancamento-imobiliario",
+        numero: "4.4",
+        titulo: "Lançamento Imobiliário",
+        descricao:
+          "Painel do lançamento: velocidade de vendas real x projetada, tabela de vendas e resultado do evento de lançamento.",
+      },
+    ],
+  },
+  {
+    id: "projetos-obras",
+    numero: 5,
+    titulo: "Projetos Executivos e Obras",
+    etapas: [
+      {
+        id: "projetos-executivos",
+        numero: "5.1",
+        titulo: "Projetos Executivos",
+        descricao: "Repositório dos projetos executivos de engenharia liberados para obra.",
+      },
+      {
+        id: "orcamentos-obra",
+        numero: "5.2",
+        titulo: "Orçamentos",
+        descricao: "Orçamento executivo real da obra, comparado ao orçamento preliminar e parametrizado.",
+      },
+      {
+        id: "cronograma-fisico-financeiro",
+        numero: "5.3",
+        titulo: "Cronograma Físico-Financeiro",
+        descricao:
+          "Curva S física x financeira da obra, medindo o avanço físico contra o desembolso previsto na Viabilidade.",
+      },
+      {
+        id: "atendimento-clientes",
+        numero: "5.4",
+        titulo: "Atendimento aos Clientes",
+        descricao: "Central de atendimento pós-venda: repasses, assembleias e entrega de chaves.",
+      },
+    ],
+  },
+];
+
+const ICONE_FASE: Record<string, React.ComponentType<{ size?: number }>> = {
+  planejamento: MapPinned,
+  "novos-negocios": TrendingUp,
+  "incorporacao-produto": Grid3x3,
+  "lancamento-mkt-vendas": Mountain,
+  "projetos-obras": Calculator,
+};
 
 export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
-  const [tab, setTab] = useState<TabId>("terreno");
+  const [faseId, setFaseId] = useState<string>("novos-negocios");
+  const [etapaId, setEtapaId] = useState<string>("terreno");
+  const [relatorioAtivo, setRelatorioAtivo] = useState(false);
   const temTerreno = !!estudo.geojson;
+
+  const fase = useMemo(() => FASES.find((f) => f.id === faseId) ?? FASES[0], [faseId]);
+  const etapa = useMemo(
+    () => fase.etapas.find((e) => e.id === etapaId) ?? fase.etapas[0],
+    [fase, etapaId]
+  );
+
+  function selecionarFase(f: Fase) {
+    setFaseId(f.id);
+    setEtapaId(f.etapas[0].id);
+    setRelatorioAtivo(false);
+  }
+
+  const Componente = etapa.componente;
 
   return (
     <div>
-      {/* Tabs */}
+      {/* Fases (nível 1) */}
       <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
-        {TABS.map((t) => {
-          const disabled = t.id !== "terreno" && !temTerreno;
-          const active = tab === t.id;
+        {FASES.map((f) => {
+          const Icon = ICONE_FASE[f.id];
+          const ativo = !relatorioAtivo && faseId === f.id;
           return (
             <button
-              key={t.id}
-              onClick={() => !disabled && setTab(t.id)}
-              disabled={disabled}
+              key={f.id}
+              onClick={() => selecionarFase(f)}
               className={`flex items-center gap-1.5 text-xs font-bold px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                active
+                ativo
                   ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                  : disabled
-                  ? "border-transparent text-gray-300 cursor-not-allowed"
                   : "border-transparent text-gray-400 hover:text-[var(--brand-dark)]"
               }`}
             >
-              <t.icon size={14} /> {t.label}
+              <span
+                className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${
+                  ativo ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-400"
+                }`}
+              >
+                {f.numero}
+              </span>
+              <Icon size={13} /> {f.titulo}
             </button>
           );
         })}
+        <button
+          onClick={() => setRelatorioAtivo(true)}
+          disabled={!temTerreno}
+          className={`flex items-center gap-1.5 text-xs font-bold px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+            relatorioAtivo
+              ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
+              : !temTerreno
+              ? "border-transparent text-gray-300 cursor-not-allowed"
+              : "border-transparent text-gray-400 hover:text-[var(--brand-dark)]"
+          }`}
+        >
+          <FileText size={13} /> Relatório
+        </button>
       </div>
+
+      {!relatorioAtivo && (
+        <div className="flex flex-wrap gap-1.5 pt-3">
+          {fase.etapas.map((e) => {
+            const disabled = e.id !== "terreno" && !temTerreno;
+            const ativo = etapaId === e.id;
+            return (
+              <button
+                key={e.id}
+                onClick={() => !disabled && setEtapaId(e.id)}
+                disabled={disabled}
+                className={`flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 border transition-colors whitespace-nowrap ${
+                  ativo
+                    ? "bg-[var(--brand-dark)] border-[var(--brand-dark)] text-[var(--brand-yellow)]"
+                    : disabled
+                    ? "border-gray-100 text-gray-300 cursor-not-allowed"
+                    : "border-gray-200 text-gray-500 hover:border-[var(--brand-yellow)] hover:text-[var(--brand-dark)]"
+                }`}
+              >
+                <span className="text-gray-400">{e.numero}</span> {e.titulo}
+                {!e.componente && (
+                  <span
+                    className={`text-[8px] font-black px-1 py-0.5 uppercase ${
+                      ativo ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-400"
+                    }`}
+                  >
+                    breve
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="pt-5">
-        {tab === "terreno" && <TerrenoTab estudo={estudo} />}
-        {tab === "topografia" && <TopografiaTab estudo={estudo} />}
-        {tab === "mercado" && <MercadoTab estudo={estudo} />}
-        {tab === "massa" && <MassaTab estudo={estudo} />}
-        {tab === "viabilidade" && <ViabilidadeTab estudo={estudo} />}
-        {tab === "relatorio" && <RelatorioTab estudo={estudo} />}
+        {relatorioAtivo ? (
+          <RelatorioTab estudo={estudo} />
+        ) : Componente ? (
+          <Componente estudo={estudo} />
+        ) : (
+          <EmBreve titulo={etapa.titulo} descricao={etapa.descricao ?? "Esta etapa ainda será construída."} />
+        )}
       </div>
 
-      {!temTerreno && (
+      {!temTerreno && !relatorioAtivo && etapaId !== "terreno" && (
         <p className="text-xs text-gray-400 mt-3">
-          Envie o KML do terreno na aba <b>Terreno</b> para habilitar as demais análises.
+          Envie o KML do terreno na etapa <b>2.1 Documentos do Terreno</b> para habilitar as demais análises.
         </p>
       )}
     </div>
