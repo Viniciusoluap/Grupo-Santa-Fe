@@ -12,12 +12,14 @@ import { QuadroAreasTab } from "./quadro-areas-tab";
 import { NegociacaoTerrenoTab } from "./negociacao-terreno-tab";
 import { BusinessPlanTab } from "./business-plan-tab";
 import { ProjetistasTab } from "./projetistas-tab";
+import { AprovacaoProjetoTab } from "./aprovacao-projeto-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
 import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
 import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-primaria";
 import { projetistasCompatibilizadosDoJson } from "@/lib/incorporacao/projetistas";
+import { projetoTotalmenteAprovadoDoJson } from "@/lib/incorporacao/aprovacao-projeto";
 
 export interface EstudoData {
   id: string;
@@ -48,6 +50,7 @@ export interface EstudoData {
   businessPlanJson: string | null;
   negociacaoTerrenoJson: string | null;
   projetistasJson: string | null;
+  aprovacaoProjetoJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -150,7 +153,8 @@ const FASES: Fase[] = [
         id: "projeto-aprovado",
         numero: "3.2",
         titulo: "Projeto Aprovado",
-        descricao: "Controle da aprovação do projeto legal junto à prefeitura e demais órgãos competentes.",
+        componente: AprovacaoProjetoTab,
+        concluida: (e) => projetoTotalmenteAprovadoDoJson(e.aprovacaoProjetoJson),
       },
       {
         id: "quadro-nbr-12721",
