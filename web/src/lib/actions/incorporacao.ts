@@ -229,6 +229,18 @@ export async function salvarPrecificacaoComparaveis(estudoId: string, dadosJson:
   return { ok: true };
 }
 
+/** Salva a pesquisa primária com compradores (questionário aplicado) — aprimora a 2.2. */
+export async function salvarPesquisaPrimaria(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { pesquisaPrimariaJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva o Quadro de Áreas (NBR 12721) — etapas 2.3/3.3. */
 export async function salvarQuadroAreas(estudoId: string, dadosJson: string) {
   const session = await auth();

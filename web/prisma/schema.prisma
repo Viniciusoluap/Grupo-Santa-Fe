@@ -691,6 +691,9 @@ model EstudoIncorporacao {
   // separado do estudoMercadoJson da IA para não ser sobrescrito ao refazer a pesquisa)
   precificacaoComparaveisJson String?
 
+  // Pesquisa primária com compradores (2.2 Inteligência de Mercado)
+  pesquisaPrimariaJson String?
+
   // Massa generativo (Fase 3)
   massaCenariosJson String?
   cenarioEscolhidoId String?
