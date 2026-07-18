@@ -695,6 +695,12 @@ model EstudoIncorporacao {
   massaCenariosJson String?
   cenarioEscolhidoId String?
 
+  // Quadro de Áreas — NBR 12721 (2.3 Novos Negócios / 3.3 Incorporação e Produto)
+  quadroAreasJson String?
+
+  // Orçamento Parametrizado (2.4 Novos Negócios)
+  orcamentoParametrizadoJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 

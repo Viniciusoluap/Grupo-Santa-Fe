@@ -6,7 +6,9 @@ import { TerrenoTab } from "./terreno-tab";
 import { TopografiaTab } from "./topografia-tab";
 import { MercadoTab } from "./mercado-tab";
 import { MassaTab } from "./massa-tab";
+import { OrcamentoParametrizadoTab } from "./orcamento-parametrizado-tab";
 import { ViabilidadeTab } from "./viabilidade-tab";
+import { QuadroAreasTab } from "./quadro-areas-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 
@@ -33,6 +35,8 @@ export interface EstudoData {
   pesquisaCidadeJson: string | null;
   estudoMercadoJson: string | null;
   precificacaoComparaveisJson: string | null;
+  quadroAreasJson: string | null;
+  orcamentoParametrizadoJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -99,8 +103,8 @@ const FASES: Fase[] = [
         id: "orcamento-parametrizado",
         numero: "2.4",
         titulo: "Orçamento Parametrizado",
-        descricao:
-          "Orçamento de obra por m² equivalente, discriminado por pavimento e disciplina (coeficientes de equivalência estilo NBR 12721) — antecede o orçamento preliminar formal da fase seguinte.",
+        componente: OrcamentoParametrizadoTab,
+        concluida: (e) => !!e.orcamentoParametrizadoJson,
       },
       { id: "viabilidade", numero: "2.5", titulo: "Estudo de Viabilidade Econômica", componente: ViabilidadeTab, concluida: (e) => !!e.loteamentoJson },
       {
@@ -141,8 +145,8 @@ const FASES: Fase[] = [
         id: "quadro-nbr-12721",
         numero: "3.3",
         titulo: "Quadro da NBR 12721",
-        descricao:
-          "Quadro de áreas oficial conforme a NBR 12721, exigido para o registro de incorporação — deriva do mesmo cálculo do Estudo de Massa, com o detalhamento normativo completo.",
+        componente: QuadroAreasTab,
+        concluida: (e) => !!e.quadroAreasJson,
       },
       {
         id: "registro-incorporacao",
