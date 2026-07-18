@@ -731,6 +731,9 @@ model EstudoIncorporacao {
   // Material Publicitário (4.3 Lançamento, Marketing e Vendas)
   materialPublicitarioJson String?
 
+  // Lançamento Imobiliário (4.4 Lançamento, Marketing e Vendas)
+  lancamentoImobiliarioJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
