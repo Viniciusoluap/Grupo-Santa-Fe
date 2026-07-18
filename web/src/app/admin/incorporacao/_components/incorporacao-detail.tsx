@@ -17,6 +17,7 @@ import { RegistroIncorporacaoTab } from "./registro-incorporacao-tab";
 import { OrcamentoPreliminarTab } from "./orcamento-preliminar-tab";
 import { PlanejamentoLancamentoTab } from "./planejamento-lancamento-tab";
 import { FornecedoresLancamentoTab } from "./fornecedores-lancamento-tab";
+import { MaterialPublicitarioTab } from "./material-publicitario-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -28,6 +29,7 @@ import { registroCompletoDoJson } from "@/lib/incorporacao/registro-incorporacao
 import { orcamentoPreliminarPreenchidoDoJson } from "@/lib/incorporacao/orcamento-preliminar";
 import { planejamentoLancamentoCompletoDoJson } from "@/lib/incorporacao/planejamento-lancamento";
 import { fornecedoresTodosContratadosDoJson } from "@/lib/incorporacao/fornecedores-lancamento";
+import { materialPublicitarioAprovadoDoJson } from "@/lib/incorporacao/material-publicitario";
 
 export interface EstudoData {
   id: string;
@@ -63,6 +65,7 @@ export interface EstudoData {
   orcamentoPreliminarJson: string | null;
   planejamentoLancamentoJson: string | null;
   fornecedoresLancamentoJson: string | null;
+  materialPublicitarioJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -214,7 +217,8 @@ const FASES: Fase[] = [
         id: "material-publicitario",
         numero: "4.3",
         titulo: "Material Publicitário",
-        descricao: "Repositório e aprovação de peças publicitárias (site, folder, vídeos, redes sociais).",
+        componente: MaterialPublicitarioTab,
+        concluida: (e) => materialPublicitarioAprovadoDoJson(e.materialPublicitarioJson),
       },
       {
         id: "lancamento-imobiliario",

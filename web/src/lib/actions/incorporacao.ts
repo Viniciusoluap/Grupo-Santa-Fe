@@ -337,6 +337,18 @@ export async function salvarFornecedoresLancamento(estudoId: string, dadosJson: 
   return { ok: true };
 }
 
+/** Salva o repositório de peças publicitárias e status de aprovação — etapa 4.3. */
+export async function salvarMaterialPublicitario(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { materialPublicitarioJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   const session = await auth();
