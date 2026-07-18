@@ -710,6 +710,9 @@ model EstudoIncorporacao {
   // Business Plan e Investidores (2.6 Novos Negócios)
   businessPlanJson String?
 
+  // Contratação de Projetistas (3.1 Incorporação e Produto)
+  projetistasJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
