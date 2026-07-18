@@ -361,6 +361,18 @@ export async function salvarLancamentoImobiliario(estudoId: string, dadosJson: s
   return { ok: true };
 }
 
+/** Salva os projetos executivos liberados para obra — etapa 5.1. */
+export async function salvarProjetosExecutivos(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { projetosExecutivosJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   const session = await auth();

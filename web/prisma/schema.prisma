@@ -734,6 +734,9 @@ model EstudoIncorporacao {
   // Lançamento Imobiliário (4.4 Lançamento, Marketing e Vendas)
   lancamentoImobiliarioJson String?
 
+  // Projetos Executivos (5.1 Projetos Executivos e Obras)
+  projetosExecutivosJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
