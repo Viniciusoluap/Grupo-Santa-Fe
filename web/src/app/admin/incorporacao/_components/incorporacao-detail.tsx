@@ -16,6 +16,7 @@ import { AprovacaoProjetoTab } from "./aprovacao-projeto-tab";
 import { RegistroIncorporacaoTab } from "./registro-incorporacao-tab";
 import { OrcamentoPreliminarTab } from "./orcamento-preliminar-tab";
 import { PlanejamentoLancamentoTab } from "./planejamento-lancamento-tab";
+import { FornecedoresLancamentoTab } from "./fornecedores-lancamento-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -26,6 +27,7 @@ import { projetoTotalmenteAprovadoDoJson } from "@/lib/incorporacao/aprovacao-pr
 import { registroCompletoDoJson } from "@/lib/incorporacao/registro-incorporacao";
 import { orcamentoPreliminarPreenchidoDoJson } from "@/lib/incorporacao/orcamento-preliminar";
 import { planejamentoLancamentoCompletoDoJson } from "@/lib/incorporacao/planejamento-lancamento";
+import { fornecedoresTodosContratadosDoJson } from "@/lib/incorporacao/fornecedores-lancamento";
 
 export interface EstudoData {
   id: string;
@@ -60,6 +62,7 @@ export interface EstudoData {
   registroIncorporacaoJson: string | null;
   orcamentoPreliminarJson: string | null;
   planejamentoLancamentoJson: string | null;
+  fornecedoresLancamentoJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -204,7 +207,8 @@ const FASES: Fase[] = [
         id: "contratacao-fornecedores",
         numero: "4.2",
         titulo: "Contratação de Fornecedores",
-        descricao: "Gestão de fornecedores de marketing, estande de vendas, decoração e eventos do lançamento.",
+        componente: FornecedoresLancamentoTab,
+        concluida: (e) => fornecedoresTodosContratadosDoJson(e.fornecedoresLancamentoJson),
       },
       {
         id: "material-publicitario",

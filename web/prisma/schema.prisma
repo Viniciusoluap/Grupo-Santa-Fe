@@ -725,6 +725,9 @@ model EstudoIncorporacao {
   // Planejamento do Lançamento (4.1 Lançamento, Marketing e Vendas)
   planejamentoLancamentoJson String?
 
+  // Contratação de Fornecedores (4.2 Lançamento, Marketing e Vendas)
+  fornecedoresLancamentoJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
