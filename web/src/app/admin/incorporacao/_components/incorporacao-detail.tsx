@@ -9,8 +9,10 @@ import { MassaTab } from "./massa-tab";
 import { OrcamentoParametrizadoTab } from "./orcamento-parametrizado-tab";
 import { ViabilidadeTab } from "./viabilidade-tab";
 import { QuadroAreasTab } from "./quadro-areas-tab";
+import { NegociacaoTerrenoTab } from "./negociacao-terreno-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
+import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
 
 export interface EstudoData {
   id: string;
@@ -37,6 +39,7 @@ export interface EstudoData {
   precificacaoComparaveisJson: string | null;
   quadroAreasJson: string | null;
   orcamentoParametrizadoJson: string | null;
+  negociacaoTerrenoJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -118,8 +121,8 @@ const FASES: Fase[] = [
         id: "negociacao-terreno",
         numero: "2.7",
         titulo: "Negociação do Terreno",
-        descricao:
-          "Registro e acompanhamento da negociação com o proprietário/terreneiro: propostas, condições (compra, permuta física ou financeira) e status até o fechamento.",
+        componente: NegociacaoTerrenoTab,
+        concluida: (e) => negociacaoFechadaDoJson(e.negociacaoTerrenoJson),
       },
     ],
   },
