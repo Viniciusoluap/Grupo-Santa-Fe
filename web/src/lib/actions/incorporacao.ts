@@ -253,6 +253,18 @@ export async function salvarOrcamentoParametrizado(estudoId: string, dadosJson: 
   return { ok: true };
 }
 
+/** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
+export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { businessPlanJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a negociação do terreno (proprietário/terreneiro) — etapa 2.7. */
 export async function salvarNegociacaoTerreno(estudoId: string, dadosJson: string) {
   const session = await auth();
