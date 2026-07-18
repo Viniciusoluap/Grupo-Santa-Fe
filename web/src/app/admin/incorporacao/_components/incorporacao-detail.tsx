@@ -10,9 +10,11 @@ import { OrcamentoParametrizadoTab } from "./orcamento-parametrizado-tab";
 import { ViabilidadeTab } from "./viabilidade-tab";
 import { QuadroAreasTab } from "./quadro-areas-tab";
 import { NegociacaoTerrenoTab } from "./negociacao-terreno-tab";
+import { BusinessPlanTab } from "./business-plan-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
+import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
 
 export interface EstudoData {
   id: string;
@@ -39,6 +41,7 @@ export interface EstudoData {
   precificacaoComparaveisJson: string | null;
   quadroAreasJson: string | null;
   orcamentoParametrizadoJson: string | null;
+  businessPlanJson: string | null;
   negociacaoTerrenoJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
@@ -114,8 +117,8 @@ const FASES: Fase[] = [
         id: "business-plan",
         numero: "2.6",
         titulo: "Business Plan e Investidores",
-        descricao:
-          "Simulação de captação com fundos/investidores: capital inicial, remuneração mensal/anual e prazos de resgate — comparando cenários de captação sobre o resultado da Viabilidade.",
+        componente: BusinessPlanTab,
+        concluida: (e) => businessPlanPreenchidoDoJson(e.businessPlanJson),
       },
       {
         id: "negociacao-terreno",

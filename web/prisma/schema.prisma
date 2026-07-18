@@ -704,6 +704,9 @@ model EstudoIncorporacao {
   // Negociação do Terreno (2.7 Novos Negócios)
   negociacaoTerrenoJson String?
 
+  // Business Plan e Investidores (2.6 Novos Negócios)
+  businessPlanJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
