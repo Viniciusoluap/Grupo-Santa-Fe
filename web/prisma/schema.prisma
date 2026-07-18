@@ -737,6 +737,9 @@ model EstudoIncorporacao {
   // Projetos Executivos (5.1 Projetos Executivos e Obras)
   projetosExecutivosJson String?
 
+  // Orçamentos (5.2 Projetos Executivos e Obras)
+  orcamentoObraJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
