@@ -19,6 +19,8 @@ import { PlanejamentoLancamentoTab } from "./planejamento-lancamento-tab";
 import { FornecedoresLancamentoTab } from "./fornecedores-lancamento-tab";
 import { MaterialPublicitarioTab } from "./material-publicitario-tab";
 import { LancamentoImobiliarioTab } from "./lancamento-imobiliario-tab";
+import { ProjetosExecutivosTab } from "./projetos-executivos-tab";
+import { OrcamentoObraTab } from "./orcamento-obra-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -32,6 +34,8 @@ import { planejamentoLancamentoCompletoDoJson } from "@/lib/incorporacao/planeja
 import { fornecedoresTodosContratadosDoJson } from "@/lib/incorporacao/fornecedores-lancamento";
 import { materialPublicitarioAprovadoDoJson } from "@/lib/incorporacao/material-publicitario";
 import { lancamentoImobiliarioComVendasDoJson } from "@/lib/incorporacao/lancamento-imobiliario";
+import { projetosExecutivosTodosLiberadosDoJson } from "@/lib/incorporacao/projetos-executivos";
+import { orcamentoObraPreenchidoDoJson } from "@/lib/incorporacao/orcamento-obra";
 
 export interface EstudoData {
   id: string;
@@ -69,6 +73,8 @@ export interface EstudoData {
   fornecedoresLancamentoJson: string | null;
   materialPublicitarioJson: string | null;
   lancamentoImobiliarioJson: string | null;
+  projetosExecutivosJson: string | null;
+  orcamentoObraJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -241,13 +247,15 @@ const FASES: Fase[] = [
         id: "projetos-executivos",
         numero: "5.1",
         titulo: "Projetos Executivos",
-        descricao: "Repositório dos projetos executivos de engenharia liberados para obra.",
+        componente: ProjetosExecutivosTab,
+        concluida: (e) => projetosExecutivosTodosLiberadosDoJson(e.projetosExecutivosJson),
       },
       {
         id: "orcamentos-obra",
         numero: "5.2",
         titulo: "Orçamentos",
-        descricao: "Orçamento executivo real da obra, comparado ao orçamento preliminar e parametrizado.",
+        componente: OrcamentoObraTab,
+        concluida: (e) => orcamentoObraPreenchidoDoJson(e.orcamentoObraJson),
       },
       {
         id: "cronograma-fisico-financeiro",
