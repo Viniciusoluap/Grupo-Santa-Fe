@@ -728,6 +728,9 @@ model EstudoIncorporacao {
   // Contratação de Fornecedores (4.2 Lançamento, Marketing e Vendas)
   fornecedoresLancamentoJson String?
 
+  // Material Publicitário (4.3 Lançamento, Marketing e Vendas)
+  materialPublicitarioJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 
