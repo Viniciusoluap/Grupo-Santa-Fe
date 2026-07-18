@@ -213,6 +213,22 @@ export async function salvarMercado(
   return { ok: true };
 }
 
+/**
+ * Salva a precificação por comparáveis ponderados (atributos, pesos, notas do
+ * novo empreendimento e dos concorrentes) — em campo próprio, separado do
+ * estudoMercadoJson da IA, para não ser sobrescrito ao refazer a pesquisa.
+ */
+export async function salvarPrecificacaoComparaveis(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { precificacaoComparaveisJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva os cenários de massa, o escolhido e (opcional) o mix derivado para o EVE. */
 export async function salvarMassa(
   estudoId: string,

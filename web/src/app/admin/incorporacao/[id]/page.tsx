@@ -40,6 +40,7 @@ export default async function EstudoDetailPage({
     urbanismoParecer: estudo.urbanismoParecer,
     pesquisaCidadeJson: estudo.pesquisaCidadeJson,
     estudoMercadoJson: estudo.estudoMercadoJson,
+    precificacaoComparaveisJson: estudo.precificacaoComparaveisJson,
     massaCenariosJson: estudo.massaCenariosJson,
     cenarioEscolhidoId: estudo.cenarioEscolhidoId,
     mixJson: estudo.mixJson,

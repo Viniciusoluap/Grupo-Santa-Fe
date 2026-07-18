@@ -4,6 +4,7 @@ import { useState } from "react";
 import { TrendingUp, Sparkles, Loader2, Save } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { salvarMercado } from "@/lib/actions/incorporacao";
+import { PrecificacaoComparaveis } from "./precificacao-comparaveis";
 import type { EstudoData } from "./incorporacao-detail";
 
 interface Cidade {
@@ -67,6 +68,9 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
         {cidade && <Save size={13} className="text-green-500" />}
       </div>
       {erro && <p className="text-xs text-red-500">{erro}</p>}
+
+      <PrecificacaoComparaveis estudo={estudo} />
+
       {meta?.confiabilidade && (
         <p className="text-[11px] text-gray-400">Confiabilidade: <b>{meta.confiabilidade}</b>{meta.fontes?.filter(Boolean).length ? ` · Fontes: ${meta.fontes.filter(Boolean).join("; ")}` : ""}</p>
       )}

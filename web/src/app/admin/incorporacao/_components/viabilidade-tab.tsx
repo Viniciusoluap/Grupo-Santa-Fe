@@ -13,6 +13,11 @@ import {
   type PerfilVendas,
 } from "@/lib/finance/loteamento";
 import {
+  calcularPrecificacaoPorComparaveis,
+  type AtributoComparavel,
+  type Comparavel,
+} from "@/lib/mercado/precificacao";
+import {
   gerarRelatorioExecutivo,
   gerarRelatorioCustos,
   gerarRelatorioTerreneiro,
@@ -123,15 +128,25 @@ function defaultsMix(estudo: EstudoData): ItemMixProduto[] {
       if (Array.isArray(mix) && mix.length > 0) return mix;
     } catch { /* ignora JSON corrompido */ }
   }
-  // 2) preço sugerido pela pesquisa de Cidade & Mercado, se existir.
-  let precoM2 = 500;
-  if (estudo.estudoMercadoJson) {
+  // 2) preço sugerido pela precificação por comparáveis ponderados (2.2), se existir.
+  let precoM2 = 0;
+  if (estudo.precificacaoComparaveisJson) {
+    try {
+      const salvo = JSON.parse(estudo.precificacaoComparaveisJson) as {
+        atributos: AtributoComparavel[]; notasNovo: number[]; comparaveis: Comparavel[];
+      };
+      const r = calcularPrecificacaoPorComparaveis(salvo.atributos, salvo.notasNovo, salvo.comparaveis);
+      if (r.precoSugeridoM2 > 0) precoM2 = r.precoSugeridoM2;
+    } catch { /* ignora */ }
+  }
+  // 3) senão, preço sugerido pela pesquisa de Cidade & Mercado (IA), se existir.
+  if (!precoM2 && estudo.estudoMercadoJson) {
     try {
       const m = JSON.parse(estudo.estudoMercadoJson) as { precoM2Lote?: number };
       if (m.precoM2Lote) precoM2 = m.precoM2Lote;
     } catch { /* ignora */ }
   }
-  return [{ nome: "Lotes", quantidade: 100, areaUnidadeM2: 160, precoM2 }];
+  return [{ nome: "Lotes", quantidade: 100, areaUnidadeM2: 160, precoM2: precoM2 || 500 }];
 }
 
 function paraMotor(f: PremissasForm, itensMix: ItemMixProduto[], pctAPP: number): PremissasLoteamento {
@@ -346,28 +361,29 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           Aqui você define o que vai ser vendido: só lotes, lotes + casas, área de prédio para apartamentos, comercial — qualquer combinação. Cada linha é um produto do mix (VGV = quantidade × área × preço/m²).
         </p>
         <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide px-0.5">
-          <span className="col-span-4">Produto</span>
+          <span className="col-span-5">Produto</span>
           <span className="col-span-2">Quantidade</span>
           <span className="col-span-2">Área/unid. (m²)</span>
           <span className="col-span-2">R$/m²</span>
-          <span className="col-span-1">VGV</span>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {mix.map((p, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2 items-center">
-              <input value={p.nome} onChange={(e) => updProduto(i, "nome", e.target.value)}
-                className="col-span-4 text-sm border border-gray-200 px-2 py-1.5" placeholder="Ex.: Lotes, Casas, Apartamentos" />
-              <input type="number" value={p.quantidade || ""} onChange={(e) => updProduto(i, "quantidade", e.target.value)}
-                className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="Qtd" />
-              <input type="number" value={p.areaUnidadeM2 || ""} onChange={(e) => updProduto(i, "areaUnidadeM2", e.target.value)}
-                className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="Área m²" />
-              <input type="number" value={p.precoM2 || ""} onChange={(e) => updProduto(i, "precoM2", e.target.value)}
-                className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="R$/m²" />
-              <span className="col-span-1 text-xs font-bold text-[var(--brand-dark)] truncate">
-                {formatCurrency(p.quantidade * p.areaUnidadeM2 * p.precoM2)}
-              </span>
-              <button type="button" onClick={() => removerProduto(i)}
-                className="col-span-1 text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+            <div key={i} className="border border-gray-100 p-2.5 space-y-1.5">
+              <div className="grid grid-cols-12 gap-2 items-center">
+                <input value={p.nome} onChange={(e) => updProduto(i, "nome", e.target.value)}
+                  className="col-span-5 text-sm border border-gray-200 px-2 py-1.5" placeholder="Ex.: Lotes, Casas, Apartamentos" />
+                <input type="number" value={p.quantidade || ""} onChange={(e) => updProduto(i, "quantidade", e.target.value)}
+                  className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="Qtd" />
+                <input type="number" value={p.areaUnidadeM2 || ""} onChange={(e) => updProduto(i, "areaUnidadeM2", e.target.value)}
+                  className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="Área m²" />
+                <input type="number" value={p.precoM2 || ""} onChange={(e) => updProduto(i, "precoM2", e.target.value)}
+                  className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="R$/m²" />
+                <button type="button" onClick={() => removerProduto(i)}
+                  className="col-span-1 text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+              </div>
+              <p className="text-xs text-right text-gray-500">
+                VGV do produto: <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(p.quantidade * p.areaUnidadeM2 * p.precoM2)}</span>
+              </p>
             </div>
           ))}
         </div>
