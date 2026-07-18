@@ -11,11 +11,13 @@ import { ViabilidadeTab } from "./viabilidade-tab";
 import { QuadroAreasTab } from "./quadro-areas-tab";
 import { NegociacaoTerrenoTab } from "./negociacao-terreno-tab";
 import { BusinessPlanTab } from "./business-plan-tab";
+import { ProjetistasTab } from "./projetistas-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
 import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
 import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-primaria";
+import { projetistasCompatibilizadosDoJson } from "@/lib/incorporacao/projetistas";
 
 export interface EstudoData {
   id: string;
@@ -45,6 +47,7 @@ export interface EstudoData {
   orcamentoParametrizadoJson: string | null;
   businessPlanJson: string | null;
   negociacaoTerrenoJson: string | null;
+  projetistasJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -140,8 +143,8 @@ const FASES: Fase[] = [
         id: "contratacao-projetistas",
         numero: "3.1",
         titulo: "Contratação de Projetistas",
-        descricao:
-          "Gestão dos projetistas contratados (arquitetura, estrutural, instalações), com cronograma de entrega e compatibilização técnica entre disciplinas.",
+        componente: ProjetistasTab,
+        concluida: (e) => projetistasCompatibilizadosDoJson(e.projetistasJson),
       },
       {
         id: "projeto-aprovado",
