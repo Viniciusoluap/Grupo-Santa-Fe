@@ -18,6 +18,10 @@ import {
   type Comparavel,
 } from "@/lib/mercado/precificacao";
 import {
+  calcularOrcamentoParametrizado,
+  type PremissasOrcamentoParametrizado,
+} from "@/lib/orcamento/parametrizado";
+import {
   gerarRelatorioExecutivo,
   gerarRelatorioCustos,
   gerarRelatorioTerreneiro,
@@ -83,9 +87,26 @@ const PERFIS: { value: PerfilVendas; label: string }[] = [
   { value: "fechamento_forte", label: "Fechamento Forte" },
 ];
 
-function defaultsForm(areaM2: number): PremissasForm {
+/**
+ * Custo/m² real vindo do Orçamento Parametrizado (2.4), quando já preenchido —
+ * substitui o valor genérico de custoInfraM2Lote enquanto o usuário não
+ * definir um valor próprio na Viabilidade.
+ */
+function custoInfraDoOrcamentoParametrizado(estudo: EstudoData): number {
+  if (!estudo.orcamentoParametrizadoJson) return 0;
+  try {
+    const salvo = JSON.parse(estudo.orcamentoParametrizadoJson) as PremissasOrcamentoParametrizado;
+    const r = calcularOrcamentoParametrizado(salvo);
+    return r.custoM2Real > 0 ? r.custoM2Real : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function defaultsForm(estudo: EstudoData): PremissasForm {
+  const custoParametrizado = custoInfraDoOrcamentoParametrizado(estudo);
   return {
-    areaBrutaM2: Math.round(areaM2) || 100_000,
+    areaBrutaM2: Math.round(estudo.areaM2) || 100_000,
     pctAreaPublica: 10,
     pctAreaVerde: 5,
     pctSistemaViario: 25,
@@ -106,7 +127,7 @@ function defaultsForm(areaM2: number): PremissasForm {
     inicioObraMes: 0,
     duracaoObraMeses: 24,
     inicioVendasMes: 12,
-    custoInfraM2Lote: 245,
+    custoInfraM2Lote: custoParametrizado || 245,
     projetosLicencas: 500_000,
     marketing: 500_000,
     registroPorUnidade: 400,
@@ -205,7 +226,7 @@ export function montarPremissasLoteamento(estudo: EstudoData): PremissasLoteamen
   }
   if (!salvo) return null;
 
-  const form: PremissasForm = { ...defaultsForm(estudo.areaM2), ...salvo };
+  const form: PremissasForm = { ...defaultsForm(estudo), ...salvo };
   const itensMix = salvo.itensMix && salvo.itensMix.length > 0 ? salvo.itensMix : defaultsMix(estudo);
   const appAreaM2 = estudo.appAreaM2 ?? 0;
   const pctAPP = form.areaBrutaM2 > 0 ? appAreaM2 / form.areaBrutaM2 : 0;
@@ -258,10 +279,10 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
 
   const [form, setForm] = useState<PremissasForm>(() => {
     if (salvo) {
-      try { return { ...defaultsForm(estudo.areaM2), ...(salvo as Partial<PremissasForm>) }; }
+      try { return { ...defaultsForm(estudo), ...(salvo as Partial<PremissasForm>) }; }
       catch { /* premissas corrompidas → defaults */ }
     }
-    return defaultsForm(estudo.areaM2);
+    return defaultsForm(estudo);
   });
   const [mix, setMix] = useState<ItemMixProduto[]>(() => {
     if (salvo?.itensMix && Array.isArray(salvo.itensMix) && salvo.itensMix.length > 0) {

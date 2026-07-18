@@ -229,6 +229,30 @@ export async function salvarPrecificacaoComparaveis(estudoId: string, dadosJson:
   return { ok: true };
 }
 
+/** Salva o Quadro de Áreas (NBR 12721) — etapas 2.3/3.3. */
+export async function salvarQuadroAreas(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { quadroAreasJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
+/** Salva o Orçamento Parametrizado — etapa 2.4. */
+export async function salvarOrcamentoParametrizado(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { orcamentoParametrizadoJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva os cenários de massa, o escolhido e (opcional) o mix derivado para o EVE. */
 export async function salvarMassa(
   estudoId: string,
