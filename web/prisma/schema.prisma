@@ -722,6 +722,9 @@ model EstudoIncorporacao {
   // Orçamento Preliminar e EVE (3.5 Incorporação e Produto)
   orcamentoPreliminarJson String?
 
+  // Planejamento do Lançamento (4.1 Lançamento, Marketing e Vendas)
+  planejamentoLancamentoJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 

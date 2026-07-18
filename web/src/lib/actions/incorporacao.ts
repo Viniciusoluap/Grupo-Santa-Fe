@@ -313,6 +313,18 @@ export async function salvarOrcamentoPreliminar(estudoId: string, dadosJson: str
   return { ok: true };
 }
 
+/** Salva o cronograma de marcos do planejamento do lançamento — etapa 4.1. */
+export async function salvarPlanejamentoLancamento(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { planejamentoLancamentoJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   const session = await auth();
