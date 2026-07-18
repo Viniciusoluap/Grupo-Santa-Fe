@@ -18,6 +18,7 @@ import { OrcamentoPreliminarTab } from "./orcamento-preliminar-tab";
 import { PlanejamentoLancamentoTab } from "./planejamento-lancamento-tab";
 import { FornecedoresLancamentoTab } from "./fornecedores-lancamento-tab";
 import { MaterialPublicitarioTab } from "./material-publicitario-tab";
+import { LancamentoImobiliarioTab } from "./lancamento-imobiliario-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -30,6 +31,7 @@ import { orcamentoPreliminarPreenchidoDoJson } from "@/lib/incorporacao/orcament
 import { planejamentoLancamentoCompletoDoJson } from "@/lib/incorporacao/planejamento-lancamento";
 import { fornecedoresTodosContratadosDoJson } from "@/lib/incorporacao/fornecedores-lancamento";
 import { materialPublicitarioAprovadoDoJson } from "@/lib/incorporacao/material-publicitario";
+import { lancamentoImobiliarioComVendasDoJson } from "@/lib/incorporacao/lancamento-imobiliario";
 
 export interface EstudoData {
   id: string;
@@ -66,6 +68,7 @@ export interface EstudoData {
   planejamentoLancamentoJson: string | null;
   fornecedoresLancamentoJson: string | null;
   materialPublicitarioJson: string | null;
+  lancamentoImobiliarioJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -224,8 +227,8 @@ const FASES: Fase[] = [
         id: "lancamento-imobiliario",
         numero: "4.4",
         titulo: "Lançamento Imobiliário",
-        descricao:
-          "Painel do lançamento: velocidade de vendas real x projetada, tabela de vendas e resultado do evento de lançamento.",
+        componente: LancamentoImobiliarioTab,
+        concluida: (e) => lancamentoImobiliarioComVendasDoJson(e.lancamentoImobiliarioJson),
       },
     ],
   },
