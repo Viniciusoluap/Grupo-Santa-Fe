@@ -397,6 +397,18 @@ export async function salvarCronogramaObra(estudoId: string, dadosJson: string) 
   return { ok: true };
 }
 
+/** Salva os chamados de atendimento pós-venda — etapa 5.4. */
+export async function salvarAtendimentoClientes(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { atendimentoClientesJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   const session = await auth();

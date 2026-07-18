@@ -22,6 +22,7 @@ import { LancamentoImobiliarioTab } from "./lancamento-imobiliario-tab";
 import { ProjetosExecutivosTab } from "./projetos-executivos-tab";
 import { OrcamentoObraTab } from "./orcamento-obra-tab";
 import { CronogramaObraTab } from "./cronograma-obra-tab";
+import { AtendimentoClientesTab } from "./atendimento-clientes-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -38,6 +39,7 @@ import { lancamentoImobiliarioComVendasDoJson } from "@/lib/incorporacao/lancame
 import { projetosExecutivosTodosLiberadosDoJson } from "@/lib/incorporacao/projetos-executivos";
 import { orcamentoObraPreenchidoDoJson } from "@/lib/incorporacao/orcamento-obra";
 import { obraConcluidaDoJson } from "@/lib/incorporacao/cronograma-obra";
+import { atendimentoTodosConcluidosDoJson } from "@/lib/incorporacao/atendimento-clientes";
 
 export interface EstudoData {
   id: string;
@@ -78,6 +80,7 @@ export interface EstudoData {
   projetosExecutivosJson: string | null;
   orcamentoObraJson: string | null;
   cronogramaObraJson: string | null;
+  atendimentoClientesJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -271,7 +274,8 @@ const FASES: Fase[] = [
         id: "atendimento-clientes",
         numero: "5.4",
         titulo: "Atendimento aos Clientes",
-        descricao: "Central de atendimento pós-venda: repasses, assembleias e entrega de chaves.",
+        componente: AtendimentoClientesTab,
+        concluida: (e) => atendimentoTodosConcluidosDoJson(e.atendimentoClientesJson),
       },
     ],
   },
