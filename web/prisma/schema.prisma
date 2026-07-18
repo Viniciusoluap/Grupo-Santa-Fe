@@ -740,6 +740,9 @@ model EstudoIncorporacao {
   // Orçamentos (5.2 Projetos Executivos e Obras)
   orcamentoObraJson String?
 
+  // Cronograma Físico-Financeiro (5.3 Projetos Executivos e Obras)
+  cronogramaObraJson String?
+
   // Mix de produtos (Fase 3)
   mixJson       String?
 

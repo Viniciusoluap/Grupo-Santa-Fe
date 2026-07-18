@@ -21,6 +21,7 @@ import { MaterialPublicitarioTab } from "./material-publicitario-tab";
 import { LancamentoImobiliarioTab } from "./lancamento-imobiliario-tab";
 import { ProjetosExecutivosTab } from "./projetos-executivos-tab";
 import { OrcamentoObraTab } from "./orcamento-obra-tab";
+import { CronogramaObraTab } from "./cronograma-obra-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -36,6 +37,7 @@ import { materialPublicitarioAprovadoDoJson } from "@/lib/incorporacao/material-
 import { lancamentoImobiliarioComVendasDoJson } from "@/lib/incorporacao/lancamento-imobiliario";
 import { projetosExecutivosTodosLiberadosDoJson } from "@/lib/incorporacao/projetos-executivos";
 import { orcamentoObraPreenchidoDoJson } from "@/lib/incorporacao/orcamento-obra";
+import { obraConcluidaDoJson } from "@/lib/incorporacao/cronograma-obra";
 
 export interface EstudoData {
   id: string;
@@ -75,6 +77,7 @@ export interface EstudoData {
   lancamentoImobiliarioJson: string | null;
   projetosExecutivosJson: string | null;
   orcamentoObraJson: string | null;
+  cronogramaObraJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -261,8 +264,8 @@ const FASES: Fase[] = [
         id: "cronograma-fisico-financeiro",
         numero: "5.3",
         titulo: "Cronograma Físico-Financeiro",
-        descricao:
-          "Curva S física x financeira da obra, medindo o avanço físico contra o desembolso previsto na Viabilidade.",
+        componente: CronogramaObraTab,
+        concluida: (e) => obraConcluidaDoJson(e.cronogramaObraJson),
       },
       {
         id: "atendimento-clientes",
