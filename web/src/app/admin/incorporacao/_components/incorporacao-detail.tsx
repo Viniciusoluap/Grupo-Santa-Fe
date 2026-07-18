@@ -13,6 +13,7 @@ import { NegociacaoTerrenoTab } from "./negociacao-terreno-tab";
 import { BusinessPlanTab } from "./business-plan-tab";
 import { ProjetistasTab } from "./projetistas-tab";
 import { AprovacaoProjetoTab } from "./aprovacao-projeto-tab";
+import { RegistroIncorporacaoTab } from "./registro-incorporacao-tab";
 import { RelatorioTab } from "./relatorio-tab";
 import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
@@ -20,6 +21,7 @@ import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
 import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-primaria";
 import { projetistasCompatibilizadosDoJson } from "@/lib/incorporacao/projetistas";
 import { projetoTotalmenteAprovadoDoJson } from "@/lib/incorporacao/aprovacao-projeto";
+import { registroCompletoDoJson } from "@/lib/incorporacao/registro-incorporacao";
 
 export interface EstudoData {
   id: string;
@@ -51,6 +53,7 @@ export interface EstudoData {
   negociacaoTerrenoJson: string | null;
   projetistasJson: string | null;
   aprovacaoProjetoJson: string | null;
+  registroIncorporacaoJson: string | null;
   massaCenariosJson: string | null;
   cenarioEscolhidoId: string | null;
   mixJson: string | null;
@@ -167,7 +170,8 @@ const FASES: Fase[] = [
         id: "registro-incorporacao",
         numero: "3.4",
         titulo: "Registro da Incorporação",
-        descricao: "Checklist e documentos do registro da incorporação em cartório.",
+        componente: RegistroIncorporacaoTab,
+        concluida: (e) => registroCompletoDoJson(e.registroIncorporacaoJson),
       },
       {
         id: "orcamento-preliminar-eve",
