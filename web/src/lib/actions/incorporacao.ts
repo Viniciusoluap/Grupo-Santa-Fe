@@ -277,6 +277,18 @@ export async function salvarProjetistas(estudoId: string, dadosJson: string) {
   return { ok: true };
 }
 
+/** Salva os processos de aprovação do projeto junto aos órgãos competentes — etapa 3.2. */
+export async function salvarAprovacaoProjeto(estudoId: string, dadosJson: string) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { aprovacaoProjetoJson: dadosJson },
+  });
+  revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   const session = await auth();
