@@ -27,17 +27,14 @@ describe("formatCurrency", () => {
 });
 
 describe("formatArea", () => {
-  it("formats area with m²", () => {
-    expect(formatArea(120)).toBe("120 m²");
-  });
-  it("formats large area with locale separator", () => {
-    const result = formatArea(1500);
-    expect(result).toContain("m²");
-    expect(result).toContain("1");
-    expect(result).toContain("500");
-  });
-  it("formats zero area", () => {
-    expect(formatArea(0)).toBe("0 m²");
+  it.each([
+    [0, "0 m²"],
+    [120, "120 m²"],
+    [1500, "1.500 m²"],
+    [120.5, "120,5 m²"],
+    [-10, "-10 m²"],
+  ])("formats %s using the pt-BR area convention", (value, expected) => {
+    expect(formatArea(value)).toBe(expected);
   });
 });
 

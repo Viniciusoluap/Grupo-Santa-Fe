@@ -32,6 +32,28 @@ export interface SimulationResult {
 const MONTHLY_INSURANCE_RATE = 0.000180;
 
 export function simulate(input: SimulationInput): SimulationResult {
+  const numericInputs = [
+    ["propertyValue", input.propertyValue],
+    ["downPayment", input.downPayment],
+    ["annualRate", input.annualRate],
+  ] as const;
+
+  for (const [name, value] of numericInputs) {
+    if (!Number.isFinite(value)) {
+      throw new TypeError(`${name} deve ser um número finito`);
+    }
+  }
+
+  if (!Number.isInteger(input.termMonths) || input.termMonths <= 0) {
+    throw new RangeError("termMonths deve ser um inteiro positivo");
+  }
+  if (input.annualRate < 0) {
+    throw new RangeError("annualRate não pode ser negativa");
+  }
+  if (input.useFgts && !Number.isFinite(input.fgtsAmount)) {
+    throw new TypeError("fgtsAmount deve ser um número finito quando o FGTS estiver em uso");
+  }
+
   const effectiveDown = input.downPayment + (input.useFgts ? input.fgtsAmount : 0);
   const loanAmount = input.propertyValue - effectiveDown;
   const monthlyRate = input.annualRate / 100 / 12;
@@ -53,9 +75,10 @@ export function simulate(input: SimulationInput): SimulationResult {
   const schedule: Installment[] = [];
 
   if (input.system === "price") {
-    const payment =
-      (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n))) /
-      (Math.pow(1 + monthlyRate, n) - 1);
+    const payment = monthlyRate === 0
+      ? loanAmount / n
+      : (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n))) /
+        (Math.pow(1 + monthlyRate, n) - 1);
 
     let balance = loanAmount;
     let totalInterest = 0;
