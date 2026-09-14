@@ -31,6 +31,15 @@ Next.js/middleware vs guarda de página vs só ocultação de menu).
   (onde o mesmo botão foi movido para um footer fixo nesta mesma rodada, por segurança extra).
 - Nenhum link quebrado, `href="#"` real, TODO/FIXME ou rota inexistente encontrado.
 
+## Encerramento
+
+- **PR #119** mesclado (squash) em `main`, commit `6d9431c`.
+- **Deploy de produção confirmado `READY`**: `dpl_8f6pYUuakDtEggz5mEur1MW3Hec8`
+  (`prj_W8c9sow2dxFO5GDfqABwlKWodI1v`). Correção da nota anterior: este projeto **tem sim**
+  um projeto Vercel configurado (descoberto ao verificar o deploy do PR) — não é uma
+  limitação de ambiente como havia sido registrado antes de confirmar.
+- Nenhum erro de runtime encontrado nas últimas 24h (`get_runtime_errors`).
+
 ## Gates
 
 - TypeScript aprovado (`npx tsc --noEmit`, zero erros) — após `npm install` e
