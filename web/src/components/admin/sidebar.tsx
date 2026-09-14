@@ -27,6 +27,10 @@ import {
   ClipboardList,
   BookOpen,
   Mountain,
+  BarChart3,
+  Globe,
+  Landmark,
+  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +42,12 @@ const navItems = [
     exact: true,
   },
   {
+    label: "Relatórios",
+    href: "/admin/relatorios",
+    icon: BarChart3,
+    adminOnly: true,
+  },
+  {
     label: "Imóveis",
     href: "/admin/imoveis",
     icon: Building2,
@@ -46,6 +56,12 @@ const navItems = [
     label: "Feeds XML",
     href: "/admin/feeds",
     icon: Rss,
+    adminOnly: true,
+  },
+  {
+    label: "Agregador",
+    href: "/admin/agregador",
+    icon: Globe,
     adminOnly: true,
   },
   {
@@ -124,6 +140,18 @@ const navItems = [
     label: "Incorporação",
     href: "/admin/incorporacao",
     icon: Mountain,
+    adminOnly: true,
+  },
+  {
+    label: "Contabilidade",
+    href: "/admin/contabilidade",
+    icon: Landmark,
+    adminOnly: true,
+  },
+  {
+    label: "Contratos",
+    href: "/admin/contratos",
+    icon: FileSignature,
     adminOnly: true,
   },
   {

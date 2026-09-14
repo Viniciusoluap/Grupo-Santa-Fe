@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { AvaliacoesClient } from "./_components/avaliacoes-client";
 
@@ -13,6 +15,9 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; o
 };
 
 export default async function AvaliacoesPage() {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const avaliacoes = await prisma.avaliacao.findMany({ orderBy: { criadoEm: "desc" } });
 
   const statusCounts = avaliacoes.reduce((acc, a) => {
