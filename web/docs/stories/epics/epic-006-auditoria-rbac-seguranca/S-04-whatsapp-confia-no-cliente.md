@@ -75,3 +75,11 @@ lead" do bloco "BLOQUEADORES CONFIRMADOS NO SANTA FÉ".
 (exigiria credenciais reais e `DATABASE_URL`, indisponíveis neste sandbox). A lógica
 de filtragem está coberta por teste unitário; a integração com `prisma.lead.findMany`
 foi revisada linha a linha.
+
+## Encerramento — merge e deploy confirmados
+
+- PR #126 mesclado via squash em `main` (commit `655ac63b53b2ee327ce9912b58f500c07b459bb4`).
+- Deploy de produção confirmado `READY` (deployment `dpl_HjK26f2XCLECqa5iphNHKkG5ELBJ`,
+  projeto `grupo-santa-f`, alvo `production`, alias `gruposantafee.com.br` /
+  `grupo-santa-f.vercel.app`).
+- `mcp__Vercel__get_runtime_errors` (janela de 24h): nenhum erro de runtime encontrado.
