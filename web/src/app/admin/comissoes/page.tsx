@@ -1,9 +1,19 @@
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 import { ComissoesClient } from "./_components/comissoes-client";
 
+type SessionUser = { role?: string; corretorId?: string };
+
 export default async function ComissoesPage() {
+  const session = await auth();
+  const user = session?.user as SessionUser | undefined;
+  const isAdmin = user?.role === "admin";
+  const isCorretor = user?.role === "corretor";
+  const corretorId = user?.corretorId;
+
   const [comissoes, corretores, imoveis, financiamentos, obras] = await Promise.all([
     prisma.comissao.findMany({
+      where: isCorretor && corretorId ? { corretorId } : {},
       orderBy: { vencimento: "desc" },
       include: { corretor: true, contrato: true },
     }),
@@ -29,5 +39,5 @@ export default async function ComissoesPage() {
     extra: [] as { id: string; label: string }[],
   };
 
-  return <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} />;
+  return <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} isAdmin={isAdmin} />;
 }

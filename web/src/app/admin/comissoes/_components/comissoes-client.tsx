@@ -31,6 +31,7 @@ interface ComissoesClientProps {
   comissoes: DbComissao[];
   corretores: Corretor[];
   negociosPorTipo: Record<string, NegocioItem[]>;
+  isAdmin: boolean;
 }
 
 const TIPO_NEGOCIO_LABELS: Record<string, string> = {
@@ -80,7 +81,7 @@ function ExcluirComissaoBtn({ id }: { id: string }) {
   );
 }
 
-export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: ComissoesClientProps) {
+export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmin }: ComissoesClientProps) {
   const [statusFilter, setStatusFilter] = useState<CommissionStatus | "todas">("todas");
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<DbComissao | null>(null);
@@ -101,13 +102,15 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Comissões</h1>
           <p className="text-gray-400 text-sm mt-0.5">{comissoes.length} registros no total</p>
         </div>
-        <button
-          onClick={() => { setEditando(null); setShowForm(true); }}
-          className="flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors mt-6"
-        >
-          <Plus size={14} />
-          Nova Comissão
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => { setEditando(null); setShowForm(true); }}
+            className="flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors mt-6"
+          >
+            <Plus size={14} />
+            Nova Comissão
+          </button>
+        )}
       </div>
 
       {/* KPIs */}
@@ -184,20 +187,35 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo }: Comi
                   <td className="px-4 py-3 text-center text-gray-500 text-xs hidden md:table-cell">{cm.percentual}%</td>
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">{formatCurrency(cm.valor)}</td>
                   <td className="px-4 py-3 text-center">
-                    <StatusSelectComissao id={cm.id} status={cm.status} />
+                    {isAdmin ? (
+                      <StatusSelectComissao id={cm.id} status={cm.status} />
+                    ) : (
+                      (() => {
+                        const cfg = COMMISSION_STATUS_CONFIG[cm.status as CommissionStatus];
+                        return (
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${cfg ? `${cfg.bgColor} ${cfg.color}` : "bg-gray-100 text-gray-500"}`}>
+                            {cfg?.label ?? cm.status}
+                          </span>
+                        );
+                      })()
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center text-xs text-gray-400 hidden lg:table-cell">
                     {new Date(cm.vencimento).toLocaleDateString("pt-BR")}
                     {cm.pagamentoEm && <span className="block text-green-600">Pago {new Date(cm.pagamentoEm).toLocaleDateString("pt-BR")}</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => { setEditando(cm); setShowForm(true); }} title="Editar comissão"
-                        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded">
-                        <Pencil size={14} />
-                      </button>
-                      <ExcluirComissaoBtn id={cm.id} />
-                    </div>
+                    {isAdmin ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => { setEditando(cm); setShowForm(true); }} title="Editar comissão"
+                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded">
+                          <Pencil size={14} />
+                        </button>
+                        <ExcluirComissaoBtn id={cm.id} />
+                      </div>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
