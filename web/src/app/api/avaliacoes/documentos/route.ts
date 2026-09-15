@@ -1,15 +1,28 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
 
 export const runtime = "nodejs";
+
+// Avaliações é uma seção adminOnly (ver src/components/admin/sidebar.tsx e as
+// paginas /admin/avaliacoes/*, que ja aplicam requirePageRole(admin)) - esta
+// rota gerava/consultava tokens de upload para qualquer usuario autenticado,
+// checando so `if (!session)`, sem repetir a mesma exigencia de papel.
+function requireAdmin(session: Session | null): NextResponse | null {
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const role = (session.user as { role?: string })?.role;
+  if (role !== "admin") return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+  return null;
+}
 
 // iOS Safari fallback: after progress=100% the SDK completion callback sometimes hangs.
 // Client calls GET with the known blob path to retrieve the URL directly from storage.
 export async function GET(request: NextRequest) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const forbidden = requireAdmin(session);
+  if (forbidden) return forbidden;
 
   const path = request.nextUrl.searchParams.get("path");
   if (!path || !path.startsWith("docs-avaliacao/")) {
@@ -27,7 +40,8 @@ export async function GET(request: NextRequest) {
 // Token generation for client-side Vercel Blob upload
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  const forbidden = requireAdmin(session);
+  if (forbidden) return forbidden;
 
   const body = (await request.json()) as HandleUploadBody;
 

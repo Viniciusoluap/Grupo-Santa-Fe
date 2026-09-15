@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { PrintButton } from "./_components/print-button";
 
@@ -138,6 +140,9 @@ function parseDocumentos(raw: string): Documento[] {
 }
 
 export default async function LaudoPage({ params }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { id } = await params;
   const a = await prisma.avaliacao.findUnique({ where: { id } });
   if (!a) notFound();

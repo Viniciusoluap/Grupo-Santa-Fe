@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { editarAvaliacao } from "@/lib/actions/avaliacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -9,6 +11,9 @@ import { PhoneInput } from "@/components/ui/phone-input";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarAvaliacaoPage({ params }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { id } = await params;
   const [a, leads] = await Promise.all([
     prisma.avaliacao.findUnique({ where: { id } }),
