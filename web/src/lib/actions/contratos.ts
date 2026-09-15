@@ -1,12 +1,17 @@
 "use server";
 import { auth } from "@/auth";
+import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+// Contratos e' uma secao adminOnly na sidebar (src/components/admin/sidebar.tsx),
+// mas nenhuma action aqui checava papel - so `if (!session)`. Qualquer usuario
+// autenticado (inclusive corretor) podia acessar a URL diretamente e ler/editar/
+// excluir contratos de qualquer parte, sem essa protecao ser so client-side.
 export async function criarContrato(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const numero = `GSF-${Date.now()}`;
   await prisma.contrato.create({
     data: {
@@ -30,7 +35,7 @@ export async function criarContrato(formData: FormData) {
 
 export async function editarContrato(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   await prisma.contrato.update({
     where: { id },
@@ -54,21 +59,21 @@ export async function editarContrato(formData: FormData) {
 
 export async function excluirContrato(id: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.contrato.delete({ where: { id } });
   revalidatePath("/admin/contratos");
 }
 
 export async function salvarContratoAssinado(id: string, url: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.contrato.update({ where: { id }, data: { contratoAssinadoUrl: url } });
   revalidatePath("/admin/contratos");
 }
 
 export async function alterarStatusContrato(id: string, status: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.contrato.update({ where: { id }, data: { status } });
   revalidatePath("/admin/contratos");
 }
