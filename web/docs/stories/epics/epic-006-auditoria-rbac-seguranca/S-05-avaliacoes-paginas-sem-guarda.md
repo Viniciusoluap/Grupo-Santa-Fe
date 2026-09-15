@@ -107,3 +107,13 @@ protegida) não existe estruturalmente no Prospecta: é uma SPA com tRPC como ú
 ponto de entrada de dados — não há páginas Next.js renderizadas no servidor, cada uma
 precisando repetir sua própria checagem. Nenhuma pendência a registrar no ROADMAP do
 Prospecta a partir desta correção pontual.
+
+## Encerramento — merge e deploy confirmados
+
+- PR: `Viniciusoluap/Grupo-Santa-Fe#128` — mesclado (squash) em `main`.
+- Commit de merge: `d1274078d885f11882eebf76a19a19b0e4cbe2b0`.
+- Deploy de produção: `dpl_79wCMPTX2rPrygXSL5R6zrz2tBjD` — `READY`.
+- `mcp__Vercel__get_runtime_errors` (últimas 24h, projeto
+  `prj_W8c9sow2dxFO5GDfqABwlKWodI1v`): nenhum erro de runtime encontrado.
+- Pendência de Blob público (seção acima) permanece registrada — não fechada por este
+  deploy, segue aguardando decisão do dono do produto.
