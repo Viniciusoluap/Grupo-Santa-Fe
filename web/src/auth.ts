@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { sessaoAindaValida } from "@/lib/auth/admin-guard";
 
 export type UserRole = "admin" | "corretor" | "colaborador" | "cliente";
 
@@ -13,6 +14,7 @@ interface AppUser {
   creci?: string;
   corretorId?: string;
   leadId?: string;
+  sessionVersion: number;
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -66,19 +68,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           creci: usuario.creci ?? undefined,
           corretorId,
           leadId,
+          sessionVersion: usuario.sessionVersion,
         };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    // Estrategia JWT nao tem estado no servidor por padrao: um token emitido no
+    // login continua valido ate expirar (30 dias por padrao do NextAuth), mesmo
+    // que a senha do usuario seja redefinida ou a conta seja desativada depois.
+    // `sessionVersion` fecha esse gap: incrementado em redefinirSenha (usuarios.ts),
+    // e revalidado aqui a cada requisicao (fora do login) contra o banco. Retornar
+    // `null` e o mecanismo suportado pelo NextAuth para invalidar o token - o
+    // proximo `auth()` passa a ver a sessao como inexistente (equivalente a logout).
+    async jwt({ token, user }) {
       if (user) {
         token.role = (user as AppUser).role;
         token.creci = (user as AppUser).creci;
         token.corretorId = (user as AppUser).corretorId;
         token.leadId = (user as AppUser).leadId;
+        token.sessionVersion = (user as AppUser).sessionVersion;
         token.name = user.name;
         token.email = user.email;
+        return token;
+      }
+
+      if (!token.sub) return token;
+      const usuario = await prisma.usuario.findUnique({
+        where: { id: token.sub },
+        select: { ativo: true, sessionVersion: true },
+      });
+      if (!sessaoAindaValida(usuario, token.sessionVersion as number | undefined)) {
+        return null;
       }
       return token;
     },

@@ -71,7 +71,10 @@ export async function redefinirSenha(formData: FormData) {
   if (!id || !novaSenha || novaSenha.length < 6) return { error: "Senha inválida (mín. 6 caracteres)" };
 
   const hash = await bcrypt.hash(novaSenha, 10);
-  await prisma.usuario.update({ where: { id }, data: { senha: hash } });
+  // Incrementa sessionVersion: qualquer sessao JWT ja emitida para este usuario
+  // (por exemplo, de alguem que tinha acesso indevido) e invalidada no proximo
+  // request - ver comentario em auth.ts sobre por que isso nao acontecia antes.
+  await prisma.usuario.update({ where: { id }, data: { senha: hash, sessionVersion: { increment: 1 } } });
   revalidatePath("/admin/configuracoes");
 }
 
