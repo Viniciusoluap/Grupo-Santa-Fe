@@ -151,3 +151,14 @@ Prospecta a partir desta correção pontual.
   `prj_W8c9sow2dxFO5GDfqABwlKWodI1v`): nenhum erro de runtime encontrado.
 - Pendência de Blob público (seção acima) permanece registrada — não fechada por este
   deploy, segue aguardando decisão do dono do produto.
+
+## Encerramento (follow-up Etapa 3) — remoção da rota órfã upload-doc
+
+- PR: `Viniciusoluap/Grupo-Santa-Fe#130` — mesclado (squash) em `main`.
+- Commit de merge: `977dfcba1455fd69739fe6946405c99bfe00d6a2`.
+- Deploy de produção: `dpl_GFTJoukNeYjsntdv8vNPTvQtXq3t` — `READY`.
+- `mcp__Vercel__get_runtime_errors` (últimas 24h, projeto
+  `prj_W8c9sow2dxFO5GDfqABwlKWodI1v`): nenhum erro de runtime encontrado.
+- Pendência de Blob público (seção acima) continua registrada e aberta — a remoção da
+  rota órfã e o achado do limite de 4.5 MB das funções serverless da Vercel apenas
+  esclarecem a pendência existente, não a resolvem.
