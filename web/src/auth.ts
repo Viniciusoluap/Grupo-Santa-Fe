@@ -39,8 +39,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         let corretorId: string | undefined;
         if (usuario.papel === "corretor") {
+          // Vinculo por FK (usuarioId), nao por match de e-mail - o e-mail podia
+          // divergir entre Usuario e Corretor (editados separadamente) e quebrar
+          // silenciosamente a resolucao do corretor logado.
           const corretor = await prisma.corretor.findUnique({
-            where: { email: usuario.email },
+            where: { usuarioId: usuario.id },
             select: { id: true },
           });
           corretorId = corretor?.id;

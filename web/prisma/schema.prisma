@@ -128,6 +128,8 @@ model Visita {
 
 model Corretor {
   id               String    @id @default(cuid())
+  usuarioId        String?   @unique
+  usuario          Usuario?  @relation(fields: [usuarioId], references: [id])
   nome             String
   email            String    @unique
   telefone         String
@@ -527,6 +529,7 @@ model Usuario {
   permissoes        String           @default("[]")
   criadoEm          DateTime         @default(now())
   conexaoWhatsApp   ConexaoWhatsApp?
+  corretor          Corretor?
   atualizadoEm      DateTime         @updatedAt
 
   @@map("usuarios")
