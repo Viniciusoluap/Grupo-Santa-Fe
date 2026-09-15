@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { AutoPrint } from "./_components/auto-print";
 import { PrintBar } from "./_components/print-bar";
@@ -137,6 +139,9 @@ function parseDocumentos(raw: string | null | undefined): Documento[] {
 }
 
 export default async function BatchLaudosPage({ searchParams }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { ids: idsParam } = await searchParams;
   if (!idsParam) notFound();
 
