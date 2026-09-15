@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deveBloquearDesativacaoUltimoAdmin } from "../auth/admin-guard";
+import { deveBloquearDesativacaoUltimoAdmin, sessaoAindaValida } from "../auth/admin-guard";
 
 describe("deveBloquearDesativacaoUltimoAdmin", () => {
   it("bloqueia desativar o último admin ativo", () => {
@@ -26,5 +26,28 @@ describe("deveBloquearDesativacaoUltimoAdmin", () => {
 
   it("bloqueia mesmo se a contagem vier zerada por inconsistência (defensivo)", () => {
     expect(deveBloquearDesativacaoUltimoAdmin({ papel: "admin", ativo: true }, 0)).toBe(true);
+  });
+});
+
+describe("sessaoAindaValida", () => {
+  it("aceita quando sessionVersion do token bate com o do banco e usuário está ativo", () => {
+    expect(sessaoAindaValida({ ativo: true, sessionVersion: 3 }, 3)).toBe(true);
+  });
+
+  it("rejeita quando a senha foi redefinida depois do token ser emitido (versão divergente)", () => {
+    expect(sessaoAindaValida({ ativo: true, sessionVersion: 4 }, 3)).toBe(false);
+  });
+
+  it("rejeita quando o usuário foi desativado, mesmo com a versão batendo", () => {
+    expect(sessaoAindaValida({ ativo: false, sessionVersion: 3 }, 3)).toBe(false);
+  });
+
+  it("rejeita quando o usuário não existe mais no banco", () => {
+    expect(sessaoAindaValida(null, 3)).toBe(false);
+    expect(sessaoAindaValida(undefined, 3)).toBe(false);
+  });
+
+  it("rejeita quando o token não tem sessionVersion (token antigo/malformado)", () => {
+    expect(sessaoAindaValida({ ativo: true, sessionVersion: 0 }, undefined)).toBe(false);
   });
 });

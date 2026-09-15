@@ -523,6 +523,7 @@ model Usuario {
   senha             String
   papel             String           @default("colaborador") // admin | corretor | colaborador | cliente
   ativo             Boolean          @default(true)
+  sessionVersion    Int              @default(0)
   creci             String?
   telefone          String?
   foto              String?

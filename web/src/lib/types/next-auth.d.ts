@@ -18,5 +18,6 @@ declare module "next-auth/jwt" {
     creci?: string;
     corretorId?: string;
     leadId?: string;
+    sessionVersion?: number;
   }
 }
