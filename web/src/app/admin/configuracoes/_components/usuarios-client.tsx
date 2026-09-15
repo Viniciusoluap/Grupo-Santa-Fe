@@ -83,7 +83,8 @@ export function UsuariosClient({ usuarios }: Props) {
 
   async function handleToggle(id: string, ativo: boolean) {
     startTransition(async () => {
-      await alternarAtivo(id, !ativo);
+      const res = await alternarAtivo(id, !ativo);
+      if (res?.error) { feedback(`Erro: ${res.error}`); return; }
       feedback(!ativo ? "Usuário ativado" : "Usuário desativado");
     });
   }
@@ -102,7 +103,8 @@ export function UsuariosClient({ usuarios }: Props) {
   async function handleExcluir(id: string, nome: string) {
     if (!confirm(`Excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`)) return;
     startTransition(async () => {
-      await excluirUsuario(id);
+      const res = await excluirUsuario(id);
+      if (res?.error) { feedback(`Erro: ${res.error}`); return; }
       feedback("Usuário excluído.");
     });
   }

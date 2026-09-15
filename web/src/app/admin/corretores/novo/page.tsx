@@ -15,12 +15,23 @@ const specialties = [
   "Projetos de Engenharia",
 ];
 
-export default function NovoCorretorPage() {
+export default async function NovoCorretorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string }>;
+}) {
+  const { erro } = await searchParams;
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Novo Corretor</h1>
       </div>
+
+      {erro && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+          {erro}
+        </div>
+      )}
 
       <div className="bg-white border border-gray-100 p-6">
         <form action={criarCorretor} className="space-y-5">
@@ -46,8 +57,8 @@ export default function NovoCorretorPage() {
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Senha de Acesso</label>
-              <input type="text" name="senha" placeholder="Senha para login do corretor"
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Senha de Acesso *</label>
+              <input type="password" name="senha" required minLength={6} placeholder="Mín. 6 caracteres - senha para login do corretor"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
