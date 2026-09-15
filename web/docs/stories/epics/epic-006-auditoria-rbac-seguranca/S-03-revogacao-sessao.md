@@ -82,6 +82,14 @@ oficial (retornar `null` do callback `jwt` é o mecanismo documentado do Auth.js
 invalidar um token — confirmado no arquivo de tipos `@auth/core/src/index.ts`,
 `jwt?: (...) => Awaitable<JWT | null>`), mas não roda um teste de integração real.
 
+## Encerramento — merge e deploy confirmados
+
+- PR #124 mesclado via squash em `main` (commit `e62d4bb5ced9bc446ec61ffff440a24868243711`).
+- Deploy de produção confirmado `READY` (deployment `dpl_HFv1N8ZucUJtGx4k2BKriuRkEafS`,
+  projeto `grupo-santa-f`, alvo `production`, alias `gruposantafee.com.br` /
+  `grupo-santa-f.vercel.app`).
+- `mcp__Vercel__get_runtime_errors` (janela de 24h): nenhum erro de runtime encontrado.
+
 ## Grupo Santa Fé × Prospecta
 
 **Paridade aplicada, não descartada.** Verificação direta no código do Prospecta
