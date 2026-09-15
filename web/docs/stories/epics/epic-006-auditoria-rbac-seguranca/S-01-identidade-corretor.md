@@ -98,6 +98,14 @@ validada e aplicada diretamente no Postgres de produção via MCP do Supabase, e
 schema do banco está correto; o que falta validar é especificamente o processo de
 build do Next.js, que depende de acesso de rede que este ambiente não tem.
 
+## Encerramento — merge e deploy confirmados
+
+- PR #121 mesclado via squash em `main` (commit `39c6b83b2cd9594c1b46cad76b74ba39c3b4d8f8`).
+- Deploy de produção confirmado `READY` (deployment `dpl_4VG3MisMe2mC8ynom3o1QocAwdTL`,
+  projeto `grupo-santa-f`, alvo `production`, alias `gruposantafee.com.br` /
+  `grupo-santa-f.vercel.app`).
+- `mcp__Vercel__get_runtime_errors` (janela de 24h): nenhum erro de runtime encontrado.
+
 ## Grupo Santa Fé × Prospecta
 
 Não se aplica paridade aqui — Prospecta não tem um conceito equivalente de "duas
