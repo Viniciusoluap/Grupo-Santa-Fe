@@ -83,6 +83,40 @@ Duas saídas reais foram avaliadas e **nenhuma foi aplicada nesta entrega**:
 duas rotas (Blob Store privado no painel da Vercel, ou migração para armazenamento no
 banco) deve ser seguida — não fica quieto nem é reportado como "100% resolvido".
 
+### Atualização (investigação Etapa 3) — por que a opção 2 não é um simples swap
+
+Ao investigar a Etapa 3, foi confirmado que o Santa Fé **já tem** um padrão de
+armazenamento no próprio banco funcionando em produção (`src/lib/blob.ts` →
+`uploadPublico`, tabela `arquivos`, servido por `/api/arquivo/[id]`), usado hoje por
+contratos (`juridico.ts`, `portal.ts`) e por incorporação (KML/levantamento). Cheguei a
+avaliar reaproveitar esse mesmo padrão para os documentos de avaliação, o que pareceria
+resolver a pendência acima sem depender de configuração manual na Vercel.
+
+**Mas os dois caminhos não são equivalentes** — achado técnico concreto, não presente na
+avaliação anterior: o padrão `uploadPublico` recebe o arquivo via `request.formData()`
+numa rota serverless da Vercel, cujo corpo de requisição tem limite rígido de ~4.5 MB
+(documentado no próprio código: `/api/avaliacoes/upload-doc/route.ts`, `MAX_FILE_BYTES = 4 * 1024 * 1024`
+— rota órfã, sem nenhum chamador, ver abaixo). O fluxo atual de avaliações permite até
+**50 MB no total / 5 arquivos** via upload direto do navegador para o Blob (que contorna
+esse limite porque os bytes nunca passam pelo servidor). Trocar para o padrão de banco
+sem contornar esse teto seria uma regressão real e não documentada anteriormente:
+laudos/fotos de vistoria escaneados frequentemente passam de 4 MB. Confirma que a
+opção 2 não é uma troca mecânica — exigiria também resolver o limite de tamanho (ex:
+upload em chunks para o próprio servidor), o que é trabalho adicional não coberto por
+esta pendência original.
+
+**Achado adicional**: `/api/avaliacoes/upload-doc/route.ts` existe no repositório mas
+**não é chamado por nenhum código** (`documentos-avaliacao.tsx` usa exclusivamente o
+fluxo direto-para-Blob via `@vercel/blob/client`) — é uma rota órfã, provavelmente uma
+tentativa anterior abandonada do caminho de banco. Ela tem a mesma lacuna que o C5 desta
+story corrigiu em outros lugares: só checa `if (!session)`, nunca o papel. Por estar
+morta (nenhum caminho de execução chega nela), não há exploração real, mas era uma
+lacuna de autorização "adormecida". **Removida nesta entrega** (`git rm`) após
+aprovação explícita do usuário — a primeira tentativa foi bloqueada pelo classificador
+de modo automático do Claude Code como "Irreversível/Destruição Local" mesmo sendo um
+arquivo versionado (reversível via histórico do git); o usuário confirmou a remoção e
+ela foi aplicada.
+
 ## Gates
 
 - `npx tsc --noEmit`: zero erros.
