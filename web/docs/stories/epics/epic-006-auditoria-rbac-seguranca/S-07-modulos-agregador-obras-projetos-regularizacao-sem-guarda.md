@@ -119,5 +119,16 @@ segurança.
 
 ## Status
 
-Correção implementada e testada localmente. Aguardando commit/push/PR/merge/deploy conforme
-protocolo padrão desta auditoria.
+Correção implementada, testada localmente e implantada em produção.
+
+## Encerramento
+
+- **PR:** [#134](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/134) — aberto como draft,
+  sem falhas de CI (único check é o deploy Vercel, `success`), `mergeable_state: "clean"`.
+  Un-drafted e squash-merged em `main` como commit `af72e079b23c82b1032f476abe8b28991f78bd75`.
+- **Deploy de produção:** `dpl_bsR5aiWbq7bjKsMGvdfFB7te2cYK`, `readyState: "READY"`, publicado
+  em `gruposantafee.com.br` / `www.gruposantafee.com.br`.
+- **Runtime errors:** zero erros nas últimas 24h (`get_runtime_errors`, projeto
+  `prj_W8c9sow2dxFO5GDfqABwlKWodI1v`) após o deploy.
+- Branch local `codex/auditoria-correcao-20260914` reconstruída a partir de `origin/main` e
+  sincronizada com o branch remoto homônimo.
