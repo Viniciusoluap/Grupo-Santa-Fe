@@ -88,3 +88,13 @@ checar posse) não existe lá. Nenhuma pendência a registrar no ROADMAP do Pros
   escopo pontual desta story. Registrado aqui como pendência a ser avaliada
   separadamente pelo dono do produto, na mesma linha da pendência de Blob público da
   S-05: um passo manual real, não uma correção de código.
+
+## Encerramento — merge e deploy confirmados
+
+- PR: `Viniciusoluap/Grupo-Santa-Fe#132` — mesclado (squash) em `main`.
+- Commit de merge: `3766fbc8a9b9684fd495c51f4b05bb3d30e1bf10`.
+- Deploy de produção: `dpl_DE7fJPG7R6swP1zymkMy52iL2JED` — `READY`.
+- `mcp__Vercel__get_runtime_errors` (últimas 24h, projeto
+  `prj_W8c9sow2dxFO5GDfqABwlKWodI1v`): nenhum erro de runtime encontrado.
+- Pendências registradas nesta story (banco de preview compartilhado com produção) e
+  na S-05 (Blob público) permanecem abertas, aguardando decisão do dono do produto.
