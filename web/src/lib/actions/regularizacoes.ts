@@ -1,5 +1,6 @@
 "use server";
 import { auth } from "@/auth";
+import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
@@ -7,7 +8,7 @@ import { redirect } from "next/navigation";
 
 export async function criarRegularizacao(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const tipos = formData.getAll("tipos") as string[];
   const leadId = (formData.get("leadId") as string) || undefined;
 
@@ -32,14 +33,14 @@ export async function criarRegularizacao(formData: FormData) {
 
 export async function excluirRegularizacao(id: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.regularizacao.delete({ where: { id } });
   revalidatePath("/admin/regularizacao");
 }
 
 export async function editarRegularizacao(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   await prisma.regularizacao.update({
     where: { id },

@@ -1,4 +1,6 @@
 import { ExternalLink, Rss, CheckCircle2, Clock } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { FeedCopyButton } from "./feed-copy-button";
 import { ProspeccaoModule } from "./_components/prospeccao-module";
@@ -85,6 +87,9 @@ const feeds = [
 ];
 
 export default async function FeedsPage() {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const imoveis = await prisma.imovel.findMany({
     where: { publicadoSite: true, status: { notIn: ["vendido", "locado"] } },
     orderBy: { criadoEm: "desc" },

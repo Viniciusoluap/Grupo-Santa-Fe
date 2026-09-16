@@ -1,12 +1,13 @@
 "use server";
 import { auth } from "@/auth";
+import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function alterarStatusRegularizacao(id: string, status: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.regularizacao.update({
     where: { id },
     data: { status },
@@ -17,7 +18,7 @@ export async function alterarStatusRegularizacao(id: string, status: string) {
 
 export async function adicionarDocumentoReg(regularizacaoId: string, nome: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.regDocumento.create({
     data: { regularizacaoId, nome, status: "pendente" },
   });
@@ -26,21 +27,21 @@ export async function adicionarDocumentoReg(regularizacaoId: string, nome: strin
 
 export async function atualizarStatusDocumento(id: string, status: string, regularizacaoId: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.regDocumento.update({ where: { id }, data: { status } });
   revalidatePath(`/admin/regularizacao/${regularizacaoId}`);
 }
 
 export async function excluirDocumentoReg(id: string, regularizacaoId: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.regDocumento.delete({ where: { id } });
   revalidatePath(`/admin/regularizacao/${regularizacaoId}`);
 }
 
 export async function criarRegularizacao(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.regularizacao.create({
     data: {
       nome: formData.get("nome") as string,
