@@ -59,5 +59,18 @@ Nenhum gap de paridade encontrado.
 
 ## Status
 
-Correção implementada e testada localmente. Aguardando commit/push/PR/merge/deploy conforme
-protocolo padrão desta auditoria.
+Correção implementada, testada localmente e implantada em produção.
+
+## Encerramento
+
+- **PR:** [#136](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/136) — aberto como draft,
+  sem falhas de CI (único check é o deploy Vercel, `success`), `mergeable_state: "clean"`.
+  Un-drafted e squash-merged em `main` como commit `3b627830b6bd18f763f2ec4820d8f4ee0ed1c3a7`.
+- **Deploy de produção:** `dpl_Bj3m1CPVwffdmtjyB287myaKEfHX`, `readyState: "READY"`, publicado
+  em `gruposantafee.com.br` / `www.gruposantafee.com.br`.
+- **Runtime errors:** zero erros nas últimas 24h (`get_runtime_errors`, projeto
+  `prj_W8c9sow2dxFO5GDfqABwlKWodI1v`) após o deploy.
+- Branch local `codex/auditoria-correcao-20260914` reconstruída a partir de `origin/main` e
+  sincronizada com o branch remoto homônimo.
+- Com este achado, a varredura de confirmação de C2 (todo módulo `adminOnly` do sidebar
+  realmente protegido no servidor, listagem e sub-rotas) está completa para o Grupo Santa Fé.
