@@ -1,11 +1,12 @@
 "use server";
 import { auth } from "@/auth";
+import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function atualizarStatusAgregador(id: string, status: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.agregadorImovel.update({
     where: { id },
     data: { status },
@@ -21,7 +22,7 @@ export async function criarAgregadorImovel(data: {
   contatoNome?: string; contatoTel?: string; notas?: string;
 }) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.agregadorImovel.create({
     data: {
       titulo: data.titulo,
@@ -47,7 +48,7 @@ export async function criarAgregadorImovel(data: {
 
 export async function importarParaCatalogo(id: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const ag = await prisma.agregadorImovel.findUnique({ where: { id } });
   if (!ag) return { error: "Imóvel não encontrado" };
 

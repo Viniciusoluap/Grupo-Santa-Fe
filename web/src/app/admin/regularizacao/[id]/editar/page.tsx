@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { editarRegularizacao } from "@/lib/actions/regularizacoes";
@@ -11,6 +13,9 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarRegularizacaoPage({ params }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { id } = await params;
   const r = await prisma.regularizacao.findUnique({ where: { id } });
   if (!r) notFound();

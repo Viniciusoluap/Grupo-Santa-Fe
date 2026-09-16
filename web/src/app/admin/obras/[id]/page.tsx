@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, WEATHER_CONFIG, ObraStatus, ObraTipo } from "@/lib/types/obra";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
@@ -9,6 +11,9 @@ import { ObraDiarioClient } from "./_components/obra-diario-client";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function ObraDetailPage({ params }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { id } = await params;
   const o = await prisma.obra.findUnique({
     where: { id },

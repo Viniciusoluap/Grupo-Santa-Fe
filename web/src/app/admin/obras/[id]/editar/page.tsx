@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { OBRA_TIPO_CONFIG, OBRA_STATUS_CONFIG } from "@/lib/types/obra";
 import { editarObra } from "@/lib/actions/obras";
@@ -11,6 +13,9 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarObraPage({ params }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { id } = await params;
   const o = await prisma.obra.findUnique({ where: { id } });
   if (!o) notFound();

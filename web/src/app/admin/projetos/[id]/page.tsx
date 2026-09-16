@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone } from "lucide-react";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
@@ -9,6 +11,9 @@ import ProjetoDetailClient from "./_components/projeto-detail-client";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function ProjetoDetailPage({ params }: PageProps) {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   const { id } = await params;
   const p = await prisma.projeto.findUnique({ where: { id } });
   if (!p) notFound();

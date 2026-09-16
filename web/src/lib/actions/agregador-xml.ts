@@ -1,5 +1,6 @@
 "use server";
 import { auth } from "@/auth";
+import { requireActionRole } from "@/lib/auth/rbac";
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -39,7 +40,7 @@ function mapTransactionType(type: string): string {
 
 export async function executarAgregacao(): Promise<{ ok: boolean; importados: number; erros: number; msg: string }> {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const config = await prisma.configuracao.findUnique({ where: { chave: "agregador_feeds" } });
   if (!config?.valor) {
     return { ok: false, importados: 0, erros: 0, msg: "Nenhuma fonte XML configurada. Configure em Configurações." };
@@ -167,7 +168,7 @@ export async function executarAgregacao(): Promise<{ ok: boolean; importados: nu
 
 export async function salvarFeedsAgregador(urls: string[]): Promise<void> {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.configuracao.upsert({
     where: { chave: "agregador_feeds" },
     create: { chave: "agregador_feeds", valor: JSON.stringify(urls), grupo: "agregador" },
@@ -177,7 +178,7 @@ export async function salvarFeedsAgregador(urls: string[]): Promise<void> {
 
 export async function getFeedsAgregador(): Promise<string[]> {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const config = await prisma.configuracao.findUnique({ where: { chave: "agregador_feeds" } });
   if (!config?.valor) return [];
   try { return JSON.parse(config.valor) as string[]; } catch { return []; }
