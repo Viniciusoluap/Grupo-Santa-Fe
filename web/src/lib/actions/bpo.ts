@@ -1,5 +1,6 @@
 "use server";
 import { auth } from "@/auth";
+import { requireActionRole } from "@/lib/auth/rbac";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -7,7 +8,7 @@ import { prisma } from "@/lib/db";
 
 export async function criarBpoCliente(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const servicos = formData.getAll("servicos") as string[];
 
   await prisma.bpoCliente.create({
@@ -32,7 +33,7 @@ export async function criarBpoCliente(formData: FormData) {
 
 export async function criarLancamentoBpo(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const clienteId = formData.get("clienteId") as string;
 
   await prisma.bpoLancamento.create({
@@ -52,7 +53,7 @@ export async function criarLancamentoBpo(formData: FormData) {
 
 export async function marcarLancamentoPago(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   const clienteId = formData.get("clienteId") as string;
 
@@ -67,7 +68,7 @@ export async function marcarLancamentoPago(formData: FormData) {
 
 export async function criarCobranca(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const clienteId = (formData.get("clienteId") as string) || null;
   const clienteNomeLivre = (formData.get("clienteNomeLivre") as string) || null;
 
@@ -89,7 +90,7 @@ export async function criarCobranca(formData: FormData) {
 
 export async function pagarLancamento(id: string) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   await prisma.bpoLancamento.update({
     where: { id },
     data: { pago: true, pagoEm: new Date() },
@@ -100,7 +101,7 @@ export async function pagarLancamento(id: string) {
 
 export async function atualizarStatusBpoCliente(formData: FormData) {
   const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
 

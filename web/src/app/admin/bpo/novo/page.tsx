@@ -1,5 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/auth";
+import { requirePageRole } from "@/lib/auth/rbac";
 import { criarBpoCliente } from "@/lib/actions/bpo";
 
 const SERVICOS = [
@@ -11,7 +13,10 @@ const SERVICOS = [
   { value: "honorarios",     label: "Gestão de Honorários" },
 ];
 
-export default function NovoBpoClientePage() {
+export default async function NovoBpoClientePage() {
+  const session = await auth();
+  requirePageRole(session, "admin");
+
   return (
     <div className="max-w-2xl space-y-5">
       <div>
