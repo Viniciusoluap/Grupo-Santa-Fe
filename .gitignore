@@ -1,1 +1,9 @@
 .claude/worktrees/
+
+# Documentos e conhecimento locais (repositório público)
+.venv/
+__pycache__/
+*.pyc
+documentos/entrada/
+conhecimento/
+_indice_documentos.local.md
