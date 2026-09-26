@@ -105,8 +105,11 @@ export default async function AdminDashboardPage({
       item.status === "paga" &&
       monthKey(item.pagamentoEm ?? item.criadoEm) === currentMonth,
   );
-  const salesRevenue =
-    monthCommissions.reduce((s, item) => s + item.valor, 0) || revenue;
+  const salesRevenue = revenue;
+  const commissionTotal = monthCommissions.reduce(
+    (s, item) => s + item.valor,
+    0,
+  );
   const closedCount = monthCommissions.length;
   const in30 = now.getTime() + 30 * 86_400_000;
   const receive30 = launches
@@ -254,11 +257,19 @@ export default async function AdminDashboardPage({
   const statusLabels: Record<string, string> = {
     novo: "Novos",
     contato: "Contato",
-    visita: "Visitas",
+    visita_agendada: "Visitas agendadas",
     proposta: "Propostas",
-    fechado: "Fechados",
+    negociacao: "Negociação",
+    ganho: "Ganhos",
   };
-  const stages = ["novo", "contato", "visita", "proposta", "fechado"];
+  const stages = [
+    "novo",
+    "contato",
+    "visita_agendada",
+    "proposta",
+    "negociacao",
+    "ganho",
+  ];
   const dashboard: ManagementDashboardData = {
     goal,
     revenue,
@@ -271,7 +282,7 @@ export default async function AdminDashboardPage({
     receive30,
     pay30,
     salesRevenue,
-    ticket: closedCount ? salesRevenue / closedCount : 0,
+    ticket: closedCount ? commissionTotal / closedCount : 0,
     closedCount,
     funnel: stages.map((stage) => ({
       name: statusLabels[stage],
