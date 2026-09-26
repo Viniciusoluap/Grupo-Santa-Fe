@@ -210,7 +210,7 @@ export function ManagementDashboard({
         <>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {[
-              ["Vendas", formatCurrency(data.salesRevenue), goalPct ?? 0],
+              ["Receita", formatCurrency(data.salesRevenue), goalPct ?? 0],
               ["Caixa", formatCurrency(data.cash), data.cash > 0 ? 100 : 0],
               [
                 "Cobrança",
@@ -247,7 +247,7 @@ export function ManagementDashboard({
           <Panel title="3 destaques do mês">
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               <p>
-                <b className="text-[var(--brand-yellow-dark)]">1.</b> Vendas em{" "}
+                <b className="text-[var(--brand-yellow-dark)]">1.</b> Receita em{" "}
                 {goalPct == null
                   ? "meta não configurada"
                   : `${goalPct.toFixed(0)}% da meta`}
@@ -280,7 +280,7 @@ export function ManagementDashboard({
         <>
           <div className="grid md:grid-cols-4 gap-3">
             <Metric
-              label="Receita do mês"
+              label="Receita paga do mês"
               value={formatCurrency(data.salesRevenue)}
               color="text-blue-600"
               detail={
@@ -290,20 +290,20 @@ export function ManagementDashboard({
               }
             />
             <Metric
-              label="Meta do mês"
+              label="Meta mensal padrão"
               value={data.goal ? formatCurrency(data.goal) : "Não definida"}
             />
             <Metric
-              label="Ticket médio"
+              label="Comissão média"
               value={data.ticket ? formatCurrency(data.ticket) : "—"}
             />
             <Metric
-              label="Negócios fechados"
+              label="Comissões pagas"
               value={String(data.closedCount)}
               color="text-green-600"
             />
           </div>
-          <Panel title="Definir meta mensal">
+          <Panel title="Definir meta mensal padrão">
             <div className="flex gap-2 max-w-md">
               <input
                 type="number"
@@ -382,7 +382,7 @@ export function ManagementDashboard({
               color="text-red-600"
             />
             <Metric
-              label="Resultado DRE"
+              label="Resultado de receitas e despesas pagas"
               value={formatCurrency(data.result)}
               color={data.result >= 0 ? "text-green-700" : "text-red-600"}
             />
@@ -522,7 +522,7 @@ export function ManagementDashboard({
         <>
           <div className="grid md:grid-cols-3 gap-3">
             <Metric
-              label="Break-even mensal"
+              label="Receita para cobrir custos registrados"
               value={formatCurrency(data.costs)}
               color="text-red-600"
               detail="Receita necessária para empatar"
@@ -541,7 +541,7 @@ export function ManagementDashboard({
               }
             />
             <Metric
-              label="Margem de contribuição"
+              label="Margem após despesas registradas"
               value={
                 data.contribution == null
                   ? "Sem receita"
