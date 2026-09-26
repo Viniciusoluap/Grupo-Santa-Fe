@@ -42,6 +42,12 @@ const navItems = [
     exact: true,
   },
   {
+    label: "Central de Gestão",
+    href: "/admin/gestao",
+    icon: BarChart3,
+    adminOnly: true,
+  },
+  {
     label: "Relatórios",
     href: "/admin/relatorios",
     icon: BarChart3,
