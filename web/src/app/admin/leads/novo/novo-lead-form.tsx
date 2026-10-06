@@ -58,11 +58,10 @@ export function NovoLeadForm({ corretores }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone / WhatsApp *</label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone / WhatsApp</label>
           <input
             type="tel"
             name="telefone"
-            required
             placeholder="(94) 9 9999-9999"
             className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
           />
