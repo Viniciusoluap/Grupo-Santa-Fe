@@ -352,7 +352,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             <div key={doc.id} className="flex items-center gap-2 bg-gray-50 px-3 py-2">
               {fileIcon(doc.tipo)}
               <a
-                href={doc.url}
+                href={`/api/avaliacoes/${avaliacaoId}/documentos/${doc.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 min-w-0 text-xs font-medium text-[var(--brand-dark)] hover:text-[var(--brand-yellow)] truncate"
