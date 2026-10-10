@@ -37,6 +37,7 @@ const navLinks = [
   { label: "Instituto", href: "/instituto" },
   { label: "Sobre", href: "/sobre" },
   { label: "Contato", href: "/contato" },
+  { label: "Instalar App", href: "/instalar-aplicativo" },
 ];
 
 export function Navbar() {
