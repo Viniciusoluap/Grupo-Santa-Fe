@@ -138,9 +138,9 @@ async function criarProcessosDoLead(leadId: string, nome: string, telefone: stri
   await Promise.allSettled(tarefas);
 }
 
+// Formulário público de /contato — não autenticado por natureza (visitante do
+// site, não usuário do CRM). NÃO adicionar checagem de sessão aqui.
 export async function enviarContato(formData: FormData) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
   const nome = formData.get("nome") as string;
   const telefone = formData.get("telefone") as string;
   const email = (formData.get("email") as string) || undefined;
@@ -158,6 +158,19 @@ export async function enviarContato(formData: FormData) {
     },
   });
   await notificarAdmins("novo_lead", "Novo contato do site", `${nome} — ${servicos.join(", ")}`, "/admin/leads").catch(() => {});
+
+  const { notifyAdminByEmail } = await import("@/lib/email");
+  await notifyAdminByEmail({
+    titulo: "Nova mensagem recebida pelo site (Contato)",
+    linhas: [
+      { label: "Nome", valor: nome },
+      { label: "Telefone", valor: telefone },
+      { label: "Email", valor: email || "" },
+      { label: "Serviços", valor: servicos.join(", ") },
+      { label: "Mensagem", valor: mensagem },
+    ],
+  }).catch(() => {});
+
   revalidatePath("/admin/leads");
   redirect("/contato?enviado=1");
 }

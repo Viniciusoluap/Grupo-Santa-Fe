@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#2D2D2D"/>
+      <stop offset="100%" stop-color="#121212"/>
+    </radialGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDE84A"/>
+      <stop offset="100%" stop-color="#D4A800"/>
+    </linearGradient>
+    <linearGradient id="wallGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F7CE1F"/>
+      <stop offset="100%" stop-color="#D4A800"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background squircle -->
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
+
+  <!-- ground slab -->
+  <rect x="88" y="382" width="352" height="14" rx="6" fill="#0D0D0D"/>
+
+  <!-- crane (obra) -->
+  <g stroke="#FDE84A" stroke-linecap="round" fill="none">
+    <line x1="382" y1="152" x2="382" y2="388" stroke-width="11"/>
+    <line x1="382" y1="152" x2="270" y2="152" stroke-width="11"/>
+    <line x1="382" y1="152" x2="424" y2="162" stroke-width="9"/>
+    <line x1="300" y1="152" x2="300" y2="198" stroke-width="5"/>
+  </g>
+  <circle cx="300" cy="203" r="6" fill="#FDE84A"/>
+  <rect x="408" y="158" width="20" height="15" rx="2" fill="#FDE84A"/>
+  <rect x="362" y="384" width="40" height="16" rx="3" fill="#FDE84A"/>
+
+  <!-- secondary volume (construction wing) -->
+  <rect x="120" y="266" width="60" height="118" fill="#B58A00"/>
+  <g stroke="#1A1A1A" stroke-width="4" opacity="0.55">
+    <line x1="120" y1="288" x2="180" y2="288"/>
+    <line x1="120" y1="312" x2="180" y2="312"/>
+    <line x1="120" y1="336" x2="180" y2="336"/>
+  </g>
+  <line x1="104" y1="266" x2="104" y2="384" stroke="#FDE84A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="104" y1="266" x2="120" y2="278" stroke="#FDE84A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- main house -->
+  <polygon points="256,116 178,210 334,210" fill="url(#roofGrad)"/>
+  <line x1="256" y1="116" x2="256" y2="206" stroke="#1A1A1A" stroke-width="5" opacity="0.5"/>
+  <rect x="178" y="210" width="156" height="174" fill="url(#wallGrad)"/>
+
+  <!-- GRUPO SANTA FÉ plaque -->
+  <rect x="178" y="296" width="156" height="88" rx="8" fill="#161616"/>
+  <text x="256" y="330" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800"
+        font-size="24" letter-spacing="2" fill="#FDE84A">GRUPO</text>
+  <text x="256" y="364" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800"
+        font-size="26" letter-spacing="1" fill="#FDE84A">SANTA FÉ</text>
+</svg>
