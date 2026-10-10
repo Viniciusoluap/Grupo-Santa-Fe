@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Phone, TrendingUp, Building2, Award, Search, Mail, Pencil, Trash2 } from "lucide-react";
+import { Plus, Phone, TrendingUp, Building2, Award, Search, Mail, Pencil, Trash2, UserX, Copy, Check } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { excluirCorretor } from "@/lib/actions/corretores";
+import { vincularUsuarioCorretor } from "@/lib/actions/usuarios";
 import { COMMISSION_STATUS_CONFIG } from "@/lib/types/corretor";
 
 type DbComissao = {
@@ -26,6 +27,7 @@ type DbCorretor = {
   creci: string;
   ativo: boolean;
   especialidades: string;
+  usuarioId: string | null;
   comissoes: DbComissao[];
   leads: { id: string }[];
   imoveis: { id: string }[];
@@ -39,10 +41,35 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"todos" | "ativos" | "inativos">("ativos");
   const [isPending, startTransition] = useTransition();
+  const [vinculando, setVinculando] = useState<string | null>(null);
+  const [linkGerado, setLinkGerado] = useState<{ nome: string; url: string } | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const [erroVinculo, setErroVinculo] = useState<string | null>(null);
 
   function handleExcluir(id: string, nome: string) {
     if (!confirm(`Excluir o corretor "${nome}"? Esta ação não pode ser desfeita.`)) return;
     startTransition(async () => { await excluirCorretor(id); });
+  }
+
+  async function handleVincularConta(id: string, nome: string) {
+    setVinculando(id);
+    setErroVinculo(null);
+    const result = await vincularUsuarioCorretor(id);
+    setVinculando(null);
+    if (result?.error) {
+      setErroVinculo(result.error);
+      return;
+    }
+    if (result?.token) {
+      setLinkGerado({ nome, url: `${window.location.origin}/definir-senha/${result.token}` });
+      setCopiado(false);
+    }
+  }
+
+  function handleCopiarLink() {
+    if (!linkGerado) return;
+    navigator.clipboard.writeText(linkGerado.url);
+    setCopiado(true);
   }
 
   const filtered = corretores.filter((c) => {
@@ -181,6 +208,22 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
                 ))}
               </div>
 
+              {!c.usuarioId && (
+                <div className="flex items-center justify-between gap-2 mb-4 bg-red-50 border border-red-100 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 uppercase">
+                    <UserX size={12} /> Sem conta de acesso
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleVincularConta(c.id, c.nome)}
+                    disabled={vinculando === c.id}
+                    className="text-[10px] font-bold uppercase bg-[var(--brand-dark)] text-[var(--brand-yellow)] px-2 py-1 hover:bg-[var(--brand-dark-secondary)] disabled:opacity-50 transition-colors"
+                  >
+                    {vinculando === c.id ? "Criando..." : "Vincular conta"}
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="text-center p-2 bg-gray-50">
                   <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{c.leads.length}</p>
@@ -287,6 +330,53 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
           </table>
         </div>
       </div>
+
+      {linkGerado && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-md w-full p-6 space-y-4">
+            <h3 className="font-black text-[var(--brand-dark)] text-lg uppercase">
+              Conta criada para {linkGerado.nome}
+            </h3>
+            <p className="text-sm text-gray-500">
+              Envie este link para {linkGerado.nome} por fora do sistema (WhatsApp, ligação, etc.).
+              Ele expira em 7 dias e só pode ser usado uma vez para definir a senha.
+            </p>
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-2">
+              <code className="flex-1 text-xs text-[var(--brand-dark)] break-all">{linkGerado.url}</code>
+              <button
+                type="button"
+                onClick={handleCopiarLink}
+                className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase bg-[var(--brand-yellow)] px-2 py-1.5 hover:bg-[var(--brand-yellow-dark)] transition-colors"
+              >
+                {copiado ? <Check size={12} /> : <Copy size={12} />}
+                {copiado ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLinkGerado(null)}
+              className="w-full text-xs font-bold uppercase text-gray-500 border border-gray-200 py-2 hover:bg-gray-50 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {erroVinculo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-sm w-full p-6 space-y-4">
+            <p className="text-sm text-red-500">{erroVinculo}</p>
+            <button
+              type="button"
+              onClick={() => setErroVinculo(null)}
+              className="w-full text-xs font-bold uppercase text-gray-500 border border-gray-200 py-2 hover:bg-gray-50 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
