@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { AdminSessionProvider } from "@/components/admin/session-provider";
+import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,6 +33,15 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     siteName: "Grupo Santa Fé",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Santa Fé",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1A1A1A",
 };
 
 export default function RootLayout({
@@ -43,6 +53,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
           <AdminSessionProvider>{children}</AdminSessionProvider>
+          <PwaRegister />
         </body>
     </html>
   );
