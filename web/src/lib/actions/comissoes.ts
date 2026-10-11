@@ -6,6 +6,16 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+// Negócio vinculado é obrigatório (EPIC-008): o formulário só permite escolher
+// imóvel/financiamento/obra pré-cadastrados (ou descrever um "Extra").
+function lerNegocioEValor(formData: FormData) {
+  const imovel = ((formData.get("imovel") as string) || "").trim();
+  if (!imovel) throw new Error("Selecione o imóvel/negócio vinculado à comissão.");
+  const valor = parseFloat(formData.get("valor") as string);
+  if (!Number.isFinite(valor) || valor < 0) throw new Error("Informe um valor de comissão válido.");
+  return { imovel, valor };
+}
+
 // Mutacoes de comissao sao admin-only: um corretor pode ver as proprias
 // comissoes (leitura, ja escopada em page.tsx), mas nunca deveria poder
 // criar/editar/excluir/aprovar o proprio pagamento - isso seria autoaprovacao.
@@ -25,8 +35,7 @@ export async function criarComissao(formData: FormData) {
       beneficiario,
       tipoNegocio: (formData.get("tipoNegocio") as string) || "venda_imovel",
       corretorId: beneficiario === "corretor" ? corretorId : null,
-      imovel: formData.get("imovel") as string,
-      valor: parseFloat(formData.get("valor") as string),
+      ...lerNegocioEValor(formData),
       percentual: parseFloat((formData.get("percentual") as string) || "6"),
       status: (formData.get("status") as string) || "pendente",
       vencimento: new Date(vencimentoStr),
@@ -53,8 +62,7 @@ export async function editarComissao(formData: FormData) {
       beneficiario,
       tipoNegocio: (formData.get("tipoNegocio") as string) || "venda_imovel",
       corretorId: beneficiario === "corretor" ? corretorId : null,
-      imovel: formData.get("imovel") as string,
-      valor: parseFloat(formData.get("valor") as string),
+      ...lerNegocioEValor(formData),
       percentual: parseFloat((formData.get("percentual") as string) || "6"),
       status: (formData.get("status") as string) || "pendente",
       vencimento: new Date(vencimentoStr),

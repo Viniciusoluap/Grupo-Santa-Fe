@@ -2,23 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { criarRegularizacao } from "@/lib/actions/regularizacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
-
-type Lead = { id: string; nome: string; telefone: string; email: string | null };
+import { LeadSelector, type LeadOpcao } from "@/components/crm/lead-selector";
 
 interface Props {
-  leads: Lead[];
-}
-
-function maskPhone(value: string): string {
-  const d = value.replace(/\D/g, "").slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : "";
-  if (d.length <= 3) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d[2]} ${d.slice(3)}`;
-  return `(${d.slice(0, 2)}) ${d[2]} ${d.slice(3, 7)}-${d.slice(7)}`;
+  leads: LeadOpcao[];
+  leadIdInicial?: string;
 }
 
 function maskCurrency(raw: string): string {
@@ -32,28 +24,15 @@ function currencyToFloat(masked: string): string {
   return masked.replace(/\./g, "").replace(",", ".");
 }
 
-export function NovaRegularizacaoForm({ leads }: Props) {
-  const [leadId, setLeadId] = useState("");
-  const [leadSearch, setLeadSearch] = useState("");
-  const [clienteNome, setClienteNome] = useState("");
-  const [clienteTel, setClienteTel] = useState("");
+export function NovaRegularizacaoForm({ leads, leadIdInicial = "" }: Props) {
+  const [leadId, setLeadId] = useState(leads.some((l) => l.id === leadIdInicial) ? leadIdInicial : "");
+  const [leadErro, setLeadErro] = useState(false);
 
   const [tiposSelecionados, setTiposSelecionados] = useState<string[]>([]);
   const [tiposErro, setTiposErro] = useState(false);
 
   const [valorDisplay, setValorDisplay] = useState("");
   const valorRaw = currencyToFloat(valorDisplay);
-
-  const leadsFiltered = leadSearch && !leadId
-    ? leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase()) || l.telefone.includes(leadSearch))
-    : [];
-
-  function selectLead(lead: Lead) {
-    setLeadId(lead.id);
-    setLeadSearch(`${lead.nome} — ${lead.telefone}`);
-    setClienteNome(lead.nome);
-    setClienteTel(maskPhone(lead.telefone));
-  }
 
   function toggleTipo(tipo: string) {
     setTiposErro(false);
@@ -63,6 +42,7 @@ export function NovaRegularizacaoForm({ leads }: Props) {
   }
 
   async function handleSubmit(formData: FormData) {
+    if (!leadId) { setLeadErro(true); return; }
     if (tiposSelecionados.length === 0) { setTiposErro(true); return; }
     tiposSelecionados.forEach((t) => formData.append("tipos", t));
     await criarRegularizacao(formData);
@@ -79,51 +59,12 @@ export function NovaRegularizacaoForm({ leads }: Props) {
 
       <div className="bg-white border border-gray-100 p-6">
         <form action={handleSubmit} className="space-y-5">
-          <input type="hidden" name="leadId" value={leadId} />
-
-          {/* Lead vinculado — OBRIGATÓRIO */}
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Cliente (Lead Vinculado)</p>
-            <div className="relative mb-4">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Buscar Lead *</label>
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Busque pelo nome ou telefone do lead..."
-                  value={leadSearch}
-                  onChange={(e) => { setLeadSearch(e.target.value); setLeadId(""); setClienteNome(""); setClienteTel(""); }}
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
-                />
-              </div>
-              {leadsFiltered.length > 0 && (
-                <div className="absolute z-10 w-full bg-white border border-gray-200 shadow-lg mt-1 max-h-48 overflow-y-auto">
-                  {leadsFiltered.map((l) => (
-                    <button key={l.id} type="button" onClick={() => selectLead(l)}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
-                      <span className="font-medium text-[var(--brand-dark)]">{l.nome}</span>
-                      <span className="text-gray-400 text-xs ml-2">{l.telefone}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {leadId && <p className="text-xs text-green-600 mt-1 font-medium">✓ Lead vinculado — dados preenchidos automaticamente</p>}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Cliente</label>
-                <input name="clienteNome" type="text" required placeholder="Preenchido ao selecionar lead"
-                  value={clienteNome} onChange={(e) => setClienteNome(e.target.value)}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
-                <input name="clienteTel" type="tel" placeholder="(62) 9 9999-9999"
-                  value={clienteTel} onChange={(e) => setClienteTel(maskPhone(e.target.value))}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-            </div>
-          </div>
+          <LeadSelector
+            leads={leads}
+            leadId={leadId}
+            onChange={(id) => { setLeadId(id); setLeadErro(false); }}
+            erro={leadErro}
+          />
 
           {/* Tipos de regularização — multi-select */}
           <div>

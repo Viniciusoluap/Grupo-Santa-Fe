@@ -18,7 +18,7 @@ export interface BoardLead {
   servicos: string[];
   status: string;
   orcamento: number | null;
-  corretorNome: string | null;
+  responsavelNome: string | null;
   criadoEm: string;        // ISO
   proximaVisita: string | null; // ISO
 }
@@ -83,9 +83,9 @@ function LeadCard({ lead }: { lead: BoardLead }) {
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 text-gray-400 text-xs min-w-0">
             <span className="w-5 h-5 rounded-full bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-[9px] font-black flex items-center justify-center shrink-0">
-              {iniciais(lead.corretorNome)}
+              {iniciais(lead.responsavelNome)}
             </span>
-            <span className="truncate">{lead.corretorNome ?? "Sem responsável"}</span>
+            <span className="truncate">{lead.responsavelNome ?? "Sem responsável"}</span>
           </div>
           <span className="text-[10px] text-gray-300 shrink-0">
             {new Date(lead.criadoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}

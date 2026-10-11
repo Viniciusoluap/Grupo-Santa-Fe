@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
 import { NovoFinanciamentoForm } from "./novo-financiamento-form";
 
-export default async function NovoFinanciamentoPage() {
+export default async function NovoFinanciamentoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ leadId?: string }>;
+}) {
+  const { leadId } = await searchParams;
   const [leads, imoveis] = await Promise.all([
     prisma.lead.findMany({
       orderBy: { nome: "asc" },
@@ -14,5 +19,5 @@ export default async function NovoFinanciamentoPage() {
     }),
   ]);
 
-  return <NovoFinanciamentoForm leads={leads} imoveis={imoveis} />;
+  return <NovoFinanciamentoForm leads={leads} leadIdInicial={leadId} imoveis={imoveis} />;
 }

@@ -3,28 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { criarLead } from "@/lib/actions/leads";
+import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
 
-const SERVICOS = [
-  "Compra de imóvel",
-  "Financiamento MCMV",
-  "Financiamento Convencional",
-  "Venda de imóvel",
-  "Locação",
-  "Obra e reforma",
-  "Projeto de engenharia",
-  "Regularização imobiliária",
-  "Avaliação de imóvel",
-  "Compra de lote",
-  "Outro",
-];
+const SERVICOS = SERVICOS_LEAD;
 
 const ORIGENS = ["site", "whatsapp", "indicacao", "instagram", "facebook", "outro"];
 
 interface Props {
   corretores: { id: string; nome: string }[];
+  responsaveis: { id: string; label: string }[];
+  responsavelPadrao: string | null;
 }
 
-export function NovoLeadForm({ corretores }: Props) {
+export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Props) {
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [erro, setErro] = useState(false);
 
@@ -108,7 +99,20 @@ export function NovoLeadForm({ corretores }: Props) {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor Responsável</label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
+          <select
+            name="responsavelId"
+            defaultValue={responsavelPadrao ?? ""}
+            className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"
+          >
+            <option value="">Sem responsável</option>
+            {responsaveis.map((u) => (
+              <option key={u.id} value={u.id}>{u.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor vinculado <span className="font-normal normal-case text-gray-400">(opcional)</span></label>
           <select
             name="corretorId"
             className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none"

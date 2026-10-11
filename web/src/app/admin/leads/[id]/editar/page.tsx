@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
+import { listarResponsaveis } from "@/lib/crm/vinculo-lead";
+import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { EditarLeadForm } from "../editar-lead-form";
 
 interface PageProps {
@@ -9,10 +11,12 @@ interface PageProps {
 
 export default async function EditarLeadPage({ params }: PageProps) {
   const { id } = await params;
-  const [lead, corretores] = await Promise.all([
+  const [lead, corretores, usuarios] = await Promise.all([
     prisma.lead.findUnique({ where: { id } }),
     prisma.corretor.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    listarResponsaveis(),
   ]);
+  const responsaveis = usuarios.map((u) => ({ id: u.id, label: rotuloResponsavel(u) }));
 
   if (!lead) notFound();
 
@@ -23,7 +27,7 @@ export default async function EditarLeadPage({ params }: PageProps) {
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Lead</h1>
       </div>
       <div className="bg-white border border-gray-100 p-6">
-        <EditarLeadForm lead={lead} corretores={corretores} />
+        <EditarLeadForm lead={lead} corretores={corretores} responsaveis={responsaveis} />
       </div>
     </div>
   );

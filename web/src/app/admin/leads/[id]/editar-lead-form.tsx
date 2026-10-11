@@ -3,21 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { editarLead } from "@/lib/actions/leads";
+import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-const SERVICOS = [
-  "Compra de imóvel",
-  "Financiamento MCMV",
-  "Financiamento Convencional",
-  "Venda de imóvel",
-  "Locação",
-  "Obra e reforma",
-  "Projeto de engenharia",
-  "Regularização imobiliária",
-  "Avaliação de imóvel",
-  "Compra de lote",
-  "Outro",
-];
+const SERVICOS = SERVICOS_LEAD;
 
 const ORIGENS = ["site", "whatsapp", "indicacao", "instagram", "facebook", "outro"];
 
@@ -32,11 +21,13 @@ interface Props {
     orcamento: number | null;
     notas: string;
     corretorId: string | null;
+    responsavelId: string | null;
   };
   corretores: { id: string; nome: string }[];
+  responsaveis: { id: string; label: string }[];
 }
 
-export function EditarLeadForm({ lead, corretores }: Props) {
+export function EditarLeadForm({ lead, corretores, responsaveis }: Props) {
   const servicosIniciais = (() => {
     try { return JSON.parse(lead.servico) as string[]; } catch { return [lead.servico]; }
   })();
@@ -93,7 +84,15 @@ export function EditarLeadForm({ lead, corretores }: Props) {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor Responsável</label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
+          <select name="responsavelId" defaultValue={lead.responsavelId ?? ""}
+            className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+            <option value="">Sem responsável</option>
+            {responsaveis.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor vinculado <span className="font-normal normal-case text-gray-400">(opcional)</span></label>
           <select name="corretorId" defaultValue={lead.corretorId ?? ""}
             className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
             <option value="">Sem corretor</option>

@@ -4,17 +4,6 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
-const specialties = [
-  "Compra e Venda",
-  "Financiamento MCMV",
-  "Financiamento Convencional",
-  "Locação",
-  "Lotes",
-  "Alto Padrão",
-  "Regularização Imobiliária",
-  "Projetos de Engenharia",
-];
-
 export default async function NovoCorretorPage({
   searchParams,
 }: {
@@ -70,18 +59,6 @@ export default async function NovoCorretorPage({
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Meta Mensal (R$)</label>
               <CurrencyInput name="metaMensal" placeholder="0,00"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Especialidades</label>
-            <div className="flex flex-wrap gap-2">
-              {specialties.map((s) => (
-                <label key={s} className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" name="especialidades[]" value={s} className="accent-[var(--brand-yellow)]" />
-                  <span className="text-xs text-gray-600">{s}</span>
-                </label>
-              ))}
             </div>
           </div>
 

@@ -69,6 +69,10 @@ model Lead {
   origem            String   @default("site")
   corretorId        String?
   corretor          Corretor? @relation(fields: [corretorId], references: [id])
+  // Responsável interno pelo atendimento (usuário real do sistema: admin,
+  // colaborador ou corretor) — substitui nomes fixos (EPIC-007 S-08).
+  responsavelId     String?
+  responsavel       Usuario?  @relation("LeadResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   imovelInteresseId String?
   imovelInteresse   Imovel?  @relation(fields: [imovelInteresseId], references: [id])
   orcamento         Float?
@@ -533,6 +537,7 @@ model Usuario {
   criadoEm                   DateTime         @default(now())
   conexaoWhatsApp            ConexaoWhatsApp?
   corretor                   Corretor?
+  leadsResponsavel           Lead[]           @relation("LeadResponsavel")
   atualizadoEm               DateTime         @updatedAt
 
   @@map("usuarios")

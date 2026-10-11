@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, Calculator } from "lucide-react";
 import { criarComissao, editarComissao } from "@/lib/actions/comissoes";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { CurrencyInput } from "@/components/ui/currency-input";
+import { formatCurrency, maskCurrency, currencyToFloat } from "@/lib/utils";
+import {
+  TIPOS_COMISSAO,
+  calcularValorComissao,
+  encontrarNegocio,
+  normalizarTipoComissao,
+  rotuloNegocio,
+  type NegocioItem,
+} from "@/lib/comissoes/calculo";
 
 type Corretor = { id: string; nome: string };
-type NegocioItem = { id: string; label: string };
 
 type ComissaoData = {
   id: string;
@@ -30,14 +37,6 @@ interface Props {
   onClose: () => void;
 }
 
-const TIPO_COMISSAO_OPTIONS = [
-  { value: "venda",         label: "Comissão de Venda" },
-  { value: "aluguel",       label: "Comissão de Aluguel" },
-  { value: "financiamento", label: "Comissão de Financiamento" },
-  { value: "obra",          label: "Comissão por Obra", somenteCorretor: true },
-  { value: "extra",         label: "Extra" },
-];
-
 const STATUS_OPTIONS = [
   { value: "pendente",  label: "Pendente" },
   { value: "aprovada",  label: "Aprovada" },
@@ -45,36 +44,81 @@ const STATUS_OPTIONS = [
   { value: "cancelada", label: "Cancelada" },
 ];
 
+const LEGADO = "__legado__";
+
 function toDateInputValue(d: Date | null | undefined) {
   if (!d) return "";
   return new Date(d).toISOString().split("T")[0];
 }
 
+function valorParaDisplay(v: number | null | undefined): string {
+  return v ? maskCurrency(String(Math.round(v * 100))) : "";
+}
+
 export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }: Props) {
   const isEdit = !!comissao;
-  const [beneficiario, setBeneficiario] = useState(comissao?.beneficiario ?? "corretor");
-  const [tipoNegocio, setTipoNegocio] = useState(comissao?.tipoNegocio ?? "venda");
-  const [imovelLabel, setImovelLabel] = useState(comissao?.imovel ?? "");
+  const tipoInicial = normalizarTipoComissao(comissao?.tipoNegocio);
+  const negocioInicial = comissao && tipoInicial !== "extra"
+    ? encontrarNegocio(negociosPorTipo[tipoInicial] ?? [], tipoInicial, comissao.imovel)
+    : null;
 
-  const tipoComissaoOpcoes = TIPO_COMISSAO_OPTIONS.filter(
-    (t) => !t.somenteCorretor || beneficiario === "corretor"
+  const [beneficiario, setBeneficiario] = useState(comissao?.beneficiario ?? "corretor");
+  const [tipoNegocio, setTipoNegocio] = useState(tipoInicial);
+  // Edição de registro antigo (texto livre que não bate com nenhum cadastro):
+  // mantém o texto como opção "legado" até o usuário escolher um negócio real.
+  const [negocioId, setNegocioId] = useState(
+    negocioInicial?.id ?? (comissao && tipoInicial !== "extra" && comissao.imovel ? LEGADO : ""),
   );
+  const [descricaoExtra, setDescricaoExtra] = useState(tipoInicial === "extra" ? comissao?.imovel ?? "" : "");
+  const [percentual, setPercentual] = useState(String(comissao?.percentual ?? 6));
+  const [valorDisplay, setValorDisplay] = useState(valorParaDisplay(comissao?.valor));
+
+  const tipoComissaoOpcoes = TIPOS_COMISSAO.filter(
+    (t) => !("somenteCorretor" in t && t.somenteCorretor) || beneficiario === "corretor"
+  );
+  const tipoCfg = TIPOS_COMISSAO.find((t) => t.value === tipoNegocio);
   const itens = negociosPorTipo[tipoNegocio] ?? [];
+  const negocio = itens.find((i) => i.id === negocioId) ?? null;
+
+  const imovelGravado =
+    tipoNegocio === "extra"
+      ? descricaoExtra
+      : negocioId === LEGADO
+        ? comissao?.imovel ?? ""
+        : negocio ? rotuloNegocio(negocio, tipoNegocio) : "";
+
+  const valorSugerido = calcularValorComissao(negocio?.valorBase, parseFloat(percentual));
+
+  // Valor = percentual × valor do negócio vinculado; recalculado quando o
+  // negócio ou o percentual mudam, e continua editável à mão depois.
+  function recalcular(item: NegocioItem | null, pct: string) {
+    const v = calcularValorComissao(item?.valorBase, parseFloat(pct));
+    if (v != null) setValorDisplay(valorParaDisplay(v));
+  }
 
   function handleBeneficiarioChange(valor: string) {
     setBeneficiario(valor);
-    // "Comissão por Obra" só existe para corretor — evita ficar com um tipo
-    // selecionado que sumiu da lista ao trocar para Empresa.
+    // "Obra" só existe para corretor — evita ficar com um tipo que sumiu da lista.
     if (valor !== "corretor" && tipoNegocio === "obra") {
       setTipoNegocio("venda");
-      setImovelLabel("");
+      setNegocioId("");
     }
   }
 
-  function handleNegocioChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const opt = itens.find((i) => i.id === e.target.value);
-    if (opt) setImovelLabel(`${opt.label} [${TIPO_COMISSAO_OPTIONS.find((t) => t.value === tipoNegocio)?.label ?? tipoNegocio}]`);
-    else setImovelLabel("");
+  function handleTipoChange(tipo: string) {
+    setTipoNegocio(tipo);
+    setNegocioId("");
+    setDescricaoExtra("");
+  }
+
+  function handleNegocioChange(id: string) {
+    setNegocioId(id);
+    recalcular(itens.find((i) => i.id === id) ?? null, percentual);
+  }
+
+  function handlePercentualChange(pct: string) {
+    setPercentual(pct);
+    recalcular(negocio, pct);
   }
 
   return (
@@ -91,7 +135,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
 
         <form action={isEdit ? editarComissao : criarComissao} className="p-6 space-y-4">
           {isEdit && <input type="hidden" name="id" value={comissao.id} />}
-          <input type="hidden" name="imovel" value={imovelLabel} />
+          <input type="hidden" name="imovel" value={imovelGravado} />
           <input type="hidden" name="tipoNegocio" value={tipoNegocio} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -133,67 +177,80 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
               </div>
             )}
 
-            {/* Tipo de Negócio */}
-            {!isEdit && (
-              <>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Comissão *</label>
-                  <select value={tipoNegocio} onChange={(e) => { setTipoNegocio(e.target.value); setImovelLabel(""); }}
+            {/* Tipo de comissão + negócio pré-cadastrado (criação e edição) */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Comissão *</label>
+              <select value={tipoNegocio} onChange={(e) => handleTipoChange(e.target.value)}
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                {tipoComissaoOpcoes.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {tipoNegocio === "extra" ? (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
+                <input type="text" required placeholder="Descreva o serviço ou negócio..."
+                  value={descricaoExtra} onChange={(e) => setDescricaoExtra(e.target.value)}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+            ) : (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                  {tipoNegocio === "obra" ? "Obra cadastrada" : tipoNegocio === "financiamento" ? "Financiamento cadastrado" : "Imóvel cadastrado"} *
+                </label>
+                {itens.length > 0 || negocioId === LEGADO ? (
+                  <select required value={negocioId} onChange={(e) => handleNegocioChange(e.target.value)}
                     className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                    {tipoComissaoOpcoes.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
+                    <option value="">Selecione...</option>
+                    {negocioId === LEGADO && (
+                      <option value={LEGADO}>{comissao?.imovel} (registro antigo)</option>
+                    )}
+                    {itens.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}{item.valorBase ? ` — ${formatCurrency(item.valorBase)}` : ""}
+                      </option>
                     ))}
                   </select>
-                </div>
-
-                {tipoNegocio === "extra" ? (
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
-                    <input type="text" required placeholder="Descreva o serviço ou negócio..."
-                      value={imovelLabel} onChange={(e) => setImovelLabel(e.target.value)}
-                      className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                  </div>
                 ) : (
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                      {TIPO_COMISSAO_OPTIONS.find((t) => t.value === tipoNegocio)?.label ?? "Negócio"} *
-                    </label>
-                    {itens.length > 0 ? (
-                      <select required onChange={handleNegocioChange} defaultValue=""
-                        className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                        <option value="">Selecione...</option>
-                        {itens.map((item) => (
-                          <option key={item.id} value={item.id}>{item.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic py-2">Nenhum registro encontrado para este tipo.</p>
-                    )}
-                  </div>
+                  <p className="text-xs text-gray-400 italic py-2">
+                    Nenhum registro cadastrado para este tipo. Cadastre primeiro no módulo correspondente.
+                  </p>
                 )}
-              </>
-            )}
-
-            {isEdit && (
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Imóvel / Negócio *</label>
-                <input type="text" value={imovelLabel} onChange={(e) => setImovelLabel(e.target.value)} required
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor da Comissão *</label>
-              <CurrencyInput name="valor" required defaultValue={comissao?.valor}
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Percentual (%)</label>
+              <input type="number" name="percentual" step="0.01" min="0" max="100" placeholder="6"
+                value={percentual} onChange={(e) => handlePercentualChange(e.target.value)}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Percentual (%)</label>
-              <input type="number" name="percentual" step="0.01" min="0" max="100" placeholder="6"
-                defaultValue={comissao?.percentual ?? "6"}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor da Comissão *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">R$</span>
+                <input type="text" inputMode="numeric" required placeholder="0,00"
+                  value={valorDisplay} onChange={(e) => setValorDisplay(maskCurrency(e.target.value))}
+                  className="w-full border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                <input type="hidden" name="valor" value={currencyToFloat(valorDisplay)} />
+              </div>
             </div>
+
+            {tipoCfg?.base && (
+              <div className="sm:col-span-2 -mt-2 flex items-start gap-1.5 text-[11px] text-gray-500">
+                <Calculator size={12} className="mt-0.5 shrink-0 text-[var(--brand-yellow)]" />
+                {valorSugerido != null ? (
+                  <span>
+                    Calculado: {percentual}% × {formatCurrency(negocio!.valorBase!)} ({tipoCfg.base}) = <strong>{formatCurrency(valorSugerido)}</strong>. Pode ajustar o valor manualmente.
+                  </span>
+                ) : (
+                  <span>O valor é calculado automaticamente (percentual × {tipoCfg.base}) ao escolher o negócio — editável depois.</span>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>

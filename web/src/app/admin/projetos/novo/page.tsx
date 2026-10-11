@@ -3,7 +3,12 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { NovoProjetoForm } from "./novo-projeto-form";
 
-export default async function NovoProjetoPage() {
+export default async function NovoProjetoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ leadId?: string }>;
+}) {
+  const { leadId } = await searchParams;
   const session = await auth();
   requirePageRole(session, "admin");
 
@@ -12,5 +17,5 @@ export default async function NovoProjetoPage() {
     select: { id: true, nome: true, telefone: true, email: true },
   });
 
-  return <NovoProjetoForm leads={leads} />;
+  return <NovoProjetoForm leads={leads} leadIdInicial={leadId} />;
 }

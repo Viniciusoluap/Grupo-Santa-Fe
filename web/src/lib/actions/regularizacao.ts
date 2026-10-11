@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 export async function alterarStatusRegularizacao(id: string, status: string) {
   const session = await auth();
@@ -39,21 +38,6 @@ export async function excluirDocumentoReg(id: string, regularizacaoId: string) {
   revalidatePath(`/admin/regularizacao/${regularizacaoId}`);
 }
 
-export async function criarRegularizacao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.regularizacao.create({
-    data: {
-      nome: formData.get("nome") as string,
-      tipo: formData.get("tipo") as string,
-      clienteNome: formData.get("clienteNome") as string,
-      clienteTel: formData.get("clienteTel") as string,
-      endereco: formData.get("endereco") as string,
-      responsavel: formData.get("responsavel") as string,
-      valorServico: parseFloat(formData.get("valorServico") as string) || 0,
-      descricao: (formData.get("descricao") as string) || "",
-    },
-  });
-  revalidatePath("/admin/regularizacao");
-  redirect("/admin/regularizacao");
-}
+// criarRegularizacao vive em ./regularizacoes.ts (com vínculo obrigatório ao lead
+// — EPIC-007). A cópia antiga daqui foi removida: era uma action exposta, sem uso
+// na UI, que ainda permitia abrir processo avulso sem cliente do CRM.

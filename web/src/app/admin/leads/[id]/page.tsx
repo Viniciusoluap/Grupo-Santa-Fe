@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, Clock, FileText, Download, ExternalLink } from "lucide-react";
+import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, Plus, Link2 } from "lucide-react";
+import { auth } from "@/auth";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG, LeadStatus, InteractionType } from "@/lib/types/crm";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import { MODULO_CONFIG, type ModuloServico } from "@/lib/crm/servicos-lead";
+import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
 import { LeadAgendarVisita } from "./lead-agendar-visita";
@@ -24,11 +27,31 @@ export default async function LeadDetailPage({ params }: PageProps) {
       interacoes: { orderBy: { criadoEm: "desc" } },
       visitas: { orderBy: { agendadaPara: "asc" } },
       corretor: true,
+      responsavel: { select: { nome: true, papel: true } },
       imovelInteresse: true,
+      financiamentos: { select: { id: true, clienteNome: true, tipo: true, banco: true, status: true, criadoEm: true } },
+      obras: { select: { id: true, nome: true, status: true, criadoEm: true } },
+      projetos: { select: { id: true, nome: true, status: true, criadoEm: true } },
+      regularizacoes: { select: { id: true, nome: true, status: true, criadoEm: true } },
+      avaliacoes: { select: { id: true, numero: true, status: true, criadoEm: true } },
     },
   });
 
   if (!lead) notFound();
+
+  const session = await auth();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+
+  // Serviços do cliente = registros REAIS vinculados ao lead em cada módulo
+  // (EPIC-007). Não há "desvincular": para remover, exclua o registro no módulo.
+  type ServicoVinculado = { modulo: ModuloServico; id: string; titulo: string; status: string; criadoEm: Date };
+  const servicosVinculados: ServicoVinculado[] = [
+    ...lead.financiamentos.map((f) => ({ modulo: "financiamento" as const, id: f.id, titulo: `Financiamento ${f.tipo.toUpperCase()} · ${f.banco}`, status: f.status, criadoEm: f.criadoEm })),
+    ...lead.obras.map((o) => ({ modulo: "obra" as const, id: o.id, titulo: o.nome, status: o.status, criadoEm: o.criadoEm })),
+    ...lead.projetos.map((p) => ({ modulo: "projeto" as const, id: p.id, titulo: p.nome, status: p.status, criadoEm: p.criadoEm })),
+    ...lead.regularizacoes.map((r) => ({ modulo: "regularizacao" as const, id: r.id, titulo: r.nome, status: r.status, criadoEm: r.criadoEm })),
+    ...lead.avaliacoes.map((a) => ({ modulo: "avaliacao" as const, id: a.id, titulo: `Avaliação ${a.numero}`, status: a.status, criadoEm: a.criadoEm })),
+  ].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
 
   // Documentos vinculados a este lead via Jurídico (contratos gerados/assinados/anexos).
   const contratosComDocumentos = await prisma.contrato.findMany({
@@ -60,7 +83,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
             <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
           </div>
           <p className="text-gray-400 text-sm mt-0.5">
-            {servicosLead.join(", ")} · {lead.origem} · {lead.corretor?.nome ?? "Sem corretor"}
+            {servicosLead.join(", ")} · {lead.origem} · {lead.responsavel?.nome ?? "Sem responsável"}
           </p>
         </div>
       </div>
@@ -123,9 +146,16 @@ export default async function LeadDetailPage({ params }: PageProps) {
                 </div>
               </div>
               <div className="flex items-start gap-2">
+                <UserCheck size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-400">Responsável</p>
+                  <p className="text-sm font-medium">{lead.responsavel ? rotuloResponsavel(lead.responsavel) : "Sem responsável"}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
                 <User size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-400">Corretor</p>
+                  <p className="text-xs text-gray-400">Corretor vinculado</p>
                   <p className="text-sm font-medium">{lead.corretor?.nome ?? "Sem corretor"}</p>
                 </div>
               </div>
@@ -143,6 +173,54 @@ export default async function LeadDetailPage({ params }: PageProps) {
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-400 mb-1">Observações</p>
                 <p className="text-sm text-gray-600 leading-relaxed">{lead.notas}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Serviços do cliente — vínculo real com os módulos operacionais */}
+          <div className="bg-white border border-gray-100 p-5">
+            <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">
+              Serviços do Cliente ({servicosVinculados.length})
+            </h2>
+            {servicosVinculados.length === 0 ? (
+              <p className="text-xs text-gray-400 mb-3">
+                Nenhum serviço operacional vinculado ainda. Marque o serviço no cadastro do lead ou vincule abaixo — os dados do cliente são copiados automaticamente.
+              </p>
+            ) : (
+              <div className="divide-y divide-gray-50 border border-gray-100 mb-3">
+                {servicosVinculados.map((sv) => (
+                  <div key={`${sv.modulo}-${sv.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{MODULO_CONFIG[sv.modulo].label}</p>
+                      <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{sv.titulo}</p>
+                      <p className="text-[11px] text-gray-400 capitalize">{sv.status.replace(/_/g, " ")}</p>
+                    </div>
+                    <Link
+                      href={`${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
+                      className="shrink-0 flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-3 py-1.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 transition-opacity"
+                    >
+                      <ExternalLink size={11} /> Abrir
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+            {isAdmin && (
+              <div>
+                <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+                  <Link2 size={11} /> Vincular novo serviço
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(MODULO_CONFIG) as ModuloServico[]).map((m) => (
+                    <Link
+                      key={m}
+                      href={`${MODULO_CONFIG[m].novo}?leadId=${lead.id}`}
+                      className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 border border-gray-200 text-gray-600 hover:border-[var(--brand-yellow)] hover:text-[var(--brand-dark)] transition-colors"
+                    >
+                      <Plus size={11} /> {MODULO_CONFIG[m].label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
