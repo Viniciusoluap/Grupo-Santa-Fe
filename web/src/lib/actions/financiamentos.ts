@@ -1,41 +1,28 @@
 "use server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { carregarLeadParaVinculo, criarFinanciamentoComChecklist, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
-import { dadosClienteDoLead } from "@/lib/crm/servicos-lead";
-import { notificarAdmins } from "@/lib/notificacoes";
+import { clienteParaRegistro } from "@/lib/crm/vinculo-lead";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-export async function criarFinanciamento(formData: FormData) {
+// Lote 3 — Financiamentos originados exclusivamente no CRM.
+//
+// Criação avulsa de financiamento foi REMOVIDA (não existe mais UI para
+// isso: ver .../admin/financiamentos — sem botão "Novo financiamento"). Esta
+// action é bloqueada também no servidor como segunda linha de defesa: ainda
+// que alguém chame diretamente o endpoint da Server Action (sem passar pela
+// UI), a criação continua rejeitada.
+//
+// O único jeito de um financiamento nascer é vinculando o serviço de
+// financiamento a um lead no CRM — ver @/lib/crm/vinculo-lead.ts
+// (sincronizarServicosDoLead/criarRegistro, EPIC-007), usado por
+// @/lib/actions/leads.ts (criarLead / editarLead).
+export async function criarFinanciamento(_formData: FormData): Promise<never> {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  // Vínculo real (EPIC-007): financiamento só nasce para um lead do CRM; nome,
-  // telefone e e-mail vêm do lead. CPF (que o lead não tem) é complemento.
-  const lead = await carregarLeadParaVinculo(formData.get("leadId") as string);
-  const leadId = lead.id;
-  const imovelVinculadoId = (formData.get("imovelVinculadoId") as string) || undefined;
-
-  // Financiamento + checklist obrigatório na mesma transação (nunca um sem o outro).
-  const fin = await criarFinanciamentoComChecklist({
-    ...dadosClienteDoLead(lead),
-    clienteCpf: (formData.get("clienteCpf") as string) || undefined,
-    imovel: formData.get("imovel") as string,
-    tipo: formData.get("tipo") as string,
-    banco: formData.get("banco") as string,
-    valorImovel: parseFloat(formData.get("valorImovel") as string) || 0,
-    valorFinanciado: parseFloat(formData.get("valorFinanciado") as string) || 0,
-    entrada: parseFloat(formData.get("entrada") as string) || 0,
-    taxa: parseFloat(formData.get("taxa") as string) || 0,
-    prazo: parseInt(formData.get("prazo") as string) || 360,
-    leadId,
-    imovelVinculadoId,
-  });
-  await registrarServicoNoLead(leadId, "financiamento", fin.tipo);
-
-  await notificarAdmins("novo_financiamento", "Novo financiamento cadastrado", `${fin.clienteNome} — ${fin.banco}`, "/admin/financiamentos").catch(() => {});
-  revalidatePath("/admin/financiamentos");
-  redirect(`/admin/financiamentos/${fin.id}`);
+  throw new Error(
+    "Criação avulsa de financiamento não é permitida. Vincule o serviço de financiamento (\"Financiamento MCMV\" ou \"Financiamento Convencional\") ao lead no CRM para criar o processo automaticamente."
+  );
 }
 
 export async function excluirFinanciamento(id: string) {
