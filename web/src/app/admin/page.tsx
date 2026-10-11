@@ -40,6 +40,7 @@ export default async function AdminDashboard() {
       orcamento: true,
       criadoEm: true,
       corretor: { select: { nome: true } },
+      responsavel: { select: { nome: true } },
       visitas: {
         where: { status: "agendada", agendadaPara: { gte: now } },
         orderBy: { agendadaPara: "asc" },
@@ -56,7 +57,8 @@ export default async function AdminDashboard() {
     servicos: parseServicos(l.servico),
     status: l.status,
     orcamento: l.orcamento,
-    corretorNome: l.corretor?.nome ?? null,
+    // Responsável real (usuário); leads antigos sem responsável caem no corretor.
+    responsavelNome: l.responsavel?.nome ?? l.corretor?.nome ?? null,
     criadoEm: l.criadoEm.toISOString(),
     proximaVisita: l.visitas[0]?.agendadaPara.toISOString() ?? null,
   }));

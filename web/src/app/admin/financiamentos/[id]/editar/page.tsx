@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { TIPO_CONFIG, BANCO_CONFIG } from "@/lib/types/financiamento";
 import { editarFinanciamento } from "@/lib/actions/financiamentos";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -12,7 +13,7 @@ interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarFinanciamentoPage({ params }: PageProps) {
   const { id } = await params;
-  const f = await prisma.financiamento.findUnique({ where: { id } });
+  const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
   if (!f) notFound();
 
   return (
@@ -32,21 +33,27 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Dados do Cliente</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Cliente *</label>
-                <input name="clienteNome" type="text" required defaultValue={f.clienteNome}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
-                <PhoneInput name="clienteTel" defaultValue={f.clienteTel ?? ""}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
-                <input name="clienteEmail" type="email" defaultValue={f.clienteEmail ?? ""}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
+              {f.leadVinculado ? (
+                <ClienteVinculadoInfo lead={f.leadVinculado} className="sm:col-span-2" />
+              ) : (
+                <>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Cliente *</label>
+                  <input name="clienteNome" type="text" required defaultValue={f.clienteNome}
+                    className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
+                  <PhoneInput name="clienteTel" defaultValue={f.clienteTel ?? ""}
+                    className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
+                  <input name="clienteEmail" type="email" defaultValue={f.clienteEmail ?? ""}
+                    className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                </div>
+                </>
+              )}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF</label>
                 <input name="clienteCpf" type="text" defaultValue={f.clienteCpf ?? ""}

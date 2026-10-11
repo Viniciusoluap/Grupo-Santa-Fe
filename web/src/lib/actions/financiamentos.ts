@@ -1,42 +1,24 @@
 "use server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { CHECKLIST_FINANCIAMENTO_PADRAO, carregarLeadParaVinculo, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
+import { dadosClienteDoLead } from "@/lib/crm/servicos-lead";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-const CHECKLIST_PADRAO = [
-  // Documento do Comprador
-  { grupo: "Comprador", item: "RG e CPF (cópia autenticada)" },
-  { grupo: "Comprador", item: "Certidão de nascimento ou casamento" },
-  { grupo: "Comprador", item: "Comprovante de residência (últimos 3 meses)" },
-  { grupo: "Comprador", item: "Comprovante de renda (holerite ou IR)" },
-  { grupo: "Comprador", item: "Extrato bancário (3 meses)" },
-  { grupo: "Comprador", item: "CTPS ou contrato de trabalho" },
-  // Documento do Imóvel
-  { grupo: "Imóvel", item: "Matrícula atualizada do imóvel" },
-  { grupo: "Imóvel", item: "Certidão de ônus e ações reais" },
-  { grupo: "Imóvel", item: "IPTU (exercício atual)" },
-  { grupo: "Imóvel", item: "Planta baixa aprovada" },
-  { grupo: "Imóvel", item: "Habite-se ou auto de conclusão" },
-  // Banco
-  { grupo: "Banco", item: "Proposta de financiamento assinada" },
-  { grupo: "Banco", item: "Laudo de avaliação do imóvel" },
-  { grupo: "Banco", item: "Aprovação de crédito" },
-  { grupo: "Banco", item: "Minuta do contrato assinada" },
-];
-
 export async function criarFinanciamento(formData: FormData) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  const leadId = (formData.get("leadId") as string) || undefined;
+  // Vínculo real (EPIC-007): financiamento só nasce para um lead do CRM; nome,
+  // telefone e e-mail vêm do lead. CPF (que o lead não tem) é complemento.
+  const lead = await carregarLeadParaVinculo(formData.get("leadId") as string);
+  const leadId = lead.id;
   const imovelVinculadoId = (formData.get("imovelVinculadoId") as string) || undefined;
 
   const fin = await prisma.financiamento.create({
     data: {
-      clienteNome: formData.get("clienteNome") as string,
-      clienteTel: formData.get("clienteTel") as string,
-      clienteEmail: (formData.get("clienteEmail") as string) || undefined,
+      ...dadosClienteDoLead(lead),
       clienteCpf: (formData.get("clienteCpf") as string) || undefined,
       imovel: formData.get("imovel") as string,
       tipo: formData.get("tipo") as string,
@@ -52,8 +34,9 @@ export async function criarFinanciamento(formData: FormData) {
   });
 
   await prisma.checklistItem.createMany({
-    data: CHECKLIST_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
+    data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
   });
+  await registrarServicoNoLead(leadId, "financiamento", fin.tipo);
 
   await notificarAdmins("novo_financiamento", "Novo financiamento cadastrado", `${fin.clienteNome} — ${fin.banco}`, "/admin/financiamentos").catch(() => {});
   revalidatePath("/admin/financiamentos");
@@ -71,12 +54,12 @@ export async function editarFinanciamento(formData: FormData) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
   const id = formData.get("id") as string;
+  const atual = await prisma.financiamento.findUnique({ where: { id }, select: { leadId: true } });
+  const cliente = await clienteParaRegistro(atual?.leadId, formData);
   await prisma.financiamento.update({
     where: { id },
     data: {
-      clienteNome: formData.get("clienteNome") as string,
-      clienteTel: formData.get("clienteTel") as string,
-      clienteEmail: (formData.get("clienteEmail") as string) || null,
+      ...cliente,
       clienteCpf: (formData.get("clienteCpf") as string) || null,
       imovel: formData.get("imovel") as string,
       tipo: formData.get("tipo") as string,

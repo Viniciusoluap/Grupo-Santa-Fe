@@ -6,21 +6,14 @@ import { ArrowLeft, Search } from "lucide-react";
 import { TIPO_CONFIG, BANCO_CONFIG } from "@/lib/types/financiamento";
 import { criarFinanciamento } from "@/lib/actions/financiamentos";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { LeadSelector, type LeadOpcao } from "@/components/crm/lead-selector";
 
-type Lead = { id: string; nome: string; telefone: string; email: string | null };
 type Imovel = { id: string; titulo: string; bairro: string; cidade: string };
 
 interface Props {
-  leads: Lead[];
+  leads: LeadOpcao[];
   imoveis: Imovel[];
-}
-
-function maskPhone(value: string): string {
-  const d = value.replace(/\D/g, "").slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : "";
-  if (d.length <= 3) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d[2]} ${d.slice(3)}`;
-  return `(${d.slice(0, 2)}) ${d[2]} ${d.slice(3, 7)}-${d.slice(7)}`;
+  leadIdInicial?: string;
 }
 
 function maskCurrency(raw: string): string {
@@ -53,25 +46,14 @@ function CurrencyInput({ name, placeholder }: { name: string; placeholder?: stri
   );
 }
 
-export function NovoFinanciamentoForm({ leads, imoveis }: Props) {
-  const [leadId, setLeadId] = useState("");
-  const [leadSearch, setLeadSearch] = useState("");
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [email, setEmail] = useState("");
+export function NovoFinanciamentoForm({ leads, imoveis, leadIdInicial = "" }: Props) {
+  const [leadId, setLeadId] = useState(leads.some((l) => l.id === leadIdInicial) ? leadIdInicial : "");
+  const [leadErro, setLeadErro] = useState(false);
 
   const [imovelTipo, setImovelTipo] = useState<"existente" | "manual">("manual");
   const [imovelId, setImovelId] = useState("");
   const [imovelSearch, setImovelSearch] = useState("");
   const [imovelManual, setImovelManual] = useState("");
-
-  function selectLead(lead: Lead) {
-    setLeadId(lead.id);
-    setLeadSearch(`${lead.nome} — ${lead.telefone}`);
-    setNome(lead.nome);
-    setTelefone(maskPhone(lead.telefone));
-    setEmail(lead.email ?? "");
-  }
 
   function selectImovel(im: Imovel) {
     setImovelId(im.id);
@@ -79,15 +61,14 @@ export function NovoFinanciamentoForm({ leads, imoveis }: Props) {
     setImovelManual(im.titulo);
   }
 
-  const leadsFiltered = leadSearch && !leadId
-    ? leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase()) || l.telefone.includes(leadSearch))
-    : [];
-
   const imoveisFiltered = imovelSearch && !imovelId && imovelTipo === "existente"
     ? imoveis.filter((i) => i.titulo.toLowerCase().includes(imovelSearch.toLowerCase()) || i.bairro.toLowerCase().includes(imovelSearch.toLowerCase()))
     : [];
 
-  const imovelValue = imovelTipo === "existente" ? imovelManual : imovelManual;
+  async function handleSubmit(formData: FormData) {
+    if (!leadId) { setLeadErro(true); return; }
+    await criarFinanciamento(formData);
+  }
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -99,69 +80,23 @@ export function NovoFinanciamentoForm({ leads, imoveis }: Props) {
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form action={criarFinanciamento} className="space-y-5">
-          <input type="hidden" name="leadId" value={leadId} />
+        <form action={handleSubmit} className="space-y-5">
           <input type="hidden" name="imovelVinculadoId" value={imovelId} />
 
-          {/* Lead vinculado */}
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Lead Vinculado</p>
-            <div className="relative">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Buscar Lead *</label>
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Busque pelo nome ou telefone do lead..."
-                  value={leadSearch}
-                  onChange={(e) => { setLeadSearch(e.target.value); setLeadId(""); setNome(""); setTelefone(""); setEmail(""); }}
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
-                />
-              </div>
-              {leadsFiltered.length > 0 && (
-                <div className="absolute z-10 w-full bg-white border border-gray-200 shadow-lg mt-1 max-h-48 overflow-y-auto">
-                  {leadsFiltered.map((l) => (
-                    <button key={l.id} type="button" onClick={() => selectLead(l)}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
-                      <span className="font-medium text-[var(--brand-dark)]">{l.nome}</span>
-                      <span className="text-gray-400 text-xs ml-2">{l.telefone}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {leadId && (
-                <p className="text-xs text-green-600 mt-1 font-medium">✓ Lead vinculado — dados preenchidos automaticamente</p>
-              )}
-            </div>
-          </div>
+          {/* Cliente = lead do CRM (nome, telefone e e-mail vêm do lead) */}
+          <LeadSelector
+            leads={leads}
+            leadId={leadId}
+            onChange={(id) => { setLeadId(id); setLeadErro(false); }}
+            erro={leadErro}
+          />
 
-          {/* Dados do Cliente */}
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Dados do Cliente</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Cliente *</label>
-                <input name="clienteNome" type="text" required placeholder="Nome completo"
-                  value={nome} onChange={(e) => setNome(e.target.value)}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
-                <input name="clienteTel" type="tel" placeholder="(62) 9 9999-9999"
-                  value={telefone} onChange={(e) => setTelefone(maskPhone(e.target.value))}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
-                <input name="clienteEmail" type="email" placeholder="email@exemplo.com"
-                  value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF</label>
-                <input name="clienteCpf" type="text" placeholder="000.000.000-00"
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
+          {/* Complemento que o CRM não tem */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF do Cliente</label>
+              <input name="clienteCpf" type="text" placeholder="000.000.000-00"
+                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
           </div>
 

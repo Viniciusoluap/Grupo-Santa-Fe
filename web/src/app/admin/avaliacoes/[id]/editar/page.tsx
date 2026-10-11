@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
+import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { editarAvaliacao } from "@/lib/actions/avaliacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -16,7 +17,7 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
 
   const { id } = await params;
   const [a, leads] = await Promise.all([
-    prisma.avaliacao.findUnique({ where: { id } }),
+    prisma.avaliacao.findUnique({ where: { id }, include: { lead: { select: { id: true, nome: true, telefone: true, email: true } } } }),
     prisma.lead.findMany({ select: { id: true, nome: true, telefone: true }, orderBy: { nome: "asc" } }),
   ]);
   if (!a) notFound();
@@ -82,30 +83,37 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vincular a Lead Cadastrado</label>
               <select name="leadId" defaultValue={a.leadId ?? ""} className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                <option value="">— Nenhum lead vinculado —</option>
+                {/* Vínculo real: registro já vinculado não volta a ser avulso (sem "desvincular"). */}
+                {!a.leadId && <option value="">— Nenhum lead vinculado —</option>}
                 {leads.map((l) => (
                   <option key={l.id} value={l.id}>{l.nome} · {l.telefone}</option>
                 ))}
               </select>
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome Completo *</label>
-              <input name="clienteNome" type="text" required defaultValue={a.clienteNome}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
+            {a.lead ? (
+              <ClienteVinculadoInfo lead={a.lead} className="sm:col-span-2" />
+            ) : (
+              <>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome Completo *</label>
+                <input name="clienteNome" type="text" required defaultValue={a.clienteNome}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone *</label>
+                <PhoneInput name="clienteTel" required defaultValue={a.clienteTel}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
+                <input name="clienteEmail" type="email" defaultValue={a.clienteEmail ?? ""}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              </>
+            )}
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF</label>
               <input name="clienteCpf" type="text" defaultValue={a.clienteCpf ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone *</label>
-              <PhoneInput name="clienteTel" required defaultValue={a.clienteTel}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
-              <input name="clienteEmail" type="email" defaultValue={a.clienteEmail ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
           </div>

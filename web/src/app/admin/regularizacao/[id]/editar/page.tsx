@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
+import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { editarRegularizacao } from "@/lib/actions/regularizacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -17,7 +18,7 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
   requirePageRole(session, "admin");
 
   const { id } = await params;
-  const r = await prisma.regularizacao.findUnique({ where: { id } });
+  const r = await prisma.regularizacao.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
   if (!r) notFound();
 
   const previsaoValue = r.previsaoFim ? new Date(r.previsaoFim).toISOString().split("T")[0] : "";
@@ -59,16 +60,22 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
-              <input name="clienteNome" type="text" required defaultValue={r.clienteNome}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone do Cliente</label>
-              <PhoneInput name="clienteTel" defaultValue={r.clienteTel ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
+            {r.leadVinculado ? (
+              <ClienteVinculadoInfo lead={r.leadVinculado} className="sm:col-span-2" />
+            ) : (
+              <>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
+                <input name="clienteNome" type="text" required defaultValue={r.clienteNome}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone do Cliente</label>
+                <PhoneInput name="clienteTel" defaultValue={r.clienteTel ?? ""}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              </>
+            )}
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço / Imóvel *</label>
               <input name="endereco" type="text" required defaultValue={r.endereco}

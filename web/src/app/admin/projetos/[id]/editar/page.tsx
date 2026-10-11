@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
+import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto";
 import { editarProjeto } from "@/lib/actions/projetos";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -17,7 +18,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
   requirePageRole(session, "admin");
 
   const { id } = await params;
-  const p = await prisma.projeto.findUnique({ where: { id } });
+  const p = await prisma.projeto.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
   if (!p) notFound();
 
   let tiposSelecionados: string[] = [];
@@ -58,16 +59,22 @@ export default async function EditarProjetoPage({ params }: PageProps) {
               <input name="prazoEntrega" type="date" defaultValue={prazoValue}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
-              <input name="clienteNome" type="text" required defaultValue={p.clienteNome}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone do Cliente</label>
-              <PhoneInput name="clienteTel" defaultValue={p.clienteTel ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
+            {p.leadVinculado ? (
+              <ClienteVinculadoInfo lead={p.leadVinculado} className="sm:col-span-2" />
+            ) : (
+              <>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
+                <input name="clienteNome" type="text" required defaultValue={p.clienteNome}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone do Cliente</label>
+                <PhoneInput name="clienteTel" defaultValue={p.clienteTel ?? ""}
+                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              </div>
+              </>
+            )}
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Engenheiro Responsável *</label>
               <input name="engenheiro" type="text" required defaultValue={p.engenheiro}

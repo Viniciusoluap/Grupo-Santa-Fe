@@ -3,7 +3,12 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { NovaObraForm } from "./nova-obra-form";
 
-export default async function NovaObraPage() {
+export default async function NovaObraPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ leadId?: string }>;
+}) {
+  const { leadId } = await searchParams;
   const session = await auth();
   requirePageRole(session, "admin");
 
@@ -12,5 +17,5 @@ export default async function NovaObraPage() {
     select: { id: true, nome: true, telefone: true, email: true },
   });
 
-  return <NovaObraForm leads={leads} />;
+  return <NovaObraForm leads={leads} leadIdInicial={leadId} />;
 }

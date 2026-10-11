@@ -5,24 +5,22 @@ import { requireActionRole } from "@/lib/auth/rbac";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-
-function gerarNumero() {
-  const now = new Date();
-  return `AVL-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
-}
+import { carregarLeadParaVinculo, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
+import { dadosClienteDoLead, gerarNumeroAvaliacao } from "@/lib/crm/servicos-lead";
 
 export async function criarAvaliacao(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
+  // Vínculo real (EPIC-007): solicitante = lead do CRM; dados copiados do lead
+  // no servidor (nunca do formulário). CPF é complemento opcional na edição.
+  const lead = await carregarLeadParaVinculo(formData.get("leadId") as string);
   await prisma.avaliacao.create({
     data: {
-      numero: gerarNumero(),
+      numero: gerarNumeroAvaliacao(),
       tipo: formData.get("tipo") as string,
       finalidade: formData.get("finalidade") as string,
-      clienteNome: formData.get("clienteNome") as string,
-      clienteCpf: (formData.get("clienteCpf") as string) || null,
-      clienteTel: formData.get("clienteTel") as string,
-      clienteEmail: (formData.get("clienteEmail") as string) || null,
+      ...dadosClienteDoLead(lead),
+      leadId: lead.id,
       endereco: formData.get("endereco") as string,
       bairro: formData.get("bairro") as string,
       cidade: (formData.get("cidade") as string) || "Canaã dos Carajás",
@@ -40,6 +38,7 @@ export async function criarAvaliacao(formData: FormData) {
       valorServico: formData.get("valorServico") ? parseFloat(formData.get("valorServico") as string) : null,
     },
   });
+  await registrarServicoNoLead(lead.id, "avaliacao");
 
   revalidatePath("/admin/avaliacoes");
   redirect("/admin/avaliacoes");
@@ -84,15 +83,17 @@ export async function editarAvaliacao(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
+  const atual = await prisma.avaliacao.findUnique({ where: { id }, select: { leadId: true } });
+  // Registro vinculado não volta a ser avulso; trocar de lead recopia os dados.
+  const leadId = (formData.get("leadId") as string) || atual?.leadId || null;
+  const cliente = await clienteParaRegistro(leadId, formData);
   await prisma.avaliacao.update({
     where: { id },
     data: {
       tipo: formData.get("tipo") as string,
       finalidade: formData.get("finalidade") as string,
-      clienteNome: formData.get("clienteNome") as string,
+      ...cliente,
       clienteCpf: (formData.get("clienteCpf") as string) || null,
-      clienteTel: formData.get("clienteTel") as string,
-      clienteEmail: (formData.get("clienteEmail") as string) || null,
       endereco: formData.get("endereco") as string,
       bairro: formData.get("bairro") as string,
       cidade: (formData.get("cidade") as string) || "Canaã dos Carajás",
@@ -107,7 +108,7 @@ export async function editarAvaliacao(formData: FormData) {
       dataVistoria: formData.get("dataVistoria") ? new Date(formData.get("dataVistoria") as string) : null,
       prazoEntrega: formData.get("prazoEntrega") ? new Date(formData.get("prazoEntrega") as string) : null,
       observacoes: (formData.get("observacoes") as string) || "",
-      leadId: (formData.get("leadId") as string) || null,
+      leadId,
       valorServico: formData.get("valorServico") ? parseFloat(formData.get("valorServico") as string) : null,
     },
   });
