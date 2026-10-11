@@ -22,7 +22,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
   if (!p) notFound();
 
   let tiposSelecionados: string[] = [];
-  try { tiposSelecionados = JSON.parse(p.tipo) as string[]; } catch { tiposSelecionados = [p.tipo]; }
+  try { tiposSelecionados = JSON.parse(p.tipo ?? "[]") as string[]; } catch { tiposSelecionados = p.tipo ? [p.tipo] : []; }
 
   const prazoValue = p.prazoEntrega ? new Date(p.prazoEntrega).toISOString().split("T")[0] : "";
 
@@ -77,7 +77,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
             )}
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Engenheiro Responsável *</label>
-              <input name="engenheiro" type="text" required defaultValue={p.engenheiro}
+              <input name="engenheiro" type="text" required defaultValue={p.engenheiro ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>

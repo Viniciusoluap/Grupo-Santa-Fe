@@ -2,25 +2,25 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, FileCheck, Pencil, Trash2 } from "lucide-react";
+import { Search, FileCheck, Pencil, Trash2 } from "lucide-react";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
 import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
 import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
 
-function parseTiposLabelReg(tipo: string): string {
+function parseTiposLabelReg(tipo: string | null): string {
   try {
-    const arr = JSON.parse(tipo);
+    const arr = JSON.parse(tipo ?? "[]");
     if (Array.isArray(arr)) {
       return arr.map((t: string) => REG_TIPO_CONFIG[t as keyof typeof REG_TIPO_CONFIG]?.label ?? t).join(", ");
     }
   } catch {}
-  return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.label ?? tipo;
+  return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.label ?? tipo ?? "Pendente de configuração";
 }
 
-function parseTipoIconReg(tipo: string): string {
+function parseTipoIconReg(tipo: string | null): string {
   try {
-    const arr = JSON.parse(tipo);
+    const arr = JSON.parse(tipo ?? "[]");
     if (Array.isArray(arr) && arr.length > 0) {
       return REG_TIPO_CONFIG[arr[0] as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
     }
@@ -36,14 +36,14 @@ interface RegDocumento {
 interface Regularizacao {
   id: string;
   nome: string;
-  tipo: string;
+  tipo: string | null;
   status: string;
   clienteNome: string;
   clienteTel: string;
-  endereco: string;
+  endereco: string | null;
   matricula: string | null;
-  responsavel: string;
-  valorServico: number;
+  responsavel: string | null;
+  valorServico: number | null;
   valorPago: number;
   previsaoFim: Date | null;
   documentos: RegDocumento[];
@@ -72,11 +72,11 @@ function StatusSelectReg({ id, status }: { id: string; status: string }) {
 function ExcluirRegBtn({ id, nome }: { id: string; nome: string }) {
   const [isPending, startTransition] = useTransition();
   function handleClick() {
-    if (!confirm(`Excluir regularização "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir regularização "${nome}"? O registro será mantido no histórico.`)) return;
     startTransition(async () => { await excluirRegularizacao(id); });
   }
   return (
-    <button onClick={handleClick} disabled={isPending} title="Excluir"
+    <button onClick={handleClick} disabled={isPending} title="Arquivar"
       className="text-xs border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 font-bold px-3 py-1.5 transition-colors disabled:opacity-40 flex items-center gap-1">
       <Trash2 size={12} /> Excluir
     </button>
@@ -91,13 +91,13 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
     const matchSearch = !search ||
       r.nome.toLowerCase().includes(search.toLowerCase()) ||
       r.clienteNome.toLowerCase().includes(search.toLowerCase()) ||
-      r.endereco.toLowerCase().includes(search.toLowerCase());
+      r.endereco?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "todos" || r.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const ativos = regularizacoes.filter((r) => r.status !== "concluido" && r.status !== "cancelado").length;
-  const totalValue = regularizacoes.reduce((s, r) => s + r.valorServico, 0);
+  const totalValue = regularizacoes.reduce((s, r) => s + (r.valorServico ?? 0), 0);
 
   return (
     <div className="space-y-5">
@@ -106,9 +106,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Regularização Imobiliária</h1>
           <p className="text-gray-400 text-sm mt-0.5">{regularizacoes.length} processos cadastrados</p>
         </div>
-        <Link href="/admin/regularizacao/novo" className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors">
-          <Plus size={14} /> Novo Processo
-        </Link>
+        <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
       </div>
 
       {/* KPIs */}
@@ -117,7 +115,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
           { label: "Em Andamento", value: ativos },
           { label: "Concluídos", value: regularizacoes.filter((r) => r.status === "concluido").length },
           { label: "Faturamento", value: formatCurrency(totalValue) },
-          { label: "A Receber", value: formatCurrency(regularizacoes.reduce((s, r) => s + (r.valorServico - r.valorPago), 0)) },
+          { label: "A Receber", value: formatCurrency(regularizacoes.reduce((s, r) => s + ((r.valorServico ?? 0) - r.valorPago), 0)) },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -162,8 +160,6 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
       {/* Cards */}
       <div className="space-y-3">
         {filtered.map((r) => {
-          const statusKey = r.status as RegStatus;
-          const cfg = REG_STATUS_CONFIG[statusKey] ?? REG_STATUS_CONFIG["analise_inicial"];
           const tipo = { icon: parseTipoIconReg(r.tipo), label: parseTiposLabelReg(r.tipo) };
           const docsOk = r.documentos.filter((d) => d.status === "aprovado" || d.status === "obtido").length;
           return (
@@ -183,7 +179,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-[var(--brand-dark)]">{formatCurrency(r.valorServico)}</p>
-                  {r.valorPago < r.valorServico && <p className="text-xs text-orange-400">A receber: {formatCurrency(r.valorServico - r.valorPago)}</p>}
+                  {r.valorServico != null && r.valorPago < r.valorServico && <p className="text-xs text-orange-400">A receber: {formatCurrency((r.valorServico ?? 0) - r.valorPago)}</p>}
                 </div>
               </div>
 

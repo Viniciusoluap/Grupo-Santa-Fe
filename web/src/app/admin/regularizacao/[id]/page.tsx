@@ -32,18 +32,20 @@ export default async function RegDetailPage({ params }: PageProps) {
     color: "text-gray-600",
     order: 0,
   };
-  function parseTiposLabelReg(tipoStr: string): string {
+  function parseTiposLabelReg(tipoStr: string | null): string {
+    if (!tipoStr) return "Pendente de configuração";
     try {
-      const arr = JSON.parse(tipoStr);
+      const arr = JSON.parse(tipoStr ?? "[]");
       if (Array.isArray(arr)) {
         return arr.map((t: string) => REG_TIPO_CONFIG[t as keyof typeof REG_TIPO_CONFIG]?.label ?? t).join(", ");
       }
     } catch {}
     return REG_TIPO_CONFIG[tipoStr as keyof typeof REG_TIPO_CONFIG]?.label ?? tipoStr;
   }
-  function parseTipoIconReg(tipoStr: string): string {
+  function parseTipoIconReg(tipoStr: string | null): string {
+    if (!tipoStr) return "Pendente de configuração";
     try {
-      const arr = JSON.parse(tipoStr);
+      const arr = JSON.parse(tipoStr ?? "[]");
       if (Array.isArray(arr) && arr.length > 0) {
         return REG_TIPO_CONFIG[arr[0] as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📁";
       }
@@ -62,6 +64,9 @@ export default async function RegDetailPage({ params }: PageProps) {
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase flex-1">{r.nome}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>
+      <p className="text-xs text-gray-500">
+        {r.leadId ? <Link href={`/admin/leads/${r.leadId}`} className="font-bold underline">Cliente no CRM</Link> : "Registro legado sem vínculo com o CRM"}
+      </p>
 
       {/* Pipeline */}
       <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
@@ -144,7 +149,7 @@ export default async function RegDetailPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Informações</p>
             {[
               { label: "Tipo", value: `${tipo.icon} ${tipo.label}` },
-              { label: "Responsável", value: r.responsavel },
+              { label: "Responsável", value: r.responsavel ?? "Pendente de configuração" },
               r.cartorio ? { label: "Cartório", value: r.cartorio } : null,
               r.previsaoFim ? { label: "Previsão", value: new Date(r.previsaoFim).toLocaleDateString("pt-BR") } : null,
             ].filter(Boolean).map((item) => item && (
@@ -160,7 +165,7 @@ export default async function RegDetailPage({ params }: PageProps) {
             {[
               { label: "Valor do serviço", value: formatCurrency(r.valorServico), color: "text-[var(--brand-dark)]" },
               { label: "Pago", value: formatCurrency(r.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(r.valorServico - r.valorPago), color: r.valorServico - r.valorPago > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "A receber", value: formatCurrency(r.valorServico == null ? null : r.valorServico - r.valorPago), color: (r.valorServico ?? 0) - r.valorPago > 0 ? "text-orange-500" : "text-gray-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>

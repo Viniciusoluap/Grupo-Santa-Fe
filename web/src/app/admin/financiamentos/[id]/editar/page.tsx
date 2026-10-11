@@ -1,3 +1,4 @@
+import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -13,6 +14,7 @@ interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarFinanciamentoPage({ params }: PageProps) {
   const { id } = await params;
+  await financiamentoDoAtor(id);
   const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
   if (!f) notFound();
 
@@ -67,7 +69,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Imóvel</p>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome / Endereço do Imóvel *</label>
-              <input name="imovel" type="text" required defaultValue={f.imovel}
+              <input name="imovel" type="text" required defaultValue={f.imovel ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
           </div>
@@ -80,14 +82,17 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Financiamento *</label>
                 <select name="tipo" required defaultValue={f.tipo}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                  {Object.entries(TIPO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  {!Object.hasOwn(TIPO_CONFIG, f.tipo) && <option value={f.tipo}>{f.tipo}</option>}
+                {Object.entries(TIPO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Banco / Convênio *</label>
-                <select name="banco" required defaultValue={f.banco}
+                <select name="banco" required defaultValue={f.banco ?? ""}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                  {Object.entries(BANCO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  <option value="" disabled>Selecione</option>
+                  {f.banco && !Object.hasOwn(BANCO_CONFIG, f.banco) && <option value={f.banco}>{f.banco}</option>}
+                {Object.entries(BANCO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
             </div>
@@ -114,12 +119,12 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Taxa de Juros (% a.a.) *</label>
-                <input name="taxa" type="number" step="0.01" required defaultValue={f.taxa}
+                <input name="taxa" type="number" step="0.01" required defaultValue={f.taxa ?? ""}
                   className="w-full px-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prazo (meses) *</label>
-                <input name="prazo" type="number" required defaultValue={f.prazo}
+                <input name="prazo" type="number" required defaultValue={f.prazo ?? ""}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
             </div>

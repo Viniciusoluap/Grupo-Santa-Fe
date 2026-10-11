@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, Plus, Link2, AlertTriangle } from "lucide-react";
-import { auth } from "@/auth";
+import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, AlertTriangle } from "lucide-react";
+import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
+import { etapaDoLead, parseServicosLead, leadNoPipelineAtivo } from "@/lib/crm/pipeline";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
-import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG, LeadStatus, InteractionType } from "@/lib/types/crm";
+import { LEAD_STAGE_CONFIG, LEAD_STAGES, INTERACTION_CONFIG, InteractionType } from "@/lib/types/crm";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { MODULO_CONFIG, PARAM_FALHA_SERVICOS, parseFalhasServicos, type ModuloServico } from "@/lib/crm/servicos-lead";
 import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
+import { AdicionarOperacaoForm } from "./adicionar-operacao-form";
 import { LeadAgendarVisita } from "./lead-agendar-visita";
 
 interface PageProps {
@@ -17,9 +19,10 @@ interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-const statusOrder = Object.entries(LEAD_STATUS_CONFIG).sort(([, a], [, b]) => a.order - b.order);
+const statusOrder = LEAD_STAGES.map((s) => [s, LEAD_STAGE_CONFIG[s]] as const);
 
 export default async function LeadDetailPage({ params, searchParams }: PageProps) {
+  const ator = await obterAtorCrm();
   const { id } = await params;
   // Serviços cuja criação automática falhou no último cadastro/edição do lead.
   const falhasServicos = parseFalhasServicos((await searchParams)[PARAM_FALHA_SERVICOS]);
@@ -41,15 +44,17 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
   });
 
   if (!lead) notFound();
+  autorizarLeadDoAtor(ator, lead);
 
-  const session = await auth();
-  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  const interno = ator.papel === "admin" || ator.papel === "colaborador";
+  const etapa = etapaDoLead(lead);
+  const ativo = leadNoPipelineAtivo(lead);
 
   // Serviços do cliente = registros REAIS vinculados ao lead em cada módulo
   // (EPIC-007). Não há "desvincular": para remover, exclua o registro no módulo.
   type ServicoVinculado = { modulo: ModuloServico; id: string; titulo: string; status: string; criadoEm: Date };
   const servicosVinculados: ServicoVinculado[] = [
-    ...lead.financiamentos.map((f) => ({ modulo: "financiamento" as const, id: f.id, titulo: `Financiamento ${f.tipo.toUpperCase()} · ${f.banco}`, status: f.status, criadoEm: f.criadoEm })),
+    ...lead.financiamentos.map((f) => ({ modulo: "financiamento" as const, id: f.id, titulo: `Financiamento ${f.tipo.toUpperCase()} · ${f.banco ?? "Banco a configurar"}`, status: f.status, criadoEm: f.criadoEm })),
     ...lead.obras.map((o) => ({ modulo: "obra" as const, id: o.id, titulo: o.nome, status: o.status, criadoEm: o.criadoEm })),
     ...lead.projetos.map((p) => ({ modulo: "projeto" as const, id: p.id, titulo: p.nome, status: p.status, criadoEm: p.criadoEm })),
     ...lead.regularizacoes.map((r) => ({ modulo: "regularizacao" as const, id: r.id, titulo: r.nome, status: r.status, criadoEm: r.criadoEm })),
@@ -63,29 +68,23 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
     orderBy: { criadoEm: "desc" },
   });
 
-  const cfg = LEAD_STATUS_CONFIG[lead.status as LeadStatus] ?? {
-    bgColor: "bg-gray-100",
-    color: "text-gray-600",
-    label: lead.status,
-    order: 0,
-  };
-  function parseServicos(s: string): string[] { try { return JSON.parse(s); } catch { return [s]; } }
-  const servicosLead = parseServicos(lead.servico);
+  const cfg = etapa ? LEAD_STAGE_CONFIG[etapa] : { bgColor: "bg-amber-100", color: "text-amber-800", label: "A CLASSIFICAR", order: -1 };
+  const servicosLead = parseServicosLead(lead.servico);
   const whatsappMsg = encodeURIComponent(
     `Olá ${lead.nome}, aqui é da equipe do Grupo Santa Fé. Podemos conversar sobre ${servicosLead.join(", ")}?`
   );
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5 max-w-5xl min-w-0">
       {/* Header */}
       <div className="flex items-start gap-4 flex-wrap">
         <BackButton className="mt-1" />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase">{lead.nome}</h1>
-            <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+            <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase break-words">{lead.nome}</h1>
+            <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{lead.excluidoEm ? "EXCLUÍDO" : lead.arquivadoEm ? "ARQUIVADO" : !ativo ? "FORA DO PIPELINE" : cfg.label}</span>
           </div>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-gray-600 text-sm mt-0.5">
             {servicosLead.join(", ")} · {lead.origem} · {lead.responsavel?.nome ?? "Sem responsável"}
           </p>
         </div>
@@ -107,18 +106,21 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
         </div>
       )}
 
+      <p className="text-xs text-gray-600">Status comercial original: {lead.status}. Etapa operacional independente.</p>
+
+      {ativo && <Link href={`/admin/leads/${lead.id}/editar`} className="inline-flex border border-gray-200 rounded-lg px-4 py-2 text-xs font-bold hover:border-[var(--brand-yellow)]">Editar lead</Link>}
+
       {/* Status pipeline */}
       <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
         <div className="flex items-center gap-0 min-w-max">
           {statusOrder
-            .filter(([s]) => s !== "perdido")
             .map(([status, c], i, arr) => {
-              const isActive = lead.status === status;
-              const currentOrder = (LEAD_STATUS_CONFIG[lead.status as LeadStatus] ?? cfg).order;
-              const isPast = c.order < currentOrder && lead.status !== "perdido";
+              const isActive = etapa === status && ativo;
+              const currentOrder = cfg.order;
+              const isPast = c.order < currentOrder && ativo;
               return (
                 <div key={status} className="flex items-center">
-                  <div className={`flex flex-col items-center px-3 py-1 ${isActive ? "opacity-100" : "opacity-50"}`}>
+                  <div className="flex flex-col items-center px-3 py-1">
                     <div
                       className={`w-3 h-3 rounded-full border-2 ${
                         isActive
@@ -128,7 +130,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                           : "border-gray-300 bg-white"
                       }`}
                     />
-                    <span className={`text-[10px] font-bold mt-1 uppercase ${isActive ? "text-[var(--brand-dark)]" : "text-gray-400"}`}>
+                    <span className={`text-[10px] font-bold mt-1 uppercase ${isActive ? "text-[var(--brand-dark)]" : "text-gray-600"}`}>
                       {c.label}
                     </span>
                   </div>
@@ -153,36 +155,36 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               <div className="flex items-start gap-2">
                 <Phone size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-400">Telefone</p>
+                  <p className="text-xs text-gray-600">Telefone</p>
                   <p className="text-sm font-medium">{formatTelefone(lead.telefone)}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <Mail size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-400">E-mail</p>
+                  <p className="text-xs text-gray-600">E-mail</p>
                   <p className="text-sm font-medium">{lead.email ?? "—"}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <UserCheck size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-400">Responsável</p>
+                  <p className="text-xs text-gray-600">Responsável</p>
                   <p className="text-sm font-medium">{lead.responsavel ? rotuloResponsavel(lead.responsavel) : "Sem responsável"}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <User size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-400">Corretor vinculado</p>
+                  <p className="text-xs text-gray-600">Corretor vinculado</p>
                   <p className="text-sm font-medium">{lead.corretor?.nome ?? "Sem corretor"}</p>
                 </div>
               </div>
               {lead.orcamento && (
                 <div className="flex items-start gap-2">
-                  <span className="text-[var(--brand-yellow)] mt-0.5 text-sm shrink-0">R$</span>
+                  <span className="text-[var(--brand-dark)] mt-0.5 text-sm shrink-0">R$</span>
                   <div>
-                    <p className="text-xs text-gray-400">Budget</p>
+                    <p className="text-xs text-gray-600">Budget</p>
                     <p className="text-sm font-bold">{formatCurrency(lead.orcamento)}</p>
                   </div>
                 </div>
@@ -190,7 +192,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
             </div>
             {lead.notas && (
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-400 mb-1">Observações</p>
+                <p className="text-xs text-gray-600 mb-1">Observações</p>
                 <p className="text-sm text-gray-600 leading-relaxed">{lead.notas}</p>
               </div>
             )}
@@ -202,17 +204,17 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               Serviços do Cliente ({servicosVinculados.length})
             </h2>
             {servicosVinculados.length === 0 ? (
-              <p className="text-xs text-gray-400 mb-3">
-                Nenhum serviço operacional vinculado ainda. Marque o serviço no cadastro do lead ou vincule abaixo — os dados do cliente são copiados automaticamente.
+              <p className="text-xs text-gray-600 mb-3">
+                Nenhum serviço operacional vinculado ainda. Adicione o serviço pelo cadastro do CRM ou pelo formulário abaixo — os dados do cliente são copiados automaticamente.
               </p>
             ) : (
               <div className="divide-y divide-gray-50 border border-gray-100 mb-3">
                 {servicosVinculados.map((sv) => (
                   <div key={`${sv.modulo}-${sv.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{MODULO_CONFIG[sv.modulo].label}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600">{MODULO_CONFIG[sv.modulo].label}</p>
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{sv.titulo}</p>
-                      <p className="text-[11px] text-gray-400 capitalize">{sv.status.replace(/_/g, " ")}</p>
+                      <p className="text-[11px] text-gray-600 capitalize">{sv.status.replace(/_/g, " ")}</p>
                     </div>
                     <Link
                       href={`${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
@@ -224,24 +226,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 ))}
               </div>
             )}
-            {isAdmin && (
-              <div>
-                <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
-                  <Link2 size={11} /> Vincular novo serviço
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(MODULO_CONFIG) as ModuloServico[]).map((m) => (
-                    <Link
-                      key={m}
-                      href={`${MODULO_CONFIG[m].novo}?leadId=${lead.id}`}
-                      className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 border border-gray-200 text-gray-600 hover:border-[var(--brand-yellow)] hover:text-[var(--brand-dark)] transition-colors"
-                    >
-                      <Plus size={11} /> {MODULO_CONFIG[m].label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+            {interno && ativo && <AdicionarOperacaoForm leadId={lead.id} servicos={servicosLead} />}
           </div>
 
           {/* Interaction timeline */}
@@ -264,7 +249,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                     <div className="flex-1 bg-gray-50 p-3">
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <span className="text-xs font-bold text-[var(--brand-dark)] uppercase">{icfg.label}</span>
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
                           <Clock size={10} />
                           {new Date(interacao.criadoEm).toLocaleString("pt-BR", {
                             day: "2-digit",
@@ -275,7 +260,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">{interacao.descricao}</p>
-                      <p className="text-xs text-gray-400 mt-1">por {interacao.criadoPor}</p>
+                      <p className="text-xs text-gray-600 mt-1">por {interacao.criadoPor}</p>
                     </div>
                   </div>
                 );
@@ -296,7 +281,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
         <div className="space-y-4">
           {/* Quick actions */}
           <div className="bg-[var(--brand-dark)] p-5">
-            <p className="text-gray-400 text-xs uppercase tracking-widest font-bold mb-3">Contato Rápido</p>
+            <p className="text-gray-300 text-xs uppercase tracking-widest font-bold mb-3">Contato Rápido</p>
             <div className="space-y-2">
               <a
                 href={`tel:${lead.telefone}`}
@@ -308,7 +293,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 href={`https://wa.me/55${lead.telefone.replace(/\D/g, "")}?text=${whatsappMsg}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors"
+                className="flex items-center gap-2 w-full bg-green-700 hover:bg-green-800 text-white font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors"
               >
                 <MessageSquare size={14} /> WhatsApp
               </a>
@@ -323,14 +308,14 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
 
           {/* Alterar status */}
           <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Alterar Status</p>
-            <LeadStatusPicker leadId={lead.id} statusAtual={lead.status} />
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Etapa operacional</p>
+            <LeadStatusPicker leadId={lead.id} statusAtual={lead.status} etapaOperacional={lead.etapaOperacional} atualizadoEm={lead.atualizadoEm.toISOString()} arquivadoEm={lead.arquivadoEm?.toISOString() ?? null} excluidoEm={lead.excluidoEm?.toISOString() ?? null} interno={interno} />
           </div>
 
           {/* Visits */}
           {lead.visitas.length > 0 && (
             <div className="bg-white border border-gray-100 p-5">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Visitas</p>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Visitas</p>
               {lead.visitas.map((visita) => (
                 <div key={visita.id} className="border border-gray-100 p-3">
                   <div className="flex items-center gap-1 text-xs font-bold mb-1">
@@ -343,13 +328,13 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                       minute: "2-digit",
                     })}
                   </div>
-                  <p className="text-xs text-gray-500">{visita.notas || visita.clienteNome}</p>
+                  <p className="text-xs text-gray-600">{visita.notas || visita.clienteNome}</p>
                   <span
                     className={`text-[10px] font-bold px-1.5 py-0.5 uppercase mt-1 inline-block ${
                       visita.status === "realizada"
-                        ? "bg-green-100 text-green-700"
+                        ? "bg-green-100 text-green-800"
                         : visita.status === "cancelada"
-                        ? "bg-red-100 text-red-500"
+                        ? "bg-red-100 text-red-700"
                         : "bg-purple-100 text-purple-700"
                     }`}
                   >
@@ -362,17 +347,17 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
 
           {/* Agendar visita */}
           <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Agendar Visita</p>
-            <LeadAgendarVisita leadId={lead.id} />
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Agendar Visita</p>
+            {ativo ? <LeadAgendarVisita leadId={lead.id} /> : <p className="text-xs text-gray-600">Agendamento disponível para leads ativos.</p>}
           </div>
 
           {/* Documentos */}
           <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Documentos</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Documentos</p>
             {contratosComDocumentos.length === 0 || contratosComDocumentos.every((c) => c.documentos.length === 0) ? (
               <div className="text-center py-4">
-                <FileText size={22} className="text-gray-200 mx-auto mb-2" />
-                <p className="text-xs text-gray-400">
+                <FileText size={22} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-xs text-gray-600">
                   Nenhum documento vinculado a este lead ainda. Documentos gerados ou enviados em contratos do Jurídico aparecem aqui.
                 </p>
               </div>
@@ -386,7 +371,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                         <Link href={`/admin/juridico`} className="flex items-center gap-1 text-xs font-bold text-[var(--brand-dark)] hover:underline">
                           <ExternalLink size={10} /> Contrato {c.numero}
                         </Link>
-                        <span className="text-[9px] text-gray-400 capitalize">{c.tipo.replace(/_/g, " ")}</span>
+                        <span className="text-[9px] text-gray-600 capitalize">{c.tipo.replace(/_/g, " ")}</span>
                       </div>
                       <div className="divide-y divide-gray-50">
                         {c.documentos.map((doc) => (
@@ -397,9 +382,9 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors"
                           >
-                            <FileText size={12} className="text-gray-300 shrink-0" />
+                            <FileText size={12} className="text-gray-600 shrink-0" />
                             <span className="flex-1 min-w-0 truncate text-gray-600">{doc.nome}</span>
-                            <Download size={11} className="text-gray-400 shrink-0" />
+                            <Download size={11} className="text-gray-600 shrink-0" />
                           </a>
                         ))}
                       </div>

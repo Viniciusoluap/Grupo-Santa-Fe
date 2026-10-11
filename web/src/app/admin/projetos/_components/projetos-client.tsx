@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, Ruler, Pencil, Trash2 } from "lucide-react";
+import { Search, Ruler, Pencil, Trash2 } from "lucide-react";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG, ProjetoStatus } from "@/lib/types/projeto";
 import { formatCurrency } from "@/lib/utils";
 import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
@@ -10,12 +10,12 @@ import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
 interface Projeto {
   id: string;
   nome: string;
-  tipo: string;
+  tipo: string | null;
   status: string;
   clienteNome: string;
   clienteTel: string;
-  engenheiro: string;
-  valorProjeto: number;
+  engenheiro: string | null;
+  valorProjeto: number | null;
   valorPago: number;
   prazoEntrega: Date | null;
 }
@@ -24,11 +24,11 @@ interface Props {
   projetos: Projeto[];
 }
 
-function parseTipos(raw: string): string[] {
-  try { return JSON.parse(raw) as string[]; } catch { return [raw]; }
+function parseTipos(raw: string | null): string[] {
+  try { return JSON.parse(raw ?? "[]") as string[]; } catch { return raw ? [raw] : []; }
 }
 
-function TiposResumo({ raw }: { raw: string }) {
+function TiposResumo({ raw }: { raw: string | null }) {
   const tipos = parseTipos(raw);
   if (tipos.length === 0) return <span className="text-gray-400 text-xs">—</span>;
   const first = PROJETO_TIPO_CONFIG[tipos[0] as keyof typeof PROJETO_TIPO_CONFIG];
@@ -60,11 +60,11 @@ function StatusSelectProjeto({ id, status }: { id: string; status: string }) {
 function ExcluirProjetoBtn({ id, nome }: { id: string; nome: string }) {
   const [isPending, startTransition] = useTransition();
   function handleClick() {
-    if (!confirm(`Excluir projeto "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Arquivar projeto "${nome}"? O registro será mantido no histórico.`)) return;
     startTransition(async () => { await excluirProjeto(id); });
   }
   return (
-    <button onClick={handleClick} disabled={isPending} title="Excluir"
+    <button onClick={handleClick} disabled={isPending} title="Arquivar"
       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
       <Trash2 size={14} />
     </button>
@@ -79,12 +79,12 @@ export function ProjetosClient({ projetos }: Props) {
     const matchSearch = !search ||
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.clienteNome.toLowerCase().includes(search.toLowerCase()) ||
-      p.engenheiro.toLowerCase().includes(search.toLowerCase());
+      p.engenheiro?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "todos" || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const totalValue = projetos.reduce((s, p) => s + p.valorProjeto, 0);
+  const totalValue = projetos.reduce((s, p) => s + (p.valorProjeto ?? 0), 0);
   const emAndamento = projetos.filter((p) => p.status === "em_elaboracao" || p.status === "revisao").length;
 
   return (
@@ -94,9 +94,7 @@ export function ProjetosClient({ projetos }: Props) {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Projetos e Orçamentos</h1>
           <p className="text-gray-400 text-sm mt-0.5">{projetos.length} projetos cadastrados</p>
         </div>
-        <Link href="/admin/projetos/novo" className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors">
-          <Plus size={14} /> Novo Projeto
-        </Link>
+        <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
       </div>
 
       {/* KPIs */}
@@ -105,7 +103,7 @@ export function ProjetosClient({ projetos }: Props) {
           { label: "Em Andamento", value: emAndamento },
           { label: "Entregues", value: projetos.filter((p) => p.status === "entregue").length },
           { label: "Faturamento Total", value: formatCurrency(totalValue) },
-          { label: "A Receber", value: formatCurrency(projetos.reduce((s, p) => s + (p.valorProjeto - p.valorPago), 0)) },
+          { label: "A Receber", value: formatCurrency(projetos.reduce((s, p) => s + ((p.valorProjeto ?? 0) - p.valorPago), 0)) },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -164,8 +162,6 @@ export function ProjetosClient({ projetos }: Props) {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => {
-                const statusKey = p.status as ProjetoStatus;
-                const cfg = PROJETO_STATUS_CONFIG[statusKey] ?? PROJETO_STATUS_CONFIG["solicitado"];
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -178,8 +174,8 @@ export function ProjetosClient({ projetos }: Props) {
                     <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-500">{p.engenheiro}</td>
                     <td className="px-4 py-3 hidden lg:table-cell text-right">
                       <p className="font-bold text-sm">{formatCurrency(p.valorProjeto)}</p>
-                      {p.valorPago < p.valorProjeto && (
-                        <p className="text-xs text-orange-400">A receber: {formatCurrency(p.valorProjeto - p.valorPago)}</p>
+                      {p.valorProjeto != null && p.valorPago < p.valorProjeto && (
+                        <p className="text-xs text-orange-400">A receber: {formatCurrency((p.valorProjeto ?? 0) - p.valorPago)}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-400 hidden md:table-cell">

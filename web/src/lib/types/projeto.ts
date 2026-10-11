@@ -1,4 +1,4 @@
-export type ProjetoStatus = "solicitado" | "em_elaboracao" | "revisao" | "aprovado" | "entregue" | "cancelado";
+export type ProjetoStatus = "aguardando_configuracao" | "solicitado" | "em_elaboracao" | "revisao" | "aprovado" | "entregue" | "cancelado";
 export type ProjetoTipo =
   | "projeto_arquitetonico"
   | "projeto_estrutural"
@@ -49,6 +49,7 @@ export interface Projeto {
 }
 
 export const PROJETO_STATUS_CONFIG: Record<ProjetoStatus, { label: string; bgColor: string; color: string; order: number }> = {
+  aguardando_configuracao: { label: "Pendente de configuração", bgColor: "bg-amber-100", color: "text-amber-800", order: 0 },
   solicitado: { label: "Solicitado", bgColor: "bg-gray-100", color: "text-gray-600", order: 1 },
   em_elaboracao: { label: "Em Elaboração", bgColor: "bg-yellow-100", color: "text-yellow-700", order: 2 },
   revisao: { label: "Em Revisão", bgColor: "bg-blue-100", color: "text-blue-600", order: 3 },

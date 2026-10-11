@@ -1,23 +1,6 @@
-import { prisma } from "@/lib/db";
-import { NovoFinanciamentoForm } from "./novo-financiamento-form";
+import { redirect } from "next/navigation";
 
-export default async function NovoFinanciamentoPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ leadId?: string }>;
-}) {
-  const { leadId } = await searchParams;
-  const [leads, imoveis] = await Promise.all([
-    prisma.lead.findMany({
-      orderBy: { nome: "asc" },
-      select: { id: true, nome: true, telefone: true, email: true },
-    }),
-    prisma.imovel.findMany({
-      where: { publicadoSite: true },
-      orderBy: { titulo: "asc" },
-      select: { id: true, titulo: true, bairro: true, cidade: true },
-    }),
-  ]);
-
-  return <NovoFinanciamentoForm leads={leads} leadIdInicial={leadId} imoveis={imoveis} />;
+// Rotas antigas levam ao CRM; a demanda precisa nascer no cadastro do cliente.
+export default function CriacaoViaCRMPage() {
+  redirect("/admin/leads");
 }

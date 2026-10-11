@@ -42,8 +42,9 @@ export default async function EditarObraPage({ params }: PageProps) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo *</label>
-              <select name="tipo" required defaultValue={o.tipo}
+              <select name="tipo" required defaultValue={o.tipo ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                <option value="" disabled>Selecione</option>
                 {Object.entries(OBRA_TIPO_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.icon} {v.label}</option>
                 ))}
@@ -53,6 +54,7 @@ export default async function EditarObraPage({ params }: PageProps) {
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
               <select name="status" defaultValue={o.status}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                <option value="" disabled>Selecione</option>
                 {Object.entries(OBRA_STATUS_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
                 ))}
@@ -76,12 +78,12 @@ export default async function EditarObraPage({ params }: PageProps) {
             )}
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço *</label>
-              <input name="endereco" type="text" required defaultValue={o.endereco}
+              <input name="endereco" type="text" required defaultValue={o.endereco ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área (m²) *</label>
-              <input name="area" type="number" step="0.01" required defaultValue={o.area}
+              <input name="area" type="number" step="0.01" required defaultValue={o.area ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
@@ -91,7 +93,7 @@ export default async function EditarObraPage({ params }: PageProps) {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Engenheiro Responsável *</label>
-              <input name="engenheiroResp" type="text" required defaultValue={o.engenheiroResp}
+              <input name="engenheiroResp" type="text" required defaultValue={o.engenheiroResp ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div className="sm:col-span-2">

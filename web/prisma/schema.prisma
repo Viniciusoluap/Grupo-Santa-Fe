@@ -66,6 +66,10 @@ model Lead {
   email             String?
   servico           String
   status            String   @default("novo")
+  etapaOperacional  String?
+  creationRequestKey String? @unique
+  arquivadoEm       DateTime?
+  excluidoEm        DateTime?
   origem            String   @default("site")
   corretorId        String?
   corretor          Corretor? @relation(fields: [corretorId], references: [id])
@@ -86,11 +90,32 @@ model Lead {
   regularizacoes    Regularizacao[]  @relation("RegularizacaoLead")
   avaliacoes        Avaliacao[]      @relation("AvaliacaoLead")
   contratos         Contrato[]       @relation("ContratoLead")
+  servicosOperacionais ServicoLead[]
   chatMensagens     ChatMensagem[]   @relation("ChatLead")
   criadoEm          DateTime @default(now())
   atualizadoEm      DateTime @updatedAt
 
   @@map("leads")
+}
+
+// Demanda operacional criada exclusivamente pelo CRM; requestKey identifica
+// a intenção do administrador e permite repetir requisições sem duplicação.
+model ServicoLead {
+  id String @id @default(cuid())
+  leadId String
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  modulo String
+  servico String
+  requestKey String @unique
+  criadoEm DateTime @default(now())
+  financiamento Financiamento?
+  obra Obra?
+  projeto Projeto?
+  regularizacao Regularizacao?
+  avaliacao Avaliacao?
+  @@unique([id, leadId])
+  @@index([leadId, modulo])
+  @@map("servicos_lead")
 }
 
 model Interacao {
@@ -189,18 +214,20 @@ model Financiamento {
   clienteCpf      String?
   clienteTel      String
   clienteEmail    String?
-  imovel          String
+  imovel          String?
   tipo            String
-  banco           String
-  valorImovel     Float
-  valorFinanciado Float
-  entrada         Float
-  taxa            Float
-  prazo           Int
+  banco           String?
+  valorImovel     Float?
+  valorFinanciado Float?
+  entrada         Float?
+  taxa            Float?
+  prazo           Int?
   parcela         Float?
   status          String          @default("analise_credito")
   protocolo       String?
   leadId              String?
+  servicoLeadId       String? @unique
+  servicoLead         ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   leadVinculado       Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
   imovelVinculadoId   String?
   imovelVinculado     Imovel?         @relation("FinanciamentoImovel", fields: [imovelVinculadoId], references: [id], onDelete: SetNull)
@@ -211,6 +238,7 @@ model Financiamento {
   atualizadoEm        DateTime        @updatedAt
 
   @@map("financiamentos")
+  @@unique([servicoLeadId, leadId])
 }
 
 model ChecklistItem {
@@ -231,20 +259,22 @@ model ChecklistItem {
 model Obra {
   id              String       @id @default(cuid())
   nome            String
-  tipo            String
+  tipo            String?
   status          String       @default("orcamento")
   clienteNome     String
   clienteTel      String
-  endereco        String
-  area            Float
-  valorTotal      Float
+  endereco        String?
+  area            Float?
+  valorTotal      Float?
   valorPago       Float        @default(0)
   progresso       Int          @default(0)
-  engenheiroResp  String
+  engenheiroResp  String?
   dataInicio      DateTime?
   dataPrevisaoFim DateTime?
   dataConclusao   DateTime?
   leadId          String?
+  servicoLeadId    String? @unique
+  servicoLead      ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   leadVinculado   Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
   latitude        Float?
   longitude       Float?
@@ -255,6 +285,7 @@ model Obra {
   atualizadoEm    DateTime     @updatedAt
 
   @@map("obras")
+  @@unique([servicoLeadId, leadId])
 }
 
 model ObraEtapa {
@@ -290,15 +321,17 @@ model ObraDiario {
 model Projeto {
   id           String    @id @default(cuid())
   nome         String
-  tipo         String
+  tipo         String?
   status       String    @default("orcamento")
   clienteNome  String
   clienteTel   String
-  engenheiro   String
-  valorProjeto Float
+  engenheiro   String?
+  valorProjeto Float?
   valorPago    Float     @default(0)
   prazoEntrega DateTime?
   leadId       String?
+  servicoLeadId String? @unique
+  servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   leadVinculado Lead?    @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
   descricao    String    @default("")
   arquivos     String    @default("[]")
@@ -307,6 +340,7 @@ model Projeto {
   atualizadoEm DateTime  @updatedAt
 
   @@map("projetos")
+  @@unique([servicoLeadId, leadId])
 }
 
 // ─── REGULARIZAÇÃO ───────────────────────────────────────────────────────────
@@ -314,17 +348,19 @@ model Projeto {
 model Regularizacao {
   id           String         @id @default(cuid())
   nome         String
-  tipo         String
+  tipo         String?
   status       String         @default("analise")
   clienteNome  String
   clienteTel   String
-  endereco     String
+  endereco     String?
   matricula    String?
   cartorio     String?
-  responsavel  String
+  responsavel  String?
   leadId       String?
+  servicoLeadId String? @unique
+  servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   leadVinculado Lead?          @relation("RegularizacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
-  valorServico Float
+  valorServico Float?
   valorPago    Float          @default(0)
   previsaoFim  DateTime?
   descricao    String         @default("")
@@ -333,6 +369,7 @@ model Regularizacao {
   atualizadoEm DateTime       @updatedAt
 
   @@map("regularizacoes")
+  @@unique([servicoLeadId, leadId])
 }
 
 model RegDocumento {
@@ -404,31 +441,6 @@ model ChatMensagem {
 
 // ─── AGREGADOR ────────────────────────────────────────────────────────────────
 
-model AgregadorImovel {
-  id            String   @id @default(cuid())
-  titulo        String
-  descricao     String?
-  preco         Float?
-  precoTexto    String?
-  area          Float?
-  tipo          String?
-  bairro        String?
-  cidade        String   @default("Canaã dos Carajás")
-  estado        String   @default("PA")
-  fonte         String
-  urlFonte      String?
-  imagens       String   @default("[]")
-  status        String   @default("pendente")
-  documentoTipo String   @default("nenhum")
-  documentoObs  String?
-  contatoNome   String?
-  contatoTel    String?
-  notas         String?
-  criadoEm      DateTime @default(now())
-  atualizadoEm  DateTime @updatedAt
-
-  @@map("agregador_imoveis")
-}
 
 // ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
 
@@ -517,10 +529,13 @@ model Avaliacao {
   valorServico   Float?    // valor cobrado pelo serviço de avaliação
   leadId         String?
   lead           Lead?     @relation("AvaliacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
+  servicoLeadId String? @unique
+  servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   criadoEm       DateTime  @default(now())
   atualizadoEm   DateTime  @updatedAt
 
   @@map("avaliacoes")
+  @@unique([servicoLeadId, leadId])
 }
 
 // ─── USUÁRIOS DO SISTEMA ─────────────────────────────────────────────────────
@@ -587,25 +602,6 @@ model TransacaoBancaria {
 
 // ─── CONTABILIDADE ────────────────────────────────────────────────────────────
 
-model Lancamento {
-  id             String    @id @default(cuid())
-  tipo           String    // receita, despesa
-  categoria      String    // servicos, comissoes, imoveis, aluguel, folha, impostos, marketing, outros
-  descricao      String
-  valor          Float
-  data           DateTime
-  vencimento     DateTime?
-  status         String    @default("pendente") // pendente, pago, cancelado
-  formaPagamento String?   // pix, transferencia, boleto, dinheiro, cartao
-  referencia     String?
-  competencia    String    // "2026-06"
-  fornecedor     String?
-  observacoes    String    @default("")
-  criadoEm       DateTime  @default(now())
-  atualizadoEm   DateTime  @updatedAt
-
-  @@map("lancamentos")
-}
 
 // ─── WHATSAPP ─────────────────────────────────────────────────────────────────
 

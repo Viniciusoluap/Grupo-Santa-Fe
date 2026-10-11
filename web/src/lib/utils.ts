@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number | null | undefined): string {
+  if (value == null) return "Pendente de configuração";
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
@@ -14,7 +15,8 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function formatArea(value: number): string {
+export function formatArea(value: number | null | undefined): string {
+  if (value == null) return "Pendente de configuração";
   return `${value.toLocaleString("pt-BR")} m²`;
 }
 

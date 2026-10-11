@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, HardHat, Pencil, Trash2 } from "lucide-react";
+import { Search, HardHat, Pencil, Trash2 } from "lucide-react";
 import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, ObraStatus } from "@/lib/types/obra";
 import { formatCurrency } from "@/lib/utils";
 import { excluirObra } from "@/lib/actions/obras";
@@ -15,16 +15,16 @@ interface ObraEtapa {
 interface Obra {
   id: string;
   nome: string;
-  tipo: string;
+  tipo: string | null;
   status: string;
   clienteNome: string;
   clienteTel: string;
-  endereco: string;
-  area: number;
-  valorTotal: number;
+  endereco: string | null;
+  area: number | null;
+  valorTotal: number | null;
   valorPago: number;
   progresso: number;
-  engenheiroResp: string;
+  engenheiroResp: string | null;
   dataInicio: Date | null;
   dataPrevisaoFim: Date | null;
   dataConclusao: Date | null;
@@ -38,11 +38,11 @@ interface Props {
 function ExcluirObraBtn({ id, nome }: { id: string; nome: string }) {
   const [isPending, startTransition] = useTransition();
   function handleClick() {
-    if (!confirm(`Excluir obra "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Arquivar obra "${nome}"? O registro será mantido no histórico.`)) return;
     startTransition(async () => { await excluirObra(id); });
   }
   return (
-    <button onClick={handleClick} disabled={isPending} title="Excluir"
+    <button onClick={handleClick} disabled={isPending} title="Arquivar"
       className="text-xs border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 font-bold px-3 py-2 transition-colors disabled:opacity-40 flex items-center gap-1">
       <Trash2 size={12} /> Excluir
     </button>
@@ -57,13 +57,13 @@ export function ObrasClient({ obras }: Props) {
     const matchSearch = !search ||
       o.nome.toLowerCase().includes(search.toLowerCase()) ||
       o.clienteNome.toLowerCase().includes(search.toLowerCase()) ||
-      o.endereco.toLowerCase().includes(search.toLowerCase());
+      o.endereco?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "todas" || o.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const emAndamento = obras.filter((o) => o.status === "em_andamento").length;
-  const totalValue = obras.reduce((s, o) => s + o.valorTotal, 0);
+  const totalValue = obras.reduce((s, o) => s + (o.valorTotal ?? 0), 0);
   const totalPaid = obras.reduce((s, o) => s + o.valorPago, 0);
 
   return (
@@ -73,9 +73,7 @@ export function ObrasClient({ obras }: Props) {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Obras e Reformas</h1>
           <p className="text-gray-400 text-sm mt-0.5">{obras.length} projetos cadastrados</p>
         </div>
-        <Link href="/admin/obras/novo" className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors">
-          <Plus size={14} /> Nova Obra
-        </Link>
+        <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
       </div>
 
       {/* KPIs */}
@@ -135,7 +133,7 @@ export function ObrasClient({ obras }: Props) {
           const tipoKey = o.tipo as keyof typeof OBRA_TIPO_CONFIG;
           const tipo = OBRA_TIPO_CONFIG[tipoKey] ?? { icon: "🏗️", label: o.tipo };
           const etapasFeitas = o.etapas.filter((e) => e.status === "concluida").length;
-          const saldo = o.valorTotal - o.valorPago;
+          const saldo = (o.valorTotal ?? 0) - o.valorPago;
           return (
             <div key={o.id} className="bg-white border border-gray-100 p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">

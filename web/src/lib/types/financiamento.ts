@@ -1,4 +1,4 @@
-export type FinanciamentoStatus =
+export type FinanciamentoStatus = "aguardando_configuracao"
   | "pre_analise"
   | "documentacao"
   | "analise_banco"
@@ -47,6 +47,7 @@ export interface Financiamento {
 }
 
 export const STATUS_CONFIG: Record<FinanciamentoStatus, { label: string; order: number; bgColor: string; color: string }> = {
+  aguardando_configuracao: { label: "Pendente de configuração", bgColor: "bg-amber-100", color: "text-amber-800", order: 0 },
   pre_analise: { label: "Pré-análise", order: 1, bgColor: "bg-gray-100", color: "text-gray-600" },
   documentacao: { label: "Documentação", order: 2, bgColor: "bg-yellow-100", color: "text-yellow-700" },
   analise_banco: { label: "Análise Banco", order: 3, bgColor: "bg-blue-100", color: "text-blue-600" },

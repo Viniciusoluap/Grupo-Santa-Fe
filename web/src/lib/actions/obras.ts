@@ -1,10 +1,10 @@
 "use server";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
+import { OBRA_TIPO_CONFIG, OBRA_STATUS_CONFIG } from "@/lib/types/obra";
+import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
-import { carregarLeadParaVinculo, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
-import { dadosClienteDoLead } from "@/lib/crm/servicos-lead";
-import { notificarAdmins } from "@/lib/notificacoes";
+import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -16,50 +16,17 @@ export async function criarDiarioObra(obraId: string, formData: FormData) {
       obraId,
       data: new Date(formData.get("data") as string),
       descricao: formData.get("descricao") as string,
-      responsavel: formData.get("responsavel") as string,
+      responsavel: textoObrigatorio(formData, "responsavel"),
       clima: (formData.get("clima") as string) || null,
     },
   });
   revalidatePath(`/admin/obras/${obraId}`);
 }
 
-export async function criarObra(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  // Vínculo real (EPIC-007): obra só nasce vinculada a um lead do CRM.
-  const lead = await carregarLeadParaVinculo(formData.get("leadId") as string);
-  const cliente = dadosClienteDoLead(lead);
-  const leadId = lead.id;
-  const latStr = formData.get("latitude") as string;
-  const lngStr = formData.get("longitude") as string;
-
-  await prisma.obra.create({
-    data: {
-      nome: formData.get("nome") as string,
-      tipo: formData.get("tipo") as string,
-      clienteNome: cliente.clienteNome,
-      clienteTel: cliente.clienteTel,
-      endereco: formData.get("endereco") as string,
-      area: parseFloat(formData.get("area") as string) || 0,
-      valorTotal: parseFloat(formData.get("valorTotal") as string) || 0,
-      engenheiroResp: formData.get("engenheiroResp") as string,
-      descricao: (formData.get("descricao") as string) || "",
-      leadId,
-      latitude: latStr ? parseFloat(latStr) : null,
-      longitude: lngStr ? parseFloat(lngStr) : null,
-    },
-  });
-  await registrarServicoNoLead(leadId, "obra");
-  const nomeObra = formData.get("nome") as string;
-  await notificarAdmins("nova_obra", "Nova obra cadastrada", `${nomeObra} — ${cliente.clienteNome}`, "/admin/obras").catch(() => {});
-  revalidatePath("/admin/obras");
-  redirect("/admin/obras");
-}
-
 export async function excluirObra(id: string) {
   const session = await auth();
   requireActionRole(session, "admin");
-  await prisma.obra.delete({ where: { id } });
+  await prisma.obra.update({ where: { id }, data: { status: "cancelada" } });
   revalidatePath("/admin/obras");
 }
 
@@ -67,22 +34,27 @@ export async function editarObra(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
-  const atual = await prisma.obra.findUnique({ where: { id }, select: { leadId: true } });
-  const cliente = await clienteParaRegistro(atual?.leadId, formData);
-  await prisma.obra.update({
-    where: { id },
-    data: {
-      nome: formData.get("nome") as string,
-      tipo: formData.get("tipo") as string,
-      status: formData.get("status") as string,
-      clienteNome: cliente.clienteNome,
-      clienteTel: cliente.clienteTel,
-      endereco: formData.get("endereco") as string,
-      area: parseFloat(formData.get("area") as string) || 0,
-      valorTotal: parseFloat(formData.get("valorTotal") as string) || 0,
-      engenheiroResp: formData.get("engenheiroResp") as string,
-      descricao: (formData.get("descricao") as string) || "",
-    },
+  await transacaoCRM(async (tx) => {
+    const atual = await tx.obra.findUnique({ where: { id }, select: { leadId: true } });
+    if (!atual) throw new Error("Registro não encontrado.");
+    if (formData.has("leadId") && formData.get("leadId") !== atual.leadId) throw new Error("O vínculo com o CRM não pode ser alterado neste módulo.");
+    if (atual.leadId) await bloquearLead(tx, atual.leadId);
+    const cliente = await clienteParaRegistro(atual.leadId, formData, tx);
+    await tx.obra.update({
+      where: { id },
+      data: {
+        nome: textoObrigatorio(formData, "nome"),
+        tipo: opcaoObrigatoria(formData, "tipo", OBRA_TIPO_CONFIG),
+        status: opcaoObrigatoria(formData, "status", OBRA_STATUS_CONFIG),
+        clienteNome: cliente.clienteNome,
+        clienteTel: cliente.clienteTel,
+        endereco: textoObrigatorio(formData, "endereco"),
+        area: numeroObrigatorio(formData, "area"),
+        valorTotal: numeroObrigatorio(formData, "valorTotal"),
+        engenheiroResp: textoObrigatorio(formData, "engenheiroResp"),
+        descricao: (formData.get("descricao") as string) || "",
+      },
+    });
   });
   revalidatePath("/admin/obras");
   redirect(`/admin/obras/${id}`);

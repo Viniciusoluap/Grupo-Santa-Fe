@@ -23,18 +23,20 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
     bgColor: "bg-gray-100",
     color: "text-gray-600",
   };
-  function parseTiposLabel(tipoStr: string): string {
+  function parseTiposLabel(tipoStr: string | null): string {
+    if (!tipoStr) return "Pendente de configuração";
     try {
-      const arr = JSON.parse(tipoStr);
+      const arr = JSON.parse(tipoStr ?? "[]");
       if (Array.isArray(arr)) {
         return arr.map((t: string) => PROJETO_TIPO_CONFIG[t as keyof typeof PROJETO_TIPO_CONFIG]?.label ?? t).join(", ");
       }
     } catch {}
     return PROJETO_TIPO_CONFIG[tipoStr as keyof typeof PROJETO_TIPO_CONFIG]?.label ?? tipoStr;
   }
-  function parseTipoIcon(tipoStr: string): string {
+  function parseTipoIcon(tipoStr: string | null): string {
+    if (!tipoStr) return "Pendente de configuração";
     try {
-      const arr = JSON.parse(tipoStr);
+      const arr = JSON.parse(tipoStr ?? "[]");
       if (Array.isArray(arr) && arr.length > 0) {
         return PROJETO_TIPO_CONFIG[arr[0] as keyof typeof PROJETO_TIPO_CONFIG]?.icon ?? "📁";
       }
@@ -98,7 +100,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Informações</p>
             {[
               { label: "Tipo", value: `${tipo.icon} ${tipo.label}` },
-              { label: "Engenheiro", value: p.engenheiro },
+              { label: "Engenheiro", value: p.engenheiro ?? "Pendente de configuração" },
               p.prazoEntrega ? { label: "Prazo de entrega", value: new Date(p.prazoEntrega).toLocaleDateString("pt-BR") } : null,
             ].filter(Boolean).map((item) => item && (
               <div key={item.label} className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0 gap-2">
@@ -114,7 +116,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             {[
               { label: "Valor contratado", value: formatCurrency(p.valorProjeto), color: "text-[var(--brand-dark)]" },
               { label: "Pago", value: formatCurrency(p.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(p.valorProjeto - p.valorPago), color: p.valorProjeto - p.valorPago > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "A receber", value: formatCurrency(p.valorProjeto == null ? null : p.valorProjeto - p.valorPago), color: (p.valorProjeto ?? 0) - p.valorPago > 0 ? "text-orange-500" : "text-gray-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>

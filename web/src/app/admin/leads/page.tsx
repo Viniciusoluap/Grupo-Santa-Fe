@@ -1,24 +1,20 @@
 import { prisma } from "@/lib/db";
-import { auth } from "@/auth";
+import { obterAtorCrm, escopoLeadsDoAtor } from "@/lib/crm/acesso-lead";
 import { LeadsClient } from "./_components/leads-client";
 
-type SessionUser = { role?: string; corretorId?: string };
-
 export default async function LeadsPage() {
-  const session = await auth();
-  const user = session?.user as SessionUser | undefined;
-  const isCorretor = user?.role === "corretor";
-  const corretorId = user?.corretorId;
-
+  const ator = await obterAtorCrm();
   const leads = await prisma.lead.findMany({
-    where: isCorretor && corretorId ? { corretorId } : {},
+    where: escopoLeadsDoAtor(ator),
     orderBy: { criadoEm: "desc" },
-    include: {
-      corretor: true,
-      imovelInteresse: true,
-      visitas: true,
+    select: {
+      id: true, nome: true, telefone: true, email: true, servico: true,
+      status: true, etapaOperacional: true, arquivadoEm: true, excluidoEm: true,
+      origem: true, orcamento: true, notas: true, criadoEm: true, atualizadoEm: true, responsavelId: true,
+      corretor: { select: { id: true, nome: true } },
+      responsavel: { select: { id: true, nome: true } },
+      visitas: { select: { id: true, status: true, agendadaPara: true } },
     },
   });
-
   return <LeadsClient leads={leads} />;
 }

@@ -1,3 +1,4 @@
+import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail } from "lucide-react";
@@ -12,6 +13,7 @@ const stageOrder: FinanciamentoStatus[] = ["pre_analise", "documentacao", "anali
 
 export default async function FinanciamentoDetailPage({ params }: PageProps) {
   const { id } = await params;
+  await financiamentoDoAtor(id);
   const f = await prisma.financiamento.findUnique({
     where: { id },
     include: {
@@ -30,7 +32,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
   const currentOrder = cfg.order;
 
   const tipoLabel = TIPO_CONFIG[f.tipo as keyof typeof TIPO_CONFIG]?.label ?? f.tipo;
-  const bancoLabel = BANCO_CONFIG[f.banco as keyof typeof BANCO_CONFIG]?.label ?? f.banco;
+  const bancoLabel = BANCO_CONFIG[f.banco as keyof typeof BANCO_CONFIG]?.label ?? f.banco ?? "Pendente de configuração";
 
   // Group checklist items by grupo
 
@@ -43,6 +45,9 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{f.clienteNome}</h1>
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>
+      <p className="text-xs text-gray-500">
+        {f.leadId ? <Link href={`/admin/leads/${f.leadId}`} className="font-bold underline">Cliente no CRM</Link> : "Registro legado sem vínculo com o CRM"}
+      </p>
 
       {/* Pipeline */}
       <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
@@ -101,8 +106,8 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
               { label: "Valor financiado", value: formatCurrency(f.valorFinanciado) },
               { label: "Entrada", value: formatCurrency(f.entrada) },
               f.parcela ? { label: "Parcela", value: formatCurrency(f.parcela) } : null,
-              { label: "Prazo", value: `${f.prazo} meses` },
-              { label: "Taxa", value: `${f.taxa}% a.a.` },
+              { label: "Prazo", value: f.prazo == null ? "Pendente de configuração" : `${f.prazo} meses` },
+              { label: "Taxa", value: f.taxa == null ? "Pendente de configuração" : `${f.taxa}% a.a.` },
             ].filter(Boolean).map((item) => item && (
               <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{item.label}</span>

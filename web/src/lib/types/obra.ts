@@ -1,4 +1,4 @@
-export type ObraStatus = "orcamento" | "contratada" | "em_andamento" | "pausada" | "concluida" | "cancelada";
+export type ObraStatus = "aguardando_configuracao" | "orcamento" | "contratada" | "em_andamento" | "pausada" | "concluida" | "cancelada";
 export type ObraTipo = "obra_nova" | "reforma" | "ampliacao" | "acabamento" | "estrutural";
 
 export interface ObraEtapa {
@@ -53,6 +53,7 @@ export interface Obra {
 }
 
 export const OBRA_STATUS_CONFIG: Record<ObraStatus, { label: string; bgColor: string; color: string; order: number }> = {
+  aguardando_configuracao: { label: "Pendente de configuração", bgColor: "bg-amber-100", color: "text-amber-800", order: 0 },
   orcamento: { label: "Orçamento", bgColor: "bg-gray-100", color: "text-gray-600", order: 1 },
   contratada: { label: "Contratada", bgColor: "bg-blue-100", color: "text-blue-600", order: 2 },
   em_andamento: { label: "Em Andamento", bgColor: "bg-yellow-100", color: "text-yellow-700", order: 3 },
