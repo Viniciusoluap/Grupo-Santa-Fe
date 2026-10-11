@@ -32,7 +32,6 @@ const navLinks = [
       { label: "Simulador de Financiamento", href: "/simulador" },
     ],
   },
-  { label: "Mercado", href: "/mercado" },
   { label: "Cursos", href: "/cursos" },
   { label: "Instituto", href: "/instituto" },
   { label: "Sobre", href: "/sobre" },

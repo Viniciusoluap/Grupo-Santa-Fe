@@ -29,11 +29,7 @@ export const proxy = auth((req) => {
     "/admin/obras",
     "/admin/projetos",
     "/admin/regularizacao",
-    "/admin/relatorios",
-    "/admin/feeds",
-    "/admin/contratos",
     "/admin/configuracoes",
-    "/admin/agregador",
   ];
   if (
     role === "corretor" &&

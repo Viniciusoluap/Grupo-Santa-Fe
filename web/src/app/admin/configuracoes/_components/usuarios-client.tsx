@@ -30,15 +30,12 @@ const MODULOS = [
   { id: "projetos",       label: "Projetos" },
   { id: "regularizacao",  label: "Regularização" },
   { id: "financiamentos", label: "Financiamentos" },
-  { id: "contratos",      label: "Contratos" },
   { id: "comissoes",      label: "Comissões" },
   { id: "corretores",     label: "Corretores" },
   { id: "avaliacao",      label: "Avaliações" },
   { id: "bpo",            label: "BPO Financeiro" },
-  { id: "contabilidade",  label: "Contabilidade" },
   { id: "banco",          label: "Integração Bancária" },
   { id: "whatsapp",       label: "WhatsApp" },
-  { id: "agregador",      label: "Agregador XML" },
   { id: "configuracoes",  label: "Configurações" },
 ];
 

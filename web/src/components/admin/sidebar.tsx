@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/admin/logout-action";
 import {
-  LayoutDashboard,
   Building2,
   Users,
   UserCheck,
   LogOut,
   ChevronRight,
   Settings,
-  FileText,
   Calculator,
   CalendarDays,
   BadgeDollarSign,
@@ -20,55 +18,19 @@ import {
   FileCheck,
   MessageCircle,
   Map,
-  Rss,
   X,
   Scale,
   Briefcase,
   ClipboardList,
-  BookOpen,
   Mountain,
-  BarChart3,
-  Globe,
-  Landmark,
-  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   {
-    label: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
-    exact: true,
-  },
-  {
-    label: "Central de Gestão",
-    href: "/admin/gestao",
-    icon: BarChart3,
-    adminOnly: true,
-  },
-  {
-    label: "Relatórios",
-    href: "/admin/relatorios",
-    icon: BarChart3,
-    adminOnly: true,
-  },
-  {
     label: "Imóveis",
     href: "/admin/imoveis",
     icon: Building2,
-  },
-  {
-    label: "Feeds XML",
-    href: "/admin/feeds",
-    icon: Rss,
-    adminOnly: true,
-  },
-  {
-    label: "Agregador",
-    href: "/admin/agregador",
-    icon: Globe,
-    adminOnly: true,
   },
   {
     label: "Leads",
@@ -149,18 +111,6 @@ const navItems = [
     adminOnly: true,
   },
   {
-    label: "Contabilidade",
-    href: "/admin/contabilidade",
-    icon: Landmark,
-    adminOnly: true,
-  },
-  {
-    label: "Contratos",
-    href: "/admin/contratos",
-    icon: FileSignature,
-    adminOnly: true,
-  },
-  {
     label: "Configurações",
     href: "/admin/configuracoes",
     icon: Settings,
@@ -188,12 +138,12 @@ export function Sidebar({ userName, userRole, userFoto, onClose }: SidebarProps)
           <span className="text-[var(--brand-yellow)] font-black text-base tracking-wider uppercase block leading-none">
             Grupo Santa Fé
           </span>
-          <span className="text-gray-500 text-[9px] tracking-widest uppercase">
+          <span className="text-gray-300 text-[9px] tracking-widest uppercase">
             Painel Admin
           </span>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-gray-500 hover:text-white lg:hidden">
+          <button onClick={onClose} aria-label="Fechar menu" className="text-gray-300 hover:text-white lg:hidden">
             <X size={18} />
           </button>
         )}
@@ -211,14 +161,14 @@ export function Sidebar({ userName, userRole, userFoto, onClose }: SidebarProps)
           )}
         </div>
         <p className="text-white text-sm font-medium leading-none">{userName}</p>
-        <p className="text-gray-500 text-xs mt-0.5 capitalize">{userRole}</p>
+        <p className="text-gray-300 text-xs mt-0.5 capitalize">{userRole}</p>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-0.5">
-          {visibleNavItems.map(({ label, href, icon: Icon, exact }) => {
-            const active = exact ? pathname === href : pathname.startsWith(href);
+          {visibleNavItems.map(({ label, href, icon: Icon }) => {
+            const active = pathname.startsWith(href);
             return (
               <li key={href}>
                 <Link

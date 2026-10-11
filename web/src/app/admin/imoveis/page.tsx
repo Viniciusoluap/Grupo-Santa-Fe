@@ -3,7 +3,6 @@ import { Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { ImovelAcoes } from "./_components/imovel-acoes";
-import { AgregarImoveisBtn } from "./_components/agregar-imoveis-btn";
 import { auth } from "@/auth";
 
 const typeLabel: Record<string, string> = {
@@ -50,7 +49,6 @@ export default async function AdminImoveisPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <AgregarImoveisBtn />
           <Link
             href="/admin/imoveis/novo"
             className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors"
