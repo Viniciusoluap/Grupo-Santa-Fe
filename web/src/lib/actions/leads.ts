@@ -11,6 +11,7 @@ import {
   resolverResponsavelId,
   sincronizarServicosDoLead,
 } from "@/lib/crm/vinculo-lead";
+import { rotaDetalheLead } from "@/lib/crm/servicos-lead";
 
 export async function criarLead(formData: FormData) {
   const session = await auth();
@@ -46,10 +47,13 @@ export async function criarLead(formData: FormData) {
 
   // Vínculo real (EPIC-007): cada serviço operacional marcado ganha um registro
   // no módulo correspondente, já com os dados do cliente copiados do lead.
-  await sincronizarServicosDoLead(lead.id);
+  const { falhas } = await sincronizarServicosDoLead(lead.id);
 
   await notificarAdmins("novo_lead", "Novo lead cadastrado", `${nome} — ${JSON.stringify(servicos)}`, "/admin/leads").catch(() => {});
   revalidarModulosVinculados();
+  // O lead foi salvo, mas algum serviço ficou sem registro operacional: em vez
+  // de fingir sucesso, abre o lead com o aviso (salvar de novo tenta outra vez).
+  if (falhas.length > 0) redirect(rotaDetalheLead(lead.id, falhas));
   redirect("/admin/leads");
 }
 
@@ -121,11 +125,12 @@ export async function editarLead(formData: FormData) {
   // Lead é a fonte única dos dados do cliente: reflete a edição nos registros
   // vinculados e cria os registros dos serviços recém-marcados.
   await propagarDadosClienteDoLead(lead);
-  await sincronizarServicosDoLead(lead.id);
+  const { falhas } = await sincronizarServicosDoLead(lead.id);
 
   revalidarModulosVinculados();
   revalidatePath(`/admin/leads/${id}`);
-  redirect(`/admin/leads/${id}`);
+  // Com falha, o detalhe do lead mostra quais serviços ficaram sem registro.
+  redirect(rotaDetalheLead(id, falhas));
 }
 
 export async function excluirLead(id: string) {

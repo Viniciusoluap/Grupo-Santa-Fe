@@ -164,6 +164,11 @@ model Comissao {
   contratoId   String?
   contrato     Contrato? @relation(fields: [contratoId], references: [id])
   imovel       String
+  /// ID do negócio pré-cadastrado (Imovel, Financiamento ou Obra, conforme
+  /// tipoNegocio). `imovel` guarda só o rótulo exibido — rótulos podem se
+  /// repetir, então a edição reencontra o negócio por este ID. Nulo em "extra"
+  /// e em comissões antigas (anteriores a esta coluna).
+  negocioId    String?
   valor        Float
   percentual   Float     @default(6)
   status       String    @default("pendente")

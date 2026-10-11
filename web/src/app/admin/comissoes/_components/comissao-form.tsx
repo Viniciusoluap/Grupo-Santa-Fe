@@ -22,6 +22,7 @@ type ComissaoData = {
   tipoNegocio: string;
   corretorId: string | null;
   imovel: string;
+  negocioId: string | null;
   valor: number;
   percentual: number;
   status: string;
@@ -59,7 +60,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
   const isEdit = !!comissao;
   const tipoInicial = normalizarTipoComissao(comissao?.tipoNegocio);
   const negocioInicial = comissao && tipoInicial !== "extra"
-    ? encontrarNegocio(negociosPorTipo[tipoInicial] ?? [], tipoInicial, comissao.imovel)
+    ? encontrarNegocio(negociosPorTipo[tipoInicial] ?? [], tipoInicial, comissao.imovel, comissao.negocioId)
     : null;
 
   const [beneficiario, setBeneficiario] = useState(comissao?.beneficiario ?? "corretor");
@@ -86,6 +87,15 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
       : negocioId === LEGADO
         ? comissao?.imovel ?? ""
         : negocio ? rotuloNegocio(negocio, tipoNegocio) : "";
+
+  // ID real do negócio (rótulos podem se repetir). Registro antigo mantido
+  // como texto: preserva o ID já gravado, se houver; "extra" não tem negócio.
+  const negocioIdGravado =
+    tipoNegocio === "extra"
+      ? ""
+      : negocioId === LEGADO
+        ? comissao?.negocioId ?? ""
+        : negocio?.id ?? "";
 
   const valorSugerido = calcularValorComissao(negocio?.valorBase, parseFloat(percentual));
 
@@ -136,6 +146,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
         <form action={isEdit ? editarComissao : criarComissao} className="p-6 space-y-4">
           {isEdit && <input type="hidden" name="id" value={comissao.id} />}
           <input type="hidden" name="imovel" value={imovelGravado} />
+          <input type="hidden" name="negocioId" value={negocioIdGravado} />
           <input type="hidden" name="tipoNegocio" value={tipoNegocio} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

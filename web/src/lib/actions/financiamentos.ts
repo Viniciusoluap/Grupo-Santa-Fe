@@ -1,7 +1,7 @@
 "use server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { CHECKLIST_FINANCIAMENTO_PADRAO, carregarLeadParaVinculo, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
+import { carregarLeadParaVinculo, criarFinanciamentoComChecklist, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
 import { dadosClienteDoLead } from "@/lib/crm/servicos-lead";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
@@ -16,25 +16,20 @@ export async function criarFinanciamento(formData: FormData) {
   const leadId = lead.id;
   const imovelVinculadoId = (formData.get("imovelVinculadoId") as string) || undefined;
 
-  const fin = await prisma.financiamento.create({
-    data: {
-      ...dadosClienteDoLead(lead),
-      clienteCpf: (formData.get("clienteCpf") as string) || undefined,
-      imovel: formData.get("imovel") as string,
-      tipo: formData.get("tipo") as string,
-      banco: formData.get("banco") as string,
-      valorImovel: parseFloat(formData.get("valorImovel") as string) || 0,
-      valorFinanciado: parseFloat(formData.get("valorFinanciado") as string) || 0,
-      entrada: parseFloat(formData.get("entrada") as string) || 0,
-      taxa: parseFloat(formData.get("taxa") as string) || 0,
-      prazo: parseInt(formData.get("prazo") as string) || 360,
-      leadId,
-      imovelVinculadoId,
-    },
-  });
-
-  await prisma.checklistItem.createMany({
-    data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
+  // Financiamento + checklist obrigatório na mesma transação (nunca um sem o outro).
+  const fin = await criarFinanciamentoComChecklist({
+    ...dadosClienteDoLead(lead),
+    clienteCpf: (formData.get("clienteCpf") as string) || undefined,
+    imovel: formData.get("imovel") as string,
+    tipo: formData.get("tipo") as string,
+    banco: formData.get("banco") as string,
+    valorImovel: parseFloat(formData.get("valorImovel") as string) || 0,
+    valorFinanciado: parseFloat(formData.get("valorFinanciado") as string) || 0,
+    entrada: parseFloat(formData.get("entrada") as string) || 0,
+    taxa: parseFloat(formData.get("taxa") as string) || 0,
+    prazo: parseInt(formData.get("prazo") as string) || 360,
+    leadId,
+    imovelVinculadoId,
   });
   await registrarServicoNoLead(leadId, "financiamento", fin.tipo);
 

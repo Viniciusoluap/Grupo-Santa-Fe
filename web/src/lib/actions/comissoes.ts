@@ -13,7 +13,11 @@ function lerNegocioEValor(formData: FormData) {
   if (!imovel) throw new Error("Selecione o imóvel/negócio vinculado à comissão.");
   const valor = parseFloat(formData.get("valor") as string);
   if (!Number.isFinite(valor) || valor < 0) throw new Error("Informe um valor de comissão válido.");
-  return { imovel, valor };
+  // ID real do negócio escolhido: é ele (não o rótulo, que pode se repetir)
+  // que a edição usa para reencontrar o registro e recalcular a comissão.
+  const tipoNegocio = (formData.get("tipoNegocio") as string) || "";
+  const negocioId = tipoNegocio === "extra" ? null : ((formData.get("negocioId") as string) || "").trim() || null;
+  return { imovel, negocioId, valor };
 }
 
 // Mutacoes de comissao sao admin-only: um corretor pode ver as proprias

@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, Plus, Link2 } from "lucide-react";
+import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, Plus, Link2, AlertTriangle } from "lucide-react";
 import { auth } from "@/auth";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG, LeadStatus, InteractionType } from "@/lib/types/crm";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
-import { MODULO_CONFIG, type ModuloServico } from "@/lib/crm/servicos-lead";
+import { MODULO_CONFIG, PARAM_FALHA_SERVICOS, parseFalhasServicos, type ModuloServico } from "@/lib/crm/servicos-lead";
 import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
@@ -14,12 +14,15 @@ import { LeadAgendarVisita } from "./lead-agendar-visita";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const statusOrder = Object.entries(LEAD_STATUS_CONFIG).sort(([, a], [, b]) => a.order - b.order);
 
-export default async function LeadDetailPage({ params }: PageProps) {
+export default async function LeadDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  // Serviços cuja criação automática falhou no último cadastro/edição do lead.
+  const falhasServicos = parseFalhasServicos((await searchParams)[PARAM_FALHA_SERVICOS]);
 
   const lead = await prisma.lead.findUnique({
     where: { id },
@@ -87,6 +90,22 @@ export default async function LeadDetailPage({ params }: PageProps) {
           </p>
         </div>
       </div>
+
+      {falhasServicos.length > 0 && (
+        <div role="alert" className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+          <div>
+            <p className="font-bold">
+              O lead foi salvo, mas não foi possível criar o registro de:{" "}
+              {falhasServicos.map((m) => MODULO_CONFIG[m].label).join(", ")}.
+            </p>
+            <p className="mt-1 text-amber-800">
+              O serviço continua marcado no lead. Edite e salve o lead novamente para tentar de novo, ou abra o
+              serviço em &quot;Vincular novo serviço&quot;.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Status pipeline */}
       <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
