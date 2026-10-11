@@ -90,7 +90,7 @@ export function FotoUpload({ name, defaultValue }: FotoUploadProps) {
       {fotos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
           {fotos.map((src, i) => (
-            <div key={i} className="relative group aspect-square bg-gray-100 overflow-hidden">
+            <div key={i} className="relative aspect-square bg-gray-100 overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="w-full h-full object-cover" />
               {i === 0 && (
@@ -98,19 +98,19 @@ export function FotoUpload({ name, defaultValue }: FotoUploadProps) {
                   Capa
                 </span>
               )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/60 py-1">
                 {i > 0 && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); swap(i, i - 1); }}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); swap(i, i - 1); }} title="Tornar capa / mover para a esquerda"
                     className="bg-white text-black rounded-full w-6 h-6 text-xs font-bold flex items-center justify-center hover:bg-gray-100">
                     ←
                   </button>
                 )}
-                <button type="button" onClick={(e) => { e.stopPropagation(); remove(i); }}
+                <button type="button" onClick={(e) => { e.stopPropagation(); remove(i); }} title="Excluir foto"
                   className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600">
                   <X size={12} />
                 </button>
                 {i < fotos.length - 1 && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); swap(i, i + 1); }}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); swap(i, i + 1); }} title="Mover para a direita"
                     className="bg-white text-black rounded-full w-6 h-6 text-xs font-bold flex items-center justify-center hover:bg-gray-100">
                     →
                   </button>
