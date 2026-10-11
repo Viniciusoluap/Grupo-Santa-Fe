@@ -31,10 +31,6 @@ export async function editarCorretor(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
-  const especialidadesList: string[] = [];
-  for (const [key, value] of formData.entries()) {
-    if (key === "especialidades[]") especialidadesList.push(value as string);
-  }
   const email = formData.get("email") as string;
   const corretor = await prisma.corretor.findUnique({ where: { id }, select: { usuarioId: true } });
   await prisma.$transaction([
@@ -45,7 +41,7 @@ export async function editarCorretor(formData: FormData) {
         creci: formData.get("creci") as string,
         telefone: formData.get("telefone") as string,
         email,
-        especialidades: JSON.stringify(especialidadesList),
+        // "Especialidades" saiu do cadastro (EPIC-008 S-01): não sobrescreve o legado.
         ativo: formData.get("ativo") === "true",
       },
     }),
@@ -69,12 +65,6 @@ export async function editarCorretor(formData: FormData) {
 export async function criarCorretor(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
-  const especialidadesList: string[] = [];
-  for (const [key, value] of formData.entries()) {
-    if (key === "especialidades[]") {
-      especialidadesList.push(value as string);
-    }
-  }
 
   const nome = formData.get("nome") as string;
   const email = formData.get("email") as string;
@@ -108,7 +98,6 @@ export async function criarCorretor(formData: FormData) {
         creci,
         telefone,
         email,
-        especialidades: JSON.stringify(especialidadesList),
         ativo: true,
       },
     });

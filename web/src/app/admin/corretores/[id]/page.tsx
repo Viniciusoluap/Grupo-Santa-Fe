@@ -19,9 +19,6 @@ export default async function CorretorDetailPage({ params }: PageProps) {
   });
   if (!c) notFound();
 
-  let especialidades: string[] = [];
-  try { especialidades = JSON.parse(c.especialidades) as string[]; } catch { /* ignore */ }
-
   const totalComissao = c.comissoes.reduce((s, cm) => s + cm.valor, 0);
   const pago = c.comissoes.filter((cm) => cm.status === "pago").reduce((s, cm) => s + cm.valor, 0);
   const pendente = c.comissoes.filter((cm) => cm.status === "pendente").reduce((s, cm) => s + cm.valor, 0);
@@ -152,13 +149,6 @@ export default async function CorretorDetailPage({ params }: PageProps) {
             </div>
             <p className="text-white font-bold">{c.nome}</p>
             <p className="text-gray-400 text-xs mt-0.5">{c.creci}</p>
-            {especialidades.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1">
-                {especialidades.map((s) => (
-                  <span key={s} className="text-[9px] font-bold bg-white/10 text-gray-300 px-2 py-0.5 uppercase">{s}</span>
-                ))}
-              </div>
-            )}
             <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
               <a href={`tel:${c.telefone}`} className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors">
                 <Phone size={14} /> {formatTelefone(c.telefone ?? "")}

@@ -26,7 +26,6 @@ type DbCorretor = {
   telefone: string;
   creci: string;
   ativo: boolean;
-  especialidades: string;
   usuarioId: string | null;
   comissoes: DbComissao[];
   leads: { id: string }[];
@@ -73,14 +72,10 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
   }
 
   const filtered = corretores.filter((c) => {
-    const especialidades: string[] = (() => {
-      try { return JSON.parse(c.especialidades); } catch { return []; }
-    })();
     const matchSearch =
       !search ||
       c.nome.toLowerCase().includes(search.toLowerCase()) ||
-      c.creci.toLowerCase().includes(search.toLowerCase()) ||
-      especialidades.some((s) => s.toLowerCase().includes(search.toLowerCase()));
+      c.creci.toLowerCase().includes(search.toLowerCase());
     const matchFilter =
       filter === "todos" || (filter === "ativos" ? c.ativo : !c.ativo);
     return matchSearch && matchFilter;
@@ -145,7 +140,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar por nome, CRECI ou especialidade..."
+            placeholder="Buscar por nome ou CRECI..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white"
@@ -169,9 +164,6 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
       {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
         {filtered.map((c) => {
-          const especialidades: string[] = (() => {
-            try { return JSON.parse(c.especialidades); } catch { return []; }
-          })();
           const totalComissao = c.comissoes
             .filter((cm) => cm.status !== "cancelada")
             .reduce((s, cm) => s + cm.valor, 0);
@@ -198,14 +190,6 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
                 >
                   {c.ativo ? "Ativo" : "Inativo"}
                 </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1 mb-4">
-                {especialidades.map((s) => (
-                  <span key={s} className="text-[9px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 uppercase">
-                    {s}
-                  </span>
-                ))}
               </div>
 
               {!c.usuarioId && (

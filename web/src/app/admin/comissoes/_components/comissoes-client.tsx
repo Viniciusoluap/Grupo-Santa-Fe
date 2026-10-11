@@ -6,9 +6,9 @@ import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
 import { excluirComissao, alterarStatusComissao } from "@/lib/actions/comissoes";
 import { ComissaoForm } from "./comissao-form";
+import type { NegocioItem } from "@/lib/comissoes/calculo";
 
 type Corretor = { id: string; nome: string };
-type NegocioItem = { id: string; label: string };
 
 type DbComissao = {
   id: string;
@@ -42,6 +42,7 @@ const TIPO_NEGOCIO_LABELS: Record<string, string> = {
   // legado
   imovel: "Venda de Imóvel",
   obra: "Obra",
+  venda_imovel: "Comissão de Venda",
   projeto: "Projeto de Engenharia",
   regularizacao: "Regularização",
   avaliacao: "Avaliação",

@@ -6,26 +6,12 @@ import { editarCorretor } from "@/lib/actions/corretores";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
 
-const specialties = [
-  "Compra e Venda",
-  "Financiamento MCMV",
-  "Financiamento Convencional",
-  "Locação",
-  "Lotes",
-  "Alto Padrão",
-  "Regularização Imobiliária",
-  "Projetos de Engenharia",
-];
-
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarCorretorPage({ params }: PageProps) {
   const { id } = await params;
   const c = await prisma.corretor.findUnique({ where: { id } });
   if (!c) notFound();
-
-  let especialidades: string[] = [];
-  try { especialidades = JSON.parse(c.especialidades) as string[]; } catch { /* ignore */ }
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -68,20 +54,6 @@ export default async function EditarCorretorPage({ params }: PageProps) {
                 <option value="true">Ativo</option>
                 <option value="false">Inativo</option>
               </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Especialidades</label>
-            <div className="flex flex-wrap gap-2">
-              {specialties.map((s) => (
-                <label key={s} className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" name="especialidades[]" value={s}
-                    defaultChecked={especialidades.includes(s)}
-                    className="accent-[var(--brand-yellow)]" />
-                  <span className="text-xs text-gray-600">{s}</span>
-                </label>
-              ))}
             </div>
           </div>
 
