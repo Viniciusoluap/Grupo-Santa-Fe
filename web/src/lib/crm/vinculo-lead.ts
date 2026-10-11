@@ -52,32 +52,71 @@ export async function carregarLeadParaVinculo(leadId: string | null | undefined)
   return lead;
 }
 
+type DadosFinanciamento = Parameters<typeof prisma.financiamento.create>[0]["data"];
+
+/**
+ * Cria o financiamento JÁ com o checklist obrigatório, numa única transação.
+ * Antes eram dois writes soltos: se o `createMany` do checklist falhasse, o
+ * financiamento ficava sem checklist e nenhuma sincronização posterior
+ * consertava (o serviço já constava como "presente"). Agora ou nasce completo
+ * ou não nasce.
+ */
+export async function criarFinanciamentoComChecklist(data: DadosFinanciamento) {
+  return prisma.$transaction(async (tx) => {
+    const fin = await tx.financiamento.create({ data });
+    await tx.checklistItem.createMany({
+      data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
+    });
+    return fin;
+  });
+}
+
+/**
+ * Reparo de financiamentos do lead que ficaram sem checklist (criados antes da
+ * transação acima, quando o segundo write falhava). O sistema nunca remove
+ * itens de checklist, então "nenhum item" é sempre esse estado quebrado.
+ * Retorna quantos financiamentos foram reparados.
+ */
+export async function garantirChecklistDosFinanciamentos(leadId: string): Promise<number> {
+  const semChecklist = await prisma.financiamento.findMany({
+    where: { leadId, checklist: { none: {} } },
+    select: { id: true },
+  });
+  for (const fin of semChecklist) {
+    await prisma.checklistItem.createMany({
+      data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
+    });
+  }
+  return semChecklist.length;
+}
+
+/** Tentativas de número de protocolo antes de desistir (campo único). */
+const TENTATIVAS_NUMERO_AVALIACAO = 5;
+
+function violouUnicidade(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "P2002";
+}
+
 async function criarRegistro(
   lead: { id: string; nome: string; telefone: string; email: string | null },
   op: ServicoOperacional,
 ) {
   const cliente = dadosClienteDoLead(lead);
   switch (op.modulo) {
-    case "financiamento": {
-      const fin = await prisma.financiamento.create({
-        data: {
-          ...cliente,
-          imovel: A_DEFINIR,
-          tipo: op.tipoFinanciamento ?? "mcmv",
-          banco: A_DEFINIR,
-          valorImovel: 0,
-          valorFinanciado: 0,
-          entrada: 0,
-          taxa: 0,
-          prazo: 0,
-          leadId: lead.id,
-        },
-      });
-      await prisma.checklistItem.createMany({
-        data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
+    case "financiamento":
+      await criarFinanciamentoComChecklist({
+        ...cliente,
+        imovel: A_DEFINIR,
+        tipo: op.tipoFinanciamento ?? "mcmv",
+        banco: A_DEFINIR,
+        valorImovel: 0,
+        valorFinanciado: 0,
+        entrada: 0,
+        taxa: 0,
+        prazo: 0,
+        leadId: lead.id,
       });
       return;
-    }
     case "obra":
       await prisma.obra.create({
         data: {
@@ -121,29 +160,48 @@ async function criarRegistro(
       });
       return;
     case "avaliacao":
-      await prisma.avaliacao.create({
-        data: {
-          numero: gerarNumeroAvaliacao(),
-          tipo: "mercado",
-          finalidade: "compra_venda",
-          ...cliente,
-          endereco: A_DEFINIR,
-          bairro: A_DEFINIR,
-          avaliador: A_DEFINIR,
-          leadId: lead.id,
-        },
-      });
-      return;
+      // `numero` é único e tem só 4 dígitos aleatórios: numa colisão, sorteia
+      // outro em vez de perder a avaliação pedida.
+      for (let tentativa = 1; ; tentativa++) {
+        try {
+          await prisma.avaliacao.create({
+            data: {
+              numero: gerarNumeroAvaliacao(),
+              tipo: "mercado",
+              finalidade: "compra_venda",
+              ...cliente,
+              endereco: A_DEFINIR,
+              bairro: A_DEFINIR,
+              avaliador: A_DEFINIR,
+              leadId: lead.id,
+            },
+          });
+          return;
+        } catch (err) {
+          if (!violouUnicidade(err) || tentativa >= TENTATIVAS_NUMERO_AVALIACAO) throw err;
+        }
+      }
   }
+}
+
+export interface ResultadoSincronizacao {
+  /** Registros operacionais criados nesta sincronização. */
+  criados: number;
+  /** Módulos cujo registro NÃO pôde ser criado/reparado — o chamador avisa o usuário. */
+  falhas: ModuloServico[];
 }
 
 /**
  * Garante que cada serviço operacional marcado no lead tenha um registro real
  * vinculado (com os dados do cliente já copiados). Idempotente — roda no
  * cadastro e em toda edição do lead, criando só o que falta.
- * Retorna quantos registros foram criados.
+ *
+ * Falhas NÃO são engolidas: voltam em `falhas` para que criarLead/editarLead
+ * avisem o usuário (antes só iam para o console e a tela dizia "tudo certo",
+ * deixando o lead com um serviço marcado sem registro correspondente).
+ * Salvar o lead de novo tenta outra vez só o que faltou.
  */
-export async function sincronizarServicosDoLead(leadId: string): Promise<number> {
+export async function sincronizarServicosDoLead(leadId: string): Promise<ResultadoSincronizacao> {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
     select: {
@@ -156,7 +214,7 @@ export async function sincronizarServicosDoLead(leadId: string): Promise<number>
       _count: { select: { obras: true, projetos: true, regularizacoes: true, avaliacoes: true } },
     },
   });
-  if (!lead) return 0;
+  if (!lead) return { criados: 0, falhas: [] };
 
   const pendentes = servicosSemRegistro(parseServicosLead(lead.servico), {
     financiamentoTipos: lead.financiamentos.map((f) => f.tipo),
@@ -166,6 +224,7 @@ export async function sincronizarServicosDoLead(leadId: string): Promise<number>
     avaliacoes: lead._count.avaliacoes,
   });
 
+  const falhas: ModuloServico[] = [];
   let criados = 0;
   for (const op of pendentes) {
     try {
@@ -173,9 +232,20 @@ export async function sincronizarServicosDoLead(leadId: string): Promise<number>
       criados++;
     } catch (err) {
       console.error(`Erro ao criar registro de ${op.modulo} para o lead ${lead.id}:`, err);
+      if (!falhas.includes(op.modulo)) falhas.push(op.modulo);
     }
   }
-  return criados;
+
+  if (lead.financiamentos.length > 0) {
+    try {
+      await garantirChecklistDosFinanciamentos(lead.id);
+    } catch (err) {
+      console.error(`Erro ao reparar checklist de financiamento do lead ${lead.id}:`, err);
+      if (!falhas.includes("financiamento")) falhas.push("financiamento");
+    }
+  }
+
+  return { criados, falhas };
 }
 
 /**

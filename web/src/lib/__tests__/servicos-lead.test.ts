@@ -5,7 +5,9 @@ import {
   incluirServico,
   moduloDoServico,
   normalizarTipoFinanciamento,
+  parseFalhasServicos,
   parseServicosLead,
+  rotaDetalheLead,
   servicoDoModulo,
   servicosSemRegistro,
   SERVICOS_LEAD,
@@ -101,5 +103,25 @@ describe("gerarNumeroAvaliacao", () => {
   it("segue o formato AVL-AAAAMM-NNNN", () => {
     expect(gerarNumeroAvaliacao(new Date(2026, 9, 11), 0)).toBe("AVL-202610-1000");
     expect(gerarNumeroAvaliacao(new Date(2026, 0, 1), 0.9999)).toMatch(/^AVL-202601-\d{4}$/);
+  });
+});
+
+describe("aviso de falha na sincronização (Achado 2 — Codex, PR #156)", () => {
+  it("monta a rota do lead com os módulos que falharam", () => {
+    expect(rotaDetalheLead("L1")).toBe("/admin/leads/L1");
+    expect(rotaDetalheLead("L1", [])).toBe("/admin/leads/L1");
+    expect(rotaDetalheLead("L1", ["avaliacao"])).toBe("/admin/leads/L1?falhaServicos=avaliacao");
+  });
+
+  it("ida e volta: o que a action grava a página lê", () => {
+    const url = new URL(rotaDetalheLead("L1", ["avaliacao", "financiamento"]), "http://x");
+    expect(parseFalhasServicos(url.searchParams.get("falhaServicos"))).toEqual(["avaliacao", "financiamento"]);
+  });
+
+  it("ignora valores desconhecidos, vazios e duplicados", () => {
+    expect(parseFalhasServicos(undefined)).toEqual([]);
+    expect(parseFalhasServicos("")).toEqual([]);
+    expect(parseFalhasServicos("obra,toString,obra,<script>")).toEqual(["obra"]);
+    expect(parseFalhasServicos(["projeto", "regularizacao"])).toEqual(["projeto", "regularizacao"]);
   });
 });

@@ -17,6 +17,7 @@ type DbComissao = {
   corretorId: string | null;
   contratoId: string | null;
   imovel: string;
+  negocioId: string | null;
   valor: number;
   percentual: number;
   status: string;

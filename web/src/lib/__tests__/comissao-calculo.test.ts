@@ -56,3 +56,33 @@ describe("encontrarNegocio", () => {
     expect(encontrarNegocio(itens, "venda", "apto do João")).toBeNull();
   });
 });
+
+describe("encontrarNegocio com rótulos repetidos (Achado 3 — Codex, PR #156)", () => {
+  // Dois imóveis com o MESMO título e valores diferentes: casar pelo rótulo
+  // pegava sempre o primeiro e recalculava a comissão com o valor errado.
+  const repetidos = [
+    { id: "a", label: "Casa Jardim", valorBase: 300000 },
+    { id: "b", label: "Casa Jardim", valorBase: 900000 },
+  ];
+  const gravado = rotuloNegocio(repetidos[1], "venda");
+
+  it("com o ID gravado, reencontra exatamente o negócio escolhido", () => {
+    const item = encontrarNegocio(repetidos, "venda", gravado, "b");
+    expect(item?.id).toBe("b");
+    expect(calcularValorComissao(item?.valorBase, 6)).toBe(54000);
+  });
+
+  it("ID de negócio excluído não cai em outro registro com o mesmo rótulo", () => {
+    expect(encontrarNegocio(repetidos, "venda", gravado, "removido")).toBeNull();
+  });
+
+  it("comissão antiga (sem ID) com rótulo ambíguo não chuta: vira registro antigo", () => {
+    expect(encontrarNegocio(repetidos, "venda", gravado)).toBeNull();
+    expect(encontrarNegocio(repetidos, "venda", "Casa Jardim", null)).toBeNull();
+  });
+
+  it("comissão antiga (sem ID) com rótulo único continua sendo reencontrada", () => {
+    const itens = [...repetidos, { id: "c", label: "Lote Centro", valorBase: 90000 }];
+    expect(encontrarNegocio(itens, "venda", "Lote Centro [Comissão de Venda]")?.id).toBe("c");
+  });
+});

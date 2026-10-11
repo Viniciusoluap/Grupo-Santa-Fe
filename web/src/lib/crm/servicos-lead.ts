@@ -164,3 +164,28 @@ export function incluirServico(servicos: string[], servico: string): string[] | 
   if (servicos.includes(servico)) return null;
   return [...servicos, servico];
 }
+
+/**
+ * Falha na criação automática de registros (EPIC-007): o lead é salvo, mas o
+ * usuário PRECISA saber quais serviços ficaram sem registro operacional. A
+ * server action redireciona para o detalhe do lead com esses módulos na URL e
+ * a página mostra o aviso.
+ */
+export const PARAM_FALHA_SERVICOS = "falhaServicos";
+
+export function rotaDetalheLead(leadId: string, falhas: ModuloServico[] = []): string {
+  const base = `/admin/leads/${leadId}`;
+  if (falhas.length === 0) return base;
+  return `${base}?${PARAM_FALHA_SERVICOS}=${encodeURIComponent(falhas.join(","))}`;
+}
+
+/** Lê o parâmetro de falhas aceitando só módulos conhecidos (sem duplicar). */
+export function parseFalhasServicos(raw: string | string[] | null | undefined): ModuloServico[] {
+  const texto = Array.isArray(raw) ? raw.join(",") : raw ?? "";
+  const modulos: ModuloServico[] = [];
+  for (const parte of texto.split(",")) {
+    const m = parte.trim() as ModuloServico;
+    if (Object.prototype.hasOwnProperty.call(MODULO_CONFIG, m) && !modulos.includes(m)) modulos.push(m);
+  }
+  return modulos;
+}

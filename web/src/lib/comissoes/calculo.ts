@@ -29,13 +29,31 @@ export function rotuloNegocio(item: { label: string }, tipo: string): string {
   return `${item.label} [${rotuloTipoComissao(tipo)}]`;
 }
 
-/** Na edição, reencontra o negócio pré-cadastrado a partir do texto gravado. */
-export function encontrarNegocio(itens: NegocioItem[], tipo: string, imovelGravado: string): NegocioItem | null {
-  return (
-    itens.find((i) => rotuloNegocio(i, tipo) === imovelGravado) ??
-    itens.find((i) => i.label === imovelGravado) ??
-    null
-  );
+/**
+ * Na edição, reencontra o negócio pré-cadastrado da comissão.
+ *
+ * Com `negocioId` gravado, a busca é SÓ pelo ID — rótulos não são únicos
+ * (dois imóveis com o mesmo título, dois financiamentos do mesmo cliente...) e
+ * casar pelo texto escolhia sempre o primeiro, recalculando a comissão sobre o
+ * valor de outro registro. Se o ID não existe mais (registro excluído), devolve
+ * `null` em vez de "chutar" outro com o mesmo rótulo.
+ *
+ * Sem ID (comissões gravadas antes da coluna), cai no texto gravado, mas só
+ * aceita quando exatamente UM negócio bate; ambíguo → `null` (o formulário
+ * mostra como registro antigo e o usuário escolhe o negócio certo).
+ */
+export function encontrarNegocio(
+  itens: NegocioItem[],
+  tipo: string,
+  imovelGravado: string,
+  negocioId?: string | null,
+): NegocioItem | null {
+  if (negocioId) return itens.find((i) => i.id === negocioId) ?? null;
+
+  const unico = (candidatos: NegocioItem[]) => (candidatos.length === 1 ? candidatos[0] : null);
+  const porRotulo = itens.filter((i) => rotuloNegocio(i, tipo) === imovelGravado);
+  if (porRotulo.length > 0) return unico(porRotulo);
+  return unico(itens.filter((i) => i.label === imovelGravado));
 }
 
 /**
