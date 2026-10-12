@@ -20,7 +20,13 @@ export const proxy = auth((req) => {
   }
 
   if (pathname === "/login" && isLoggedIn) {
-    return NextResponse.redirect(new URL("/admin", req.nextUrl));
+    return NextResponse.redirect(new URL(role === "empreiteiro" ? "/empreiteiro" : "/admin", req.nextUrl));
+  }
+
+  // D-05: empreiteiro nunca renderiza páginas do painel (evita que ações do
+  // CRM rodem e registrem "Não autorizado." antes do redirecionamento).
+  if (role === "empreiteiro" && pathname.startsWith("/admin")) {
+    return NextResponse.redirect(new URL("/empreiteiro", req.nextUrl));
   }
 
   // Corretor cannot access admin-only sections

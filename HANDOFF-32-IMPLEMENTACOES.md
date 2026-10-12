@@ -360,14 +360,14 @@ Testes automáticos atuais: Prospecta 639/639 · Santa Fé 517/517 (inclui teste
 
 | Código | Sistema | Pendência |
 |---|---|---|
-| P-01 | Santa Fé | 4 de 5 obras têm `valorTotal` antigo (preservado, fora dos cálculos). Definir se era **VGV** ou **Orçamento** e preencher em Valores da Operação / Custos |
-| P-02 | Prospecta | Obra 35: o JSON antigo dizia Entrada Total 13.766, mas a fórmula oficial (VGV − Financiamento − FGTS − Subsídio) dá 21.766. Conferir os valores digitados |
-| P-03 | Prospecta | Obras do Chaleilson (3, 4, 5, 6, 10, 12, 17, 18, 22, 27) e do Paulo Gomes (11) sem VGV e sem percentual de comissão → aparecem como "Dados incompletos". Preencher VGV e o percentual (padrão do corretor em Corretores, ou por obra em Custos). Obras 17, 18, 27 têm valor aprovado no lead (200.000 / 200.000 / 180.000) — **confirmar se é o VGV** antes de usar |
-| P-04 | Prospecta | CRECI do Chaleilson está "0000" (provisório) |
-| P-05 | Prospecta | Comissão manual #1 (Paulo Gomes, "Casa lu", R$ 1.000, 5%): tipo obra sem obra vinculada. Vincular ou corrigir |
-| P-06 | Prospecta | Possíveis obras duplicadas (sem corretor): leads 23 (obras 26 e 35), 25 (28 e 33), 26 (29 e 34). As primeiras vieram da importação de 08/10. Revisar e cancelar a sobra |
-| P-07 | Prospecta | Obra 22 gravada como "Vistoria e medição", mas o serviço do CRM é obra de cliente. Corrigir no lead se for vistoria |
-| P-08 | Santa Fé | 4 obras com tipo antigo "Obra Nova" (preservado); o tipo oficial vem do CRM |
+| ✅ P-01 | Santa Fé | **Resolvido 12/10: era VGV** — copiado para `vgv` (migration `20261012160000_ajustes_pos_lote3`, aplicada em produção). Antes: 4 de 5 obras têm `valorTotal` antigo (preservado, fora dos cálculos). Definir se era **VGV** ou **Orçamento** e preencher em Valores da Operação / Custos |
+| P-02 | Prospecta | **Decisão 12/10: manter a fórmula; proprietário audita os valores depois.** Obra 35: o JSON antigo dizia Entrada Total 13.766, mas a fórmula oficial (VGV − Financiamento − FGTS − Subsídio) dá 21.766. Conferir os valores digitados |
+| ✅ P-03 | Prospecta | **Resolvido 12/10: valor aprovado do lead = VGV** nas obras 17, 18, 27 (`drizzle/manual/0003_vgv_obras_aprovado_lead.sql`, aplicado em produção: 200.000 / 200.000 / 180.000). Ainda faltam VGV e % nas demais. Obras do Chaleilson (3, 4, 5, 6, 10, 12, 17, 18, 22, 27) e do Paulo Gomes (11) sem VGV e sem percentual de comissão → aparecem como "Dados incompletos". Preencher VGV e o percentual (padrão do corretor em Corretores, ou por obra em Custos). Obras 17, 18, 27 têm valor aprovado no lead (200.000 / 200.000 / 180.000) — **confirmar se é o VGV** antes de usar |
+| ✅ P-04 | Prospecta | CRECI "0000" é intencional: identifica corretores informais (decisão do proprietário 12/10) |
+| P-05 | Prospecta | **Era teste; o proprietário exclui manualmente.** Comissão manual #1 (Paulo Gomes, "Casa lu", R$ 1.000, 5%): tipo obra sem obra vinculada. Vincular ou corrigir |
+| P-06 | Prospecta | **Proprietário confere manualmente.** Possíveis obras duplicadas (sem corretor): leads 23 (obras 26 e 35), 25 (28 e 33), 26 (29 e 34). As primeiras vieram da importação de 08/10. Revisar e cancelar a sobra |
+| P-07 | Prospecta | **Aguardando resposta (pergunta reformulada em 12/10).** Obra 22 gravada como "Vistoria e medição", mas o serviço do CRM é obra de cliente. Corrigir no lead se for vistoria |
+| ✅ P-08 | Santa Fé | Resolvido 12/10: tipo antigo "Obra Nova" passa a ser exibido como "Obra e reforma" (serviço do CRM), igual à Prospecta; valor gravado preservado |
 
 ### 7.4 Validação pendente (ambiente do agente não alcança os domínios/banco de produção)
 
@@ -380,16 +380,16 @@ Testes automáticos atuais: Prospecta 639/639 · Santa Fé 517/517 (inclui teste
 
 | Código | Pendência |
 |---|---|
-| C-01 | SMTP (`SMTP_HOST/PORT/USER/PASSWORD`) na Vercel dos dois projetos — e-mails de notificação não saem sem isso |
-| C-02 | Google Drive: credenciais e validação real de upload/consulta |
+| C-01 | **Adiado pelo proprietário.** SMTP (`SMTP_HOST/PORT/USER/PASSWORD`) na Vercel dos dois projetos — e-mails de notificação não saem sem isso |
+| ✅ C-02 | Google Drive: credenciais já configuradas pelo proprietário (o agente não tem permissão para listar variáveis na Vercel — 403). Upload/consulta real entra na validação V-01/V-02 |
 | C-03 | Integração Git da Vercel instável (`git_info_fail` e deploys sem gatilho): sempre conferir deploy de produção READY; se falhar, redeploy pelo MCP (§5) |
 
 ### 7.6 Débitos técnicos registrados (não bloqueiam; corrigir na auditoria final ou quando houver lote relacionado)
 
 | Código | Débito |
 |---|---|
-| D-01 | Prospecta: `parseNumeroBR("1.000")` (sem vírgula) vira 1,00 em campos de dinheiro; no Santa Fé vira 1.000. Unificar (percentuais já foram unificados com `lerPercentualDigitado`) |
-| D-02 | Formulário de comissão **manual** vem com 6% pré-preenchido (Prospecta e Santa Fé, `Comissao.percentual @default(6)`). As automáticas nunca inventam percentual; avaliar remover o 6% sugerido |
-| D-03 | Prospecta: tabela legada `broker_commissions` (0 registros) e colunas antigas de Custos — remover na auditoria final após confirmação |
+| ✅ D-01 | Resolvido 12/10: ponto = milhar, vírgula = decimal nos dois (exceção: um ponto com 1–2 casas = decimal vindo do banco). Antes: Prospecta `parseNumeroBR("1.000")` (sem vírgula) vira 1,00 em campos de dinheiro; no Santa Fé vira 1.000. Unificar (percentuais já foram unificados com `lerPercentualDigitado`) |
+| ✅ D-02 | Resolvido 12/10: sugestão de **5% editável** nos dois (Santa Fé: default da coluna também 5). Antes: formulário de comissão **manual** vinha com 6% pré-preenchido (Prospecta e Santa Fé, `Comissao.percentual @default(6)`). As automáticas nunca inventam percentual; avaliar remover o 6% sugerido |
+| D-03 | **Autorizado; executar no Lote 7** (toca relatórios/exportação/testes — fazer junto da regressão completa). Verificado 12/10: 0 registros, nenhuma FK, e as colunas antigas de Custos nunca existiram no banco. Tabela legada `broker_commissions` e colunas antigas de Custos — remover na auditoria final após confirmação |
 | D-04 | Prospecta: coluna `broker_payment_settled` (criada pelo Codex no #99) preserva o antigo "Corretor Pago?"; o pagamento oficial agora vem do financeiro (item 24) — não reexibir na tela |
-| D-05 | Santa Fé: log "Não autorizado." quando um empreiteiro abre uma URL de `/admin` (é redirecionado corretamente; só ruído de log) |
+| ✅ D-05 | Resolvido 12/10: Santa Fé desvia o empreiteiro no proxy antes de renderizar o painel; Prospecta manda o empreiteiro para `/empreiteiro` (antes ia para a home). Antes: log "Não autorizado." quando um empreiteiro abre uma URL de `/admin` (é redirecionado corretamente; só ruído de log) |
