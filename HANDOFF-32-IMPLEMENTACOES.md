@@ -424,10 +424,13 @@ Testes automáticos atuais: Prospecta 663/663 · Santa Fé 539/539 (inclui teste
 
 ### 7.8 Checkpoint Lote 5 — 12/10/2026 (Grupo Santa Fé)
 
+Este checkpoint **substitui o status antigo da linha Lote 5 em §5**, escrito antes desta rodada. O código abaixo está no PR rascunho, não em produção.
+
 - Branch isolada `codex/epic020-lote5-20261012`, PR rascunho #174. Nenhuma migration `20261012180000`–`20261012190000` aplicada; sem merge/deploy deste lote. `main` e produção continuam no Lote 4.
 - Itens 01 e 02 e a preparação do item 03 foram commitados anteriormente. Adaptador Drive usa `SANTA_FE_GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL`, `SANTA_FE_GOOGLE_DRIVE_PRIVATE_KEY` e `SANTA_FE_GOOGLE_DRIVE_ROOT_FOLDER_ID`; ausentes na Vercel produção. O proprietário adiou a configuração. Falta teste real; nunca copiar pasta raiz da Prospecta automaticamente.
 - Item 04 inclui `dueDiligenceJson` (migration `20261012184500_due_diligence`), editor de etapas reordenáveis, tarefas/documentos, progresso e anexos privados por ID, atualização CAS. Testes unitários Due Diligence e validação documental 4/4; TypeScript passou depois da geração Prisma.
 - Inventário de unidades em implementação: migration `20261012190000_unidades_incorporacao`, tabelas `estudo_unidades` e eventos, código único por estudo, criação/reserva/venda/liberação transacionais, conciliação explícita de vendas antigas com código exato e auditoria. `src/lib/incorporacao/unidades.ts`, `src/lib/actions/unidades-incorporacao.ts`, `src/app/admin/incorporacao/_components/unidades-tab.tsx`. Endpoint antigo `salvarLancamentoImobiliario` não aceita gravação em Desmembramento Simples. **Ainda requer revisão de concorrência e testes com banco isolado.**
 - Navegação de Desmembramento Simples filtra os módulos atuais para as 17 funções especificadas com acesso ao inventário. **Ainda requer validar ordem, contagem, responsividade e comportamento funcional.**
 - Próximo passo: concluir TypeScript/lint/testes, corrigir problemas encontrados, testar atomicidade em base isolada e fluxo autenticado. Fazer backup/pré-flight das migrations; configurar Drive do Santa Fé com pasta raiz própria, fazer upload/download real e smoke. Só então considerar merge/deploy. Não presumir que este checkpoint está pronto para produção.
+- Validação após o commit: geração Prisma, `tsc` e lint dos arquivos alterados passaram; 545/545 testes Santa Fé passaram. A migration de unidades recebeu trigger para impedir ocultar inventário pela troca de tipo ou voltar a gravar vendas no JSON antigo; essa última alteração ainda requer teste SQL isolado. O projeto Neon da Prospecta recusou branch de teste por limite; não se deve usar branch de outra equipe nem inferir que isso valida o Supabase Santa Fé.
 
