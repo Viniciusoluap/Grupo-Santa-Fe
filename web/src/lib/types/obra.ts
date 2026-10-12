@@ -113,7 +113,8 @@ export function tipoProjetoObra(o: { tipo: string | null; servicoLead?: { servic
 }
 
 export const OBRA_TIPO_CONFIG: Record<ObraTipo, { label: string; icon: string }> = {
-  obra_nova: { label: "Obra Nova", icon: "🏗️" },
+  // P-08: tipo antigo "Obra Nova" exibido como o serviço oficial do CRM, igual à Prospecta.
+  obra_nova: { label: "Obra e reforma", icon: "🔨" },
   reforma: { label: "Reforma", icon: "🔨" },
   ampliacao: { label: "Ampliação", icon: "📐" },
   acabamento: { label: "Acabamento", icon: "🎨" },

@@ -210,7 +210,7 @@ model Comissao {
   /// e em comissões antigas (anteriores a esta coluna).
   negocioId    String?
   valor        Float
-  percentual   Float     @default(6)
+  percentual   Float     @default(5)
   status       String    @default("pendente")
   vencimento   DateTime
   pagamentoEm  DateTime?
