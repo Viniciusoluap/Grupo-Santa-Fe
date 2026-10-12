@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { parseNumeroBR } from "@/lib/utils";
+import { lerPercentualDigitado } from "@/lib/financeiro/obra";
+
+// Percentual: ponto é decimal ("2.345" = 2,345%), igual à Prospecta.
+const lerPercentual = (t: string) => lerPercentualDigitado(t) ?? 0;
 
 interface Props {
   /** Nome do campo no FormData (uso em formulário nativo, como `CurrencyInput`). */
@@ -26,7 +29,7 @@ function formatarCampo(v: number): string {
 /**
  * Campo de percentual compartilhado — mesma API/estilo visual do
  * `CurrencyInput`: buffer de texto livre (aceita vírgula), convertido com
- * `parseNumeroBR` a cada digitação e reformatado no blur. Funciona tanto em
+ * `lerPercentualDigitado` (ponto = decimal) a cada digitação e reformatado no blur. Funciona tanto em
  * formulários nativos não controlados (via `name`/`defaultValue`, com input
  * oculto para o `FormData`) quanto em estado React controlado (via
  * `value`/`onValueChange`).
@@ -46,15 +49,15 @@ export function PercentInput({
 
   function handleChange(texto: string) {
     setDisplay(texto);
-    onValueChange?.(parseNumeroBR(texto));
+    onValueChange?.(lerPercentual(texto));
   }
 
   function handleBlur() {
-    const numero = value ?? parseNumeroBR(display);
+    const numero = value ?? lerPercentual(display);
     setDisplay(formatarCampo(numero));
   }
 
-  const numeroAtual = value ?? parseNumeroBR(display);
+  const numeroAtual = value ?? lerPercentual(display);
 
   return (
     <div className="relative">
