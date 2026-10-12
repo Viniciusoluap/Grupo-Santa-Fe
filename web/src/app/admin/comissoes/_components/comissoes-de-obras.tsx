@@ -48,6 +48,11 @@ export function ComissoesDeObras({ linhas }: { linhas: ComissaoDeObra[] }) {
                   <td className="py-2">
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${STATUS[l.calculo.status].cls}`}>{STATUS[l.calculo.status].label}</span>
                     {[...l.calculo.pendencias, ...l.alertas].map((t) => <p key={t} className="text-[11px] text-amber-700 mt-1">{t}</p>)}
+                    {l.registrosManuais.map((m) => (
+                      <p key={m.id} className="text-[11px] text-gray-500 mt-1">
+                        Comissão manual vinculada: {formatCurrency(m.valor)} · {m.percentual.toLocaleString("pt-BR")}% · {m.status}
+                      </p>
+                    ))}
                   </td>
                 </tr>
               ))}

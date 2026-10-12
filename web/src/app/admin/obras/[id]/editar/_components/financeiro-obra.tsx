@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Ban, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
-import { calcularObra, centavosDe, type Indicador, type Natureza, type ResultadoObra } from "@/lib/financeiro/obra";
+import { calcularObra, centavosDe, lerPercentualDigitado, type Indicador, type Natureza, type ResultadoObra } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import type { MovimentoResumo, ResumoObra } from "@/lib/financeiro/obra-dados";
 import { parseNumeroBR } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function comissaoAoVivo(form: FormFinanceiro, resumo: ResumoObra) {
 export function calcularAoVivo(form: FormFinanceiro, resumo: ResumoObra, datas: { inicio: string; termino: string }): ResultadoObra {
   return calcularObra({
     vgv: centavosDe(form.vgv), financiamento: centavosDe(form.financiamento), fgts: centavosDe(form.fgts),
-    subsidio: centavosDe(form.subsidio), custoTerreno: centavosDe(form.custoTerreno), comissao: comissaoAoVivo(form, resumo).valorCentavos ?? centavosDe(form.comissao),
+    subsidio: centavosDe(form.subsidio), custoTerreno: centavosDe(form.custoTerreno), comissao: resumo.corretor ? comissaoAoVivo(form, resumo).valorCentavos : centavosDe(form.comissao),
     orcamentoPrevisto: centavosDe(form.orcamentoPrevisto), taxaMensalPct: form.taxaMensalPct, parcelas: form.parcelas,
     dataInicio: datas.inicio || null, dataTerminoPrevista: datas.termino || null,
     investidores: form.investidores.map((i) => ({ id: i.investidorId, percentual: i.percentual })),
@@ -100,7 +100,8 @@ export function CampoDecimal({ valor, onChange, casas = 2, prefixo, sufixo, plac
           const t = e.target.value;
           setTexto(t);
           if (!t.trim()) return onChange(null);
-          const n = parseNumeroBR(t);
+          // Percentual/taxa: ponto é decimal ("2.345" = 2,345%); dinheiro segue o padrão BR.
+          const n = casas > 2 ? lerPercentualDigitado(t) : parseNumeroBR(t);
           if (n !== null && Number.isFinite(n) && n >= 0) onChange(n.toFixed(casas));
         }}
         className={`${inputCls} ${prefixo ? "pl-10" : ""} ${sufixo ? "pr-8" : ""}`}
@@ -528,11 +529,15 @@ function ComissaoCampos({ resumo, form, setForm }: { resumo: ResumoObra; form: F
       {c.valorCentavos !== null ? (
         <Leitura label="Comissão · automático" valor={brl(c.valorCentavos)}
           ajuda={`VGV × ${Number(c.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}% (${c.fontePercentual === "obra" ? "percentual da obra" : "padrão do corretor"}) · pago ${brl(c.pagoCentavos)}`} />
+      ) : resumo.corretor ? (
+        <div>
+          <Leitura label="Comissão · automático" valor="Indisponível" ajuda="Obra com corretor: a comissão é sempre VGV × % (nunca digitada)." />
+          {c.pendencias.map((p) => <p key={p} className="text-[11px] text-amber-700 mt-1">{p}</p>)}
+        </div>
       ) : (
         <div>
           <p className={labelCls}>Comissão</p>
           <CampoDecimal valor={form.comissao} onChange={(v) => setForm({ ...form, comissao: v })} prefixo="R$" ariaLabel="Comissão" />
-          {resumo.corretor && c.pendencias.map((p) => <p key={p} className="text-[11px] text-amber-700 mt-1">{p} — valor informado mantido até completar a regra.</p>)}
         </div>
       )}
     </>

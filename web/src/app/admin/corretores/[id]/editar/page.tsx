@@ -6,10 +6,11 @@ import { editarCorretor } from "@/lib/actions/corretores";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
 
-interface PageProps { params: Promise<{ id: string }> }
+interface PageProps { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string }> }
 
-export default async function EditarCorretorPage({ params }: PageProps) {
+export default async function EditarCorretorPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { erro } = await searchParams;
   const c = await prisma.corretor.findUnique({ where: { id }, include: { regraComissao: { select: { percentual: true } } } });
   if (!c) notFound();
 
@@ -22,6 +23,9 @@ export default async function EditarCorretorPage({ params }: PageProps) {
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Corretor</h1>
       </div>
 
+      {erro && (
+        <div role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erro}</div>
+      )}
       <div className="bg-white border border-gray-100 p-6">
         <form action={editarCorretor} className="space-y-5">
           <input type="hidden" name="id" value={id} />

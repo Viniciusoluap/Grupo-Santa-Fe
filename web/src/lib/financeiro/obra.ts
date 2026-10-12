@@ -281,3 +281,15 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
     alertas,
   };
 }
+
+/**
+ * Percentual/taxa digitado na tela (mais de 2 casas): vírgula é decimal
+ * ("2,345"); sem vírgula, o ponto é decimal ("2.345" = 2,345%, nunca milhar).
+ * Vazio ou inválido → null. Mesmo comportamento nos dois sistemas.
+ */
+export function lerPercentualDigitado(texto: string): number | null {
+  const t = texto.trim().replace(/[\s%]/g, "");
+  if (!t) return null;
+  const n = t.includes(",") ? Number(t.replace(/\./g, "").replace(",", ".")) : Number(t);
+  return Number.isFinite(n) ? n : null;
+}

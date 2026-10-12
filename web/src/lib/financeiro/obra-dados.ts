@@ -69,8 +69,9 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
   const pagoComissao = obra.movimentos
     .filter((m) => m.status === "confirmado" && m.natureza === "pagamento" && m.categoria === "comissao")
     .reduce((acc, m) => acc + centavosDe(m.valor.toString())!, 0);
-  // Item 32: com corretor e regra cadastrada, a comissão é VGV × % (fonte única);
-  // sem regra, preserva o valor informado antes (condição contratual existente).
+  // Item 32: obra com corretor no CRM → comissão só pelo cálculo VGV × % (fonte
+  // única; sem regra fica indisponível, nunca reaproveita valor antigo). Obra sem
+  // corretor → valor informado manualmente.
   const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(txt(obra.vgv)), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
 
   const entradas: EntradasObra = {
@@ -79,7 +80,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     fgts: centavosDe(txt(obra.fgts)),
     subsidio: centavosDe(txt(obra.subsidio)),
     custoTerreno: centavosDe(txt(obra.custoTerreno)),
-    comissao: comissaoCalculada.valorCentavos ?? centavosDe(txt(obra.comissaoValor)),
+    comissao: corretor ? comissaoCalculada.valorCentavos : centavosDe(txt(obra.comissaoValor)),
     orcamentoPrevisto: centavosDe(txt(obra.orcamentoPrevisto)),
     taxaMensalPct: txt(obra.taxaMensalPct),
     parcelas: obra.qtdeParcelas,

@@ -40,6 +40,12 @@ export async function editarCorretor(formData: FormData) {
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   const email = formData.get("email") as string;
+  let percentualComissao: string | null;
+  try {
+    percentualComissao = lerPercentualComissao(formData.get("percentualComissaoPadrao"));
+  } catch (e) {
+    redirect(`/admin/corretores/${id}/editar?erro=` + encodeURIComponent((e as Error).message));
+  }
   const corretor = await prisma.corretor.findUnique({ where: { id }, select: { usuarioId: true } });
   await prisma.$transaction([
     prisma.corretor.update({
@@ -53,7 +59,7 @@ export async function editarCorretor(formData: FormData) {
         ativo: formData.get("ativo") === "true",
       },
     }),
-    regraComissaoOperacao(id, lerPercentualComissao(formData.get("percentualComissaoPadrao"))),
+    regraComissaoOperacao(id, percentualComissao),
     // Mantem o e-mail de login em sincronia com o e-mail de perfil do corretor -
     // sao a mesma pessoa/identidade, nunca deveriam divergir silenciosamente.
     ...(corretor?.usuarioId
