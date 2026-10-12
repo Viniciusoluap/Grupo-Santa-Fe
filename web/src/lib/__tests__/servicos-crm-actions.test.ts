@@ -34,11 +34,12 @@ function dados(tipo = "sbpe") {
 beforeEach(() => { vi.clearAllMocks(); mocks.outraDemanda = false; mocks.acessivel = true; });
 
 describe("ações operacionais mantêm origem e identidade do CRM", () => {
-  it("os quatro módulos bloqueiam criação independente", async () => {
-    const [obras, financiamentos, projetos, regs, regDocs] = await Promise.all([import("@/lib/actions/obras"), import("@/lib/actions/financiamentos"), import("@/lib/actions/projetos"), import("@/lib/actions/regularizacoes"), import("@/lib/actions/regularizacao")]);
+  it("os cinco módulos bloqueiam criação independente", async () => {
+    const [obras, financiamentos, projetos, regs, regDocs, avaliacoes] = await Promise.all([import("@/lib/actions/obras"), import("@/lib/actions/financiamentos"), import("@/lib/actions/projetos"), import("@/lib/actions/regularizacoes"), import("@/lib/actions/regularizacao"), import("@/lib/actions/avaliacoes")]);
     expect(obras).not.toHaveProperty("criarObra");
-    // A action legada segue exportada para rejeitar chamadas de formulários antigos.
+    // As actions legadas seguem exportadas para rejeitar chamadas de formulários antigos.
     await expect(financiamentos.criarFinanciamento(new FormData())).rejects.toThrow(/não é permitida/i);
+    await expect(avaliacoes.criarAvaliacao(new FormData())).rejects.toThrow(/não é permitida/i);
     expect(projetos).not.toHaveProperty("criarProjeto");
     expect(regs).not.toHaveProperty("criarRegularizacao");
     expect(regDocs).not.toHaveProperty("criarRegularizacao");

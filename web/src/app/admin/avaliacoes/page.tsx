@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
@@ -44,17 +42,9 @@ export default async function AvaliacoesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Avaliação de Imóveis</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{avaliacoes.length} laudo{avaliacoes.length !== 1 ? "s" : ""} · Laudos e pareceres de avaliação</p>
-        </div>
-        <Link
-          href="/admin/avaliacoes/nova"
-          className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors"
-        >
-          <Plus size={14} /> Nova Avaliação
-        </Link>
+      <div>
+        <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Avaliação de Imóveis</h1>
+        <p className="text-gray-400 text-sm mt-0.5">{avaliacoes.length} laudo{avaliacoes.length !== 1 ? "s" : ""} · Laudos e pareceres de avaliação</p>
       </div>
 
       {/* Pipeline */}
