@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { formatarPercentual, progressoDaObra } from "@/lib/financeiro/progresso";
 import { HardHat, LogOut } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -19,7 +20,7 @@ export default async function EmpreiteiroPage() {
   const obras = await prisma.obra.findMany({
     where: { empreiteiroId: user.id },
     orderBy: { criadoEm: "desc" },
-    select: { id: true, nome: true, endereco: true, progresso: true },
+    select: { id: true, nome: true, endereco: true, progresso: true, progressoMedido: true },
   });
   const cards = await Promise.all(
     obras.map(async (o) => {
@@ -61,7 +62,7 @@ export default async function EmpreiteiroPage() {
             <div key={o.id} className="bg-white border border-gray-100 p-5 space-y-2 text-sm">
               <h2 className="font-bold text-[var(--brand-dark)]">{o.nome}</h2>
               <p className="text-gray-400 text-xs">{o.endereco || "Endereço não informado"}</p>
-              <p><span className="text-gray-500">Andamento da obra:</span> {o.progresso}%</p>
+              <p><span className="text-gray-500">Andamento da obra:</span> {formatarPercentual(progressoDaObra(o.progressoMedido?.toString(), o.progresso))}</p>
               <p>
                 <span className="text-gray-500">Sua participação:</span>{" "}
                 {o.percentual ? `${Number(o.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 6 })}%` : "não definida"}

@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { progressoDaObra } from "@/lib/financeiro/progresso";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { ObrasClient } from "./_components/obras-client";
@@ -16,7 +17,7 @@ export default async function ObrasPage() {
   const obras = registros.map((o) => ({
     id: o.id, nome: o.nome, tipo: o.tipo, servicoLead: o.servicoLead, status: o.status,
     clienteNome: o.clienteNome, clienteTel: o.clienteTel, endereco: o.endereco, area: o.area,
-    valorTotal: o.valorTotal, valorPago: o.valorPago, progresso: o.progresso, engenheiroResp: o.engenheiroResp,
+    valorTotal: o.valorTotal, valorPago: o.valorPago, progresso: progressoDaObra(o.progressoMedido?.toString(), o.progresso), engenheiroResp: o.engenheiroResp,
     dataInicio: o.dataInicio, dataPrevisaoFim: o.dataPrevisaoFim, dataConclusao: o.dataConclusao, etapas: o.etapas,
     vgv: o.vgv == null ? null : Number(o.vgv),
   }));

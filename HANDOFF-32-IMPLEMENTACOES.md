@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — Lotes 0–3 PUBLICADOS. Inventário de feito × pendente em §7. Próximo: Lote 4.
+Última atualização: 12/10/2026 — Lotes 0–4 (Lote 4 em publicação). Inventário de feito × pendente em §7. Próximo: Lote 5.
 
 ---
 
@@ -243,15 +243,33 @@ calculado alterado via API, arredondamento, operações simultâneas.
 | 1 CRM/Obras | ✅ Publicado (12/10/2026) | Prospecta PR #95 → `b29b1d8`, deploy produção `dpl_8qH69ArX1GWKj1EvPw7Ducr9NB4D` READY · Santa Fé PR #164 → `6f9a98f`, deploy produção `dpl_CdJLxNtgoAp8bQHuT3Kbkk57QKYy` READY (o deploy automático falhou com `git_info_fail` da Vercel — erro de infraestrutura antes do build; resolvido com redeploy) · migrations aplicadas em produção antes do merge · testes 584/584 e 456/456 · **pendente: validação manual em navegador** (o ambiente do agente não acessa os domínios) |
 | 2 Motor financeiro | ✅ Publicado (12/10/2026) | Prospecta PR #97 → `c348177`, deploy produção `dpl_3coJmPq2bfYWVsiw2MZ268e1ZZuZ` READY · Santa Fé PR #166 → `8effca9`, deploy produção `dpl_2RKZUD1a9vGrBxiMc5mFHjZHMjhj` READY · Motor único `shared/financeiro/obra.ts` (Prospecta) ≡ `web/src/lib/financeiro/obra.ts` (Santa Fé), centavos + HALF_UP, testes A–F · migrations aplicadas em produção em 12/10: Prospecta `0035_lote2_motor_financeiro` (Neon) e Santa Fé `20261012140000_lote2_motor_financeiro` (Supabase; triggers aplicados via `apply_migration` porque `execute_sql` trava com `$$`) · garantias verificadas em produção com rollback (DELETE bloqueado, histórico gravado) · Prospecta obra 35 migrada: VGV 170.000, entrada 6.000, CEF 102.817,42, gastos 57.795 (movimentos `migracao`) · testes Prospecta 613/613, Santa Fé 492/492 · E2E em navegador no Santa Fé com Postgres local (Teste A: 21.766/15.766; lucro 43.000; empreiteiro 30% = 12.900; empresa 30.100; BPO esgotado sai da lista; empreiteiro só vê as próprias obras) · **Prospecta sem teste em navegador** (o ambiente não alcança o Neon) |
 | 3 Comissões | ✅ Publicado (12/10/2026) | Prospecta PR #100 → `8156616`, deploy `dpl_8Wt96UfR1PTpj7SbwWk3Y5hgDzoQ` READY · Santa Fé PR #169 → `bb099d6`, deploy `dpl_AL6TPm9vDwzKJyfMLJG2CZgBj1Ln` READY · correções da revisão automática (percentual com ponto, comissão sem regra não reaproveita valor, erro no cadastro do corretor, reconciliação na tela) em PR seguinte · Motor `shared/financeiro/comissao.ts` ≡ `web/src/lib/financeiro/comissao.ts` (Teste G 11.500,00 ✅) · migrations em produção em 12/10: Prospecta `0039_lote3_comissoes` (Neon) e Santa Fé `20261012150000_lote3_comissoes` (Supabase, inclui **RLS nas tabelas do Lote 2 que tinham ficado sem**) · testes Prospecta 634/634, Santa Fé 512/512 · E2E navegador Santa Fé (padrão do corretor 5% → 7.900; 3% da obra → 4.740; pagamento 1.000 → parcial, saldo 3.740) · investigação Chaleilson: `docs/stories/epics/epic-020-32-implementacoes-paridade/RELATORIO-LOTE3-COMISSOES.md` (só na Prospecta) · **Prospecta sem teste em navegador** |
-| 4 Progresso/Fotos/PDF | ⏳ Não iniciado | — |
+| 4 Progresso/Fotos/PDF | ✅ Implementado (12/10/2026) — merge/deploy registrados abaixo | Motor `shared/financeiro/progresso.ts` ≡ `web/src/lib/financeiro/progresso.ts` (20 serviços, BigInt + HALF_UP, **Teste E = 28,20%** ✅); fotos no próprio banco (Prospecta `construction_photo_files`, Santa Fé `arquivos` + `obra_fotos`), servidas por rota autenticada (`/api/obra-foto/:id` · `/api/obras/fotos/:id`) só para admin ou cliente da obra; relatório PDF por `shared/relatorio-obra.ts` ≡ `web/src/lib/obras/relatorio.ts` com teste de completude · migrations: Prospecta `0040_lote4_progresso_fotos` (validada no branch Neon `teste-migrations-0024-0026`), Santa Fé `20261012170000_lote4_progresso_fotos` (com RLS) · testes Prospecta 663/663, Santa Fé 539/539 · E2E navegador Santa Fé: Teste E na tela, persistido, detalhe/lista 28,20%; soma 101% bloqueia; PNG de 16,5 MB comprimido e gravado; HEIC não decodificável → erro claro, sem travar; foto sem sessão → 401; PDF de 10 páginas com capa/sumário/rodapé "Página X de Y", logo do Grupo Santa Fé e nenhuma menção à Prospecta · **Prospecta sem teste em navegador** (Neon inacessível do ambiente) |
 | 5 Incorporação | ⏳ Não iniciado | — |
 | 6 Regularização | ⏳ Não iniciado | — |
 | 7 Auditoria final | ⏳ Não iniciado | relatório A–K + matriz de 32 linhas |
 
 ### Próximo passo exato
-1. **Iniciar o Lote 4 (itens 27, 28, 29 — Progresso por incidência, Fotos e Relatório PDF)** seguindo §6.
-   Teste E (Progresso) = 28,20% com as 20 incidências oficiais da Implementação 27 (texto completo no
-   prompt mestre; buscar "IMPLEMENTAÇÃO 27" no histórico ou pedir ao dono).
+1. Conferir merge + deploy READY do Lote 4 (se faltar, aplicar as migrations 0040 / 20261012170000 em
+   produção antes do merge e seguir §6).
+2. **Iniciar o Lote 5 (itens 01–04, Incorporação)**. Antes: checar PRs `codex/*` abertos (o Codex trabalha
+   em estudos de incorporação) e não duplicar nem sobrescrever.
+
+### Decisões do Lote 4 (não reabrir)
+- Progresso Geral nunca é digitado: soma de Incidência × Execução dos 20 serviços (incidências iniciais da
+  Implementação 27, editáveis por obra, até 4 casas). Soma > 100% bloqueia salvar; < 100% só avisa.
+  Cada medição salva grava histórico. O inteiro antigo (`progress`/`progresso`) segue arredondado para
+  telas antigas; as telas mostram o medido com 2 casas (`progressoDaObra`).
+- Causa do "Enviando..." eterno (Prospecta): erro dentro do callback do FileReader fora do try/catch +
+  storage externo (Forge) nunca configurado — **nenhuma foto jamais foi gravada em produção**. Agora o
+  navegador reduz a foto (≤1920 px, JPEG ≤2,5 MB; respeita o limite de 4,5 MB da Vercel; HEIC abre no
+  Safari) e o servidor valida a assinatura real do arquivo (JPG/PNG/WEBP ≤3 MB). Envio com tempo-limite.
+- Ver fotos: admin ou cliente da obra. Enviar/editar/excluir: só admin. `uploadPhoto`/`deletePhoto`
+  antigos da Prospecta removidos (aceitavam URL arbitrária; o delete nunca achava a foto).
+- Relatório: conteúdo montado por função pura com teste de completude (falha se faltar campo
+  obrigatório); ausente = "Não informado", indicador sem dados = motivo; gráficos só com dados.
+  "Engenheiro responsável" aparece só no Santa Fé (campo que só existe lá).
+- Outros usos do storage externo na Prospecta (`storagePut`: regularização, jurídico, portal) não foram
+  alterados neste lote — registrado como D-06.
 
 ### Trabalho paralelo do Codex (não é escopo deste épico)
 O Codex trabalha em paralelo em outras frentes (estudos de incorporação, metadados MCMV/CEF). Em 12/10
@@ -344,15 +362,15 @@ erro de código. Refazer pela API/MCP da Vercel com `create_deployment` usando `
 | 1 | 05, 06, 07, 08, 09, 15, 16*, 24 | Temperatura do lead separada da etapa; status de obra unificado (causa raiz do `invalid_value`); tipo de projeto vindo do CRM; "Contrato Grupo Santa Fé (CEF)"; botões superiores removidos; corretor automático pelo lead (somente leitura, "Corretor Pago?" removido). *16 no Santa Fé nasceu no Lote 2 |
 | 2 | 10–14, 16, 17–23, 25, 26 | Motor financeiro único (centavos, HALF_UP, ausente ≠ zero) igual nos dois; abas Valores da Operação e Custos; histórico de entradas/CEF/pagamentos (manual ou BPO, cancelar/reativar, nunca apagar, alocação do BPO limitada no banco); investidores (soma ≤ 100%); papel Empreiteiro com acesso só às próprias obras; Pró-Soluto/HP 12C; Dias de Obra; PLS Real; JSON antigo da Prospecta migrado (obra 35) |
 | 3 | 32 | Comissão = VGV × % (regra da obra ou padrão do corretor, nunca inventada); seção automática "Comissões de obras" em Comissões; pagamentos pela categoria "comissão"; investigação Chaleilson documentada; correções da revisão automática (PR #101/#170); RLS nas tabelas financeiras do Santa Fé |
+| 4 | 27, 28, 29 | Progresso por incidência (Teste E 28,20%) com histórico; fotos no próprio banco (várias por envio, progresso, legenda, abrir, "no relatório", excluir; nunca trava em "Enviando"); relatório executivo PDF multipágina com logo de cada empresa |
 
-Testes automáticos atuais: Prospecta 639/639 · Santa Fé 517/517 (inclui testes de referência A, B, C, D, F, G).
+Testes automáticos atuais: Prospecta 663/663 · Santa Fé 539/539 (inclui testes de referência A–G).
 
 ### 7.2 Falta implementar (lotes restantes)
 
 | Lote | Itens | Observação |
 |---|---|---|
-| 4 | 27 Progresso por incidência (Teste E = 28,20%), 28 Fotos, 29 Relatório PDF | Próximo |
-| 5 | 01–04 Incorporação | **Atenção:** o Codex está trabalhando em incorporação/estudos (PRs #99/#168). Checar PRs `codex/*` abertos antes de começar e não duplicar nem sobrescrever |
+| 5 | 01–04 Incorporação | **Próximo. Atenção:** o Codex está trabalhando em incorporação/estudos (PRs #99/#168). Checar PRs `codex/*` abertos antes de começar e não duplicar nem sobrescrever |
 | 6 | 30, 31 Regularização | Tabelas `regularizacoes` órfãs conhecidas na Prospecta (migrations 0019/0027/0028) |
 | 7 | Auditoria final | Relatório A–K, matriz de 32 linhas, Teste H (isolamento) formal |
 
@@ -375,6 +393,8 @@ Testes automáticos atuais: Prospecta 639/639 · Santa Fé 517/517 (inclui teste
 |---|---|
 | V-01 | Prospecta: validar em navegador (produção) as telas dos Lotes 1, 2 e 3 — edição de obra (Valores da Operação, Custos, histórico, BPO, investidores), portal `/empreiteiro`, cadastro de corretor (comissão padrão) e Comissões. Só testes automáticos foram possíveis |
 | V-02 | Santa Fé: os fluxos foram testados em navegador com banco local; falta conferência em produção pelo proprietário |
+| V-03 | Lote 4 (dois sistemas): enviar fotos reais pelo **iPhone/Safari** (HEIC) e gerar o PDF de uma obra real em produção. Prospecta: primeira validação em navegador de Progresso/Fotos/Relatório |
+| V-04 | Santa Fé: o portal do cliente ainda não mostra obras/fotos (a Prospecta mostra). Lacuna de paridade anterior ao Lote 4 — avaliar no Lote 7 |
 
 ### 7.5 Configuração / infraestrutura
 
@@ -392,4 +412,5 @@ Testes automáticos atuais: Prospecta 639/639 · Santa Fé 517/517 (inclui teste
 | ✅ D-02 | Resolvido 12/10: sugestão de **5% editável** nos dois (Santa Fé: default da coluna também 5). Antes: formulário de comissão **manual** vinha com 6% pré-preenchido (Prospecta e Santa Fé, `Comissao.percentual @default(6)`). As automáticas nunca inventam percentual; avaliar remover o 6% sugerido |
 | D-03 | **Autorizado; executar no Lote 7** (toca relatórios/exportação/testes — fazer junto da regressão completa). Verificado 12/10: 0 registros, nenhuma FK, e as colunas antigas de Custos nunca existiram no banco. Tabela legada `broker_commissions` e colunas antigas de Custos — remover na auditoria final após confirmação |
 | D-04 | Prospecta: coluna `broker_payment_settled` (criada pelo Codex no #99) preserva o antigo "Corretor Pago?"; o pagamento oficial agora vem do financeiro (item 24) — não reexibir na tela |
+| D-06 | Prospecta: regularização, jurídico e portal ainda usam o storage externo (`server/storage.ts`, Forge), que não está configurado em produção. Migrar para armazenamento no banco (como fotos no Lote 4) — avaliar no Lote 6 (regularização) e no Lote 7 |
 | ✅ D-05 | Resolvido 12/10: Santa Fé desvia o empreiteiro no proxy antes de renderizar o painel; Prospecta manda o empreiteiro para `/empreiteiro` (antes ia para a home). Antes: log "Não autorizado." quando um empreiteiro abre uma URL de `/admin` (é redirecionado corretamente; só ruído de log) |
