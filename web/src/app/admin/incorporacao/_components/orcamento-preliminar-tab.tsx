@@ -11,6 +11,7 @@ import {
 import { calcularOrcamentoParametrizado, type PremissasOrcamentoParametrizado } from "@/lib/orcamento/parametrizado";
 import { salvarOrcamentoPreliminar } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Orçamento Preliminar e EVE (3.5 Incorporação e Produto) — orçamento de
@@ -133,7 +134,7 @@ export function OrcamentoPreliminarTab({ estudo }: { estudo: EstudoData }) {
                       {CATEGORIAS_ORCAMENTO_PRELIMINAR.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><input type="number" value={item.valorOrcado || ""} onChange={(e) => upd(item.id, "valorOrcado", parseFloat(e.target.value) || 0)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={item.valorOrcado} onValueChange={(v) => upd(item.id, "valorOrcado", v)} className={numCls} /></td>
                   <td className="px-1 py-1"><input value={item.observacoes ?? ""} onChange={(e) => upd(item.id, "observacoes", e.target.value)} className={inputCls} placeholder="Observações" /></td>
                   <td className="px-1 py-1">
                     <button type="button" onClick={() => removerItem(item.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>

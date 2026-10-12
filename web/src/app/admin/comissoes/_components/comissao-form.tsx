@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Calculator } from "lucide-react";
 import { criarComissao, editarComissao } from "@/lib/actions/comissoes";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { PercentInput } from "@/components/ui/percent-input";
 import { formatCurrency, maskCurrency, currencyToFloat } from "@/lib/utils";
 import {
   TIPOS_COMISSAO,
@@ -71,7 +72,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
     negocioInicial?.id ?? (comissao && tipoInicial !== "extra" && comissao.imovel ? LEGADO : ""),
   );
   const [descricaoExtra, setDescricaoExtra] = useState(tipoInicial === "extra" ? comissao?.imovel ?? "" : "");
-  const [percentual, setPercentual] = useState(String(comissao?.percentual ?? 6));
+  const [percentual, setPercentual] = useState(comissao?.percentual ?? 6);
   const [valorDisplay, setValorDisplay] = useState(valorParaDisplay(comissao?.valor));
 
   const tipoComissaoOpcoes = TIPOS_COMISSAO.filter(
@@ -97,12 +98,12 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
         ? comissao?.negocioId ?? ""
         : negocio?.id ?? "";
 
-  const valorSugerido = calcularValorComissao(negocio?.valorBase, parseFloat(percentual));
+  const valorSugerido = calcularValorComissao(negocio?.valorBase, percentual);
 
   // Valor = percentual × valor do negócio vinculado; recalculado quando o
   // negócio ou o percentual mudam, e continua editável à mão depois.
-  function recalcular(item: NegocioItem | null, pct: string) {
-    const v = calcularValorComissao(item?.valorBase, parseFloat(pct));
+  function recalcular(item: NegocioItem | null, pct: number) {
+    const v = calcularValorComissao(item?.valorBase, pct);
     if (v != null) setValorDisplay(valorParaDisplay(v));
   }
 
@@ -126,7 +127,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
     recalcular(itens.find((i) => i.id === id) ?? null, percentual);
   }
 
-  function handlePercentualChange(pct: string) {
+  function handlePercentualChange(pct: number) {
     setPercentual(pct);
     recalcular(negocio, pct);
   }
@@ -234,8 +235,8 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Percentual (%)</label>
-              <input type="number" name="percentual" step="0.01" min="0" max="100" placeholder="6"
-                value={percentual} onChange={(e) => handlePercentualChange(e.target.value)}
+              <PercentInput name="percentual" placeholder="6"
+                value={percentual} onValueChange={handlePercentualChange}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
 

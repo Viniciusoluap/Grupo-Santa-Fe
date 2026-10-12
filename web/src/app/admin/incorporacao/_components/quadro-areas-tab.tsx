@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import { Plus, Trash2, Save, Loader2, CheckCircle2, LayoutGrid, AlertTriangle } from "lucide-react";
 import { calcularQuadroAreas, type ItemQuadroAreas } from "@/lib/urbanismo/quadro-areas";
 import { salvarQuadroAreas } from "@/lib/actions/incorporacao";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
+import { parseNumeroBR } from "@/lib/utils";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Quadro de Áreas (padrão NBR 12721) — etapas 2.3 (Estudo de Massa e Quadro
@@ -66,8 +68,8 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
 
   function marcarAlterado() { setSalvo(false); }
 
-  function updCoeficiente(valor: string) {
-    setDados((d) => ({ ...d, coeficienteAproveitamento: parseFloat(valor) || 0 }));
+  function updCoeficiente(valor: number) {
+    setDados((d) => ({ ...d, coeficienteAproveitamento: valor }));
     marcarAlterado();
   }
   function addItem() {
@@ -81,10 +83,10 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
     setDados((d) => ({ ...d, itens: d.itens.filter((_, j) => j !== i) }));
     marcarAlterado();
   }
-  function updItem(i: number, campo: keyof ItemQuadroAreas, valor: string) {
+  function updItem(i: number, campo: keyof ItemQuadroAreas, valor: string | number) {
     setDados((d) => {
       const itens = [...d.itens];
-      itens[i] = { ...itens[i], [campo]: campo === "pavimento" ? valor : (parseFloat(valor) || 0) };
+      itens[i] = { ...itens[i], [campo]: campo === "pavimento" ? valor : (typeof valor === "number" ? valor : parseNumeroBR(valor)) };
       return { ...d, itens };
     });
     marcarAlterado();
@@ -132,7 +134,7 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
           </div>
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Coeficiente de aproveitamento (CA)</label>
-            <input type="number" step={0.05} value={dados.coeficienteAproveitamento} onChange={(e) => updCoeficiente(e.target.value)} className={inputCls} />
+            <NumeroBRField value={dados.coeficienteAproveitamento} onValueChange={updCoeficiente} decimals={4} className={inputCls} />
           </div>
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Área computável máxima</label>
@@ -157,7 +159,7 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
                   <td className="px-1 py-1"><input value={it.pavimento} onChange={(e) => updItem(i, "pavimento", e.target.value)} className={inputCls} placeholder="Ex.: Torre A" /></td>
                   {COLS.map((c) => (
                     <td key={c.campo} className="px-1 py-1">
-                      <input type="number" value={it[c.campo] as number || ""} onChange={(e) => updItem(i, c.campo, e.target.value)} className={numCls} />
+                      <NumeroBRField value={it[c.campo] as number} onValueChange={(v) => updItem(i, c.campo, v)} className={numCls} />
                     </td>
                   ))}
                   <td className="px-1 py-1">

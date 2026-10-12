@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-function toDisplay(centavos: string): string {
-  const digits = centavos.replace(/\D/g, "");
-  if (!digits || digits === "0") return "";
-  const num = parseInt(digits, 10) / 100;
-  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { maskCurrency, currencyToFloat } from "@/lib/utils";
 
 interface PrecoInputProps {
   name: string;
@@ -16,18 +10,14 @@ interface PrecoInputProps {
 }
 
 export function PrecoInput({ name, defaultValue, required }: PrecoInputProps) {
-  const [display, setDisplay] = useState(() => {
-    if (!defaultValue) return "";
-    const num = defaultValue;
-    return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  });
+  const [display, setDisplay] = useState(() =>
+    defaultValue ? maskCurrency(String(Math.round(defaultValue * 100))) : ""
+  );
 
-  const rawValue = display
-    ? parseFloat(display.replace(/\./g, "").replace(",", "."))
-    : "";
+  const rawValue = display ? currencyToFloat(display) : "";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDisplay(toDisplay(e.target.value));
+    setDisplay(maskCurrency(e.target.value));
   };
 
   return (

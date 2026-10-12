@@ -171,3 +171,8 @@ manter explícita a limitação de concorrência do multiplexador.
   em produção. Registrar snapshot e migração no Supabase.
 - PR #158 permanece em rascunho até snapshot e migração passarem em produção.
   Merge e deploy foram autorizados pelo proprietário nesta sessão.
+- Após a revisão, a `main` recebeu também o PR #162. A integração mantém
+  campos brasileiros de moeda e percentual nos formulários ativos. O Agregador,
+  seus testes exclusivos e cadastros avulsos continuam removidos por escopo.
+  Com esta base, 444 testes em 47 arquivos, lint, TypeScript e build passaram;
+  o fluxo completo de navegador com PostgreSQL nativo passou novamente.

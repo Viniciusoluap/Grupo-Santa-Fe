@@ -14,6 +14,8 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { criarCobranca, pagarLancamento } from "@/lib/actions/bpo";
 import { criarContaBancaria, excluirContaBancaria, atualizarStatusTransacao } from "@/lib/actions/banco";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
 
 export interface LancamentoComCliente {
@@ -993,7 +995,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
-                    <input name="valor" type="number" step="0.01" min="0" required
+                    <CurrencyInput name="valor" required
                       className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                   </div>
                   <div>
@@ -1082,7 +1084,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
-                    <input name="valor" type="number" step="0.01" min="0" required
+                    <CurrencyInput name="valor" required
                       className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                   </div>
                   <div>
@@ -1154,7 +1156,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Saldo atual (R$)</label>
-                <input name="saldoAtual" type="number" step="0.01" defaultValue="0"
+                <CurrencyInput name="saldoAtual" defaultValue={0}
                   className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
 
@@ -1223,7 +1225,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Alíquota ISS (%)</label>
-                <input type="number" step="0.01" placeholder="2.00" className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]" />
+                <PercentInput placeholder="2,00" className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição Padrão do Serviço</label>

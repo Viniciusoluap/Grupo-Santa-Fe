@@ -5,6 +5,7 @@ import Link from "next/link";
 import { criarLead } from "@/lib/actions/leads";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const SERVICOS = SERVICOS_LEAD;
 
@@ -87,16 +88,11 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Budget</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">R$</span>
-            <input
-              type="number"
-              name="orcamento"
-              placeholder="0"
-              className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
-            />
-          </div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Budget</label>
+          <CurrencyInput
+            name="orcamento"
+            className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
+          />
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Origem</label>

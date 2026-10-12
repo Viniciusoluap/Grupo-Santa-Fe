@@ -9,6 +9,7 @@ import { editarFinanciamento } from "@/lib/actions/financiamentos";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { PercentInput } from "@/components/ui/percent-input";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -119,7 +120,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Taxa de Juros (% a.a.) *</label>
-                <input name="taxa" type="number" step="0.01" required defaultValue={f.taxa ?? ""}
+                <PercentInput name="taxa" required defaultValue={f.taxa}
                   className="w-full px-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
