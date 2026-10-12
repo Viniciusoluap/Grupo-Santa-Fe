@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { TerrenoTab } from "./terreno-tab";
 import { TopografiaTab } from "./topografia-tab";
@@ -322,6 +322,14 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
   const [relatorioAtivo, setRelatorioAtivo] = useState(false);
   const [visitados, setVisitados] = useState<string[]>(["terreno"]);
   const [alterado, setAlterado] = useState(false);
+  // Marca "há alterações" depois do evento de digitação: atualizar o estado do
+  // pai durante a fase de captura fazia a primeira tecla de cada campo se perder.
+  const alteradoRef = useRef(false);
+  const marcarAlterado = () => {
+    if (alteradoRef.current) return;
+    alteradoRef.current = true;
+    setTimeout(() => setAlterado(true), 0);
+  };
   const temTerreno = !!estudo.geojson;
 
   const progresso = useMemo(() => calcularProgresso(estudo), [estudo]);
@@ -393,7 +401,7 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
         </button>}
       </nav>
       {alterado && <p role="status" className="text-xs text-amber-800 mt-3">Há alterações nesta sessão. Salve antes de sair da página.</p>}
-      <div className="pt-5" onInputCapture={() => setAlterado(true)} onChangeCapture={() => setAlterado(true)}>
+      <div className="pt-5" onInputCapture={marcarAlterado} onChangeCapture={marcarAlterado}>
         <div hidden={relatorioAtivo || etapaId !== "dados"} className="bg-white border border-gray-100 p-4 text-sm">
           <h2 className="font-bold text-[var(--brand-dark)] mb-2">Dados Gerais</h2>
           <p>{estudo.nome} · {estudo.municipio}/{estudo.estado}</p>

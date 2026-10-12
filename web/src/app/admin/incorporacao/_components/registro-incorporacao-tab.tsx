@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { Save, Loader2, CheckCircle2, FileCheck2, Upload, ExternalLink, Unlink } from "lucide-react";
 import {
   resumoRegistro,
@@ -51,14 +52,14 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
   });
   const [pending, startTransition] = useTransition();
   const [salvo, setSalvo] = useState(false);
-  const [arquivos, setArquivos] = useState<Awaited<ReturnType<typeof listarDocumentosRegistro>>["documentos"]>([]);
+  const [arquivos, setArquivos] = useState<Exclude<Awaited<ReturnType<typeof listarDocumentosRegistro>>, ErroAcao>["documentos"]>([]);
   const [driveAtivo, setDriveAtivo] = useState(false);
   const [arquivoPendente, setArquivoPendente] = useState<string | null>(null);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    listarDocumentosRegistro(estudo.id).then((resultado) => {
+    listarDocumentosRegistro(estudo.id).then((resposta) => { const resultado = exigirResultado(resposta);
       if (mounted) { setArquivos(resultado.documentos); setDriveAtivo(resultado.configurado); }
     }).catch(() => { if (mounted) setErroArquivo("Não foi possível consultar os documentos."); });
     return () => { mounted = false; };
@@ -69,7 +70,7 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
     setArquivoPendente(itemId);
     setErroArquivo(null);
     try {
-      const resultado = await enviarDocumentoRegistro(estudo.id, itemId, arquivo);
+      const resultado = exigirResultado(await enviarDocumentoRegistro(estudo.id, itemId, arquivo));
       setArquivos(resultado.documentos);
     } catch (error) {
       setErroArquivo(error instanceof Error ? error.message : "Falha no envio do documento.");
@@ -81,7 +82,7 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
     setArquivoPendente(itemId);
     setErroArquivo(null);
     try {
-      const resultado = await desvincularDocumentoRegistro(estudo.id, itemId, documentoId);
+      const resultado = exigirResultado(await desvincularDocumentoRegistro(estudo.id, itemId, documentoId));
       setArquivos(resultado.documentos);
     } catch (error) {
       setErroArquivo(error instanceof Error ? error.message : "Falha ao desvincular o documento.");

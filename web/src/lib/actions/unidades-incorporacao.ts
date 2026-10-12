@@ -1,5 +1,6 @@
 "use server";
 
+import { capturarErroAcao } from "@/lib/acao-resultado";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
@@ -19,7 +20,7 @@ function validarEstudo(estudo: { tipoIncorporacao: string | null; lancamentoImob
   return estudo;
 }
 
-export async function listarUnidades(estudoId: string) {
+async function listarUnidadesImpl(estudoId: string) {
   await admin();
   const estudo = validarEstudo(await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { tipoIncorporacao: true, lancamentoImobiliarioJson: true } }));
   const [unidades, eventos] = await Promise.all([
@@ -32,19 +33,21 @@ export async function listarUnidades(estudoId: string) {
     legacyPending: legacy.vendas.filter((v) => !ids.has(v.id)), legacyInvalid: legacy.invalido };
 }
 
-export async function criarUnidade(estudoId: string, codigo: string, tipo: string) {
+async function criarUnidadeImpl(estudoId: string, codigo: string, tipo: string) {
   const usuarioId = await admin();
   const code = codigo.trim(); const kind = tipo.trim(); const key = chaveUnidade(code);
   if (!code || !kind || code.length > 120 || key.length > 120 || kind.length > 40) throw new Error("Código ou tipo inválido.");
   await prisma.$transaction(async (tx) => {
     validarEstudo(await tx.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { tipoIncorporacao: true, lancamentoImobiliarioJson: true } }));
+    const duplicada = await tx.estudoUnidade.findUnique({ where: { estudoId_codigoChave: { estudoId, codigoChave: key } }, select: { id: true } });
+    if (duplicada) throw new Error(`Já existe uma unidade com o código "${code}" neste estudo.`);
     const unit = await tx.estudoUnidade.create({ data: { estudoId, codigo: code, codigoChave: key, tipo: kind } });
     await tx.estudoUnidadeEvento.create({ data: { unidadeId: unit.id, statusNovo: "disponivel", usuarioId } });
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
 }
 
-export async function mudarEstadoUnidade(estudoId: string, unidadeId: string, acao: "reservar" | "vender" | "liberar", comprador?: string, valor?: string) {
+async function mudarEstadoUnidadeImpl(estudoId: string, unidadeId: string, acao: "reservar" | "vender" | "liberar", comprador?: string, valor?: string) {
   const usuarioId = await admin();
   const buyer = comprador?.trim() || null;
   if (acao === "vender" && (!buyer || !valor || !/^\d{1,13}(\.\d{1,2})?$/.test(valor) || Number(valor) <= 0)) throw new Error("Comprador e valor válido são obrigatórios.");
@@ -71,7 +74,7 @@ export async function mudarEstadoUnidade(estudoId: string, unidadeId: string, ac
   revalidatePath(`/admin/incorporacao/${estudoId}`);
 }
 
-export async function conciliarVendaLegada(estudoId: string, vendaId: string, tipo: string) {
+async function conciliarVendaLegadaImpl(estudoId: string, vendaId: string, tipo: string) {
   const usuarioId = await admin();
   const kind = tipo.trim(); if (!kind || kind.length > 40) throw new Error("Tipo inválido.");
   await prisma.$transaction(async (tx) => {
@@ -90,4 +93,20 @@ export async function conciliarVendaLegada(estudoId: string, vendaId: string, ti
       comprador: sale.comprador, valorVenda: sale.valorVenda.toFixed(2), vendaLegadaId: sale.id, usuarioId } });
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
+}
+
+export async function listarUnidades(estudoId: string) {
+  return capturarErroAcao(() => listarUnidadesImpl(estudoId));
+}
+
+export async function criarUnidade(estudoId: string, codigo: string, tipo: string) {
+  return capturarErroAcao(() => criarUnidadeImpl(estudoId, codigo, tipo));
+}
+
+export async function mudarEstadoUnidade(estudoId: string, unidadeId: string, acao: "reservar" | "vender" | "liberar", comprador?: string, valor?: string) {
+  return capturarErroAcao(() => mudarEstadoUnidadeImpl(estudoId, unidadeId, acao, comprador, valor));
+}
+
+export async function conciliarVendaLegada(estudoId: string, vendaId: string, tipo: string) {
+  return capturarErroAcao(() => conciliarVendaLegadaImpl(estudoId, vendaId, tipo));
 }

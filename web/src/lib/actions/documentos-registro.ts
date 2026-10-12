@@ -1,5 +1,6 @@
 "use server";
 
+import { capturarErroAcao } from "@/lib/acao-resultado";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
@@ -17,7 +18,7 @@ async function administrador() {
 
 const select = { id: true, itemId: true, nome: true, mime: true, tamanho: true, enviadoEm: true, enviadoPorId: true } as const;
 
-export async function listarDocumentosRegistro(estudoId: string) {
+async function listarDocumentosRegistroImpl(estudoId: string) {
   await administrador();
   if (!estudoId || estudoId.length > 100) throw new Error("Estudo inválido.");
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { id: true } });
@@ -26,7 +27,7 @@ export async function listarDocumentosRegistro(estudoId: string) {
   return { configurado: driveRegistroConfigurado(), documentos: documentos.map((doc) => ({ ...doc, enviadoEm: doc.enviadoEm.toISOString() })) };
 }
 
-export async function enviarDocumentoRegistro(estudoId: string, itemId: string, arquivo: File) {
+async function enviarDocumentoRegistroImpl(estudoId: string, itemId: string, arquivo: File) {
   const usuarioId = await administrador();
   if (!driveRegistroConfigurado()) throw new Error("Google Drive do Grupo Santa Fé não configurado.");
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { id: true, registroIncorporacaoJson: true, dueDiligenceJson: true } });
@@ -55,7 +56,7 @@ export async function enviarDocumentoRegistro(estudoId: string, itemId: string, 
   return listarDocumentosRegistro(estudoId);
 }
 
-export async function desvincularDocumentoRegistro(estudoId: string, itemId: string, documentoId: string) {
+async function desvincularDocumentoRegistroImpl(estudoId: string, itemId: string, documentoId: string) {
   const usuarioId = await administrador();
   await prisma.estudoDocumentoRegistro.updateMany({
     where: { id: documentoId, estudoId, itemId, ativo: true },
@@ -63,4 +64,16 @@ export async function desvincularDocumentoRegistro(estudoId: string, itemId: str
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
   return listarDocumentosRegistro(estudoId);
+}
+
+export async function listarDocumentosRegistro(estudoId: string) {
+  return capturarErroAcao(() => listarDocumentosRegistroImpl(estudoId));
+}
+
+export async function enviarDocumentoRegistro(estudoId: string, itemId: string, arquivo: File) {
+  return capturarErroAcao(() => enviarDocumentoRegistroImpl(estudoId, itemId, arquivo));
+}
+
+export async function desvincularDocumentoRegistro(estudoId: string, itemId: string, documentoId: string) {
+  return capturarErroAcao(() => desvincularDocumentoRegistroImpl(estudoId, itemId, documentoId));
 }

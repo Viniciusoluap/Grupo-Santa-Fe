@@ -1,12 +1,13 @@
 "use server";
 
+import { capturarErroAcao } from "@/lib/acao-resultado";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { dueDiligenceSchema, lerDueDiligence, type DueDiligence } from "@/lib/incorporacao/due-diligence";
 import { revalidatePath } from "next/cache";
 
-export async function salvarDueDiligence(estudoId: string, esperado: string | null, proximo: DueDiligence) {
+async function salvarDueDiligenceImpl(estudoId: string, esperado: string | null, proximo: DueDiligence) {
   const session = await auth();
   requireActionRole(session, "admin");
   if (!estudoId || estudoId.length > 100 || (esperado && esperado.length > 500_000))
@@ -23,4 +24,8 @@ export async function salvarDueDiligence(estudoId: string, esperado: string | nu
   if (result.count !== 1) throw new Error("O estudo foi alterado em outra sessão. Recarregue antes de salvar.");
   revalidatePath(`/admin/incorporacao/${estudoId}`);
   return json;
+}
+
+export async function salvarDueDiligence(estudoId: string, esperado: string | null, proximo: DueDiligence) {
+  return capturarErroAcao(() => salvarDueDiligenceImpl(estudoId, esperado, proximo));
 }
