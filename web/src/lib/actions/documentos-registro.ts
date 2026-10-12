@@ -29,8 +29,8 @@ export async function listarDocumentosRegistro(estudoId: string) {
 export async function enviarDocumentoRegistro(estudoId: string, itemId: string, arquivo: File) {
   const usuarioId = await administrador();
   if (!driveRegistroConfigurado()) throw new Error("Google Drive do Grupo Santa Fé não configurado.");
-  const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { id: true, registroIncorporacaoJson: true } });
-  if (!estudo || !itemRegistroValido(itemId, estudo.registroIncorporacaoJson)) throw new Error("Item do checklist inválido.");
+  const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { id: true, registroIncorporacaoJson: true, dueDiligenceJson: true } });
+  if (!estudo || !itemRegistroValido(itemId, estudo.registroIncorporacaoJson, estudo.dueDiligenceJson)) throw new Error("Item do checklist inválido.");
   if (!arquivo || typeof arquivo.arrayBuffer !== "function" || arquivo.size < 1 || arquivo.size > LIMITE_DOCUMENTO_REGISTRO)
     throw new Error("Selecione PDF ou imagem de até 3 MB.");
   const nome = arquivo.name.replace(/[\\/\x00-\x1f\x7f]/g, "_").trim().slice(0, 255);

@@ -33,6 +33,8 @@ export default async function EstudoDetailPage({
     municipio: estudo.municipio,
     estado: estudo.estado,
     status: estudo.status,
+    tipoIncorporacao: estudo.tipoIncorporacao,
+    dueDiligenceJson: estudo.dueDiligenceJson,
     responsavel: estudo.responsavel,
     versaoNumero: versoes[0]?.numero ?? null,
     colaboradores,

@@ -404,10 +404,11 @@ export async function salvarMaterialPublicitario(estudoId: string, dadosJson: st
 export async function salvarLancamentoImobiliario(estudoId: string, dadosJson: string) {
   const session = await auth();
   requireActionRole(session, "admin");
-  await prisma.estudoIncorporacao.update({
-    where: { id: estudoId },
+  const result = await prisma.estudoIncorporacao.updateMany({
+    where: { id: estudoId, OR: [{ tipoIncorporacao: null }, { tipoIncorporacao: { not: "desmembramento_simples" } }] },
     data: { lancamentoImobiliarioJson: dadosJson },
   });
+  if (!result.count) throw new Error("Use Unidades à Venda para registrar vendas do desmembramento.");
   revalidatePath(`/admin/incorporacao/${estudoId}`);
   return { ok: true };
 }

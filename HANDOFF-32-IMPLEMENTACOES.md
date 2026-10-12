@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — Lotes 0–4 publicados. Lote 5 em execução em branch isolada. Inventário de feito × pendente em §7.
+Última atualização: 12/10/2026 — Lotes 0–4 publicados. Lote 5 em execução em branch isolada. Inventário de feito × pendente em §7 e checkpoint recente no fim deste arquivo.
 
 ---
 
@@ -421,4 +421,13 @@ Testes automáticos atuais: Prospecta 663/663 · Santa Fé 539/539 (inclui teste
   antiga só preserva o histórico.
 - **C-03:** na Vercel → Project → Settings → Git: desconectar e reconectar o repositório e revisar/reinstalar
   as permissões do app GitHub da Vercel para os dois repositórios. Enquanto isso, o agente confere cada deploy.
+
+### 7.8 Checkpoint Lote 5 — 12/10/2026 (Grupo Santa Fé)
+
+- Branch isolada `codex/epic020-lote5-20261012`, PR rascunho #174. Nenhuma migration `20261012180000`–`20261012190000` aplicada; sem merge/deploy deste lote. `main` e produção continuam no Lote 4.
+- Itens 01 e 02 e a preparação do item 03 foram commitados anteriormente. Adaptador Drive usa `SANTA_FE_GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL`, `SANTA_FE_GOOGLE_DRIVE_PRIVATE_KEY` e `SANTA_FE_GOOGLE_DRIVE_ROOT_FOLDER_ID`; ausentes na Vercel produção. O proprietário adiou a configuração. Falta teste real; nunca copiar pasta raiz da Prospecta automaticamente.
+- Item 04 inclui `dueDiligenceJson` (migration `20261012184500_due_diligence`), editor de etapas reordenáveis, tarefas/documentos, progresso e anexos privados por ID, atualização CAS. Testes unitários Due Diligence e validação documental 4/4; TypeScript passou depois da geração Prisma.
+- Inventário de unidades em implementação: migration `20261012190000_unidades_incorporacao`, tabelas `estudo_unidades` e eventos, código único por estudo, criação/reserva/venda/liberação transacionais, conciliação explícita de vendas antigas com código exato e auditoria. `src/lib/incorporacao/unidades.ts`, `src/lib/actions/unidades-incorporacao.ts`, `src/app/admin/incorporacao/_components/unidades-tab.tsx`. Endpoint antigo `salvarLancamentoImobiliario` não aceita gravação em Desmembramento Simples. **Ainda requer revisão de concorrência e testes com banco isolado.**
+- Navegação de Desmembramento Simples filtra os módulos atuais para as 17 funções especificadas com acesso ao inventário. **Ainda requer validar ordem, contagem, responsividade e comportamento funcional.**
+- Próximo passo: concluir TypeScript/lint/testes, corrigir problemas encontrados, testar atomicidade em base isolada e fluxo autenticado. Fazer backup/pré-flight das migrations; configurar Drive do Santa Fé com pasta raiz própria, fazer upload/download real e smoke. Só então considerar merge/deploy. Não presumir que este checkpoint está pronto para produção.
 

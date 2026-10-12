@@ -24,6 +24,7 @@ import { OrcamentoObraTab } from "./orcamento-obra-tab";
 import { CronogramaObraTab } from "./cronograma-obra-tab";
 import { AtendimentoClientesTab } from "./atendimento-clientes-tab";
 import { RelatorioTab } from "./relatorio-tab";
+import { DueDiligenceTab } from "./due-diligence-tab";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
 import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
 import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-primaria";
@@ -39,6 +40,7 @@ import { projetosExecutivosTodosLiberadosDoJson } from "@/lib/incorporacao/proje
 import { orcamentoObraPreenchidoDoJson } from "@/lib/incorporacao/orcamento-obra";
 import { obraConcluidaDoJson } from "@/lib/incorporacao/cronograma-obra";
 import { atendimentoTodosConcluidosDoJson } from "@/lib/incorporacao/atendimento-clientes";
+import { UnidadesTab } from "./unidades-tab";
 
 export interface EstudoData {
   id: string;
@@ -46,6 +48,8 @@ export interface EstudoData {
   municipio: string;
   estado: string;
   status: string;
+  tipoIncorporacao?: string | null;
+  dueDiligenceJson?: string | null;
   responsavel: string | null;
   versaoNumero?: number | null;
   colaboradores?: { id: string; nome: string }[];
@@ -291,6 +295,15 @@ const MODULOS_ATIVOS = FASES.flatMap((fase) => fase.etapas
   .filter((etapa) => etapa.componente)
   .map((etapa) => ({ ...etapa, faseTitulo: fase.titulo })));
 
+const MODULOS_DESMEMBRAMENTO = [
+  ["terreno", "Terreno"], ["topografia", "Topografia"], ["mercado", "Inteligência de Mercado"],
+  ["massa", "Estudo de Massa Generativa"], ["orcamento-parametrizado", "Orçamento Parametrizado"],
+  ["negociacao-terreno", "Negociação do Terreno"], ["business-plan", "Business/Investidores"],
+  ["projeto-aprovado", "Projeto Aprovado"], ["unidades", "Unidades à Venda"],
+  ["planejamento-lancamento", "Planejamento do Lançamento"], ["contratacao-fornecedores", "Contratação de Fornecedores"],
+  ["material-publicitario", "Material Publicitário"], ["atendimento-clientes", "Atendimento aos Clientes"],
+] as const;
+
 /** Progresso por fase — auto-computado a partir do que já está preenchido no estudo (nunca manual). */
 function calcularProgresso(estudo: EstudoData) {
   const porFase = FASES.map((f) => {
@@ -349,9 +362,14 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
           className={`min-w-0 border px-3 py-3 text-left text-xs font-bold break-words ${!relatorioAtivo && etapaId === "dados" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "bg-white text-[var(--brand-dark)] hover:border-[var(--brand-yellow)]"}`}>
           Dados Gerais
         </button>
-        {MODULOS_ATIVOS.map((modulo) => {
+        {estudo.tipoIncorporacao === "desmembramento_simples" && <button type="button" onClick={() => { setEtapaId("diligencia"); setRelatorioAtivo(false); }}
+          aria-current={!relatorioAtivo && etapaId === "diligencia" ? "page" : undefined}
+          className={`min-w-0 border px-3 py-3 text-left text-xs font-bold break-words ${!relatorioAtivo && etapaId === "diligencia" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "bg-white text-[var(--brand-dark)] hover:border-[var(--brand-yellow)]"}`}>
+          Due Diligence
+        </button>}
+        {(estudo.tipoIncorporacao === "desmembramento_simples" ? MODULOS_DESMEMBRAMENTO.map(([id, titulo]) => ({ id, titulo, faseTitulo: "Desmembramento Simples" })) : MODULOS_ATIVOS).map((modulo) => {
           const ativo = !relatorioAtivo && etapaId === modulo.id;
-          const disabled = modulo.id !== "terreno" && !temTerreno;
+          const disabled = modulo.id !== "terreno" && modulo.id !== "unidades" && !temTerreno;
           return (
             <button key={modulo.id} type="button" disabled={disabled}
               onClick={() => { setEtapaId(modulo.id); setRelatorioAtivo(false); setVisitados((anteriores) => anteriores.includes(modulo.id) ? anteriores : [...anteriores, modulo.id]); }}
@@ -367,6 +385,12 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
           className={`min-w-0 border px-3 py-3 text-left text-xs font-bold ${relatorioAtivo ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : !temTerreno ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "bg-white text-[var(--brand-dark)] hover:border-[var(--brand-yellow)]"}`}>
           Relatório Executivo
         </button>
+        {estudo.tipoIncorporacao === "desmembramento_simples" && <button type="button" disabled={!temTerreno}
+          onClick={() => { setEtapaId("viabilidade"); setRelatorioAtivo(false); setVisitados((anteriores) => anteriores.includes("viabilidade") ? anteriores : [...anteriores, "viabilidade"]); }}
+          aria-current={!relatorioAtivo && etapaId === "viabilidade" ? "page" : undefined}
+          className={`min-w-0 border px-3 py-3 text-left text-xs font-bold ${!relatorioAtivo && etapaId === "viabilidade" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "bg-white text-[var(--brand-dark)]"}`}>
+          Viabilidade Econômica
+        </button>}
       </nav>
       {alterado && <p role="status" className="text-xs text-amber-800 mt-3">Há alterações nesta sessão. Salve antes de sair da página.</p>}
       <div className="pt-5" onInputCapture={() => setAlterado(true)} onChangeCapture={() => setAlterado(true)}>
@@ -376,7 +400,9 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
           <p>Responsável: {estudo.responsavel || "Não informado"}</p>
           <Link href={`/admin/incorporacao/${estudo.id}/editar`} className="inline-block mt-3 font-bold underline text-[var(--brand-dark)]">Editar dados gerais</Link>
         </div>
-        {MODULOS_ATIVOS.filter((modulo) => visitados.includes(modulo.id)).map((modulo) => {
+        {estudo.tipoIncorporacao === "desmembramento_simples" && <div hidden={relatorioAtivo || etapaId !== "diligencia"}><DueDiligenceTab estudoId={estudo.id} json={estudo.dueDiligenceJson ?? null} /></div>}
+        {estudo.tipoIncorporacao === "desmembramento_simples" && etapaId === "unidades" && <UnidadesTab estudoId={estudo.id} />}
+        {MODULOS_ATIVOS.filter((modulo) => visitados.includes(modulo.id) && (estudo.tipoIncorporacao !== "desmembramento_simples" || modulo.id === "viabilidade" || MODULOS_DESMEMBRAMENTO.some(([id]) => id === modulo.id))).map((modulo) => {
           const Componente = modulo.componente!;
           return <div key={modulo.id} hidden={relatorioAtivo || etapaId !== modulo.id}><Componente estudo={estudo} /></div>;
         })}

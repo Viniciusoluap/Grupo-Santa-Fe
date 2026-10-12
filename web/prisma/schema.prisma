@@ -601,6 +601,7 @@ model Usuario {
   corretor                   Corretor?
   leadsResponsavel           Lead[]           @relation("LeadResponsavel")
   atualizadoEm               DateTime         @updatedAt
+  eventosUnidadesIncorporacao EstudoUnidadeEvento[]
 
   @@map("usuarios")
 }
@@ -711,6 +712,8 @@ model EstudoIncorporacao {
   responsavel   String?
   status        String   @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
   tipoIncorporacao String? // legado NULL: não inferir tipo pelo nome ou pelo status
+  dueDiligenceJson String?
+  unidades      EstudoUnidade[]
   matriculaImovel String?
   carRegistro String?
   zoneamentoOficial String?
@@ -861,6 +864,42 @@ model EstudoDocumentoRegistro {
 
   @@index([estudoId, itemId, ativo])
   @@map("estudo_documentos_registro")
+}
+
+model EstudoUnidade {
+  id             String @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
+  codigo         String @db.VarChar(120)
+  codigoChave    String @db.VarChar(120)
+  tipo           String @db.VarChar(40)
+  status         String @default("disponivel") @db.VarChar(20)
+  comprador      String? @db.VarChar(255)
+  valorVenda     Decimal? @db.Decimal(15, 2)
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+  eventos        EstudoUnidadeEvento[]
+
+  @@unique([estudoId, codigoChave])
+  @@map("estudo_unidades")
+}
+
+model EstudoUnidadeEvento {
+  id             String @id @default(cuid())
+  unidadeId      String
+  unidade        EstudoUnidade @relation(fields: [unidadeId], references: [id], onDelete: Restrict)
+  statusAnterior String? @db.VarChar(20)
+  statusNovo     String @db.VarChar(20)
+  comprador      String? @db.VarChar(255)
+  valorVenda     Decimal? @db.Decimal(15, 2)
+  vendaLegadaId  String? @db.VarChar(120)
+  usuarioId      String
+  usuario        Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  criadoEm       DateTime @default(now())
+
+  @@index([unidadeId, criadoEm])
+  @@unique([unidadeId, vendaLegadaId])
+  @@map("estudo_unidades_eventos")
 }
 
 // ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────

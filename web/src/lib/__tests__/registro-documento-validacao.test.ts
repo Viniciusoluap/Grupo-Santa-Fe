@@ -9,6 +9,12 @@ describe("anexos privados do registro", () => {
     expect(itemRegistroValido("etapa_124", json)).toBe(false);
     expect(itemRegistroValido("../etapa_123", json)).toBe(false);
     expect(itemRegistroValido("padrao-9999", null)).toBe(false);
+    const due = JSON.stringify({ versao: 1, etapas: [{
+      id: "b49cc8b0-a080-4bd7-9406-4b7fb9ef4651", nome: "Cartório", procedimentos: "", observacoes: "", tarefas: [],
+      documentos: [{ id: "e6717244-650e-4515-9803-f9620ec17752", nome: "Matrícula", obtido: false }],
+    }] });
+    expect(itemRegistroValido("dd_b49cc8b0-a080-4bd7-9406-4b7fb9ef4651_e6717244-650e-4515-9803-f9620ec17752", null, due)).toBe(true);
+    expect(itemRegistroValido("dd_b49cc8b0-a080-4bd7-9406-4b7fb9ef4651_d1a3195e-a061-4d4f-8b93-b3000c460480", null, due)).toBe(false);
   });
 
   it("verifica assinatura real, sem confiar no nome ou Content-Type", () => {
