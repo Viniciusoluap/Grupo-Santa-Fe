@@ -776,6 +776,7 @@ model EstudoIncorporacao {
 
   // Registro da Incorporação (3.4 Incorporação e Produto)
   registroIncorporacaoJson String?
+  documentosRegistro EstudoDocumentoRegistro[]
 
   // Orçamento Preliminar e EVE (3.5 Incorporação e Produto)
   orcamentoPreliminarJson String?
@@ -837,6 +838,28 @@ model EstudoIncorporacaoVersao {
   @@unique([estudoId, numero])
   @@index([estudoId, criadoEm])
   @@map("estudos_incorporacao_versoes")
+}
+
+// Referências privadas ao Google Drive; versões substituídas/desvinculadas
+// permanecem na trilha de auditoria sem publicar ou apagar o arquivo remoto.
+model EstudoDocumentoRegistro {
+  id             String   @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  itemId         String   @db.VarChar(80)
+  driveFileId    String   @unique
+  nome           String   @db.VarChar(255)
+  mime           String   @db.VarChar(100)
+  tamanho        Int
+  sha256         String   @db.VarChar(64)
+  enviadoPorId   String
+  enviadoEm      DateTime @default(now())
+  ativo          Boolean  @default(true)
+  desvinculadoEm DateTime?
+  desvinculadoPorId String?
+
+  @@index([estudoId, itemId, ativo])
+  @@map("estudo_documentos_registro")
 }
 
 // ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────
