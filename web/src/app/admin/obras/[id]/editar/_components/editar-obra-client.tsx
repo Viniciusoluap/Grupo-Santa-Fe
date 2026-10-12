@@ -38,7 +38,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
     const valores = await salvarValoresObra({
       obraId: resumo.obra.id,
       vgv: form.vgv, financiamento: form.financiamento, fgts: form.fgts, subsidio: form.subsidio,
-      custoTerreno: form.custoTerreno, comissao: form.comissao, orcamentoPrevisto: form.orcamentoPrevisto,
+      custoTerreno: form.custoTerreno, comissao: form.comissao, comissaoPercentual: form.comissaoPercentual, orcamentoPrevisto: form.orcamentoPrevisto,
       taxaMensalPct: form.taxaMensalPct, parcelas: form.parcelas,
       empreiteiroId: form.empreiteiroId, percentualEmpreiteiro: form.percentualEmpreiteiro,
       escritorioCef: escritorio || null,

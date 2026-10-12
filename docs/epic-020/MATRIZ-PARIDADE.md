@@ -72,7 +72,7 @@ confirmado em produção (Vercel `READY` no commit do merge) antes de o lote ser
 | 29 | Relatório executivo da Obra em PDF | Não iniciado | Não iniciado | — | Pendente |
 | 30 | Regularização: status e etapas | Não iniciado | Não iniciado | — | Pendente |
 | 31 | Regularização: controle financeiro documental | Não iniciado | Não iniciado | — | Pendente |
-| 32 | Comissões automáticas pelo CRM (caso Chaleilson) | Não iniciado | Não iniciado | — | Pendente |
+| 32 | Comissões automáticas pelo CRM (caso Chaleilson) | Implementado (Lote 3): lista derivada das obras com corretor, VGV × %, regra da obra/corretor, pagamentos da obra; caso Chaleilson documentado | Implementado (Lote 3): mesma lógica, corretores próprios, sem dados da Prospecta | Teste G + rotas/actions + E2E Santa Fé | Igual |
 
 ## Lote 1 — CRM e estrutura de Obras (itens 05, 06, 07, 08, 09, 15, 16, 24)
 

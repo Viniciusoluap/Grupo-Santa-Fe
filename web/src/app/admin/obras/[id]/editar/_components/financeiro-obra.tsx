@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Ban, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import { calcularObra, centavosDe, type Indicador, type Natureza, type ResultadoObra } from "@/lib/financeiro/obra";
+import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import type { MovimentoResumo, ResumoObra } from "@/lib/financeiro/obra-dados";
 import { parseNumeroBR } from "@/lib/utils";
 import {
@@ -30,6 +31,7 @@ export interface FormFinanceiro {
   subsidio: string | null;
   custoTerreno: string | null;
   comissao: string | null;
+  comissaoPercentual: string | null;
   orcamentoPrevisto: string | null;
   taxaMensalPct: string | null;
   parcelas: number | null;
@@ -42,17 +44,27 @@ export function formInicial(resumo: ResumoObra): FormFinanceiro {
   const v = resumo.valores;
   return {
     vgv: v.vgv, financiamento: v.financiamento, fgts: v.fgts, subsidio: v.subsidio,
-    custoTerreno: v.custoTerreno, comissao: v.comissao, orcamentoPrevisto: v.orcamentoPrevisto,
+    custoTerreno: v.custoTerreno, comissao: v.comissao, comissaoPercentual: v.comissaoPercentual, orcamentoPrevisto: v.orcamentoPrevisto,
     taxaMensalPct: v.taxaMensalPct, parcelas: v.parcelas,
     empreiteiroId: resumo.empreiteiro?.id ?? null, percentualEmpreiteiro: v.percentualEmpreiteiro,
     investidores: resumo.investidores.map((i) => ({ ...i })),
   };
 }
 
+/** Item 32: com corretor no CRM e regra de %, a comissão é VGV × % (somente leitura). */
+export function comissaoAoVivo(form: FormFinanceiro, resumo: ResumoObra) {
+  return calcularComissaoObra({
+    corretor: resumo.corretor,
+    vgvCentavos: centavosDe(form.vgv),
+    percentualObra: form.comissaoPercentual,
+    pagoCentavos: resumo.comissaoCalculada.pagoCentavos,
+  });
+}
+
 export function calcularAoVivo(form: FormFinanceiro, resumo: ResumoObra, datas: { inicio: string; termino: string }): ResultadoObra {
   return calcularObra({
     vgv: centavosDe(form.vgv), financiamento: centavosDe(form.financiamento), fgts: centavosDe(form.fgts),
-    subsidio: centavosDe(form.subsidio), custoTerreno: centavosDe(form.custoTerreno), comissao: centavosDe(form.comissao),
+    subsidio: centavosDe(form.subsidio), custoTerreno: centavosDe(form.custoTerreno), comissao: comissaoAoVivo(form, resumo).valorCentavos ?? centavosDe(form.comissao),
     orcamentoPrevisto: centavosDe(form.orcamentoPrevisto), taxaMensalPct: form.taxaMensalPct, parcelas: form.parcelas,
     dataInicio: datas.inicio || null, dataTerminoPrevista: datas.termino || null,
     investidores: form.investidores.map((i) => ({ id: i.investidorId, percentual: i.percentual })),
@@ -482,7 +494,7 @@ export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor 
             <CampoDecimal valor={form.custoTerreno} onChange={set("custoTerreno")} prefixo="R$" ariaLabel="Custo do Terreno" />
             <p className="text-[11px] text-gray-400 mt-1">Valor contratual previsto; pagamentos do terreno entram no histórico.</p>
           </div>
-          <div><p className={labelCls}>Comissão</p><CampoDecimal valor={form.comissao} onChange={set("comissao")} prefixo="R$" ariaLabel="Comissão" /></div>
+          <ComissaoCampos resumo={resumo} form={form} setForm={setForm} />
           <Leitura label="Corretor vinculado" valor={corretor ?? "Sem corretor no lead"} ajuda="Vem do lead no CRM." />
         </div>
       </Secao>
@@ -495,5 +507,34 @@ export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor 
         </div>
       </Secao>
     </div>
+  );
+}
+
+/** Item 32 + 17.4: comissão vinculada ao corretor do CRM. Com regra de % e VGV,
+ *  o valor é calculado (VGV × % / 100); sem regra, o valor informado é preservado. */
+function ComissaoCampos({ resumo, form, setForm }: { resumo: ResumoObra; form: FormFinanceiro; setForm: (f: FormFinanceiro) => void }) {
+  const c = comissaoAoVivo(form, resumo);
+  const padrao = resumo.corretor?.percentualPadrao;
+  return (
+    <>
+      {resumo.corretor && (
+        <div>
+          <p className={labelCls}>Percentual de Comissão</p>
+          <CampoDecimal valor={form.comissaoPercentual} onChange={(v) => setForm({ ...form, comissaoPercentual: v })} casas={4} sufixo="%" ariaLabel="Percentual de Comissão"
+            placeholder={padrao ? `Padrão do corretor: ${Number(padrao).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%` : "Sem regra cadastrada"} />
+          <p className="text-[11px] text-gray-400 mt-1">Vazio usa o percentual padrão do corretor (Corretores). Nunca é presumido.</p>
+        </div>
+      )}
+      {c.valorCentavos !== null ? (
+        <Leitura label="Comissão · automático" valor={brl(c.valorCentavos)}
+          ajuda={`VGV × ${Number(c.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}% (${c.fontePercentual === "obra" ? "percentual da obra" : "padrão do corretor"}) · pago ${brl(c.pagoCentavos)}`} />
+      ) : (
+        <div>
+          <p className={labelCls}>Comissão</p>
+          <CampoDecimal valor={form.comissao} onChange={(v) => setForm({ ...form, comissao: v })} prefixo="R$" ariaLabel="Comissão" />
+          {resumo.corretor && c.pendencias.map((p) => <p key={p} className="text-[11px] text-amber-700 mt-1">{p} — valor informado mantido até completar a regra.</p>)}
+        </div>
+      )}
+    </>
   );
 }

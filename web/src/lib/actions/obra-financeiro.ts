@@ -3,7 +3,9 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
-import { centavosDe } from "@/lib/financeiro/obra";
+import { centavosDe, reaisDeCentavos } from "@/lib/financeiro/obra";
+import { calcularComissaoObra } from "@/lib/financeiro/comissao";
+import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
 
 // EPIC-020 Lote 2 — ações financeiras da obra (somente admin), com as mesmas
 // regras da API `obraFinanceiro` da Prospecta. Os campos calculados não são
@@ -60,6 +62,8 @@ export interface ValoresObraInput {
   subsidio: string | null;
   custoTerreno: string | null;
   comissao: string | null;
+  /** Item 32: percentual de comissão da obra (vazio = usa o padrão do corretor). */
+  comissaoPercentual?: string | null;
   orcamentoPrevisto: string | null;
   taxaMensalPct: string | null;
   parcelas: number | null;
@@ -78,6 +82,31 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
     const u = await prisma.usuario.findUnique({ where: { id: input.empreiteiroId }, select: { papel: true, ativo: true } });
     if (!u || u.papel !== "empreiteiro" || !u.ativo) return { ok: false, erro: "Selecione um empreiteiro cadastrado e ativo." };
   }
+  let pctComissao: string | null;
+  try {
+    pctComissao = lerPercentualComissao(input.comissaoPercentual);
+  } catch (e) {
+    return { ok: false, erro: (e as Error).message };
+  }
+  const atual = await prisma.obra.findUnique({
+    where: { id: input.obraId },
+    select: { comissaoPercentual: true, leadVinculado: { select: { corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
+  });
+  if (!atual) return { ok: false, erro: "Obra não encontrada." };
+  if (input.comissaoPercentual === undefined) pctComissao = atual.comissaoPercentual?.toString() ?? null;
+  const c = atual.leadVinculado?.corretor;
+  // Com corretor + regra + VGV, o valor da comissão é sempre o calculado.
+  let calculada: number | null = null;
+  try {
+    calculada = calcularComissaoObra({
+      corretor: c ? { id: c.id, nome: c.nome, percentualPadrao: c.regraComissao?.percentual.toString() ?? null } : null,
+      vgvCentavos: centavosDe(dinheiro(input.vgv, "VGV")),
+      percentualObra: pctComissao,
+      pagoCentavos: 0,
+    }).valorCentavos;
+  } catch (err) {
+    return { ok: false, erro: err instanceof Error ? err.message : "Valores inválidos." };
+  }
   try {
     await prisma.obra.update({
       where: { id: input.obraId },
@@ -87,7 +116,8 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
         fgts: dinheiro(input.fgts, "FGTS"),
         subsidio: dinheiro(input.subsidio, "Subsídio"),
         custoTerreno: dinheiro(input.custoTerreno, "Custo do Terreno"),
-        comissaoValor: dinheiro(input.comissao, "Comissão"),
+        comissaoValor: calculada !== null ? reaisDeCentavos(calculada) : dinheiro(input.comissao, "Comissão"),
+        comissaoPercentual: pctComissao,
         orcamentoPrevisto: dinheiro(input.orcamentoPrevisto, "Orçamento Previsto"),
         taxaMensalPct: taxa,
         qtdeParcelas: input.parcelas,

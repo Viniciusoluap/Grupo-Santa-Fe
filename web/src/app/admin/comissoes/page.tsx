@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { ComissoesClient } from "./_components/comissoes-client";
 import type { NegocioItem } from "@/lib/comissoes/calculo";
+import { listarComissoesDeObras } from "@/lib/comissoes/obras";
+import { ComissoesDeObras } from "./_components/comissoes-de-obras";
 
 type SessionUser = { role?: string; corretorId?: string };
 
@@ -25,8 +27,9 @@ export default async function ComissoesPage() {
     }),
     prisma.imovel.findMany({ select: { id: true, titulo: true, status: true, preco: true }, orderBy: { titulo: "asc" } }),
     prisma.financiamento.findMany({ select: { id: true, clienteNome: true, imovel: true, valorImovel: true }, orderBy: { clienteNome: "asc" } }),
-    prisma.obra.findMany({ select: { id: true, nome: true, clienteNome: true, valorTotal: true }, orderBy: { nome: "asc" } }),
+    prisma.obra.findMany({ select: { id: true, nome: true, clienteNome: true, vgv: true }, orderBy: { nome: "asc" } }),
   ]);
+  const comissoesDeObras = isAdmin ? await listarComissoesDeObras() : [];
 
   // Negócios pré-cadastrados por tipo de comissão (EPIC-008): o "Imóvel/negócio"
   // é sempre um registro real; `valorBase` alimenta o cálculo automático.
@@ -42,9 +45,15 @@ export default async function ComissoesPage() {
       label: f.imovel && f.imovel !== "A definir" ? `${f.clienteNome} — ${f.imovel}` : f.clienteNome,
       valorBase: f.valorImovel,
     })),
-    obra: obras.map((o) => ({ id: o.id, label: `${o.nome} — ${o.clienteNome}`, valorBase: o.valorTotal })),
+    // Base da comissão de obra é o VGV (item 32), não o valor total legado.
+    obra: obras.map((o) => ({ id: o.id, label: `${o.nome} — ${o.clienteNome}`, valorBase: o.vgv == null ? null : Number(o.vgv) })),
     extra: [],
   };
 
-  return <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} isAdmin={isAdmin} />;
+  return (
+    <div className="space-y-5">
+      <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} isAdmin={isAdmin} />
+      {isAdmin && <ComissoesDeObras linhas={comissoesDeObras} />}
+    </div>
+  );
 }

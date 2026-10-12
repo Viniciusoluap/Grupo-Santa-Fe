@@ -169,6 +169,7 @@ model Corretor {
   ativo            Boolean   @default(true)
   especialidades   String    @default("[]")
   senhaAcesso      String?
+  regraComissao    RegraComissaoCorretor?
   imoveis          Imovel[]
   leads            Lead[]
   visitas          Visita[]
@@ -181,6 +182,18 @@ model Corretor {
 }
 
 // ─── COMISSÕES ───────────────────────────────────────────────────────────────
+
+/// EPIC-020 Lote 3 (item 32): regra de comissão do corretor — percentual
+/// padrão (0–100) usado nas obras sem percentual próprio. Tabela separada
+/// para não expor Decimal onde o corretor inteiro é carregado.
+model RegraComissaoCorretor {
+  corretorId   String   @id
+  corretor     Corretor @relation(fields: [corretorId], references: [id], onDelete: Cascade)
+  percentual   Decimal  @db.Decimal(7, 4)
+  atualizadoEm DateTime @updatedAt
+
+  @@map("regras_comissao_corretor")
+}
 
 model Comissao {
   id           String    @id @default(cuid())
@@ -297,6 +310,8 @@ model Obra {
   empreiteiroId         String?
   empreiteiro           Usuario? @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
   percentualEmpreiteiro Decimal? @db.Decimal(9, 6)
+  /// EPIC-020 Lote 3: percentual de comissão próprio da obra (prevalece sobre o do corretor).
+  comissaoPercentual    Decimal?  @db.Decimal(7, 4)
   movimentos            ObraMovimento[]
   investidores          ObraInvestidor[]
   etapas          ObraEtapa[]
