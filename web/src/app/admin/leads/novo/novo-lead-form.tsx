@@ -6,6 +6,7 @@ import { criarLead } from "@/lib/actions/leads";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { LEAD_TEMPERATURAS, leadTemperaturaRotulo } from "@/lib/crm/temperatura-lead";
 
 const SERVICOS = SERVICOS_LEAD;
 
@@ -93,6 +94,12 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
             name="orcamento"
             className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Temperatura</label>
+          <select name="temperatura" defaultValue="frio" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+            {LEAD_TEMPERATURAS.map((t) => <option key={t} value={t}>{leadTemperaturaRotulo(t)}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Origem</label>

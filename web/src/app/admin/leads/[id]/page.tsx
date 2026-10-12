@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
 import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, AlertTriangle } from "lucide-react";
 import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
@@ -81,7 +82,11 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
         <BackButton className="mt-1" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase break-words">{lead.nome}</h1>
+            <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase break-words">
+              {lead.temperatura === "fechado" && <span className="mr-2" title="Negócio fechado">{LEAD_TEMPERATURA_CONFIG.fechado.emoji}</span>}
+              {lead.nome}
+            </h1>
+            <span className={`text-xs font-bold ${LEAD_TEMPERATURA_CONFIG[lead.temperatura as LeadTemperatura]?.color ?? "text-gray-500"}`}>{leadTemperaturaRotulo(lead.temperatura)}</span>
             <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{lead.excluidoEm ? "EXCLUÍDO" : lead.arquivadoEm ? "ARQUIVADO" : !ativo ? "FORA DO PIPELINE" : cfg.label}</span>
           </div>
           <p className="text-gray-600 text-sm mt-0.5">

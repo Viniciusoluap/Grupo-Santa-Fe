@@ -9,7 +9,7 @@ export default async function ObrasPage() {
 
   const obras = await prisma.obra.findMany({
     orderBy: { criadoEm: "desc" },
-    include: { etapas: { orderBy: { ordem: "asc" } } },
+    include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } } },
   });
 
   return <ObrasClient obras={obras} />;

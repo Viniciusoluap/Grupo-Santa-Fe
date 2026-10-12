@@ -1,7 +1,7 @@
 "use server";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
-import { OBRA_TIPO_CONFIG, OBRA_STATUS_CONFIG } from "@/lib/types/obra";
+import { OBRA_STATUS_CONFIG, validarMudancaStatusObra } from "@/lib/types/obra";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
 import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
@@ -35,8 +35,11 @@ export async function editarObra(formData: FormData) {
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
-    const atual = await tx.obra.findUnique({ where: { id }, select: { leadId: true } });
+    const atual = await tx.obra.findUnique({ where: { id }, select: { leadId: true, status: true } });
     if (!atual) throw new Error("Registro não encontrado.");
+    const status = opcaoObrigatoria(formData, "status", OBRA_STATUS_CONFIG);
+    const erroStatus = validarMudancaStatusObra(atual.status, status);
+    if (erroStatus) throw new Error(erroStatus);
     if (formData.has("leadId") && formData.get("leadId") !== atual.leadId) throw new Error("O vínculo com o CRM não pode ser alterado neste módulo.");
     if (atual.leadId) await bloquearLead(tx, atual.leadId);
     const cliente = await clienteParaRegistro(atual.leadId, formData, tx);
@@ -44,8 +47,7 @@ export async function editarObra(formData: FormData) {
       where: { id },
       data: {
         nome: textoObrigatorio(formData, "nome"),
-        tipo: opcaoObrigatoria(formData, "tipo", OBRA_TIPO_CONFIG),
-        status: opcaoObrigatoria(formData, "status", OBRA_STATUS_CONFIG),
+        status,
         clienteNome: cliente.clienteNome,
         clienteTel: cliente.clienteTel,
         endereco: textoObrigatorio(formData, "endereco"),

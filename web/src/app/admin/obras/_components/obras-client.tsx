@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Search, HardHat, Pencil, Trash2 } from "lucide-react";
-import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, ObraStatus } from "@/lib/types/obra";
+import { OBRA_STATUS_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
 import { formatCurrency } from "@/lib/utils";
 import { excluirObra } from "@/lib/actions/obras";
 
@@ -16,6 +16,7 @@ interface Obra {
   id: string;
   nome: string;
   tipo: string | null;
+  servicoLead: { servico: string } | null;
   status: string;
   clienteNome: string;
   clienteTel: string;
@@ -129,9 +130,8 @@ export function ObrasClient({ obras }: Props) {
       <div className="space-y-3">
         {filtered.map((o) => {
           const statusKey = o.status as ObraStatus;
-          const cfg = OBRA_STATUS_CONFIG[statusKey] ?? OBRA_STATUS_CONFIG["orcamento"];
-          const tipoKey = o.tipo as keyof typeof OBRA_TIPO_CONFIG;
-          const tipo = OBRA_TIPO_CONFIG[tipoKey] ?? { icon: "🏗️", label: o.tipo };
+          const cfg = OBRA_STATUS_CONFIG[statusKey] ?? { label: o.status, bgColor: "bg-gray-100", color: "text-gray-600" };
+          const tipo = tipoProjetoObra(o);
           const etapasFeitas = o.etapas.filter((e) => e.status === "concluida").length;
           const saldo = (o.valorTotal ?? 0) - o.valorPago;
           return (
@@ -139,7 +139,7 @@ export function ObrasClient({ obras }: Props) {
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-lg">{tipo.icon}</span>
+                    <span className="text-lg" title={tipo.label}>{tipo.icon}</span>
                     <h3 className="font-bold text-[var(--brand-dark)]">{o.nome}</h3>
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
                   </div>

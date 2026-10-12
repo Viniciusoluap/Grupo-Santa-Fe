@@ -5,10 +5,9 @@ import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
-import { OBRA_TIPO_CONFIG, OBRA_STATUS_CONFIG } from "@/lib/types/obra";
+import { OBRA_STATUS_SELECIONAVEIS, isObraStatusSelecionavel, obraStatusLabel, tipoProjetoObra } from "@/lib/types/obra";
 import { editarObra } from "@/lib/actions/obras";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { PhoneInput } from "@/components/ui/phone-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -18,8 +17,17 @@ export default async function EditarObraPage({ params }: PageProps) {
   requirePageRole(session, "admin");
 
   const { id } = await params;
-  const o = await prisma.obra.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
+  const o = await prisma.obra.findUnique({
+    where: { id },
+    include: {
+      leadVinculado: { select: { id: true, nome: true, telefone: true, email: true, corretor: { select: { nome: true } } } },
+      servicoLead: { select: { servico: true } },
+    },
+  });
   if (!o) notFound();
+  const tipoProjeto = tipoProjetoObra(o);
+  const corretorNome = o.leadVinculado?.corretor?.nome?.trim() || null;
+  const campoSomenteLeitura = "w-full border border-gray-100 px-3 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed";
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -41,40 +49,43 @@ export default async function EditarObraPage({ params }: PageProps) {
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo *</label>
-              <select name="tipo" required defaultValue={o.tipo ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                <option value="" disabled>Selecione</option>
-                {Object.entries(OBRA_TIPO_CONFIG).map(([k, v]) => (
-                  <option key={k} value={k}>{v.icon} {v.label}</option>
-                ))}
-              </select>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Projeto</label>
+              <input type="text" readOnly aria-readonly="true" value={`${tipoProjeto.icon} ${tipoProjeto.label}`} className={campoSomenteLeitura} />
+              <p className="text-[11px] text-gray-400 mt-1">
+                {tipoProjeto.origem === "crm"
+                  ? "Definido pelo serviço vinculado no CRM. Para alterar, edite o lead."
+                  : "Obra sem serviço do CRM vinculado: valor antigo preservado. Vincule pelo CRM para regularizar."}
+              </p>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Classificação</label>
               <select name="status" defaultValue={o.status}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                <option value="" disabled>Selecione</option>
-                {Object.entries(OBRA_STATUS_CONFIG).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
+                {OBRA_STATUS_SELECIONAVEIS.map((valor) => (
+                  <option key={valor} value={valor}>{obraStatusLabel(valor)}</option>
                 ))}
+                {!isObraStatusSelecionavel(o.status) && (
+                  <option value={o.status}>{obraStatusLabel(o.status)} (classificação antiga — mantida até ser trocada)</option>
+                )}
               </select>
             </div>
             {o.leadVinculado ? (
               <ClienteVinculadoInfo lead={o.leadVinculado} className="sm:col-span-2" />
             ) : (
-              <>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
-                <input name="clienteNome" type="text" required defaultValue={o.clienteNome}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente</label>
+                <input type="text" readOnly aria-readonly="true" value={o.clienteNome} className={campoSomenteLeitura} />
+                <input type="hidden" name="clienteNome" value={o.clienteNome} />
+                <input type="hidden" name="clienteTel" value={o.clienteTel ?? ""} />
+                <p className="text-[11px] text-gray-400 mt-1">Obra sem lead vinculado: dados antigos preservados. Vincule pelo CRM para regularizar.</p>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone do Cliente</label>
-                <PhoneInput name="clienteTel" defaultValue={o.clienteTel ?? ""}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            )}
+            {corretorNome && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor</label>
+                <input type="text" readOnly aria-readonly="true" value={corretorNome} className={campoSomenteLeitura} />
+                <p className="text-[11px] text-gray-400 mt-1">Corretor vinculado ao lead no CRM.</p>
               </div>
-              </>
             )}
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço *</label>
@@ -103,17 +114,17 @@ export default async function EditarObraPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <SubmitButton
-              pendingText="Salvando..."
-              className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              Salvar Alterações
-            </SubmitButton>
+          <div className="flex justify-between gap-3 pt-2 border-t border-gray-100">
             <Link href={`/admin/obras/${id}`}
               className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
               Cancelar
             </Link>
+            <SubmitButton
+              pendingText="Salvando..."
+              className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Salvar
+            </SubmitButton>
           </div>
         </form>
       </div>

@@ -19,6 +19,7 @@ import {
   adicionarOperacaoDoLead,
 } from "@/lib/crm/vinculo-lead";
 import { SERVICOS_LEAD, parseServicosLead } from "@/lib/crm/servicos-lead";
+import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 
 function validarServicos(raw: FormDataEntryValue[], legados: string[] = []) {
   const servicos = [...new Set(raw.map(String))];
@@ -67,6 +68,7 @@ export async function criarLead(formData: FormData) {
       email: (formData.get("email") as string) || undefined,
       servico: JSON.stringify(servicos),
       etapaOperacional: "novo_lead",
+      temperatura: temperaturaDoFormulario(formData.get("temperatura")),
       creationRequestKey: `${ator.id}:${requestKey}`,
       origem: (formData.get("origem") as string) || "site",
       orcamento: orcamentoDoFormulario(formData),
@@ -156,6 +158,7 @@ export async function editarLead(formData: FormData) {
       telefone: texto(formData, "telefone", 40),
       email: (formData.get("email") as string) || null,
       servico: JSON.stringify(servicos),
+      temperatura: temperaturaDoFormulario(formData.get("temperatura"), atual.temperatura as LeadTemperatura),
       origem: (formData.get("origem") as string) || "site",
       orcamento: orcamentoDoFormulario(formData),
       notas: (formData.get("notas") as string) || "",

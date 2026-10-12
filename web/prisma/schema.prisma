@@ -66,6 +66,8 @@ model Lead {
   email             String?
   servico           String
   status            String   @default("novo")
+  // Lote 1 (item 05): frio | morno | quente | fechado — independente da etapa.
+  temperatura       String   @default("frio")
   etapaOperacional  String?
   creationRequestKey String? @unique
   arquivadoEm       DateTime?
