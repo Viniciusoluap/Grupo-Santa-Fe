@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — fim do Lote 1 (PRs abertas, aguardando preview/merge/deploy).
+Última atualização: 12/10/2026 — Lote 1 PUBLICADO nos dois sistemas. Próximo: Lote 2.
 
 ---
 
@@ -240,7 +240,7 @@ calculado alterado via API, arredondamento, operações simultâneas.
 | Lote | Estado | Evidência |
 |---|---|---|
 | 0 Diagnóstico | ✅ Concluído | Matriz EPIC-020; sem PRs abertas nem trabalho concorrente em 12/10 |
-| 1 CRM/Obras | 🔶 PRs abertas — aguardando preview Vercel → merge → confirmar deploy `READY` | Prospecta PR #95 · Santa Fé PR #164 · migrations **já aplicadas em produção** (Prospecta `0034`: enums; Santa Fé `20261012130000_lote1_temperatura_lead`: `leads.temperatura`) · testes 584/584 e 456/456 · build ok nos dois |
+| 1 CRM/Obras | ✅ Publicado (12/10/2026) | Prospecta PR #95 → `b29b1d8`, deploy produção `dpl_8qH69ArX1GWKj1EvPw7Ducr9NB4D` READY · Santa Fé PR #164 → `6f9a98f`, deploy produção `dpl_CdJLxNtgoAp8bQHuT3Kbkk57QKYy` READY (o deploy automático falhou com `git_info_fail` da Vercel — erro de infraestrutura antes do build; resolvido com redeploy) · migrations aplicadas em produção antes do merge · testes 584/584 e 456/456 · **pendente: validação manual em navegador** (o ambiente do agente não acessa os domínios) |
 | 2 Motor financeiro | ⏳ Não iniciado | — |
 | 3 Comissões | ⏳ Não iniciado | — |
 | 4 Progresso/Fotos/PDF | ⏳ Não iniciado | — |
@@ -249,11 +249,17 @@ calculado alterado via API, arredondamento, operações simultâneas.
 | 7 Auditoria final | ⏳ Não iniciado | relatório A–K + matriz de 32 linhas |
 
 ### Próximo passo exato
-1. Confirmar que os previews da Vercel das PRs #95 (Prospecta) e #164 (Santa Fé) estão `READY`.
-2. Tirar as PRs do rascunho, mesclar com **squash** no `main`.
-3. Confirmar na Vercel (produção) que o deploy do commit do merge ficou `READY` nos dois projetos.
-4. Atualizar a matriz (itens 05–09, 15, 16, 24 → "Publicado") e a seção 5 deste arquivo.
-5. Iniciar o Lote 2 (o maior), seguindo §6.
+**Iniciar o Lote 2 (motor financeiro e BPO — itens 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23,
+25, 26)** seguindo §6. Ordem sugerida: (a) investigar BPO/financeiro existente nos dois sistemas e o
+que o PR #158 removeu no Santa Fé; (b) criar o módulo de cálculo puro com os testes de referência
+A–D (mesmas funções e resultados nos dois repos, em centavos/decimal, HALF_UP); (c) tabelas de
+recebimentos (entrada/CEF) e pagamentos com origem manual/BPO, estorno e anti-duplicidade;
+(d) papel Empreiteiro e investidores; (e) migrar o JSON `__MCMV_META__` da Prospecta para colunas;
+(f) construir Valores da Operação e Custos no Santa Fé; (g) telas; (h) merge + deploy.
+
+**Se um deploy da Vercel falhar com `git_info_fail`** (falha ao ler o commit, antes do build): não é
+erro de código. Refazer pela API/MCP da Vercel com `create_deployment` usando `deploymentId` do
+último deploy de produção bom + `withLatestCommit: true` + `target: production`.
 
 ### Achados do diagnóstico que definem o Lote 2
 - **Prospecta:** Valores da Operação (VGV, financiamento, FGTS, subsídio, entrada, CEF, lucros,
