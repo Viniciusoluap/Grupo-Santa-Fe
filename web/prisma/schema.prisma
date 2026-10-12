@@ -710,6 +710,7 @@ model EstudoIncorporacao {
   longitude     Float?
   responsavel   String?
   status        String   @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
+  tipoIncorporacao String? // legado NULL: não inferir tipo pelo nome ou pelo status
   matriculaImovel String?
   carRegistro String?
   zoneamentoOficial String?

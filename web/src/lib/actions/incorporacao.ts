@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
 import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
+import { tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
 
 // Lê os campos de localização do formulário. Aceita um link do Google Maps (ou
 // um par "lat,lng" colado) e extrai as coordenadas exatas quando possível.
@@ -42,6 +43,7 @@ export async function criarEstudo(formData: FormData) {
   requireActionRole(session, "admin");
 
   const nome = (formData.get("nome") as string)?.trim();
+  const tipoIncorporacao = formData.get("tipoIncorporacao");
   const municipio = (formData.get("municipio") as string)?.trim();
   const estado = ((formData.get("estado") as string) || "PA").trim();
   const responsavel = (formData.get("responsavel") as string)?.trim() || null;
@@ -53,9 +55,10 @@ export async function criarEstudo(formData: FormData) {
 
   // Campos obrigatórios são enforçados no HTML (required); guarda defensiva.
   if (!nome || !municipio) redirect("/admin/incorporacao/novo");
+  if (!tipoIncorporacaoValido(tipoIncorporacao)) throw new Error("Selecione o tipo de incorporação.");
 
   const estudo = await prisma.estudoIncorporacao.create({
-    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status: "em_estudo" },
+    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status: "em_estudo", tipoIncorporacao },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -77,14 +80,16 @@ export async function editarEstudo(formData: FormData) {
   const zoneamentoOficial = (formData.get("zoneamentoOficial") as string)?.trim() || null;
   const zoneamentoFonte = (formData.get("zoneamentoFonte") as string)?.trim() || null;
   const status = formData.get("status");
+  const tipoIncorporacao = formData.get("tipoIncorporacao");
   const { endereco, latitude, longitude } = lerLocalizacao(formData);
 
   if (!id || !nome || !municipio) redirect(`/admin/incorporacao/${id}/editar`);
   if (!situacaoEstudoValida(status)) throw new Error("Classifique a situação do estudo antes de salvar.");
+  if (tipoIncorporacao !== "" && !tipoIncorporacaoValido(tipoIncorporacao)) throw new Error("Tipo de incorporação inválido.");
 
   await prisma.estudoIncorporacao.update({
     where: { id },
-    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status },
+    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status, tipoIncorporacao: tipoIncorporacao || null },
   });
 
   revalidatePath("/admin/incorporacao");

@@ -7,6 +7,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { SeletorLocalizacao } from "../../_components/seletor-localizacao";
 import { CadastroFormalFields } from "../../_components/cadastro-formal-fields";
 import { SITUACOES_ESTUDO, situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
+import { TIPOS_INCORPORACAO, tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
 
 export default async function EditarEstudoPage({
   params,
@@ -30,6 +31,13 @@ export default async function EditarEstudoPage({
 
       <form action={editarEstudo} className="bg-white border border-gray-100 p-5 space-y-4">
         <input type="hidden" name="id" value={estudo.id} />
+        <div>
+          <label htmlFor="tipo-incorporacao" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Tipo de incorporação</label>
+          <select id="tipo-incorporacao" name="tipoIncorporacao" defaultValue={tipoIncorporacaoValido(estudo.tipoIncorporacao) ? estudo.tipoIncorporacao : ""} className="w-full text-sm border border-gray-200 px-3 py-2 bg-white text-[var(--brand-dark)]">
+            <option value="">Classificação pendente (estudo legado)</option>
+            {TIPOS_INCORPORACAO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
+          </select>
+        </div>
         <div>
           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome do estudo *</label>
           <input name="nome" required defaultValue={estudo.nome}
