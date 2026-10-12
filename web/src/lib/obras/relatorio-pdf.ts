@@ -171,7 +171,10 @@ export async function gerarPdfRelatorioObra(rel: RelatorioObra, tema: TemaRelato
         altura = alturaMax;
         largura = f.img ? (f.img.largura / f.img.altura) * altura : larguraMax;
       }
-      y = garantir(y, altura + 14);
+      doc.setFont("helvetica", "normal").setFontSize(9);
+      const legenda = doc.splitTextToSize(`${dataBR(f.data)} — ${f.legenda || "Sem legenda"}`, larguraMax);
+      // Reserva a imagem + a legenda inteira (legendas longas quebram em várias linhas).
+      y = garantir(y, altura + 4 + legenda.length * 4 + 6);
       if (f.img) doc.addImage(f.img.dataUrl, f.img.formato, margem + (larguraMax - largura) / 2, y, largura, altura);
       else {
         doc.setDrawColor(180, 180, 180);
@@ -180,7 +183,6 @@ export async function gerarPdfRelatorioObra(rel: RelatorioObra, tema: TemaRelato
       }
       y += altura + 4;
       doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(50, 50, 50);
-      const legenda = doc.splitTextToSize(`${dataBR(f.data)} — ${f.legenda || "Sem legenda"}`, larguraMax);
       doc.text(legenda, margem, y);
       y += legenda.length * 4 + 6;
     }

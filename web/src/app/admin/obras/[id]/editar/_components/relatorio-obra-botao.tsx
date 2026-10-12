@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { dadosRelatorioObra } from "@/lib/actions/obra-progresso";
 import { gerarPdfRelatorioObra } from "@/lib/obras/relatorio-pdf";
-import { montarRelatorioObra, verificarCompletude } from "@/lib/obras/relatorio";
+import { montarRelatorioObra, progressoParaRelatorio, verificarCompletude } from "@/lib/obras/relatorio";
 import { calcularProgresso } from "@/lib/financeiro/progresso";
 import { obraStatusLabel } from "@/lib/types/obra";
 
@@ -37,7 +37,7 @@ export function RelatorioObraBotao({ obraId }: { obraId: string }) {
         investidores: r.investidores.map((i, idx) => ({ nome: i.nome, percentual: i.percentual, lucro: r.calculo.investidores[idx]?.lucro })),
         comissao: r.corretor ? r.comissaoCalculada : null,
         movimentos: r.movimentos.map((m) => ({ data: m.data, natureza: m.natureza, categoria: m.categoria, descricao: m.descricao, valor: m.valor, status: m.status, origem: m.origem })),
-        progresso: calcularProgresso(d.progresso.itens),
+        progresso: progressoParaRelatorio(calcularProgresso(d.progresso.itens), d.progresso.medido, d.progresso.progressoLegado),
         fotos: d.fotos.map((f) => ({ legenda: f.legenda, data: f.data })),
       });
       const faltas = verificarCompletude(relatorio);

@@ -38,6 +38,8 @@ export interface DadosRelatorioObra {
     observacoes: string | null;
     /** Só existe no cadastro do Santa Fé; omitido quando o sistema não tem o campo. */
     engenheiro?: string | null;
+    telefoneCliente?: string | null;
+    emailCliente?: string | null;
   };
   valores: {
     vgv: string | null;
@@ -68,7 +70,7 @@ export interface RelatorioObra { titulo: string; subtitulo: string; secoes: Seca
 
 /** Rótulos que o relatório SEMPRE precisa ter (o teste de completude falha se faltar algum). */
 export const CAMPOS_OBRIGATORIOS: Record<string, string[]> = {
-  info: ["Obra", "Tipo de projeto", "Cliente", "Corretor", "Endereço", "Área total", "Status", "Escritório CEF", "Data de início", "Previsão de término", "Término real", "Observações"],
+  info: ["Obra", "Tipo de projeto", "Cliente", "Telefone do cliente", "E-mail do cliente", "Corretor", "Endereço", "Área total", "Status", "Escritório CEF", "Data de início", "Previsão de término", "Término real", "Observações"],
   operacao: [
     "VGV", "Financiamento CEF", "FGTS", "Subsídio", "Entrada total", "Entrada paga", "Saldo de entrada", "Recebido da CEF",
     "A receber do banco", "Pró-soluto", "Taxa mensal", "Quantidade de parcelas", "Valor da parcela", "Dias de obra",
@@ -138,6 +140,19 @@ function grafico(titulo: string, itens: { rotulo: string; centavos: Indicador }[
   return { titulo, unidade: "moeda", itens: validos.map((i) => ({ rotulo: i.rotulo, valor: i.centavos.centavos / 100, texto: moeda(i.centavos.centavos) })) };
 }
 
+/**
+ * Progresso que o relatório mostra: o medido por serviço ou, enquanto a obra não
+ * tiver medição salva, o valor antigo digitado à mão (nunca 0% inventado).
+ */
+export function progressoParaRelatorio(calculo: ResultadoProgresso, medido: boolean, legado: number): ResultadoProgresso {
+  if (medido || !(legado > 0)) return calculo;
+  return {
+    ...calculo,
+    progresso: legado,
+    avisos: [...calculo.avisos, `Progresso de ${formatarPercentual(legado)} informado manualmente antes da medição por serviço (tabela abaixo ainda sem medição).`],
+  };
+}
+
 export function montarRelatorioObra(d: DadosRelatorioObra): RelatorioObra {
   const c = d.calculo;
   const i = d.info;
@@ -145,6 +160,8 @@ export function montarRelatorioObra(d: DadosRelatorioObra): RelatorioObra {
     { rotulo: "Obra", valor: texto(i.titulo) },
     { rotulo: "Tipo de projeto", valor: texto(i.tipo) },
     { rotulo: "Cliente", valor: texto(i.cliente) },
+    { rotulo: "Telefone do cliente", valor: texto(i.telefoneCliente) },
+    { rotulo: "E-mail do cliente", valor: texto(i.emailCliente) },
     { rotulo: "Corretor", valor: texto(i.corretor) },
     { rotulo: "Endereço", valor: texto(i.endereco) },
     { rotulo: "Área total", valor: i.area === null || i.area === undefined || i.area === "" ? NAO_INFORMADO : `${Number(i.area).toLocaleString("pt-BR")} m²` },
