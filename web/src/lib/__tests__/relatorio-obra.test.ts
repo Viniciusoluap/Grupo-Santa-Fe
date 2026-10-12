@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { calcularObra } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import { calcularProgresso, itensProgressoIniciais } from "@/lib/financeiro/progresso";
-import { CAMPOS_OBRIGATORIOS, montarRelatorioObra, verificarCompletude, type DadosRelatorioObra } from "@/lib/obras/relatorio";
+import { CAMPOS_OBRIGATORIOS, montarRelatorioObra, progressoParaRelatorio, verificarCompletude, type DadosRelatorioObra } from "@/lib/obras/relatorio";
 
 function dados(parcial: Partial<DadosRelatorioObra> = {}): DadosRelatorioObra {
   const movimentos = [
@@ -100,5 +100,21 @@ describe("relatório executivo — completude", () => {
     expect(custos.tabelas[0].linhas).toEqual([["15/04/2026", "Empreiteiro", "Medição 1", "R$ 30.000,00", "BPO", "Confirmado"]]);
     const op = r.secoes.find((s) => s.id === "operacao")!;
     expect(op.tabelas.find((t) => t.titulo === "Histórico de entradas")!.linhas[0][3]).toBe("Manual");
+  });
+
+  it("sem medição salva, o relatório mostra o progresso antigo (nunca 0% inventado)", () => {
+    const base = calcularProgresso(itensProgressoIniciais());
+    const p = progressoParaRelatorio(base, false, 35);
+    expect(p.progresso).toBe(35);
+    expect(p.avisos.at(-1)).toContain("35,00%");
+    expect(progressoParaRelatorio(base, true, 35).progresso).toBe(0);
+    expect(montarRelatorioObra(dados({ progresso: p })).secoes.find((s) => s.id === "progresso")!.campos[0].valor).toBe("35,00%");
+  });
+
+  it("contato do cliente: ausente vira 'Não informado'", () => {
+    const r = montarRelatorioObra(dados({ info: { ...dados().info, telefoneCliente: "62999990000" } }));
+    const info = r.secoes.find((s) => s.id === "info")!;
+    expect(info.campos.find((c) => c.rotulo === "Telefone do cliente")!.valor).toBe("62999990000");
+    expect(info.campos.find((c) => c.rotulo === "E-mail do cliente")!.valor).toBe("Não informado");
   });
 });

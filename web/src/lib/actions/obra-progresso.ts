@@ -96,7 +96,7 @@ export async function dadosRelatorioObra(obraId: string) {
     prisma.obra.findUnique({
       where: { id: obraId },
       include: {
-        leadVinculado: { select: { nome: true, corretor: { select: { nome: true } } } },
+        leadVinculado: { select: { nome: true, telefone: true, email: true, corretor: { select: { nome: true } } } },
         servicoLead: { select: { servico: true } },
       },
     }),
@@ -114,6 +114,8 @@ export async function dadosRelatorioObra(obraId: string) {
       titulo: o.nome,
       tipo: tipoProjetoObra(o).label,
       cliente: o.leadVinculado?.nome ?? o.clienteNome,
+      telefoneCliente: o.leadVinculado?.telefone ?? o.clienteTel ?? null,
+      emailCliente: o.leadVinculado?.email ?? null,
       corretor: o.leadVinculado?.corretor?.nome ?? null,
       endereco: o.endereco,
       area: o.area,
