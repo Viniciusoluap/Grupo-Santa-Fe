@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 
-export type Role = "admin" | "corretor" | "colaborador" | "cliente";
+export type Role = "admin" | "corretor" | "colaborador" | "cliente" | "empreiteiro";
 
 function getSessionRole(session: Session | null): Role | null {
   if (!session) return null;

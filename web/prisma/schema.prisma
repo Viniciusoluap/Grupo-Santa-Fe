@@ -281,6 +281,24 @@ model Obra {
   latitude        Float?
   longitude       Float?
   descricao       String       @default("")
+  // EPIC-020 Lote 2 — Valores da Operação e Custos (entradas; os totais são
+  // sempre calculados por src/lib/financeiro/obra.ts, nunca gravados).
+  // `valorTotal`/`valorPago` (Float) são legados preservados, sem uso no cálculo.
+  vgv                   Decimal? @db.Decimal(15, 2)
+  financiamentoCef      Decimal? @db.Decimal(15, 2)
+  fgts                  Decimal? @db.Decimal(15, 2)
+  subsidio              Decimal? @db.Decimal(15, 2)
+  custoTerreno          Decimal? @db.Decimal(15, 2)
+  comissaoValor         Decimal? @db.Decimal(15, 2)
+  orcamentoPrevisto     Decimal? @db.Decimal(15, 2)
+  taxaMensalPct         Decimal? @db.Decimal(7, 4)
+  qtdeParcelas          Int?
+  escritorioCef         String?
+  empreiteiroId         String?
+  empreiteiro           Usuario? @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
+  percentualEmpreiteiro Decimal? @db.Decimal(9, 6)
+  movimentos            ObraMovimento[]
+  investidores          ObraInvestidor[]
   etapas          ObraEtapa[]
   diario          ObraDiario[]
   criadoEm        DateTime     @default(now())
@@ -480,6 +498,7 @@ model BpoCliente {
 
 model BpoLancamento {
   id               String      @id @default(cuid())
+  movimentosObra   ObraMovimento[]
   clienteId        String?
   cliente          BpoCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   clienteNomeLivre String?     // nome do lead/cliente quando não há clienteId
@@ -544,6 +563,7 @@ model Avaliacao {
 
 model Usuario {
   id                         String           @id @default(cuid())
+  obrasComoEmpreiteiro       Obra[]           @relation("ObraEmpreiteiro")
   nome                       String
   email                      String           @unique
   senha                      String
@@ -792,4 +812,74 @@ model Arquivo {
   criadoEm  DateTime @default(now())
 
   @@map("arquivos")
+}
+
+// ========== EPIC-020 Lote 2 — motor financeiro da Obra ==========
+
+model Investidor {
+  id           String           @id @default(cuid())
+  nome         String
+  documento    String?
+  telefone     String?
+  email        String?
+  ativo        Boolean          @default(true)
+  obras        ObraInvestidor[]
+  criadoEm     DateTime         @default(now())
+  atualizadoEm DateTime         @updatedAt
+
+  @@map("investidores")
+}
+
+model ObraInvestidor {
+  id           String     @id @default(cuid())
+  obraId       String
+  obra         Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  investidorId String
+  investidor   Investidor @relation(fields: [investidorId], references: [id], onDelete: Restrict)
+  percentual   Decimal    @db.Decimal(9, 6)
+  criadoEm     DateTime   @default(now())
+
+  @@unique([obraId, investidorId])
+  @@map("obra_investidores")
+}
+
+// Garantias no banco (migração 20261012140000): sem exclusão, histórico
+// automático e alocação do BPO limitada ao valor pago.
+model ObraMovimento {
+  id                 String                   @id @default(cuid())
+  obraId             String
+  obra               Obra                     @relation(fields: [obraId], references: [id], onDelete: Restrict)
+  natureza           String // entrada | recebimento_cef | pagamento
+  categoria          String? // terreno | comissao | empreiteiro | fornecedor | outros | nao_detalhado (só pagamento)
+  descricao          String
+  valor              Decimal                  @db.Decimal(15, 2)
+  data               DateTime                 @db.Date
+  observacao         String?
+  origem             String // manual | bpo | migracao
+  bpoLancamentoId    String?
+  bpoLancamento      BpoLancamento?           @relation(fields: [bpoLancamentoId], references: [id], onDelete: Restrict)
+  status             String                   @default("confirmado") // confirmado | cancelado
+  motivoCancelamento String?
+  criadoPorId        String?
+  atualizadoPorId    String?
+  historico          ObraMovimentoHistorico[]
+  criadoEm           DateTime                 @default(now())
+  atualizadoEm       DateTime                 @updatedAt
+
+  @@index([obraId])
+  @@index([bpoLancamentoId])
+  @@map("obra_movimentos")
+}
+
+model ObraMovimentoHistorico {
+  id          String        @id @default(cuid())
+  movimentoId String
+  movimento   ObraMovimento @relation(fields: [movimentoId], references: [id], onDelete: Restrict)
+  acao        String
+  antes       Json?
+  depois      Json
+  usuarioId   String?
+  criadoEm    DateTime      @default(now())
+
+  @@map("obra_movimentos_historico")
 }

@@ -14,6 +14,7 @@ export default async function AdminLayout({
 
   const role = (session.user as { role?: string })?.role;
   if (role === "cliente") redirect("/portal");
+  if (role === "empreiteiro") redirect("/empreiteiro");
 
   return <AdminShell>{children}</AdminShell>;
 }

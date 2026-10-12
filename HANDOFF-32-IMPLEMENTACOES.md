@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — Lote 1 PUBLICADO nos dois sistemas. Próximo: Lote 2.
+Última atualização: 12/10/2026 — Lote 2 implementado nos dois sistemas, migrations aplicadas em produção; merge/deploy em andamento. Próximo: Lote 3.
 
 ---
 
@@ -241,7 +241,7 @@ calculado alterado via API, arredondamento, operações simultâneas.
 |---|---|---|
 | 0 Diagnóstico | ✅ Concluído | Matriz EPIC-020; sem PRs abertas nem trabalho concorrente em 12/10 |
 | 1 CRM/Obras | ✅ Publicado (12/10/2026) | Prospecta PR #95 → `b29b1d8`, deploy produção `dpl_8qH69ArX1GWKj1EvPw7Ducr9NB4D` READY · Santa Fé PR #164 → `6f9a98f`, deploy produção `dpl_CdJLxNtgoAp8bQHuT3Kbkk57QKYy` READY (o deploy automático falhou com `git_info_fail` da Vercel — erro de infraestrutura antes do build; resolvido com redeploy) · migrations aplicadas em produção antes do merge · testes 584/584 e 456/456 · **pendente: validação manual em navegador** (o ambiente do agente não acessa os domínios) |
-| 2 Motor financeiro | ⏳ Não iniciado | — |
+| 2 Motor financeiro | 🔄 Código pronto, migrations em produção, merge/deploy em andamento | Motor único `shared/financeiro/obra.ts` (Prospecta) ≡ `web/src/lib/financeiro/obra.ts` (Santa Fé), centavos + HALF_UP, testes A–F · migrations aplicadas em produção em 12/10: Prospecta `0035_lote2_motor_financeiro` (Neon) e Santa Fé `20261012140000_lote2_motor_financeiro` (Supabase; triggers aplicados via `apply_migration` porque `execute_sql` trava com `$$`) · garantias verificadas em produção com rollback (DELETE bloqueado, histórico gravado) · Prospecta obra 35 migrada: VGV 170.000, entrada 6.000, CEF 102.817,42, gastos 57.795 (movimentos `migracao`) · testes Prospecta 613/613, Santa Fé 492/492 · E2E em navegador no Santa Fé com Postgres local (Teste A: 21.766/15.766; lucro 43.000; empreiteiro 30% = 12.900; empresa 30.100; BPO esgotado sai da lista; empreiteiro só vê as próprias obras) · **Prospecta sem teste em navegador** (o ambiente não alcança o Neon) |
 | 3 Comissões | ⏳ Não iniciado | — |
 | 4 Progresso/Fotos/PDF | ⏳ Não iniciado | — |
 | 5 Incorporação | ⏳ Não iniciado | — |
@@ -249,13 +249,23 @@ calculado alterado via API, arredondamento, operações simultâneas.
 | 7 Auditoria final | ⏳ Não iniciado | relatório A–K + matriz de 32 linhas |
 
 ### Próximo passo exato
-**Iniciar o Lote 2 (motor financeiro e BPO — itens 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23,
-25, 26)** seguindo §6. Ordem sugerida: (a) investigar BPO/financeiro existente nos dois sistemas e o
-que o PR #158 removeu no Santa Fé; (b) criar o módulo de cálculo puro com os testes de referência
-A–D (mesmas funções e resultados nos dois repos, em centavos/decimal, HALF_UP); (c) tabelas de
-recebimentos (entrada/CEF) e pagamentos com origem manual/BPO, estorno e anti-duplicidade;
-(d) papel Empreiteiro e investidores; (e) migrar o JSON `__MCMV_META__` da Prospecta para colunas;
-(f) construir Valores da Operação e Custos no Santa Fé; (g) telas; (h) merge + deploy.
+1. Se o Lote 2 ainda não estiver mesclado: abrir/mesclar os PRs da branch `claude/sync-mirrored-repos-bsqnz3`
+   nos dois repos (migrations JÁ estão em produção — não reaplicar; são idempotentes de qualquer forma)
+   e confirmar o deploy de produção READY na Vercel.
+2. **Iniciar o Lote 3 (item 32 — comissões automáticas pelo CRM)** seguindo §6: investigar o corretor
+   "Chaleilson" na Prospecta, a tela de Comissões dos dois sistemas e ligar a comissão à obra
+   (`construction_projects.commission_amount` / `obras.comissaoValor`, criados no Lote 2) e ao
+   pagamento de categoria `comissao` em `obra_movimentos`.
+
+### Decisões do Lote 2 (não reabrir)
+- Prospecta: `contract_value` = **Orçamento Previsto** (custo da construção); `lot_cost` = terreno.
+- Santa Fé: `valorTotal`/`valorPago` antigos ficam **preservados como referência legada**, fora dos
+  cálculos (4 de 5 obras têm `valorTotal`; o dono deve dizer se é VGV ou orçamento e preencher na tela).
+- Ausente ≠ zero: indicador mostra "Informe: ..." quando falta entrada.
+- Movimentos nunca são apagados (trigger), só cancelados com motivo; reativar revalida o saldo do BPO.
+- Vínculo com BPO: só lançamento pago; pagamento ↔ despesa; soma alocada ≤ valor (trigger com lock).
+- Papel `empreiteiro` nos dois: vê só as próprias obras (`/empreiteiro`), sem edição.
+- Lucro Estimado é estimativa da operação (VGV − terreno − comissão − orçamento), não lucro contábil.
 
 **Se um deploy da Vercel falhar com `git_info_fail`** (falha ao ler o commit, antes do build): não é
 erro de código. Refazer pela API/MCP da Vercel com `create_deployment` usando `deploymentId` do
@@ -278,6 +288,9 @@ erro de código. Refazer pela API/MCP da Vercel com `create_deployment` usando `
 - Novo papel de usuário **Empreiteiro** (17.2/22) nos dois sistemas.
 
 ### Inconsistências legadas já registradas (não corrigidas automaticamente)
+- Prospecta obra 35: o JSON antigo tinha `downPaymentTotal` 13.766, mas VGV − financiamento − FGTS −
+  subsídio = 21.766. A fórmula oficial prevalece; o valor antigo não foi gravado.
+- Santa Fé: `valorTotal` legado de 4 obras aguardando classificação do dono (VGV × orçamento).
 - Prospecta obra #22: tipo gravado "Vistoria e medição", serviço do CRM `obra_cliente` → a tela
   agora mostra "Obra / reforma". Corrigir no lead se for de fato vistoria.
 - Santa Fé: 4 obras com tipo antigo "Obra Nova" — preservado em `obras.tipo`, tipo oficial passa a

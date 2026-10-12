@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield } from "lucide-react";
 import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes } from "@/lib/actions/usuarios";
 
-type Papel = "admin" | "colaborador";
+type Papel = "admin" | "colaborador" | "empreiteiro";
 
 interface Usuario {
   id: string;
@@ -20,6 +20,7 @@ interface Usuario {
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
   { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
   { value: "colaborador", label: "Colaborador", cor: "bg-purple-100 text-purple-700" },
+  { value: "empreiteiro", label: "Empreiteiro", cor: "bg-amber-100 text-amber-800" },
 ];
 
 const MODULOS = [
@@ -141,7 +142,7 @@ export function UsuariosClient({ usuarios }: Props) {
 
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap border-b border-gray-100 pb-0">
-        {(["todos", "admin", "colaborador"] as const).map((p) => (
+        {(["todos", "admin", "colaborador", "empreiteiro"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setAba(p)}
