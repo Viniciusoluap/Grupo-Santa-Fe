@@ -7,6 +7,7 @@ import { validarNovoCorretor } from "@/lib/corretores/validacao";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
 
 export async function excluirCorretor(id: string) {
   const session = await auth();
@@ -27,6 +28,13 @@ export async function excluirCorretor(id: string) {
   revalidatePath("/admin/corretores");
 }
 
+/** Vazio remove a regra (sem percentual inventado); valor cria/atualiza. */
+function regraComissaoOperacao(corretorId: string, percentual: string | null) {
+  return percentual === null
+    ? prisma.regraComissaoCorretor.deleteMany({ where: { corretorId } })
+    : prisma.regraComissaoCorretor.upsert({ where: { corretorId }, create: { corretorId, percentual }, update: { percentual } });
+}
+
 export async function editarCorretor(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
@@ -45,6 +53,7 @@ export async function editarCorretor(formData: FormData) {
         ativo: formData.get("ativo") === "true",
       },
     }),
+    regraComissaoOperacao(id, lerPercentualComissao(formData.get("percentualComissaoPadrao"))),
     // Mantem o e-mail de login em sincronia com o e-mail de perfil do corretor -
     // sao a mesma pessoa/identidade, nunca deveriam divergir silenciosamente.
     ...(corretor?.usuarioId
@@ -71,6 +80,12 @@ export async function criarCorretor(formData: FormData) {
   const creci = formData.get("creci") as string;
   const telefone = formData.get("telefone") as string;
   const senha = (formData.get("senha") as string) || "";
+  let percentualComissaoPadrao: string | null;
+  try {
+    percentualComissaoPadrao = lerPercentualComissao(formData.get("percentualComissaoPadrao"));
+  } catch (e) {
+    redirect("/admin/corretores/novo?erro=" + encodeURIComponent((e as Error).message));
+  }
 
   const erroValidacao = validarNovoCorretor({ nome, email, creci, telefone, senha });
   if (erroValidacao) {
@@ -99,6 +114,7 @@ export async function criarCorretor(formData: FormData) {
         telefone,
         email,
         ativo: true,
+        ...(percentualComissaoPadrao ? { regraComissao: { create: { percentual: percentualComissaoPadrao } } } : {}),
       },
     });
   });

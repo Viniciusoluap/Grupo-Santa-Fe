@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const auth = vi.fn();
 const prisma = {
   usuario: { findUnique: vi.fn() },
-  obra: { update: vi.fn() },
+  obra: { update: vi.fn(), findUnique: vi.fn() },
   investidor: { count: vi.fn() },
   obraInvestidor: { deleteMany: vi.fn(), createMany: vi.fn() },
   obraMovimento: { create: vi.fn(), updateMany: vi.fn() },
@@ -43,7 +43,7 @@ describe("obra-financeiro — permissões", () => {
 });
 
 describe("salvarValoresObra", () => {
-  beforeEach(() => { vi.clearAllMocks(); auth.mockResolvedValue(admin); });
+  beforeEach(() => { vi.clearAllMocks(); auth.mockResolvedValue(admin); prisma.obra.findUnique.mockResolvedValue({ comissaoPercentual: null, leadVinculado: null }); });
 
   it("grava só as entradas, com ausente = null (não zero)", async () => {
     const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
@@ -144,5 +144,44 @@ describe("movimentos", () => {
     const { reativarMovimentoObra } = await import("@/lib/actions/obra-financeiro");
     const r = await reativarMovimentoObra("m1");
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("Lote 3 — comissão da obra pelo CRM (item 32)", () => {
+  const corretor = (percentual: string | null) => ({ comissaoPercentual: null, leadVinculado: { corretor: { id: "c1", nome: "Corretor", regraComissao: percentual ? { percentual } : null } } });
+  const entrada = { ...valoresBase, vgv: "230000.00", comissao: "1" };
+  beforeEach(() => { vi.clearAllMocks(); auth.mockResolvedValue(admin); });
+
+  it("com corretor e % da obra grava o valor calculado (Teste G: 230.000 × 5% = 11.500,00) e ignora o digitado", async () => {
+    prisma.obra.findUnique.mockResolvedValue(corretor(null));
+    const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
+    expect(await salvarValoresObra({ ...entrada, comissaoPercentual: "5" })).toEqual({ ok: true });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "11500.00", comissaoPercentual: "5" });
+  });
+
+  it("sem % da obra usa o padrão do corretor; vírgula é aceita", async () => {
+    prisma.obra.findUnique.mockResolvedValue(corretor("4"));
+    const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
+    await salvarValoresObra({ ...entrada, comissaoPercentual: "" });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "9200.00", comissaoPercentual: null });
+    vi.clearAllMocks(); auth.mockResolvedValue(admin); prisma.obra.findUnique.mockResolvedValue(corretor(null));
+    await salvarValoresObra({ ...entrada, comissaoPercentual: "2,5" });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "5750.00", comissaoPercentual: "2.5" });
+  });
+
+  it("sem regra cadastrada não inventa percentual e preserva o valor informado", async () => {
+    prisma.obra.findUnique.mockResolvedValue(corretor(null));
+    const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
+    await salvarValoresObra({ ...entrada, comissaoPercentual: null });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "1", comissaoPercentual: null });
+  });
+
+  it("percentual de comissão inválido é recusado sem gravar", async () => {
+    prisma.obra.findUnique.mockResolvedValue(corretor(null));
+    const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
+    for (const p of ["100.01", "5.12345", "-1", "abc"]) {
+      expect((await salvarValoresObra({ ...entrada, comissaoPercentual: p })).ok).toBe(false);
+    }
+    expect(prisma.obra.update).not.toHaveBeenCalled();
   });
 });

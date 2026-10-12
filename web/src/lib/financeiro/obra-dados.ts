@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { calcularObra, centavosDe, type EntradasObra, type ResultadoObra } from "@/lib/financeiro/obra";
+import { calcularComissaoObra, type ComissaoObraCalculada } from "@/lib/financeiro/comissao";
 
 // Leitura dos Valores da Operação e Custos de uma obra (EPIC-020 Lote 2), no
 // mesmo formato do `obraFinanceiro.resumo` da Prospecta. Decimais viram texto
@@ -37,7 +38,11 @@ export type ResumoObra = {
     dataInicio: string | null;
     dataTerminoPrevista: string | null;
     percentualEmpreiteiro: string | null;
+    comissaoPercentual: string | null;
   };
+  /** Corretor vem do lead no CRM (item 24), com a regra padrão de comissão. */
+  corretor: { id: string; nome: string; percentualPadrao: string | null } | null;
+  comissaoCalculada: ComissaoObraCalculada;
   empreiteiro: { id: string; nome: string } | null;
   investidores: { investidorId: string; nome: string; percentual: string }[];
   movimentos: MovimentoResumo[];
@@ -49,6 +54,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     where: { id: obraId },
     include: {
       empreiteiro: { select: { id: true, nome: true } },
+      leadVinculado: { select: { corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
       investidores: { include: { investidor: { select: { nome: true } } }, orderBy: { investidor: { nome: "asc" } } },
       movimentos: {
         orderBy: [{ data: "asc" }, { criadoEm: "asc" }],
@@ -58,13 +64,22 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
   });
   if (!obra) return null;
 
+  const c = obra.leadVinculado?.corretor;
+  const corretor = c ? { id: c.id, nome: c.nome, percentualPadrao: txt(c.regraComissao?.percentual) } : null;
+  const pagoComissao = obra.movimentos
+    .filter((m) => m.status === "confirmado" && m.natureza === "pagamento" && m.categoria === "comissao")
+    .reduce((acc, m) => acc + centavosDe(m.valor.toString())!, 0);
+  // Item 32: com corretor e regra cadastrada, a comissão é VGV × % (fonte única);
+  // sem regra, preserva o valor informado antes (condição contratual existente).
+  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(txt(obra.vgv)), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
+
   const entradas: EntradasObra = {
     vgv: centavosDe(txt(obra.vgv)),
     financiamento: centavosDe(txt(obra.financiamentoCef)),
     fgts: centavosDe(txt(obra.fgts)),
     subsidio: centavosDe(txt(obra.subsidio)),
     custoTerreno: centavosDe(txt(obra.custoTerreno)),
-    comissao: centavosDe(txt(obra.comissaoValor)),
+    comissao: comissaoCalculada.valorCentavos ?? centavosDe(txt(obra.comissaoValor)),
     orcamentoPrevisto: centavosDe(txt(obra.orcamentoPrevisto)),
     taxaMensalPct: txt(obra.taxaMensalPct),
     parcelas: obra.qtdeParcelas,
@@ -98,7 +113,10 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
       dataInicio: entradas.dataInicio,
       dataTerminoPrevista: entradas.dataTerminoPrevista,
       percentualEmpreiteiro: txt(obra.percentualEmpreiteiro),
+      comissaoPercentual: txt(obra.comissaoPercentual),
     },
+    corretor,
+    comissaoCalculada,
     empreiteiro: obra.empreiteiro,
     investidores: obra.investidores.map((i) => ({ investidorId: i.investidorId, nome: i.investidor.nome, percentual: i.percentual.toString() })),
     movimentos: obra.movimentos.map((m) => ({
