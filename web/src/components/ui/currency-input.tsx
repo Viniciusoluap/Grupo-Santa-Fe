@@ -4,17 +4,24 @@ import { useState } from "react";
 import { maskCurrency, currencyToFloat } from "@/lib/utils";
 
 interface Props {
-  name: string;
+  name?: string;
   defaultValue?: number | null;
+  value?: number | null;
+  onValueChange?: (value: number) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
 }
 
-export function CurrencyInput({ name, defaultValue, placeholder = "0,00", className = "", required }: Props) {
+export function CurrencyInput({ name, defaultValue, value, onValueChange, placeholder = "0,00", className = "", required }: Props) {
   const [display, setDisplay] = useState(() =>
     defaultValue ? maskCurrency(String(Math.round(defaultValue * 100))) : ""
   );
+
+  const controlled = value !== undefined;
+  const shown = controlled
+    ? value ? maskCurrency(String(Math.round(value * 100))) : ""
+    : display;
 
   return (
     <div className="relative">
@@ -23,12 +30,16 @@ export function CurrencyInput({ name, defaultValue, placeholder = "0,00", classN
         type="text"
         inputMode="numeric"
         placeholder={placeholder}
-        value={display}
-        onChange={(e) => setDisplay(maskCurrency(e.target.value))}
+        value={shown}
+        onChange={(e) => {
+          const next = maskCurrency(e.target.value);
+          if (!controlled) setDisplay(next);
+          onValueChange?.(Number(currencyToFloat(next)));
+        }}
         required={required}
         className={`pl-9 ${className}`}
       />
-      <input type="hidden" name={name} value={currencyToFloat(display)} />
+      {name && <input type="hidden" name={name} value={currencyToFloat(shown)} />}
     </div>
   );
 }

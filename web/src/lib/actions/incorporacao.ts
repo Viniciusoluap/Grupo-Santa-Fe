@@ -44,13 +44,17 @@ export async function criarEstudo(formData: FormData) {
   const municipio = (formData.get("municipio") as string)?.trim();
   const estado = ((formData.get("estado") as string) || "PA").trim();
   const responsavel = (formData.get("responsavel") as string)?.trim() || null;
+  const matriculaImovel = (formData.get("matriculaImovel") as string)?.trim() || null;
+  const carRegistro = (formData.get("carRegistro") as string)?.trim() || null;
+  const zoneamentoOficial = (formData.get("zoneamentoOficial") as string)?.trim() || null;
+  const zoneamentoFonte = (formData.get("zoneamentoFonte") as string)?.trim() || null;
   const { endereco, latitude, longitude } = lerLocalizacao(formData);
 
   // Campos obrigatórios são enforçados no HTML (required); guarda defensiva.
   if (!nome || !municipio) redirect("/admin/incorporacao/novo");
 
   const estudo = await prisma.estudoIncorporacao.create({
-    data: { nome, municipio, estado, responsavel, endereco, latitude, longitude, status: "rascunho" },
+    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status: "rascunho" },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -67,13 +71,17 @@ export async function editarEstudo(formData: FormData) {
   const municipio = (formData.get("municipio") as string)?.trim();
   const estado = ((formData.get("estado") as string) || "PA").trim();
   const responsavel = (formData.get("responsavel") as string)?.trim() || null;
+  const matriculaImovel = (formData.get("matriculaImovel") as string)?.trim() || null;
+  const carRegistro = (formData.get("carRegistro") as string)?.trim() || null;
+  const zoneamentoOficial = (formData.get("zoneamentoOficial") as string)?.trim() || null;
+  const zoneamentoFonte = (formData.get("zoneamentoFonte") as string)?.trim() || null;
   const { endereco, latitude, longitude } = lerLocalizacao(formData);
 
   if (!id || !nome || !municipio) redirect(`/admin/incorporacao/${id}/editar`);
 
   await prisma.estudoIncorporacao.update({
     where: { id },
-    data: { nome, municipio, estado, responsavel, endereco, latitude, longitude },
+    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -86,6 +94,19 @@ export async function excluirEstudo(id: string) {
   requireActionRole(session, "admin");
   await prisma.estudoIncorporacao.delete({ where: { id } });
   revalidatePath("/admin/incorporacao");
+}
+
+/** A leitura de um snapshot antigo exige a mesma permissão administrativa do estudo. */
+export async function obterVersaoEstudo(estudoId: string, numero: number) {
+  const session = await auth();
+  requireActionRole(session, "admin");
+  if (!Number.isSafeInteger(numero) || numero < 1) throw new Error("Versão inválida.");
+  const versao = await prisma.estudoIncorporacaoVersao.findUnique({
+    where: { estudoId_numero: { estudoId, numero } },
+    select: { numero: true, criadoEm: true, snapshot: true },
+  });
+  if (!versao) throw new Error("Versão não encontrada.");
+  return { numero: versao.numero, criadoEm: versao.criadoEm.toISOString(), snapshot: versao.snapshot };
 }
 
 /** Recebe o KML, salva no Blob, extrai o polígono e persiste geometria/métricas. */
@@ -314,9 +335,32 @@ export async function salvarOrcamentoPreliminar(estudoId: string, dadosJson: str
 }
 
 /** Salva o cronograma de marcos do planejamento do lançamento — etapa 4.1. */
+async function validarResponsaveisCronograma(dadosJson: string, chave: "medicoes" | "marcos") {
+  if (dadosJson.length > 150_000) throw new Error("Cronograma excede o tamanho permitido.");
+  let dados: Record<string, unknown>;
+  try { dados = JSON.parse(dadosJson); } catch { throw new Error("Cronograma inválido."); }
+  if (!dados || typeof dados !== "object" || !Array.isArray(dados[chave])) throw new Error("Itens do cronograma inválidos.");
+  const itens = dados[chave] as Record<string, unknown>[];
+  if (itens.length > 500 || itens.some((i) => !i || typeof i !== "object")) throw new Error("Itens do cronograma inválidos.");
+  if (chave === "medicoes" && dados.riscos != null && !Array.isArray(dados.riscos)) throw new Error("Registro de riscos inválido.");
+  const riscos = chave === "medicoes" && Array.isArray(dados.riscos) ? dados.riscos as Record<string, unknown>[] : [];
+  if (riscos.length > 100 || riscos.some((r) => !r || typeof r.id !== "string" ||
+      typeof r.descricao !== "string" || !r.descricao.trim() || r.descricao.length > 1000 ||
+      typeof r.mitigacao !== "string" || r.mitigacao.length > 2000 ||
+      !["baixo", "medio", "alto"].includes(String(r.impacto)) ||
+      !["aberto", "mitigado"].includes(String(r.status)))) throw new Error("Registro de riscos inválido.");
+  if ([...itens, ...riscos].some((i) => i.responsavelId != null && typeof i.responsavelId !== "string")) throw new Error("Responsável inválido.");
+  const ids = [...new Set([...itens, ...riscos].map((item) => item.responsavelId).filter((id): id is string => typeof id === "string" && !!id))];
+  if (ids.length) {
+    const usuarios = await prisma.usuario.findMany({ where: { id: { in: ids }, ativo: true, papel: { in: ["admin", "colaborador"] } }, select: { id: true } });
+    if (usuarios.length !== ids.length) throw new Error("Responsável não autorizado ou inativo.");
+  }
+}
+
 export async function salvarPlanejamentoLancamento(estudoId: string, dadosJson: string) {
   const session = await auth();
   requireActionRole(session, "admin");
+  await validarResponsaveisCronograma(dadosJson, "marcos");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { planejamentoLancamentoJson: dadosJson },
@@ -389,6 +433,7 @@ export async function salvarOrcamentoObra(estudoId: string, dadosJson: string) {
 export async function salvarCronogramaObra(estudoId: string, dadosJson: string) {
   const session = await auth();
   requireActionRole(session, "admin");
+  await validarResponsaveisCronograma(dadosJson, "medicoes");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { cronogramaObraJson: dadosJson },

@@ -129,8 +129,22 @@ describe("montarRelatorioExecutivo — mercado/referências", () => {
     expect(temDado(m.mercado)).toBe(true);
     if (temDado(m.mercado)) {
       expect(m.mercado.dado.cidade?.populacao).toBe(500_000);
-      expect(m.mercado.dado.fontesPendencia).toMatch(/não são persistidas/);
+      expect(m.mercado.dado.fontesPendencia).toMatch(/não constam/);
     }
+  });
+
+  it("preserva fontes da pesquisa salva e mantém lacuna explícita nos estudos legados", () => {
+    const atual = montarRelatorioExecutivo(baseEstudo({
+      estudoMercadoJson: JSON.stringify({ precoM2Lote: 250, fontes: ["IBGE", "Prefeitura"], confiabilidade: "média" }),
+    }), GERADO_EM);
+    expect(temDado(atual.mercado)).toBe(true);
+    if (temDado(atual.mercado)) {
+      expect(atual.mercado.dado.fontes).toEqual(["IBGE", "Prefeitura"]);
+      expect(atual.mercado.dado.fontesPendencia).toBeNull();
+    }
+    expect(temDado(atual.premissasFontesVersao.fontesPesquisaMercado)).toBe(true);
+    const legado = montarRelatorioExecutivo(baseEstudo({ estudoMercadoJson: JSON.stringify({ precoM2Lote: 250 }) }), GERADO_EM);
+    expect(temDado(legado.premissasFontesVersao.fontesPesquisaMercado)).toBe(false);
   });
 
   it("dado presente quando há pesquisa primária com entrevistados", () => {
@@ -349,8 +363,8 @@ describe("montarRelatorioExecutivo — cronograma/tarefas/responsáveis/riscos",
     const m = montarRelatorioExecutivo(baseEstudo(), GERADO_EM);
     expect(temDado(m.cronograma)).toBe(false);
     if (!temDado(m.cronograma)) {
-      expect(m.cronograma.pendencia).toMatch(/responsável único por estudo/);
-      expect(m.cronograma.pendencia).toMatch(/risco de MERCADO/);
+      expect(m.cronograma.pendencia).toMatch(/sem responsável individual/);
+      expect(m.cronograma.pendencia).toMatch(/Nenhum risco de execução/);
     }
   });
 
@@ -365,10 +379,25 @@ describe("montarRelatorioExecutivo — cronograma/tarefas/responsáveis/riscos",
     expect(temDado(m.cronograma)).toBe(true);
     if (temDado(m.cronograma)) {
       expect(m.cronograma.dado.responsavelDoEstudo).toBe("Maria Incorporadora");
-      expect(m.cronograma.dado.responsavelPorTarefaPendencia).toMatch(/não existe no sistema hoje/);
-      expect(m.cronograma.dado.riscosExecucaoPendencia).toMatch(/não existe no sistema hoje/);
+      expect(m.cronograma.dado.responsavelPorTarefaPendencia).toMatch(/sem responsável individual/);
+      expect(m.cronograma.dado.riscosExecucaoPendencia).toMatch(/Nenhum risco de execução/);
       expect(m.cronograma.dado.cronogramaObra?.avancoFisicoAtualPct).toBe(50);
     }
+  });
+
+  it("mostra responsáveis por medição e riscos registrados sem confundir com pesquisa de mercado", () => {
+    const m = montarRelatorioExecutivo(baseEstudo({
+      colaboradores: [{ id: "U1", nome: "Ana" }],
+      cronogramaObraJson: JSON.stringify({
+        medicoes: [{ id: "M1", mes: 0, avancoFisicoAcumuladoPct: 20, responsavelId: "U1" }],
+        riscos: [{ id: "R1", descricao: "Atraso de licença", impacto: "alto", mitigacao: "Protocolar cedo", responsavelId: "U1", status: "aberto" }],
+      }),
+    }), GERADO_EM);
+    expect(temDado(m.cronograma)).toBe(true);
+    if (!temDado(m.cronograma)) throw new Error("Cronograma esperado");
+    expect(m.cronograma.dado.responsaveisPorTarefa).toEqual([{ tarefa: "Medição do mês 1", responsavel: "Ana" }]);
+    expect(m.cronograma.dado.riscosExecucao[0].descricao).toBe("Atraso de licença");
+    expect(m.cronograma.dado.riscosExecucaoPendencia).toBeNull();
   });
 });
 

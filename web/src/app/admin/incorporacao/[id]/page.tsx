@@ -4,6 +4,7 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { BackButton } from "@/components/ui/back-button";
 import { IncorporacaoDetail } from "../_components/incorporacao-detail";
+import { VersoesEstudo } from "../_components/versoes-estudo";
 
 export default async function EstudoDetailPage({
   params,
@@ -16,6 +17,14 @@ export default async function EstudoDetailPage({
   const { id } = await params;
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id } });
   if (!estudo) notFound();
+  const versoes = await prisma.estudoIncorporacaoVersao.findMany({
+    where: { estudoId: id }, orderBy: { numero: "desc" }, take: 20,
+    select: { numero: true, criadoEm: true },
+  });
+  const colaboradores = await prisma.usuario.findMany({
+    where: { ativo: true, papel: { in: ["admin", "colaborador"] } },
+    select: { id: true, nome: true }, orderBy: { nome: "asc" },
+  });
 
   // Serializa apenas os campos usados no client (evita passar Date cru sem controle).
   const data = {
@@ -25,6 +34,12 @@ export default async function EstudoDetailPage({
     estado: estudo.estado,
     status: estudo.status,
     responsavel: estudo.responsavel,
+    versaoNumero: versoes[0]?.numero ?? null,
+    colaboradores,
+    matriculaImovel: estudo.matriculaImovel,
+    carRegistro: estudo.carRegistro,
+    zoneamentoOficial: estudo.zoneamentoOficial,
+    zoneamentoFonte: estudo.zoneamentoFonte,
     kmlUrl: estudo.kmlUrl,
     geojson: estudo.geojson,
     areaM2: estudo.areaM2,
@@ -76,6 +91,7 @@ export default async function EstudoDetailPage({
         <p className="text-gray-400 text-sm mt-0.5">{estudo.municipio}/{estudo.estado}</p>
       </div>
       <IncorporacaoDetail estudo={data} />
+      <VersoesEstudo estudoId={id} versoes={versoes.map((v) => ({ numero: v.numero, criadoEm: v.criadoEm.toISOString() }))} />
     </div>
   );
 }

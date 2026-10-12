@@ -3,6 +3,7 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { criarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
 import { SeletorLocalizacao } from "../_components/seletor-localizacao";
+import { CadastroFormalFields } from "../_components/cadastro-formal-fields";
 
 export default async function NovoEstudoPage() {
   const session = await auth();
@@ -46,6 +47,7 @@ export default async function NovoEstudoPage() {
           <input name="responsavel" placeholder="Opcional"
             className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
         </div>
+        <CadastroFormalFields />
         <button type="submit"
           className="text-xs font-bold px-5 py-2.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 transition-opacity">
           Criar estudo

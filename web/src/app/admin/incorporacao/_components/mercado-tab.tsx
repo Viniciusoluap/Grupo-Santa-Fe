@@ -20,6 +20,7 @@ interface Mercado {
   concorrentes: { nome: string; produto: string; faixaPreco: string }[];
   comparaveis: { descricao: string; preco: number; area: number; precoPorM2: number }[];
   oportunidades: string; riscos: string;
+  fontes?: string[]; confiabilidade?: string;
 }
 
 export function MercadoTab({ estudo }: { estudo: EstudoData }) {
@@ -30,6 +31,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
     estudo.estudoMercadoJson ? JSON.parse(estudo.estudoMercadoJson) : null
   );
   const [meta, setMeta] = useState<{ fontes?: string[]; confiabilidade?: string } | null>(null);
+  const fontesPersistidas = meta ?? (mercado ? { fontes: mercado.fontes, confiabilidade: mercado.confiabilidade } : null);
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -45,9 +47,14 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
       const json = await res.json();
       if (!res.ok) { setErro(json.error ?? "Falha na pesquisa."); return; }
       setCidade(json.cidade);
-      setMercado(json.mercado);
+      const mercadoComFontes = {
+        ...json.mercado,
+        fontes: Array.isArray(json.fontes) ? json.fontes.filter((f: unknown): f is string => typeof f === "string") : [],
+        confiabilidade: typeof json.confiabilidade === "string" ? json.confiabilidade : "",
+      };
+      setMercado(mercadoComFontes);
       setMeta({ fontes: json.fontes, confiabilidade: json.confiabilidade });
-      await salvarMercado(estudo.id, { pesquisaCidade: json.cidade, estudoMercado: json.mercado });
+      await salvarMercado(estudo.id, { pesquisaCidade: json.cidade, estudoMercado: mercadoComFontes });
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro inesperado.");
     } finally {
@@ -74,8 +81,8 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
 
       <PesquisaPrimaria estudo={estudo} />
 
-      {meta?.confiabilidade && (
-        <p className="text-[11px] text-gray-400">Confiabilidade: <b>{meta.confiabilidade}</b>{meta.fontes?.filter(Boolean).length ? ` · Fontes: ${meta.fontes.filter(Boolean).join("; ")}` : ""}</p>
+      {(fontesPersistidas?.confiabilidade || fontesPersistidas?.fontes?.length) && (
+        <p className="text-[11px] text-gray-400">Confiabilidade: <b>{fontesPersistidas.confiabilidade || "não informada"}</b>{fontesPersistidas.fontes?.filter(Boolean).length ? ` · Fontes: ${fontesPersistidas.fontes.filter(Boolean).join("; ")}` : ""}</p>
       )}
 
       {cidade && (

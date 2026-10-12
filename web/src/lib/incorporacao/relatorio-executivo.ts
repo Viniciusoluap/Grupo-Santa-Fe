@@ -38,6 +38,7 @@ import {
 import {
   resumoCronogramaObra,
   type MedicaoMensal,
+  type RiscoExecucao,
   type ResumoCronogramaObra,
 } from "./cronograma-obra";
 import {
@@ -125,24 +126,32 @@ export interface DadoCadastral {
   parametros: Record<string, unknown> | null;
   potencial: Record<string, unknown> | null;
   parecerUrbanistico: string | null;
-  matriculaPendencia: string;
-  carPendencia: string;
-  zoneamentoOficialPendencia: string;
+  matriculaImovel: string | null;
+  carRegistro: string | null;
+  zoneamentoOficial: string | null;
+  zoneamentoFonte: string | null;
+  matriculaPendencia: string | null;
+  carPendencia: string | null;
+  zoneamentoOficialPendencia: string | null;
 }
 
 const MATRICULA_PENDENCIA =
-  "Matrícula do imóvel: não existe como dado estruturado no sistema hoje — é necessário consultar o cartório de registro de imóveis.";
+  "Matrícula do imóvel não informada: consulte o cartório de registro de imóveis.";
 const CAR_PENDENCIA =
-  "CAR (Cadastro Ambiental Rural): não existe como dado estruturado no sistema hoje — é necessário consultar o CAR/órgão ambiental competente.";
+  "CAR (Cadastro Ambiental Rural) não informado: verifique a aplicabilidade e consulte o órgão ambiental.";
 const ZONEAMENTO_PENDENCIA =
-  "Zoneamento oficial (lei municipal de uso e ocupação do solo): não existe como dado estruturado no sistema hoje — é necessário consultar a prefeitura/plano diretor.";
+  "Zoneamento oficial não informado com fonte: consulte a prefeitura/plano diretor.";
 
 function montarDadosCadastrais(estudo: EstudoData): Secao<DadoCadastral> {
   const parametros = parseJson<Record<string, unknown>>(estudo.parametrosJson);
   const potencial = parseJson<Record<string, unknown>>(estudo.potencialJson);
   const parecerUrbanistico = estudo.urbanismoParecer ?? null;
 
-  if (!parametros && !potencial && !parecerUrbanistico) {
+  const matriculaImovel = estudo.matriculaImovel?.trim() || null;
+  const carRegistro = estudo.carRegistro?.trim() || null;
+  const zoneamentoOficial = estudo.zoneamentoOficial?.trim() || null;
+  const zoneamentoFonte = estudo.zoneamentoFonte?.trim() || null;
+  if (!parametros && !potencial && !parecerUrbanistico && !matriculaImovel && !carRegistro && !zoneamentoOficial) {
     return pendenciaSecao(
       "Parâmetros urbanísticos, potencial construtivo e parecer ainda não cadastrados nesta aba. Além disso: " +
         [MATRICULA_PENDENCIA, CAR_PENDENCIA, ZONEAMENTO_PENDENCIA].join(" ")
@@ -152,9 +161,10 @@ function montarDadosCadastrais(estudo: EstudoData): Secao<DadoCadastral> {
     parametros,
     potencial,
     parecerUrbanistico,
-    matriculaPendencia: MATRICULA_PENDENCIA,
-    carPendencia: CAR_PENDENCIA,
-    zoneamentoOficialPendencia: ZONEAMENTO_PENDENCIA,
+    matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte,
+    matriculaPendencia: matriculaImovel ? null : MATRICULA_PENDENCIA,
+    carPendencia: carRegistro ? null : CAR_PENDENCIA,
+    zoneamentoOficialPendencia: zoneamentoOficial && zoneamentoFonte ? null : ZONEAMENTO_PENDENCIA,
   });
 }
 
@@ -169,6 +179,8 @@ interface CidadeDados {
   resumo?: string;
 }
 interface MercadoDados {
+  fontes?: string[];
+  confiabilidade?: string;
   precoM2Lote?: number;
   precoM2Casa?: number;
   precoM2Apartamento?: number;
@@ -184,11 +196,13 @@ export interface DadoMercado {
   mercado: MercadoDados | null;
   precificacaoComparaveis: ResultadoPrecificacao | null;
   pesquisaPrimaria: ResumoPesquisaPrimaria | null;
-  fontesPendencia: string;
+  fontesPendencia: string | null;
+  fontes: string[] | null;
+  confiabilidade: string | null;
 }
 
 const FONTES_PESQUISA_IA_PENDENCIA =
-  "Fontes/confiabilidade da pesquisa de mercado por IA não são persistidas junto ao estudo — ficam disponíveis apenas na tela, no momento da pesquisa, e se perdem após salvar.";
+  "Fontes/confiabilidade da pesquisa de mercado por IA não constam deste estudo. Para estudos anteriores, refaça a pesquisa se precisar desses dados; não é possível reconstruí-los com segurança.";
 
 function montarMercado(estudo: EstudoData): Secao<DadoMercado> {
   const cidade = parseJson<CidadeDados>(estudo.pesquisaCidadeJson);
@@ -226,7 +240,12 @@ function montarMercado(estudo: EstudoData): Secao<DadoMercado> {
         FONTES_PESQUISA_IA_PENDENCIA
     );
   }
-  return okSecao({ cidade, mercado, precificacaoComparaveis, pesquisaPrimaria, fontesPendencia: FONTES_PESQUISA_IA_PENDENCIA });
+  const fontes = Array.isArray(mercado?.fontes) ? mercado.fontes.filter((f): f is string => typeof f === "string" && !!f.trim()) : [];
+  return okSecao({ cidade, mercado, precificacaoComparaveis, pesquisaPrimaria,
+    fontes: fontes.length ? fontes : null,
+    confiabilidade: mercado?.confiabilidade || null,
+    fontesPendencia: fontes.length ? null : FONTES_PESQUISA_IA_PENDENCIA,
+  });
 }
 
 // ─── 4. Estudo de massa / cenários ──────────────────────────────────────────
@@ -550,20 +569,31 @@ export interface DadoCronograma {
   cronogramaObra: ResumoCronogramaObra | null;
   planejamentoLancamento: ResumoPlanejamentoLancamento | null;
   responsavelDoEstudo: string | null;
-  responsavelPorTarefaPendencia: string;
-  riscosExecucaoPendencia: string;
+  responsaveisPorTarefa: { tarefa: string; responsavel: string }[];
+  riscosExecucao: { descricao: string; impacto: string; mitigacao: string; responsavel: string; status: string }[];
+  responsavelPorTarefaPendencia: string | null;
+  riscosExecucaoPendencia: string | null;
 }
 
 const RESPONSAVEL_POR_TAREFA_PENDENCIA =
-  "Responsável por tarefa individual do cronograma: não existe no sistema hoje — só há um responsável único por estudo (ver campo acima), sem atribuição por marco/medição.";
+  "Há marcos ou medições sem responsável individual atribuído.";
 const RISCOS_EXECUCAO_PENDENCIA =
-  "Registro de riscos de execução do cronograma: não existe no sistema hoje. O campo \"riscos\" existente no estudo é sobre risco de MERCADO (aba Mercado), não sobre riscos de execução de obra/lançamento.";
+  "Nenhum risco de execução foi registrado no cronograma. Verifique e registre os riscos ou documente a ausência após análise.";
 
 function montarCronograma(estudo: EstudoData): Secao<DadoCronograma> {
-  const obra = parseJson<{ medicoes?: MedicaoMensal[] }>(estudo.cronogramaObraJson);
+  const obra = parseJson<{ medicoes?: MedicaoMensal[]; riscos?: RiscoExecucao[] }>(estudo.cronogramaObraJson);
   const lancamento = parseJson<{ marcos?: MarcoLancamento[] }>(estudo.planejamentoLancamentoJson);
   const medicoes = obra?.medicoes ?? [];
   const marcos = lancamento?.marcos ?? [];
+  const usuarios = new Map((estudo.colaboradores ?? []).map((u) => [u.id, u.nome]));
+  const tarefas = [
+    ...medicoes.map((m) => ({ tarefa: `Medição do mês ${m.mes + 1}`, responsavelId: m.responsavelId })),
+    ...marcos.map((m) => ({ tarefa: m.nome, responsavelId: m.responsavelId })),
+  ];
+  const responsaveisPorTarefa = tarefas.filter((t) => t.responsavelId && usuarios.has(t.responsavelId))
+    .map((t) => ({ tarefa: t.tarefa, responsavel: usuarios.get(t.responsavelId!)! }));
+  const riscosExecucao = (obra?.riscos ?? []).map((r) => ({ descricao: r.descricao, impacto: r.impacto,
+    mitigacao: r.mitigacao, responsavel: usuarios.get(r.responsavelId ?? "") ?? "Não atribuído", status: r.status }));
 
   if (medicoes.length === 0 && marcos.length === 0) {
     return pendenciaSecao(
@@ -577,8 +607,9 @@ function montarCronograma(estudo: EstudoData): Secao<DadoCronograma> {
     cronogramaObra: medicoes.length > 0 ? resumoCronogramaObra(medicoes, premissas?.duracaoObraMeses) : null,
     planejamentoLancamento: marcos.length > 0 ? resumoPlanejamentoLancamento(marcos) : null,
     responsavelDoEstudo: estudo.responsavel ?? null,
-    responsavelPorTarefaPendencia: RESPONSAVEL_POR_TAREFA_PENDENCIA,
-    riscosExecucaoPendencia: RISCOS_EXECUCAO_PENDENCIA,
+    responsaveisPorTarefa, riscosExecucao,
+    responsavelPorTarefaPendencia: responsaveisPorTarefa.length === tarefas.length ? null : RESPONSAVEL_POR_TAREFA_PENDENCIA,
+    riscosExecucaoPendencia: riscosExecucao.length ? null : RISCOS_EXECUCAO_PENDENCIA,
   });
 }
 
@@ -602,8 +633,11 @@ function formatPct(v: number): string {
 
 function montarPremissasFontesVersao(
   premissas: PremissasLoteamento | null,
-  geradoEm: Date
+  geradoEm: Date,
+  estudo: EstudoData
 ): DadoPremissasFontesVersao {
+  const mercado = parseJson<MercadoDados>(estudo.estudoMercadoJson);
+  const fontes = Array.isArray(mercado?.fontes) ? mercado.fontes.filter((f): f is string => typeof f === "string" && !!f.trim()) : [];
   const premissasNumericas: Secao<PremissaNumerica[]> = premissas
     ? okSecao([
         { label: "Comissão sobre VGV", valor: formatPct(premissas.comissaoPctVgv) },
@@ -624,10 +658,10 @@ function montarPremissasFontesVersao(
   return {
     geradoEm: geradoEm.toISOString(),
     premissasNumericas,
-    versao: pendenciaSecao(
-      "Não há sistema de versionamento/histórico de revisões para este estudo. Este PDF reflete o estado atual do estudo no momento exato da geração (ver data/hora acima)."
+    versao: estudo.versaoNumero ? okSecao(`Versão ${estudo.versaoNumero} (retrato salvo no histórico)`) : pendenciaSecao(
+      "Histórico de versões indisponível para este estudo. Este PDF reflete o estado atual no momento da geração."
     ),
-    fontesPesquisaMercado: pendenciaSecao(FONTES_PESQUISA_IA_PENDENCIA),
+    fontesPesquisaMercado: fontes.length ? okSecao(fontes.join("; ")) : pendenciaSecao(FONTES_PESQUISA_IA_PENDENCIA),
   };
 }
 
@@ -682,7 +716,7 @@ export function montarRelatorioExecutivo(
     negociacao: montarNegociacao(estudo, vgvReferencia),
     documentosLicencas: montarDocumentosLicencas(estudo),
     cronograma: montarCronograma(estudo),
-    premissasFontesVersao: montarPremissasFontesVersao(premissas, geradoEm),
+    premissasFontesVersao: montarPremissasFontesVersao(premissas, geradoEm, estudo),
     parecerIa: estudo.parecerIa
       ? okSecao(estudo.parecerIa)
       : pendenciaSecao("Parecer de viabilidade por IA ainda não gerado para este estudo."),
