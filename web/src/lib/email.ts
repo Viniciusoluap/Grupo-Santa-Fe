@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { descreverErroSmtp } from "@/lib/email-erro";
 
 type EmailDependencies = {
   transport: Pick<ReturnType<typeof nodemailer.createTransport>, "sendMail">;
@@ -36,7 +37,8 @@ export async function sendEmail(
       text: data.html.replace(/<[^>]*>/g, ""),
     });
     return true;
-  } catch {
+  } catch (erro) {
+    console.error(`[email] envio falhou: ${descreverErroSmtp(erro)}`);
     return false;
   }
 }
