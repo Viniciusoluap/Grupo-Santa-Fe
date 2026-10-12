@@ -47,7 +47,6 @@ export function ChatAdmin({ leads }: Props) {
   useEffect(() => {
     if (!selectedLead) return;
     lastTimestampRef.current = null;
-    setMensagens([]);
     fetchMensagens(selectedLead.id, true);
 
     intervalRef.current = setInterval(() => {
@@ -111,7 +110,7 @@ export function ChatAdmin({ leads }: Props) {
           {leads.map((lead) => (
             <button
               key={lead.id}
-              onClick={() => setSelectedLead(lead)}
+              onClick={() => { setMensagens([]); setSelectedLead(lead); }}
               className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors hover:bg-gray-50 ${
                 selectedLead?.id === lead.id ? "bg-[var(--brand-yellow)]/20 border-l-2 border-l-[var(--brand-yellow)]" : ""
               }`}

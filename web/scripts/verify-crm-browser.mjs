@@ -77,10 +77,10 @@ try {
   await page.locator('select[name="etapaOperacional"]').selectOption("projetos_vistorias");
   await page.getByRole("button", { name: "Salvar Alterações", exact: true }).click();
   await page.waitForURL((u) => /^\/admin\/leads\/[^/]+$/.test(u.pathname));
-  assert.ok((await page.locator("body").innerText()).includes("Cliente fluxo E2E atualizado"));
+  await page.getByRole("heading", { name: "Cliente fluxo E2E atualizado", exact: true }).waitFor({ timeout: 20000 });
   for (const modulo of ["financiamentos", "obras", "regularizacao", "projetos"]) {
     await page.goto(`http://localhost:5500/admin/${modulo}`);
-    assert.ok((await page.locator("body").innerText()).includes("Cliente fluxo E2E atualizado"), `Sincronização da edição em ${modulo}`);
+    await page.getByText("Cliente fluxo E2E atualizado").first().waitFor({ timeout: 20000 });
   }
   console.log("PASS navegador: cadastro, edição, movimentação de etapa e sincronização dos quatro serviços");
   }

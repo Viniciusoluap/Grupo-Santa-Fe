@@ -6,6 +6,7 @@ import {
   maskPhone,
   maskCurrency,
   currencyToFloat,
+  parseNumeroBR,
 } from "@/lib/utils";
 
 describe("formatCurrency", () => {
@@ -93,5 +94,40 @@ describe("currencyToFloat", () => {
   });
   it("handles value without thousands separator", () => {
     expect(currencyToFloat("500,00")).toBe("500.00");
+  });
+});
+
+describe("parseNumeroBR", () => {
+  it("converts a number with thousands separator and decimal comma", () => {
+    expect(parseNumeroBR("1.234,56")).toBe(1234.56);
+  });
+  it("converts a plain decimal with comma", () => {
+    expect(parseNumeroBR("0,05")).toBe(0.05);
+  });
+  it("converts an integer without separators", () => {
+    expect(parseNumeroBR("250")).toBe(250);
+  });
+  it("converts a large value with multiple thousand separators", () => {
+    expect(parseNumeroBR("1.234.567,89")).toBe(1234567.89);
+  });
+  it("tolerates a currency symbol and spaces", () => {
+    expect(parseNumeroBR("R$ 1.234,56")).toBe(1234.56);
+  });
+  it("returns 0 for an empty string", () => {
+    expect(parseNumeroBR("")).toBe(0);
+  });
+  it("returns 0 for whitespace only", () => {
+    expect(parseNumeroBR("   ")).toBe(0);
+  });
+  it("returns 0 for null/undefined without throwing", () => {
+    expect(parseNumeroBR(null)).toBe(0);
+    expect(parseNumeroBR(undefined)).toBe(0);
+  });
+  it("returns 0 for garbage input instead of throwing", () => {
+    expect(parseNumeroBR("abc")).toBe(0);
+    expect(parseNumeroBR("1,2,3,4")).toBe(0);
+  });
+  it("handles a negative value", () => {
+    expect(parseNumeroBR("-1.234,56")).toBe(-1234.56);
   });
 });

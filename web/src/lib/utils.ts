@@ -45,3 +45,21 @@ export function maskCurrency(raw: string): string {
 export function currencyToFloat(masked: string): string {
   return masked.replace(/\./g, "").replace(",", ".");
 }
+
+/**
+ * Converte um número digitado no padrão brasileiro (separador de milhar "."
+ * e decimal ",") para `number` — ex.: "1.234,56" → 1234.56, "0,05" → 0.05,
+ * "250" → 250. Diferente de `currencyToFloat` (que espera um valor já
+ * mascarado em centavos), esta função aceita texto livre digitado pelo
+ * usuário em campos numéricos comuns (áreas, percentuais, preços).
+ *
+ * Nunca lança exceção: entrada vazia, nula ou inválida retorna 0.
+ */
+export function parseNumeroBR(valor: string | null | undefined): number {
+  if (typeof valor !== "string") return 0;
+  const limpo = valor.trim().replace(/[^\d,.-]/g, "");
+  if (!limpo) return 0;
+  const semSeparadorDeMilhar = limpo.replace(/\./g, "").replace(",", ".");
+  const n = Number(semSeparadorDeMilhar);
+  return Number.isFinite(n) ? n : 0;
+}

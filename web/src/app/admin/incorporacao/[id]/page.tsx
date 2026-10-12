@@ -24,6 +24,7 @@ export default async function EstudoDetailPage({
     municipio: estudo.municipio,
     estado: estudo.estado,
     status: estudo.status,
+    responsavel: estudo.responsavel,
     kmlUrl: estudo.kmlUrl,
     geojson: estudo.geojson,
     areaM2: estudo.areaM2,

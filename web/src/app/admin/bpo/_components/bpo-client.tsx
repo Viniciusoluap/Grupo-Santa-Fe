@@ -444,7 +444,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
     return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-yellow-100 text-yellow-700 uppercase"><Clock size={10} /> Pendente</span>;
   }
 
-  function LancamentoTable({ items }: { items: LancamentoComCliente[] }) {
+  function renderLancamentoTable(items: LancamentoComCliente[]) {
     return (
       <div className="bg-white border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
@@ -633,7 +633,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
-          <LancamentoTable items={cobracasFiltered} />
+          {renderLancamentoTable(cobracasFiltered)}
         </div>
       )}
 
@@ -670,7 +670,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
-          <LancamentoTable items={despesasFiltered} />
+          {renderLancamentoTable(despesasFiltered)}
         </div>
       )}
 

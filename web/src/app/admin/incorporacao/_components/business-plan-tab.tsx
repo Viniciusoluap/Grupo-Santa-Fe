@@ -11,7 +11,7 @@ import { calcularLoteamento } from "@/lib/finance/loteamento";
 import { salvarBusinessPlan } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
 import type { EstudoData } from "./incorporacao-detail";
-import { montarPremissasLoteamento } from "./viabilidade-tab";
+import { montarPremissasLoteamento } from "@/lib/incorporacao/premissas-loteamento";
 
 // Business Plan e Investidores (2.6 Novos Negócios) — simulação de captação
 // com fundos/investidores, comparada ao investimento total (custo total)

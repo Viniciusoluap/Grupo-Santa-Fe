@@ -166,6 +166,7 @@ export function ProjetosClient({ projetos }: Props) {
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-[var(--brand-dark)] leading-tight">{p.nome}</p>
+                      <p className="md:hidden text-xs text-gray-600 mt-1">{p.clienteNome}</p>
                       <TiposResumo raw={p.tipo} />
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">

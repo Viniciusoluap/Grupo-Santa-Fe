@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports -- Node executa este hook como CommonJS. */
 'use strict';
 
 /**

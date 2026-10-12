@@ -14,7 +14,7 @@ import { calcularLoteamento } from "@/lib/finance/loteamento";
 import { salvarNegociacaoTerreno } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
 import type { EstudoData } from "./incorporacao-detail";
-import { montarPremissasLoteamento } from "./viabilidade-tab";
+import { montarPremissasLoteamento } from "@/lib/incorporacao/premissas-loteamento";
 
 // Negociação do Terreno (2.7 Novos Negócios) — histórico de propostas
 // trocadas com o proprietário/terreneiro até o fechamento. O valor da

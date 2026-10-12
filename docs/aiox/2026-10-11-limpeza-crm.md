@@ -147,3 +147,27 @@ de persistência, build e navegador na mesma sessão. O modo
 AIOX_BROWSER_READONLY=1 verifica leitura/layout sem considerar cadastro/edição
 aprovados. Em PGlite, usar capacidade suficiente de conexões para leitura, mas
 manter explícita a limitação de concorrência do multiplexador.
+
+## Atualização de integração — 12/10/2026
+
+- A `main` recebeu PRs #159, #160 e #161 após o corte original. A integração
+  preservou a action legada que rejeita criação avulsa de financiamento,
+  os novos estudos de incorporação e o CRM com IDs persistentes.
+- PostgreSQL 18 nativo temporário: migração, retenção de legado e arquivo,
+  FKs, rollback, idempotência, checklist, quatro vínculos e propagação passaram.
+- Chromium com PostgreSQL nativo: cadastro/edição de lead, mudança de etapa,
+  quatro listagens, login, rotas removidas e 320/375/390/430/768/1280 passaram.
+  No celular, a listagem de Projetos agora mostra o cliente atualizado.
+- 434 testes em 47 arquivos, TypeScript e lint global sem erros passaram.
+  Build completo passou com a conexão ao banco local; não usa dados reais.
+- `20261011232900_pre_crm_backup` cria snapshot privado dos oito conjuntos
+  tocados pela migração seguinte. Teste em PostgreSQL nativo conferiu registro
+  sintético antes e depois. É cópia lógica no mesmo projeto para recuperar os
+  dados afetados; não substitui backup externo contra perda do projeto inteiro.
+  A cópia de produção ainda não foi feita neste momento do relatório.
+- Preflight atualizado: 26 leads (seis ambíguos), quatro obras, 20
+  financiamentos, quatro projetos e cinco regularizações; três processos sem
+  lead preservados. Supabase usa seu ledger de migrações, sem ledger Prisma
+  em produção. Registrar snapshot e migração no Supabase.
+- PR #158 permanece em rascunho até snapshot e migração passarem em produção.
+  Merge e deploy foram autorizados pelo proprietário nesta sessão.

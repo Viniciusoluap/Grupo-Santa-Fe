@@ -12,6 +12,15 @@ import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vincu
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+// Mantém a antiga Server Action como bloqueio explícito para chamadas
+// originadas de formulários antigos; a criação ocorre somente pelo CRM.
+export async function criarFinanciamento(_formData: FormData): Promise<never> {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
+  throw new Error(
+    "Criação avulsa de financiamento não é permitida. Vincule o serviço de financiamento (\"Financiamento MCMV\" ou \"Financiamento Convencional\") ao lead no CRM para criar o processo automaticamente."
+  );
+}
 export async function excluirFinanciamento(id: string) {
   const session = await auth();
   requireActionRole(session, "admin");

@@ -34,10 +34,11 @@ function dados(tipo = "sbpe") {
 beforeEach(() => { vi.clearAllMocks(); mocks.outraDemanda = false; mocks.acessivel = true; });
 
 describe("ações operacionais mantêm origem e identidade do CRM", () => {
-  it("os quatro módulos não expõem qualquer ação de criação independente", async () => {
+  it("os quatro módulos bloqueiam criação independente", async () => {
     const [obras, financiamentos, projetos, regs, regDocs] = await Promise.all([import("@/lib/actions/obras"), import("@/lib/actions/financiamentos"), import("@/lib/actions/projetos"), import("@/lib/actions/regularizacoes"), import("@/lib/actions/regularizacao")]);
     expect(obras).not.toHaveProperty("criarObra");
-    expect(financiamentos).not.toHaveProperty("criarFinanciamento");
+    // A action legada segue exportada para rejeitar chamadas de formulários antigos.
+    await expect(financiamentos.criarFinanciamento(new FormData())).rejects.toThrow(/não é permitida/i);
     expect(projetos).not.toHaveProperty("criarProjeto");
     expect(regs).not.toHaveProperty("criarRegularizacao");
     expect(regDocs).not.toHaveProperty("criarRegularizacao");

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { Grid3x3, Loader2, Save, Send, Trophy } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import { gerarCenariosMassa, type CenarioMassa, type ParametrosMassa } from "@/lib/geo/massa";
+import { AlertTriangle, Grid3x3, Loader2, Save, Send, Trophy } from "lucide-react";
+import { formatCurrency, parseNumeroBR } from "@/lib/utils";
+import { gerarCenariosMassa, validarParametrosMassa, type CenarioMassa, type ParametrosMassa } from "@/lib/geo/massa";
 import { salvarMassa } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
 import type { Feature, Polygon } from "geojson";
@@ -13,6 +13,19 @@ const MapaMassa = dynamic(() => import("./mapa-massa").then((m) => m.MapaMassa),
   ssr: false,
   loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: 420 }} />,
 });
+
+/** Formata um número para exibição no padrão brasileiro (campo de texto). */
+function formatarCampo(v: number): string {
+  return Number.isFinite(v) ? v.toLocaleString("pt-BR", { maximumFractionDigits: 4 }) : "";
+}
+
+function formatarCampos(p: ParametrosMassa): Record<keyof ParametrosMassa, string> {
+  const entradas = Object.keys(p) as (keyof ParametrosMassa)[];
+  return entradas.reduce((acc, k) => {
+    acc[k] = formatarCampo(p[k]);
+    return acc;
+  }, {} as Record<keyof ParametrosMassa, string>);
+}
 
 export function MassaTab({ estudo }: { estudo: EstudoData }) {
   // Defaults herdados do urbanístico e do mercado, quando existirem.
@@ -34,6 +47,11 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
       }
     );
   });
+  // Buffer de texto por campo — permite digitar no padrão brasileiro
+  // ("1.234,56") sem que o cursor/formatação interfiram na digitação.
+  const [camposTexto, setCamposTexto] = useState<Record<keyof ParametrosMassa, string>>(() =>
+    formatarCampos(params)
+  );
   const [cenarios, setCenarios] = useState<CenarioMassa[]>(() => {
     const salvo = estudo.massaCenariosJson ? JSON.parse(estudo.massaCenariosJson) : null;
     return salvo?.cenarios ?? [];
@@ -41,27 +59,57 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
   const [selecionado, setSelecionado] = useState<string | null>(estudo.cenarioEscolhidoId);
   const [busy, setBusy] = useState(false);
   const [gerando, setGerando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  function upd<K extends keyof ParametrosMassa>(k: K, v: string) {
-    setParams({ ...params, [k]: parseFloat(v) || 0 });
+  function upd<K extends keyof ParametrosMassa>(k: K, valorTexto: string) {
+    setCamposTexto((c) => ({ ...c, [k]: valorTexto }));
+    setParams((p) => ({ ...p, [k]: parseNumeroBR(valorTexto) }));
+    setErro(null);
+  }
+
+  // Ao sair do campo, reformata o texto a partir do valor numérico já
+  // parseado — limpa digitação intermediária/inválida sem alterar `params`.
+  function reformatarCampo(k: keyof ParametrosMassa) {
+    setCamposTexto((c) => ({ ...c, [k]: formatarCampo(params[k]) }));
   }
 
   function gerar() {
     if (!estudo.geojson || !estudo.centroLat || !estudo.centroLng) return;
+
+    const erroValidacao = validarParametrosMassa(params);
+    if (erroValidacao) {
+      setErro(erroValidacao);
+      return;
+    }
+
+    setErro(null);
     setGerando(true);
     // deixa o spinner pintar antes do cálculo síncrono
     setTimeout(() => {
       try {
         const feature = JSON.parse(estudo.geojson!) as Feature<Polygon>;
         const anel = feature.geometry.coordinates[0];
+        if (!anel || anel.length < 4) {
+          throw new Error("Geometria da gleba inválida ou incompleta.");
+        }
         const novos = gerarCenariosMassa(
           anel,
           [estudo.centroLng!, estudo.centroLat!],
           params,
           { populacao: 14, geracoes: 12, seed: Date.now() % 100000, nCenarios: 3 }
         );
+        if (novos.length === 0) {
+          throw new Error("Nenhum cenário gerado com os parâmetros informados.");
+        }
+        // sucesso: só agora substitui os cenários anteriores — uma falha
+        // nunca apaga o que já estava na tela nem os parâmetros digitados.
         setCenarios(novos);
         setSelecionado(novos[0]?.id ?? null);
+      } catch (e) {
+        console.error("Erro ao gerar cenários de massa:", e);
+        setErro(
+          "Não foi possível gerar os cenários com esses parâmetros. Verifique os valores informados (testada, profundidade, quadra, percentuais) e tente novamente."
+        );
       } finally {
         setGerando(false);
       }
@@ -98,15 +146,15 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
 
   const cenarioAtivo = cenarios.find((c) => c.id === selecionado) ?? cenarios[0];
 
-  const campos: { k: keyof ParametrosMassa; label: string; step?: string }[] = [
-    { k: "testadaLoteM", label: "Testada do lote (m)", step: "0.5" },
+  const campos: { k: keyof ParametrosMassa; label: string }[] = [
+    { k: "testadaLoteM", label: "Testada do lote (m)" },
     { k: "profundidadeLoteM", label: "Profundidade (m)" },
     { k: "loteMinimoM2", label: "Lote mínimo (m²)" },
     { k: "larguraViaM", label: "Largura da via (m)" },
     { k: "comprimentoMaxQuadraM", label: "Quadra máx. (m)" },
     { k: "precoM2Lote", label: "Preço lote (R$/m²)" },
-    { k: "percentInstitucional", label: "% institucional (0-1)", step: "0.01" },
-    { k: "percentAreaVerde", label: "% área verde (0-1)", step: "0.01" },
+    { k: "percentInstitucional", label: "% institucional (0-1)" },
+    { k: "percentAreaVerde", label: "% área verde (0-1)" },
   ];
 
   return (
@@ -119,8 +167,10 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
           {campos.map((c) => (
             <div key={c.k}>
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">{c.label}</label>
-              <input type="number" step={c.step ?? "any"} value={params[c.k]}
+              <input type="text" inputMode="decimal" value={camposTexto[c.k]}
                 onChange={(e) => upd(c.k, e.target.value)}
+                onBlur={() => reformatarCampo(c.k)}
+                placeholder="0,00"
                 className="w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]" />
             </div>
           ))}
@@ -130,6 +180,12 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
           {gerando ? <Loader2 size={14} className="animate-spin" /> : <Grid3x3 size={14} />}
           {gerando ? "Otimizando cenários (algoritmo genético)..." : "Gerar cenários otimizados"}
         </button>
+        {erro && (
+          <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-100 p-3">
+            <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-red-700">{erro}</p>
+          </div>
+        )}
       </div>
 
       {cenarios.length > 0 && (
