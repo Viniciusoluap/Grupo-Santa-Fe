@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — Lote 2 PUBLICADO nos dois sistemas. Próximo: Lote 3.
+Última atualização: 12/10/2026 — Lote 3 implementado nos dois sistemas, migrations aplicadas em produção; merge/deploy em andamento. Próximo: Lote 4.
 
 ---
 
@@ -242,17 +242,28 @@ calculado alterado via API, arredondamento, operações simultâneas.
 | 0 Diagnóstico | ✅ Concluído | Matriz EPIC-020; sem PRs abertas nem trabalho concorrente em 12/10 |
 | 1 CRM/Obras | ✅ Publicado (12/10/2026) | Prospecta PR #95 → `b29b1d8`, deploy produção `dpl_8qH69ArX1GWKj1EvPw7Ducr9NB4D` READY · Santa Fé PR #164 → `6f9a98f`, deploy produção `dpl_CdJLxNtgoAp8bQHuT3Kbkk57QKYy` READY (o deploy automático falhou com `git_info_fail` da Vercel — erro de infraestrutura antes do build; resolvido com redeploy) · migrations aplicadas em produção antes do merge · testes 584/584 e 456/456 · **pendente: validação manual em navegador** (o ambiente do agente não acessa os domínios) |
 | 2 Motor financeiro | ✅ Publicado (12/10/2026) | Prospecta PR #97 → `c348177`, deploy produção `dpl_3coJmPq2bfYWVsiw2MZ268e1ZZuZ` READY · Santa Fé PR #166 → `8effca9`, deploy produção `dpl_2RKZUD1a9vGrBxiMc5mFHjZHMjhj` READY · Motor único `shared/financeiro/obra.ts` (Prospecta) ≡ `web/src/lib/financeiro/obra.ts` (Santa Fé), centavos + HALF_UP, testes A–F · migrations aplicadas em produção em 12/10: Prospecta `0035_lote2_motor_financeiro` (Neon) e Santa Fé `20261012140000_lote2_motor_financeiro` (Supabase; triggers aplicados via `apply_migration` porque `execute_sql` trava com `$$`) · garantias verificadas em produção com rollback (DELETE bloqueado, histórico gravado) · Prospecta obra 35 migrada: VGV 170.000, entrada 6.000, CEF 102.817,42, gastos 57.795 (movimentos `migracao`) · testes Prospecta 613/613, Santa Fé 492/492 · E2E em navegador no Santa Fé com Postgres local (Teste A: 21.766/15.766; lucro 43.000; empreiteiro 30% = 12.900; empresa 30.100; BPO esgotado sai da lista; empreiteiro só vê as próprias obras) · **Prospecta sem teste em navegador** (o ambiente não alcança o Neon) |
-| 3 Comissões | ⏳ Não iniciado | — |
+| 3 Comissões | 🔄 Código pronto, migrations em produção, merge/deploy em andamento | Motor `shared/financeiro/comissao.ts` ≡ `web/src/lib/financeiro/comissao.ts` (Teste G 11.500,00 ✅) · migrations em produção em 12/10: Prospecta `0036_lote3_comissoes` (Neon) e Santa Fé `20261012150000_lote3_comissoes` (Supabase, inclui **RLS nas tabelas do Lote 2 que tinham ficado sem**) · testes Prospecta 634/634, Santa Fé 512/512 · E2E navegador Santa Fé (padrão do corretor 5% → 7.900; 3% da obra → 4.740; pagamento 1.000 → parcial, saldo 3.740) · investigação Chaleilson: `docs/stories/epics/epic-020-32-implementacoes-paridade/RELATORIO-LOTE3-COMISSOES.md` (só na Prospecta) · **Prospecta sem teste em navegador** |
 | 4 Progresso/Fotos/PDF | ⏳ Não iniciado | — |
 | 5 Incorporação | ⏳ Não iniciado | — |
 | 6 Regularização | ⏳ Não iniciado | — |
 | 7 Auditoria final | ⏳ Não iniciado | relatório A–K + matriz de 32 linhas |
 
 ### Próximo passo exato
-1. **Iniciar o Lote 3 (item 32 — comissões automáticas pelo CRM)** seguindo §6: investigar o corretor
-   "Chaleilson" na Prospecta, a tela de Comissões dos dois sistemas e ligar a comissão à obra
-   (`construction_projects.commission_amount` / `obras.comissaoValor`, criados no Lote 2) e ao
-   pagamento de categoria `comissao` em `obra_movimentos`.
+1. Se o Lote 3 ainda não estiver mesclado: mesclar os PRs da branch `claude/sync-mirrored-repos-bsqnz3`
+   (migrations JÁ aplicadas em produção) e confirmar deploy de produção READY.
+2. **Iniciar o Lote 4 (itens 27, 28, 29 — Progresso por incidência, Fotos e Relatório PDF)** seguindo §6.
+   Teste E (Progresso) = 28,20% com as 20 incidências oficiais da Implementação 27 (texto completo no
+   prompt mestre; buscar "IMPLEMENTAÇÃO 27" no histórico ou pedir ao dono).
+
+### Decisões do Lote 3 (não reabrir)
+- Comissão de obra = VGV × % / 100; % = da obra (aba Custos) ou padrão do corretor
+  (Prospecta `broker_profiles.default_commission_pct`; Santa Fé tabela `regras_comissao_corretor`,
+  separada para não expor Decimal onde o corretor inteiro é carregado). Sem regra → "Dados
+  incompletos", sem valor. Nunca presumir percentual.
+- A lista "Comissões de obras" é **derivada** (sem tabela de sincronização): impossível duplicar.
+- Comissões manuais existentes não são alteradas; divergências são sinalizadas.
+- Com corretor + regra + VGV, o campo Comissão da obra vira automático e é gravado com o valor calculado.
+- Pagamento de comissão = lançamento de categoria "comissao" no financeiro da obra (manual ou BPO).
 
 ### Decisões do Lote 2 (não reabrir)
 - Prospecta: `contract_value` = **Orçamento Previsto** (custo da construção); `lot_cost` = terreno.
