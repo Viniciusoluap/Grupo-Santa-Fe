@@ -8,7 +8,7 @@ import {
 } from "@/lib/incorporacao/cronograma-obra";
 import { salvarCronogramaObra } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
-import { montarPremissasLoteamento } from "./viabilidade-tab";
+import { montarPremissasLoteamento } from "@/lib/incorporacao/premissas-loteamento";
 
 // Cronograma Físico-Financeiro (5.3 Projetos Executivos e Obras) — curva S
 // física (medições reais em obra) x financeira (desembolso linear

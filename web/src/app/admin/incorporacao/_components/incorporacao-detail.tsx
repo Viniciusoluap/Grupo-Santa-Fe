@@ -47,6 +47,7 @@ export interface EstudoData {
   municipio: string;
   estado: string;
   status: string;
+  responsavel: string | null;
   kmlUrl: string | null;
   geojson: string | null;
   areaM2: number;
