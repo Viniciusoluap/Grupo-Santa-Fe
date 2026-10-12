@@ -48,6 +48,12 @@ export interface EstudoData {
   estado: string;
   status: string;
   responsavel: string | null;
+  versaoNumero?: number | null;
+  colaboradores?: { id: string; nome: string }[];
+  matriculaImovel?: string | null;
+  carRegistro?: string | null;
+  zoneamentoOficial?: string | null;
+  zoneamentoFonte?: string | null;
   kmlUrl: string | null;
   geojson: string | null;
   areaM2: number;

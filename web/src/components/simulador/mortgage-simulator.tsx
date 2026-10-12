@@ -20,6 +20,8 @@ import {
   type SimulationInput,
 } from "@/lib/mortgage";
 import { formatCurrency } from "@/lib/utils";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { PercentInput } from "@/components/ui/percent-input";
 import { generateSimulationPdf, generateSimulationPdfWithSchedule } from "@/lib/simulation-pdf";
 
 const TERM_OPTIONS = [60, 120, 180, 240, 300, 360, 420];
@@ -44,93 +46,6 @@ function InputField({
         )}
       </label>
       {children}
-    </div>
-  );
-}
-
-function CurrencyInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  placeholder?: string;
-}) {
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const digits = e.target.value.replace(/\D/g, "");
-    const cents = digits ? parseInt(digits, 10) : 0;
-    onChange(cents / 100);
-  }
-
-  const displayValue =
-    value > 0
-      ? new Intl.NumberFormat("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(value)
-      : "";
-
-  return (
-    <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-        R$
-      </span>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={displayValue}
-        onChange={handleChange}
-        placeholder={placeholder ?? "0,00"}
-        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
-      />
-    </div>
-  );
-}
-
-function PercentInput({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (pct: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [raw, setRaw] = useState("");
-
-  function handleFocus() {
-    setEditing(true);
-    setRaw(value > 0 ? value.toFixed(1).replace(".", ",") : "");
-  }
-
-  function handleBlur() {
-    setEditing(false);
-    const num = parseFloat(raw.replace(",", "."));
-    if (!isNaN(num)) onChange(Math.min(100, Math.max(0, num)));
-    else if (raw === "") onChange(0);
-  }
-
-  const displayValue = editing
-    ? raw
-    : value > 0
-    ? value.toFixed(1).replace(".", ",")
-    : "";
-
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        inputMode="decimal"
-        value={displayValue}
-        onChange={(e) => setRaw(e.target.value)}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        placeholder="0,0"
-        className="w-full pr-7 pl-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 text-right"
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-        %
-      </span>
     </div>
   );
 }
@@ -202,7 +117,8 @@ export function MortgageSimulator() {
           <InputField label="Valor do Imóvel">
             <CurrencyInput
               value={form.propertyValue}
-              onChange={(v) => setForm((f) => ({ ...f, propertyValue: v }))}
+              onValueChange={(v) => setForm((f) => ({ ...f, propertyValue: v }))}
+              className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
             />
           </InputField>
 
@@ -214,7 +130,8 @@ export function MortgageSimulator() {
               <div className="col-span-3">
                 <CurrencyInput
                   value={form.downPayment}
-                  onChange={(v) => setForm((f) => ({ ...f, downPayment: v }))}
+                  onValueChange={(v) => setForm((f) => ({ ...f, downPayment: v }))}
+                  className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                 />
               </div>
               <div className="col-span-2">
@@ -224,12 +141,13 @@ export function MortgageSimulator() {
                       ? (form.downPayment / form.propertyValue) * 100
                       : 0
                   }
-                  onChange={(pct) =>
+                  onValueChange={(pct) =>
                     setForm((f) => ({
                       ...f,
-                      downPayment: (f.propertyValue * pct) / 100,
+                      downPayment: (f.propertyValue * Math.min(100, Math.max(0, pct))) / 100,
                     }))
                   }
+                  className="w-full pl-3 py-2.5 border border-gray-200 text-sm text-right focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                 />
               </div>
             </div>
@@ -255,8 +173,9 @@ export function MortgageSimulator() {
             <InputField label="Valor do FGTS">
               <CurrencyInput
                 value={form.fgtsAmount}
-                onChange={(v) => setForm((f) => ({ ...f, fgtsAmount: v }))}
+                onValueChange={(v) => setForm((f) => ({ ...f, fgtsAmount: v }))}
                 placeholder="Saldo disponível"
+                className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
               />
             </InputField>
           )}

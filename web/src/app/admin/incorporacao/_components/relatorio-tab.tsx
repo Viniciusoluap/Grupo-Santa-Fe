@@ -115,7 +115,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
         <div className="text-center mb-5">
           <FileText size={28} className="text-gray-300 mx-auto mb-3" />
           <p className="font-bold text-[var(--brand-dark)]">Relatório executivo de incorporação</p>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 text-sm mt-1">
             Consolida terreno, mercado, massa, quadro de áreas, mix, custos/VGV, indicadores financeiros,
             impostos/comissões/permutas, negociação, documentos/licenças, cronograma e premissas em um único PDF.
           </p>
@@ -137,7 +137,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
             className="inline-flex items-center gap-1.5 text-xs font-bold px-5 py-2.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 disabled:opacity-50">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar relatório completo (PDF)
           </button>
-          <p className="text-[10px] text-gray-400 mt-2">
+          <p className="text-[10px] text-gray-600 mt-2">
             Seções sem dados aparecem no PDF como pendência explícita — nunca são omitidas.
           </p>
         </div>
@@ -237,10 +237,15 @@ function secaoDadosCadastrais(doc: jsPDF, y: number, secao: Secao<DadoCadastral>
     for (const [k, v] of Object.entries(d.parametros ?? {})) entradas.push([k, formatarValorGenerico(v)]);
     for (const [k, v] of Object.entries(d.potencial ?? {})) entradas.push([k, formatarValorGenerico(v)]);
     if (entradas.length > 0) y = tabela(doc, y, ["Parâmetro", "Valor"], entradas);
+    const cadastro = [
+      ["Matrícula", d.matriculaImovel], ["CAR", d.carRegistro],
+      ["Zoneamento oficial", d.zoneamentoOficial], ["Fonte do zoneamento", d.zoneamentoFonte],
+    ].filter((row): row is string[] => !!row[1]);
+    if (cadastro.length) y = tabela(doc, y, ["Dado cadastral", "Valor informado"], cadastro);
     if (d.parecerUrbanistico) y = paragrafo(doc, y, d.parecerUrbanistico);
-    y = pendenciaLinha(doc, y, d.matriculaPendencia);
-    y = pendenciaLinha(doc, y, d.carPendencia);
-    y = pendenciaLinha(doc, y, d.zoneamentoOficialPendencia);
+    if (d.matriculaPendencia) y = pendenciaLinha(doc, y, d.matriculaPendencia);
+    if (d.carPendencia) y = pendenciaLinha(doc, y, d.carPendencia);
+    if (d.zoneamentoOficialPendencia) y = pendenciaLinha(doc, y, d.zoneamentoOficialPendencia);
     return y;
   });
 }
@@ -284,7 +289,8 @@ function secaoMercado(doc: jsPDF, y: number, secao: Secao<DadoMercado>): number 
         [[p.totalEntrevistados, pctStr(p.pctInteresseComprar12Meses / 100), pctStr(p.pctComImovelProprio / 100), m2Str(p.tamanhoIdealMedioM2)]]
       );
     }
-    y = pendenciaLinha(doc, y, d.fontesPendencia);
+    if (d.fontes) y = paragrafo(doc, y, `Fontes da pesquisa de mercado: ${d.fontes.join("; ")}. Confiabilidade: ${d.confiabilidade || "não informada"}.`);
+    if (d.fontesPendencia) y = pendenciaLinha(doc, y, d.fontesPendencia);
     return y;
   });
 }
@@ -493,8 +499,11 @@ function secaoCronograma(doc: jsPDF, y: number, secao: Secao<DadoCronograma>): n
       y = pendenciaLinha(doc, y, "Planejamento do lançamento (marcos) ainda não cadastrado nesta aba.");
     }
     y = paragrafo(doc, y, `Responsável do estudo (contexto geral, não por tarefa): ${d.responsavelDoEstudo ?? "não definido"}.`);
-    y = pendenciaLinha(doc, y, d.responsavelPorTarefaPendencia);
-    y = pendenciaLinha(doc, y, d.riscosExecucaoPendencia);
+    if (d.responsaveisPorTarefa.length) y = tabela(doc, y, ["Tarefa", "Responsável"], d.responsaveisPorTarefa.map((t) => [t.tarefa, t.responsavel]));
+    if (d.riscosExecucao.length) y = tabela(doc, y, ["Risco de execução", "Impacto", "Mitigação", "Responsável", "Status"],
+      d.riscosExecucao.map((r) => [r.descricao, r.impacto, r.mitigacao, r.responsavel, r.status]));
+    if (d.responsavelPorTarefaPendencia) y = pendenciaLinha(doc, y, d.responsavelPorTarefaPendencia);
+    if (d.riscosExecucaoPendencia) y = pendenciaLinha(doc, y, d.riscosExecucaoPendencia);
     return y;
   });
 }
@@ -509,8 +518,10 @@ function secaoPremissasFontesVersao(doc: jsPDF, y: number, d: DadoPremissasFonte
   } else {
     y = pendenciaLinha(doc, y, d.premissasNumericas.pendencia);
   }
-  if (!temDado(d.versao)) y = pendenciaLinha(doc, y, d.versao.pendencia);
-  if (!temDado(d.fontesPesquisaMercado)) y = pendenciaLinha(doc, y, d.fontesPesquisaMercado.pendencia);
+  if (temDado(d.versao)) y = paragrafo(doc, y, d.versao.dado);
+  else y = pendenciaLinha(doc, y, d.versao.pendencia);
+  if (temDado(d.fontesPesquisaMercado)) y = paragrafo(doc, y, `Fontes da pesquisa de mercado: ${d.fontesPesquisaMercado.dado}.`);
+  else y = pendenciaLinha(doc, y, d.fontesPesquisaMercado.pendencia);
   return y;
 }
 

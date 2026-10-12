@@ -690,6 +690,10 @@ model EstudoIncorporacao {
   longitude     Float?
   responsavel   String?
   status        String   @default("rascunho") // rascunho | em_estudo | concluido
+  matriculaImovel String?
+  carRegistro String?
+  zoneamentoOficial String?
+  zoneamentoFonte String?
 
   // Terreno / geometria
   imovelId      String?
@@ -799,6 +803,20 @@ model EstudoIncorporacao {
 
   @@index([status])
   @@map("estudos_incorporacao")
+}
+
+// Snapshots imutáveis a cada alteração do estudo, preservados inclusive após
+// exclusão do registro principal. Criados por trigger no banco.
+model EstudoIncorporacaoVersao {
+  id        String   @id @default(uuid()) @db.Uuid
+  estudoId  String
+  numero    Int
+  snapshot  Json     @db.JsonB
+  criadoEm  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([estudoId, numero])
+  @@index([estudoId, criadoEm])
+  @@map("estudos_incorporacao_versoes")
 }
 
 // ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────
