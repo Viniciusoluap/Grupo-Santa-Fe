@@ -15,7 +15,7 @@ CREATE TABLE "estudo_documentos_registro" (
   "desvinculadoEm" TIMESTAMP(3),
   "desvinculadoPorId" TEXT,
   CONSTRAINT "estudo_documentos_registro_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "estudo_documentos_registro_estudoId_fkey" FOREIGN KEY ("estudoId") REFERENCES "estudos_incorporacao"("id") ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT "estudo_documentos_registro_estudoId_fkey" FOREIGN KEY ("estudoId") REFERENCES "estudos_incorporacao"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 CREATE UNIQUE INDEX "estudo_documentos_registro_driveFileId_key" ON "estudo_documentos_registro"("driveFileId");
 CREATE INDEX "estudo_documentos_registro_estudoId_itemId_ativo_idx" ON "estudo_documentos_registro"("estudoId", "itemId", "ativo");

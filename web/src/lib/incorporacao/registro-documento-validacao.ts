@@ -1,6 +1,8 @@
 import { DOCUMENTOS_PADRAO_REGISTRO } from "./registro-incorporacao";
 
-export const LIMITE_DOCUMENTO_REGISTRO = 10 * 1024 * 1024;
+// O upload atravessa uma Vercel Function: manter a requisição abaixo do limite
+// de payload da plataforma (4,5 MB), inclusive metadados do Server Action.
+export const LIMITE_DOCUMENTO_REGISTRO = 3 * 1024 * 1024;
 
 export function mimeDocumentoRegistro(bytes: Buffer): string | null {
   if (bytes.subarray(0, 5).toString("ascii") === "%PDF-") return "application/pdf";

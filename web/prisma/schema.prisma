@@ -845,7 +845,7 @@ model EstudoIncorporacaoVersao {
 model EstudoDocumentoRegistro {
   id             String   @id @default(cuid())
   estudoId       String
-  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
   itemId         String   @db.VarChar(80)
   driveFileId    String   @unique
   nome           String   @db.VarChar(255)

@@ -32,7 +32,7 @@ export async function enviarDocumentoRegistro(estudoId: string, itemId: string, 
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { id: true, registroIncorporacaoJson: true } });
   if (!estudo || !itemRegistroValido(itemId, estudo.registroIncorporacaoJson)) throw new Error("Item do checklist inválido.");
   if (!arquivo || typeof arquivo.arrayBuffer !== "function" || arquivo.size < 1 || arquivo.size > LIMITE_DOCUMENTO_REGISTRO)
-    throw new Error("Selecione PDF ou imagem de até 10 MB.");
+    throw new Error("Selecione PDF ou imagem de até 3 MB.");
   const nome = arquivo.name.replace(/[\\/\x00-\x1f\x7f]/g, "_").trim().slice(0, 255);
   if (!nome) throw new Error("Nome de arquivo inválido.");
   const bytes = Buffer.from(await arquivo.arrayBuffer());
