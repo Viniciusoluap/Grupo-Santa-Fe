@@ -45,18 +45,18 @@ confirmado em produção (Vercel `READY` no commit do merge) antes de o lote ser
 | 02 | Incorporação em grid modular | Não iniciado | Não iniciado | — | Pendente |
 | 03 | Documentos opcionais via Google Drive | Não iniciado | Não iniciado | — | Pendente |
 | 04 | Tipos de incorporação / Desmembramento simples | Não iniciado | Não iniciado | — | Pendente |
-| 05 | Temperatura "🤝 Negócio fechado" | Testado | Testado (temperatura criada) | `server/lote1-crm-obras.test.ts`; `web/src/lib/__tests__/lote1-crm-obras.test.ts` | Igual (mesmas 4 opções e emojis) |
-| 06 | Limpeza das classificações de Obras | Testado | Testado | idem | Igual (5 opções; "Contrato Grupo Santa Fé" no Santa Fé por identidade visual) |
-| 07 | Erro `invalid_value` ao salvar Obras | Testado (causa raiz corrigida) | Testado (sem divergência; mesma regra aplicada) | idem | Igual |
-| 08 | Nome do cliente vindo do CRM | Testado | Já existia (EPIC-007); tela alinhada | idem | Igual |
-| 09 | Tipo de projeto vindo do CRM | Testado | Testado | idem | Igual |
+| 05 | Temperatura "🤝 Negócio fechado" | Publicado | Publicado (temperatura criada) | `server/lote1-crm-obras.test.ts`; `web/src/lib/__tests__/lote1-crm-obras.test.ts` | Igual (mesmas 4 opções e emojis) |
+| 06 | Limpeza das classificações de Obras | Publicado | Publicado | idem | Igual (5 opções; "Contrato Grupo Santa Fé" no Santa Fé por identidade visual) |
+| 07 | Erro `invalid_value` ao salvar Obras | Publicado (causa raiz corrigida) | Publicado (sem divergência; mesma regra aplicada) | idem | Igual |
+| 08 | Nome do cliente vindo do CRM | Publicado | Publicado (já existia no EPIC-007; tela alinhada) | idem | Igual |
+| 09 | Tipo de projeto vindo do CRM | Publicado | Publicado | idem | Igual |
 | 10 | Padronização monetária R$ | Não iniciado (base do Lote 4 anterior) | Não iniciado (base do Lote 4 anterior) | — | Pendente |
 | 11 | Entrada Paga automática | Não iniciado | Não iniciado | — | Pendente |
 | 12 | Entrada Total | Não iniciado | Não iniciado | — | Pendente |
 | 13 | Saldo da Entrada | Não iniciado | Não iniciado | — | Pendente |
 | 14 | Valor Recebido CEF | Não iniciado | Não iniciado | — | Pendente |
-| 15 | Remoção dos botões superiores | Testado (build) — Medições movidas para a aba Progresso | Testado (build) — só "Salvar" à direita | build + typecheck | Igual |
-| 16 | "MCMV/CEF" → "Valores da Operação" | Testado (build) | Não se aplica ainda — a seção nasce no Lote 2 já com o nome correto | build | Pendente até o Lote 2 |
+| 15 | Remoção dos botões superiores | Publicado — Medições movidas para a aba Progresso | Publicado — só "Salvar" à direita | build + typecheck | Igual |
+| 16 | "MCMV/CEF" → "Valores da Operação" | Publicado | Não se aplica ainda — a seção nasce no Lote 2 já com o nome correto | build | Pendente até o Lote 2 |
 | 17 | Reestruturação da aba Custos | Não iniciado | Não iniciado | — | Pendente |
 | 18 | Custos ↔ Valores da Operação | Não iniciado | Não iniciado | — | Pendente |
 | 19 | Valor a Receber do Banco | Não iniciado | Não iniciado | — | Pendente |
@@ -64,7 +64,7 @@ confirmado em produção (Vercel `READY` no commit do merge) antes de o lote ser
 | 21 | Lucro do Investidor | Não iniciado | Não iniciado | — | Pendente |
 | 22 | Lucro do Empreiteiro | Não iniciado | Não iniciado | — | Pendente |
 | 23 | Lucro da Empresa | Não iniciado | Não iniciado | — | Pendente |
-| 24 | Corretor automático pelo lead | Testado | Testado | idem | Igual |
+| 24 | Corretor automático pelo lead | Publicado | Publicado | idem | Igual |
 | 25 | Pró-Soluto e HP 12C | Não iniciado | Não iniciado | — | Pendente |
 | 26 | Dias de Obra e PLS Real | Não iniciado | Não iniciado | — | Pendente |
 | 27 | Progresso físico com incidências | Não iniciado | Não iniciado | — | Pendente |
@@ -117,7 +117,15 @@ confirmado em produção (Vercel `READY` no commit do merge) antes de o lote ser
 | Obra #22 | Prospecta | Tipo de Projeto | "Vistoria e medição" | "Obra / reforma" (serviço `obra_cliente`) | A tela agora mostra o valor do CRM. Se a obra é de fato vistoria/medição, corrigir o tipo do serviço no lead. |
 | Obras com tipo antigo (4 × "Obra Nova") | Grupo Santa Fé | Tipo | Obra Nova | "Obra e reforma" (serviço do CRM) | Classificação técnica antiga preservada no banco (`obras.tipo`), não mais exibida como tipo oficial. Se o dono quiser essa subclassificação, ela precisa nascer no CRM. |
 
+### Publicação do Lote 1 (12/10/2026)
+
+- Prospecta: PR #95 → `b29b1d8`; produção `READY` (`dpl_8qH69ArX1GWKj1EvPw7Ducr9NB4D`).
+- Grupo Santa Fé: PR #164 → `6f9a98f`; produção `READY` (`dpl_CdJLxNtgoAp8bQHuT3Kbkk57QKYy`, após
+  redeploy — o deploy automático falhou com `git_info_fail`, erro da Vercel antes do build).
+- Migrações aplicadas em produção antes do merge e verificadas por SELECT.
+
 ### Pendências honestas do Lote 1
 
-- Testado automaticamente (unidade + rota/action) e por typecheck/build; **não** testado em navegador.
+- Testado automaticamente (unidade + rota/action) e por typecheck/build; **não** testado em navegador
+  (o ambiente do agente não acessa os domínios publicados) — validação manual pendente.
 - Item 16 no Santa Fé depende do Lote 2 (a seção ainda não existe lá).
