@@ -4,6 +4,7 @@ import {
   criarProjecao,
   criarRng,
   areaPlanar,
+  validarParametrosMassa,
   type ParametrosMassa,
 } from "@/lib/geo/massa";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
@@ -113,5 +114,74 @@ describe("gerarCenariosMassa", () => {
     });
     expect(outra[0].kpis.vgv).toBe(cenarios[0].kpis.vgv);
     expect(outra[0].anguloVia).toBe(cenarios[0].anguloVia);
+  });
+
+  it("VGV recalculado a partir de um preço digitado em formato BR (vírgula) confere", () => {
+    // Simula o usuário digitando "1.234,56" no campo de preço/m² — o valor
+    // já deve chegar parseado corretamente (função testada em utils.test.ts);
+    // aqui validamos que o motor de VGV responde de forma consistente ao
+    // trocar apenas o preço, mantendo a área vendável.
+    const precoBR = 1234.56; // resultado de parseNumeroBR("1.234,56")
+    const comPrecoBR = gerarCenariosMassa(anelGeo, CENTRO, { ...PARAMS, precoM2Lote: precoBR }, {
+      populacao: 8, geracoes: 5, seed: 42, nCenarios: 2,
+    });
+    expect(comPrecoBR[0].kpis.areaVendavelM2).toBe(cenarios[0].kpis.areaVendavelM2);
+    expect(comPrecoBR[0].kpis.vgv).toBe(Math.round(comPrecoBR[0].kpis.areaVendavelM2 * precoBR));
+  });
+});
+
+describe("validarParametrosMassa", () => {
+  it("aceita os parâmetros padrão (válidos)", () => {
+    expect(validarParametrosMassa(PARAMS)).toBeNull();
+  });
+
+  it("rejeita testada do lote igual a 0 (travaria o laço de geração em loop infinito)", () => {
+    expect(validarParametrosMassa({ ...PARAMS, testadaLoteM: 0 })).toMatch(/testada/i);
+  });
+
+  it("rejeita testada do lote negativa", () => {
+    expect(validarParametrosMassa({ ...PARAMS, testadaLoteM: -5 })).toMatch(/testada/i);
+  });
+
+  it("rejeita profundidade do lote igual a 0", () => {
+    expect(validarParametrosMassa({ ...PARAMS, profundidadeLoteM: 0 })).toMatch(/profundidade/i);
+  });
+
+  it("rejeita comprimento máximo de quadra igual a 0", () => {
+    expect(validarParametrosMassa({ ...PARAMS, comprimentoMaxQuadraM: 0 })).toMatch(/quadra/i);
+  });
+
+  it("rejeita lote mínimo negativo", () => {
+    expect(validarParametrosMassa({ ...PARAMS, loteMinimoM2: -1 })).toMatch(/mínimo/i);
+  });
+
+  it("rejeita largura de via negativa", () => {
+    expect(validarParametrosMassa({ ...PARAMS, larguraViaM: -1 })).toMatch(/via/i);
+  });
+
+  it("rejeita percentual institucional >= 100%", () => {
+    expect(validarParametrosMassa({ ...PARAMS, percentInstitucional: 1 })).toMatch(/institucional/i);
+  });
+
+  it("rejeita percentual de área verde negativo", () => {
+    expect(validarParametrosMassa({ ...PARAMS, percentAreaVerde: -0.1 })).toMatch(/verde/i);
+  });
+
+  it("rejeita soma de institucional + área verde >= 100%", () => {
+    expect(
+      validarParametrosMassa({ ...PARAMS, percentInstitucional: 0.5, percentAreaVerde: 0.5 })
+    ).toMatch(/soma/i);
+  });
+
+  it("rejeita preço do lote igual a 0", () => {
+    expect(validarParametrosMassa({ ...PARAMS, precoM2Lote: 0 })).toMatch(/preço/i);
+  });
+
+  it("rejeita preço do lote negativo", () => {
+    expect(validarParametrosMassa({ ...PARAMS, precoM2Lote: -500 })).toMatch(/preço/i);
+  });
+
+  it("rejeita valores não finitos (NaN vindo de um parse inválido)", () => {
+    expect(validarParametrosMassa({ ...PARAMS, testadaLoteM: NaN })).toMatch(/testada/i);
   });
 });

@@ -175,6 +175,51 @@ export function areaPlanar(anel: Position[]): number {
   return Math.abs(s / 2);
 }
 
+// ─── Validação de parâmetros ────────────────────────────────────────────────
+
+/**
+ * Valida os parâmetros do estudo de massa antes de rodar o motor generativo.
+ * Retorna uma mensagem amigável (pt-BR) descrevendo o primeiro problema
+ * encontrado, ou `null` quando os parâmetros são válidos.
+ *
+ * Importante: `testadaLoteM`, `profundidadeLoteM` e `comprimentoMaxQuadraM`
+ * são usados como passo de incremento em laços `for` dentro de
+ * `gerarLotesFrame`. Um valor zero ou negativo nesses campos trava o
+ * navegador em loop infinito — por isso são validados aqui antes de
+ * qualquer geração, em vez de deixar o motor falhar silenciosamente ou
+ * travar a página.
+ */
+export function validarParametrosMassa(p: ParametrosMassa): string | null {
+  if (!Number.isFinite(p.larguraViaM) || p.larguraViaM < 0) {
+    return "Largura da via deve ser um número maior ou igual a 0.";
+  }
+  if (!Number.isFinite(p.testadaLoteM) || p.testadaLoteM <= 0) {
+    return "Testada do lote deve ser um número maior que 0.";
+  }
+  if (!Number.isFinite(p.profundidadeLoteM) || p.profundidadeLoteM <= 0) {
+    return "Profundidade do lote deve ser um número maior que 0.";
+  }
+  if (!Number.isFinite(p.loteMinimoM2) || p.loteMinimoM2 < 0) {
+    return "Lote mínimo não pode ser negativo.";
+  }
+  if (!Number.isFinite(p.comprimentoMaxQuadraM) || p.comprimentoMaxQuadraM <= 0) {
+    return "Comprimento máximo da quadra deve ser um número maior que 0.";
+  }
+  if (!Number.isFinite(p.percentInstitucional) || p.percentInstitucional < 0 || p.percentInstitucional >= 1) {
+    return "% institucional deve ser um número entre 0 e 100%.";
+  }
+  if (!Number.isFinite(p.percentAreaVerde) || p.percentAreaVerde < 0 || p.percentAreaVerde >= 1) {
+    return "% área verde deve ser um número entre 0 e 100%.";
+  }
+  if (p.percentInstitucional + p.percentAreaVerde >= 1) {
+    return "A soma de % institucional e % área verde deve ser menor que 100%.";
+  }
+  if (!Number.isFinite(p.precoM2Lote) || p.precoM2Lote <= 0) {
+    return "Preço do lote (R$/m²) deve ser um número maior que 0.";
+  }
+  return null;
+}
+
 // ─── Fitness (aproximado) ────────────────────────────────────────────────────
 
 function avaliarGenoma(
