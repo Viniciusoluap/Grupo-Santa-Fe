@@ -1,19 +1,28 @@
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import {
-  dadosClienteDoLead,
-  gerarNumeroAvaliacao,
-  incluirServico,
-  parseServicosLead,
-  servicoDoModulo,
-  servicosSemRegistro,
-  type ModuloServico,
-  type ServicoOperacional,
-} from "./servicos-lead";
+import type { Prisma, Financiamento } from "@/generated/prisma/client";
+import { randomUUID } from "node:crypto";
+import { dadosClienteDoLead, moduloDoServico, parseServicosLead, servicoDoModulo, type ModuloServico, type ServicoOperacional } from "./servicos-lead";
 import { PAPEIS_RESPONSAVEL, podeSerResponsavel } from "./responsavel";
 
-// Acesso a banco do vínculo real Lead ↔ serviços (EPIC-007). Chamado pelas
-// server actions — não é "use server" (não deve ser exposto como endpoint).
+// Helpers internos: nenhuma função deste arquivo é uma server action pública.
+export type TransacaoCRM = Prisma.TransactionClient;
+
+/** Retry cobre somente conflitos de serialização, nunca falhas de aplicação. */
+export async function transacaoCRM<T>(operacao: (tx: TransacaoCRM) => Promise<T>): Promise<T> {
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      return await prisma.$transaction(operacao, { isolationLevel: "Serializable", maxWait: 10000, timeout: 20000 });
+    } catch (erro) {
+      if ((erro as { code?: string })?.code !== "P2034" || tentativa >= 3) throw erro;
+    }
+  }
+}
+
+/** Serializa alterações do cliente e a materialização de suas demandas. */
+export async function bloquearLead(tx: TransacaoCRM, leadId: string) {
+  const linhas = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM leads WHERE id = ${leadId} FOR UPDATE`;
+  if (!linhas.length) throw new Error("Lead não encontrado.");
+}
 
 export const CHECKLIST_FINANCIAMENTO_PADRAO = [
   // Documento do Comprador
@@ -36,237 +45,108 @@ export const CHECKLIST_FINANCIAMENTO_PADRAO = [
   { grupo: "Banco", item: "Minuta do contrato assinada" },
 ];
 
-const A_DEFINIR = "A definir";
-
-/**
- * Carrega o lead que será vinculado a um serviço. O vínculo é obrigatório:
- * nenhum serviço operacional nasce sem cliente do CRM (sem cadastro avulso).
- */
-export async function carregarLeadParaVinculo(leadId: string | null | undefined) {
-  if (!leadId) throw new Error("Selecione um cliente (lead) já cadastrado no CRM.");
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: { id: true, nome: true, telefone: true, email: true },
-  });
-  if (!lead) throw new Error("Lead não encontrado — selecione um cliente cadastrado no CRM.");
-  return lead;
-}
 
 type DadosFinanciamento = Parameters<typeof prisma.financiamento.create>[0]["data"];
-
-/**
- * Cria o financiamento JÁ com o checklist obrigatório, numa única transação.
- * Antes eram dois writes soltos: se o `createMany` do checklist falhasse, o
- * financiamento ficava sem checklist e nenhuma sincronização posterior
- * consertava (o serviço já constava como "presente"). Agora ou nasce completo
- * ou não nasce.
- */
-export async function criarFinanciamentoComChecklist(data: DadosFinanciamento) {
-  return prisma.$transaction(async (tx) => {
-    const fin = await tx.financiamento.create({ data });
-    await tx.checklistItem.createMany({
-      data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
-    });
-    return fin;
-  });
+export async function criarFinanciamentoComChecklist(data: DadosFinanciamento, tx?: TransacaoCRM): Promise<Financiamento> {
+  if (!tx) return transacaoCRM((t) => criarFinanciamentoComChecklist(data, t));
+  const fin = await tx.financiamento.create({ data });
+  await tx.checklistItem.createMany({ data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })) });
+  return fin;
 }
 
-/**
- * Reparo de financiamentos do lead que ficaram sem checklist (criados antes da
- * transação acima, quando o segundo write falhava). O sistema nunca remove
- * itens de checklist, então "nenhum item" é sempre esse estado quebrado.
- * Retorna quantos financiamentos foram reparados.
- */
-export async function garantirChecklistDosFinanciamentos(leadId: string): Promise<number> {
-  const semChecklist = await prisma.financiamento.findMany({
-    where: { leadId, checklist: { none: {} } },
-    select: { id: true },
-  });
-  for (const fin of semChecklist) {
-    await prisma.checklistItem.createMany({
-      data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })),
-    });
-  }
+export async function garantirChecklistDosFinanciamentos(leadId: string, tx?: TransacaoCRM): Promise<number> {
+  if (!tx) return transacaoCRM(async (t) => { await bloquearLead(t, leadId); return garantirChecklistDosFinanciamentos(leadId, t); });
+  const semChecklist = await tx.financiamento.findMany({ where: { leadId, checklist: { none: {} } }, select: { id: true } });
+  for (const fin of semChecklist) await tx.checklistItem.createMany({ data: CHECKLIST_FINANCIAMENTO_PADRAO.map((c) => ({ financiamentoId: fin.id, ...c })) });
   return semChecklist.length;
 }
 
-/** Tentativas de número de protocolo antes de desistir (campo único). */
-const TENTATIVAS_NUMERO_AVALIACAO = 5;
-
-function violouUnicidade(err: unknown): boolean {
-  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "P2002";
-}
-
-async function criarRegistro(
-  lead: { id: string; nome: string; telefone: string; email: string | null },
-  op: ServicoOperacional,
-) {
+type ClienteLead = { id: string; nome: string; telefone: string; email: string | null };
+async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOperacional, servicoLeadId: string) {
   const cliente = dadosClienteDoLead(lead);
+  const vinculo = { leadId: lead.id, servicoLeadId };
   switch (op.modulo) {
     case "financiamento":
-      await criarFinanciamentoComChecklist({
-        ...cliente,
-        imovel: A_DEFINIR,
-        tipo: op.tipoFinanciamento ?? "mcmv",
-        banco: A_DEFINIR,
-        valorImovel: 0,
-        valorFinanciado: 0,
-        entrada: 0,
-        taxa: 0,
-        prazo: 0,
-        leadId: lead.id,
-      });
-      return;
+      return criarFinanciamentoComChecklist({ ...cliente, ...vinculo, tipo: op.tipoFinanciamento!, status: "aguardando_configuracao" }, tx);
     case "obra":
-      await prisma.obra.create({
-        data: {
-          nome: `Obra — ${cliente.clienteNome}`,
-          tipo: "reforma",
-          clienteNome: cliente.clienteNome,
-          clienteTel: cliente.clienteTel,
-          endereco: A_DEFINIR,
-          area: 0,
-          valorTotal: 0,
-          engenheiroResp: A_DEFINIR,
-          leadId: lead.id,
-        },
-      });
-      return;
+      return tx.obra.create({ data: { ...vinculo, nome: `Obra — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
     case "projeto":
-      await prisma.projeto.create({
-        data: {
-          nome: `Projeto — ${cliente.clienteNome}`,
-          tipo: JSON.stringify(["projeto_completo"]),
-          clienteNome: cliente.clienteNome,
-          clienteTel: cliente.clienteTel,
-          engenheiro: A_DEFINIR,
-          valorProjeto: 0,
-          leadId: lead.id,
-        },
-      });
-      return;
+      return tx.projeto.create({ data: { ...vinculo, nome: `Projeto — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
     case "regularizacao":
-      await prisma.regularizacao.create({
-        data: {
-          nome: `Regularização — ${cliente.clienteNome}`,
-          tipo: JSON.stringify(["regularizacao_escritura"]),
-          clienteNome: cliente.clienteNome,
-          clienteTel: cliente.clienteTel,
-          endereco: A_DEFINIR,
-          responsavel: A_DEFINIR,
-          valorServico: 0,
-          leadId: lead.id,
-        },
-      });
-      return;
+      return tx.regularizacao.create({ data: { ...vinculo, nome: `Regularização — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
     case "avaliacao":
-      // `numero` é único e tem só 4 dígitos aleatórios: numa colisão, sorteia
-      // outro em vez de perder a avaliação pedida.
-      for (let tentativa = 1; ; tentativa++) {
-        try {
-          await prisma.avaliacao.create({
-            data: {
-              numero: gerarNumeroAvaliacao(),
-              tipo: "mercado",
-              finalidade: "compra_venda",
-              ...cliente,
-              endereco: A_DEFINIR,
-              bairro: A_DEFINIR,
-              avaliador: A_DEFINIR,
-              leadId: lead.id,
-            },
-          });
-          return;
-        } catch (err) {
-          if (!violouUnicidade(err) || tentativa >= TENTATIVAS_NUMERO_AVALIACAO) throw err;
-        }
-      }
+      // Identificador longo evita colisões e não exige recuperar uma transação abortada.
+      return tx.avaliacao.create({ data: { ...cliente, ...vinculo, numero: `AVL-${randomUUID()}`, tipo: "mercado", finalidade: "compra_venda", endereco: "A definir", bairro: "A definir", avaliador: "A definir" } });
   }
 }
 
-export interface ResultadoSincronizacao {
-  /** Registros operacionais criados nesta sincronização. */
-  criados: number;
-  /** Módulos cujo registro NÃO pôde ser criado/reparado — o chamador avisa o usuário. */
-  falhas: ModuloServico[];
+/** Reconcilia exclusivamente chaves estrangeiras já existentes; nunca nomes. */
+async function reconciliarLegados(tx: TransacaoCRM, leadId: string) {
+  const grupos = await Promise.all([
+    tx.financiamento.findMany({ where: { leadId, servicoLeadId: null }, select: { id: true, tipo: true } }),
+    tx.obra.findMany({ where: { leadId, servicoLeadId: null }, select: { id: true } }),
+    tx.projeto.findMany({ where: { leadId, servicoLeadId: null }, select: { id: true } }),
+    tx.regularizacao.findMany({ where: { leadId, servicoLeadId: null }, select: { id: true } }),
+    tx.avaliacao.findMany({ where: { leadId, servicoLeadId: null }, select: { id: true } }),
+  ]);
+  const modulos = ["financiamento", "obra", "projeto", "regularizacao", "avaliacao"] as const;
+  for (let i = 0; i < grupos.length; i++) for (const registro of grupos[i]) {
+    const modulo = modulos[i];
+    const demanda = await tx.servicoLead.upsert({ where: { requestKey: `legado:${modulo}:${registro.id}` }, create: { leadId, modulo, servico: servicoDoModulo(modulo, "tipo" in registro ? registro.tipo : null), requestKey: `legado:${modulo}:${registro.id}` }, update: {} });
+    const data = { servicoLeadId: demanda.id };
+    switch (modulo) {
+      case "financiamento": await tx.financiamento.update({ where: { id: registro.id }, data }); break;
+      case "obra": await tx.obra.update({ where: { id: registro.id }, data }); break;
+      case "projeto": await tx.projeto.update({ where: { id: registro.id }, data }); break;
+      case "regularizacao": await tx.regularizacao.update({ where: { id: registro.id }, data }); break;
+      case "avaliacao": await tx.avaliacao.update({ where: { id: registro.id }, data }); break;
+    }
+  }
 }
 
-/**
- * Garante que cada serviço operacional marcado no lead tenha um registro real
- * vinculado (com os dados do cliente já copiados). Idempotente — roda no
- * cadastro e em toda edição do lead, criando só o que falta.
- *
- * Falhas NÃO são engolidas: voltam em `falhas` para que criarLead/editarLead
- * avisem o usuário (antes só iam para o console e a tela dizia "tudo certo",
- * deixando o lead com um serviço marcado sem registro correspondente).
- * Salvar o lead de novo tenta outra vez só o que faltou.
- */
-export async function sincronizarServicosDoLead(leadId: string): Promise<ResultadoSincronizacao> {
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: {
-      id: true,
-      nome: true,
-      telefone: true,
-      email: true,
-      servico: true,
-      financiamentos: { select: { tipo: true } },
-      _count: { select: { obras: true, projetos: true, regularizacoes: true, avaliacoes: true } },
-    },
-  });
-  if (!lead) return { criados: 0, falhas: [] };
+const demandaInclude = { financiamento: true, obra: true, projeto: true, regularizacao: true, avaliacao: true } as const;
+export interface ResultadoSincronizacao { criados: number; falhas: ModuloServico[] }
 
-  const pendentes = servicosSemRegistro(parseServicosLead(lead.servico), {
-    financiamentoTipos: lead.financiamentos.map((f) => f.tipo),
-    obras: lead._count.obras,
-    projetos: lead._count.projetos,
-    regularizacoes: lead._count.regularizacoes,
-    avaliacoes: lead._count.avaliacoes,
-  });
-
-  const falhas: ModuloServico[] = [];
+/** Lead e operações são gravados no mesmo commit. Falha em qualquer write aborta tudo. */
+export async function sincronizarServicosDoLead(leadId: string, tx?: TransacaoCRM): Promise<ResultadoSincronizacao> {
+  if (!tx) return transacaoCRM((t) => sincronizarServicosDoLead(leadId, t));
+  await bloquearLead(tx, leadId);
+  const lead = await tx.lead.findUniqueOrThrow({ where: { id: leadId } });
+  await reconciliarLegados(tx, leadId);
   let criados = 0;
-  for (const op of pendentes) {
-    try {
-      await criarRegistro(lead, op);
-      criados++;
-    } catch (err) {
-      console.error(`Erro ao criar registro de ${op.modulo} para o lead ${lead.id}:`, err);
-      if (!falhas.includes(op.modulo)) falhas.push(op.modulo);
-    }
+  for (const servico of new Set(parseServicosLead(lead.servico))) {
+    const op = moduloDoServico(servico);
+    if (!op) continue;
+    // Um serviço selecionado reutiliza a demanda existente; novas operações são explícitas.
+    let demanda = await tx.servicoLead.findFirst({ where: { leadId, servico }, include: demandaInclude, orderBy: { criadoEm: "asc" } });
+    if (!demanda) demanda = await tx.servicoLead.create({ data: { leadId, modulo: op.modulo, servico, requestKey: `selecao:${leadId}:${servico}` }, include: demandaInclude });
+    if (!demanda[op.modulo]) { await criarRegistro(tx, lead, op, demanda.id); criados++; }
   }
-
-  if (lead.financiamentos.length > 0) {
-    try {
-      await garantirChecklistDosFinanciamentos(lead.id);
-    } catch (err) {
-      console.error(`Erro ao reparar checklist de financiamento do lead ${lead.id}:`, err);
-      if (!falhas.includes("financiamento")) falhas.push("financiamento");
-    }
-  }
-
-  return { criados, falhas };
+  await garantirChecklistDosFinanciamentos(leadId, tx);
+  return { criados, falhas: [] };
 }
 
-/**
- * Mantém os dados do cliente dos registros vinculados em sincronia com o lead
- * (fonte única). Chamado sempre que nome/telefone/e-mail do lead mudam.
- */
-export async function propagarDadosClienteDoLead(lead: {
-  id: string;
-  nome: string;
-  telefone: string;
-  email: string | null;
-}) {
+/** requestKey identifica uma intenção de adicionar operação, inclusive reenvios. */
+export async function adicionarOperacaoDoLead(tx: TransacaoCRM, leadId: string, servico: string, requestKey: string) {
+  const op = moduloDoServico(servico);
+  if (!op || !/^[a-zA-Z0-9_-]{16,100}$/.test(requestKey)) throw new Error("Operação inválida.");
+  await bloquearLead(tx, leadId);
+  const lead = await tx.lead.findUniqueOrThrow({ where: { id: leadId } });
+  if (!parseServicosLead(lead.servico).includes(servico)) throw new Error("Selecione este serviço no CRM antes de adicionar uma operação.");
+  const demanda = await tx.servicoLead.upsert({ where: { requestKey: `operacao:${leadId}:${requestKey}` }, create: { leadId, servico, modulo: op.modulo, requestKey: `operacao:${leadId}:${requestKey}` }, update: {}, include: demandaInclude });
+  if (demanda.leadId !== leadId || demanda.servico !== servico || demanda.modulo !== op.modulo) throw new Error("A operação pertence a outro serviço.");
+  return demanda[op.modulo] ?? criarRegistro(tx, lead, op, demanda.id);
+}
+
+export async function propagarDadosClienteDoLead(lead: ClienteLead, tx?: TransacaoCRM): Promise<void> {
+  if (!tx) return transacaoCRM(async (t) => { await bloquearLead(t, lead.id); return propagarDadosClienteDoLead(lead, t); });
   const c = dadosClienteDoLead(lead);
   const base = { clienteNome: c.clienteNome, clienteTel: c.clienteTel };
-  await prisma.$transaction([
-    prisma.financiamento.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } }),
-    prisma.avaliacao.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } }),
-    prisma.obra.updateMany({ where: { leadId: lead.id }, data: base }),
-    prisma.projeto.updateMany({ where: { leadId: lead.id }, data: base }),
-    prisma.regularizacao.updateMany({ where: { leadId: lead.id }, data: base }),
-  ]);
+  await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } });
+  await tx.avaliacao.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } });
+  await tx.obra.updateMany({ where: { leadId: lead.id }, data: base });
+  await tx.projeto.updateMany({ where: { leadId: lead.id }, data: base });
+  await tx.regularizacao.updateMany({ where: { leadId: lead.id }, data: base });
 }
 
 /** Usuários reais (ativos, internos) que podem ser responsáveis por um lead. */
@@ -293,13 +173,14 @@ export async function resolverResponsavelId(id: string | null | undefined): Prom
  * registro está vinculado a um lead, vêm SEMPRE do lead (fonte única); só
  * registros legados sem vínculo usam o que foi digitado no formulário.
  */
-export async function clienteParaRegistro(leadId: string | null | undefined, formData: FormData) {
+export async function clienteParaRegistro(leadId: string | null | undefined, formData: FormData, tx?: TransacaoCRM) {
   if (leadId) {
-    const lead = await prisma.lead.findUnique({
+    const lead = await (tx ?? prisma).lead.findUnique({
       where: { id: leadId },
       select: { nome: true, telefone: true, email: true },
     });
-    if (lead) return dadosClienteDoLead(lead);
+    if (!lead) throw new Error("Lead vinculado não encontrado.");
+    return dadosClienteDoLead(lead);
   }
   return {
     clienteNome: (formData.get("clienteNome") as string) ?? "",
@@ -308,20 +189,21 @@ export async function clienteParaRegistro(leadId: string | null | undefined, for
   };
 }
 
-/**
- * Serviço aberto direto no módulo (com lead selecionado) passa a constar
- * também no cadastro do lead — vínculo nos dois sentidos.
- */
-export async function registrarServicoNoLead(
-  leadId: string,
-  modulo: ModuloServico,
-  tipoFinanciamento?: string | null,
-) {
-  const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { servico: true } });
-  if (!lead) return;
-  const novos = incluirServico(parseServicosLead(lead.servico), servicoDoModulo(modulo, tipoFinanciamento));
-  if (novos) await prisma.lead.update({ where: { id: leadId }, data: { servico: JSON.stringify(novos) } });
-  revalidatePath(`/admin/leads/${leadId}`);
-  revalidatePath("/admin/leads");
-  revalidatePath("/admin");
+
+export async function carregarLeadParaVinculo(leadId: string | null | undefined) {
+  if (!leadId) throw new Error("Selecione um lead do CRM.");
+  return prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { id: true, nome: true, telefone: true, email: true } });
+}
+
+/** Compatibilidade apenas com avaliação, que já possuía uma entrada própria. */
+export async function registrarServicoNoLead(leadId: string, modulo: ModuloServico) {
+  if (modulo !== "avaliacao") throw new Error("Crie as operações pelo CRM.");
+  await transacaoCRM(async (tx) => {
+    await bloquearLead(tx, leadId);
+    const lead = await tx.lead.findUniqueOrThrow({ where: { id: leadId } });
+    const servicos = parseServicosLead(lead.servico);
+    const servico = servicoDoModulo(modulo);
+    if (!servicos.includes(servico)) await tx.lead.update({ where: { id: leadId }, data: { servico: JSON.stringify([...servicos, servico]) } });
+    await sincronizarServicosDoLead(leadId, tx);
+  });
 }

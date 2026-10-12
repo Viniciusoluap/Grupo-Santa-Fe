@@ -25,6 +25,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [fotoModal, setFotoModal] = useState(false);
   const [userFoto, setUserFoto] = useState<string | null>(null);
   const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
+  const [agora, setAgora] = useState(() => Date.now());
   const [uploading, setUploading] = useState(false);
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,15 +49,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/notificacoes");
       const data = (await res.json()) as { notificacoes?: NotificacaoItem[] };
       setNotificacoes(data.notificacoes ?? []);
+      setAgora(Date.now());
     } catch {
       /* ignore */
     }
   }, []);
 
   useEffect(() => {
-    fetchNotificacoes();
+    const initial = setTimeout(fetchNotificacoes, 0);
     const interval = setInterval(fetchNotificacoes, 60000);
-    return () => clearInterval(interval);
+    return () => { clearTimeout(initial); clearInterval(interval); };
   }, [fetchNotificacoes]);
 
   async function handleMarcarLidas() {
@@ -129,7 +131,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   function tempoRelativo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = agora - new Date(dateStr).getTime();
     const min = Math.floor(diff / 60000);
     const h = Math.floor(min / 60);
     const d = Math.floor(h / 24);

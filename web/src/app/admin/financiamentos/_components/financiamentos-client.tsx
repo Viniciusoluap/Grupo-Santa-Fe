@@ -20,14 +20,14 @@ interface Financiamento {
   id: string;
   clienteNome: string;
   clienteTel: string;
-  imovel: string;
-  tipo: string;
-  banco: string;
-  valorImovel: number;
-  valorFinanciado: number;
-  entrada: number;
-  taxa: number;
-  prazo: number;
+  imovel: string | null;
+  tipo: string | null;
+  banco: string | null;
+  valorImovel: number | null;
+  valorFinanciado: number | null;
+  entrada: number | null;
+  taxa: number | null;
+  prazo: number | null;
   parcela: number | null;
   status: string;
   protocolo: string | null;
@@ -37,23 +37,24 @@ interface Financiamento {
 
 interface Props {
   financiamentos: Financiamento[];
+  podeArquivar: boolean;
 }
 
 function ExcluirFinanciamentoBtn({ id, nome }: { id: string; nome: string }) {
   const [isPending, startTransition] = useTransition();
   function handleClick() {
-    if (!confirm(`Excluir financiamento de "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Arquivar financiamento de "${nome}"? O registro será mantido no histórico.`)) return;
     startTransition(async () => { await excluirFinanciamento(id); });
   }
   return (
-    <button onClick={handleClick} disabled={isPending} title="Excluir"
+    <button onClick={handleClick} disabled={isPending} title="Arquivar"
       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
       <Trash2 size={14} />
     </button>
   );
 }
 
-export function FinanciamentosClient({ financiamentos }: Props) {
+export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FinanciamentoStatus | "todos">("todos");
 
@@ -61,19 +62,20 @@ export function FinanciamentosClient({ financiamentos }: Props) {
     const corretorNome = f.corretor?.nome ?? "";
     const matchSearch = !search ||
       f.clienteNome.toLowerCase().includes(search.toLowerCase()) ||
-      f.imovel.toLowerCase().includes(search.toLowerCase()) ||
+      f.imovel?.toLowerCase().includes(search.toLowerCase()) ||
       corretorNome.toLowerCase().includes(search.toLowerCase()) ||
       (f.protocolo?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchStatus = statusFilter === "todos" || f.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const totalFinanciado = financiamentos.reduce((s, f) => s + f.valorFinanciado, 0);
+  const totalFinanciado = financiamentos.reduce((s, f) => s + (f.valorFinanciado ?? 0), 0);
   const ativos = financiamentos.filter((f) => f.status !== "cancelado" && f.status !== "liberado").length;
   const aprovados = financiamentos.filter((f) => f.status === "aprovado" || f.status === "liberado").length;
-  const taxaMedia = financiamentos.length > 0
-    ? (financiamentos.reduce((s, f) => s + f.taxa, 0) / financiamentos.length).toFixed(1)
-    : "0.0";
+  const taxasInformadas = financiamentos.flatMap((f) => f.taxa == null ? [] : [f.taxa]);
+  const taxaMedia = taxasInformadas.length
+    ? `${(taxasInformadas.reduce((s, taxa) => s + taxa, 0) / taxasInformadas.length).toFixed(1)}%`
+    : "Pendente";
 
   return (
     <div className="space-y-5">
@@ -200,7 +202,7 @@ export function FinanciamentosClient({ financiamentos }: Props) {
                         <Link href={`/admin/financiamentos/${f.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
-                        <ExcluirFinanciamentoBtn id={f.id} nome={f.clienteNome} />
+                        {podeArquivar && <ExcluirFinanciamentoBtn id={f.id} nome={f.clienteNome} />}
                       </div>
                     </td>
                   </tr>

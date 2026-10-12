@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { obterAtorCrm } from "@/lib/crm/acesso-lead";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { listarResponsaveis } from "@/lib/crm/vinculo-lead";
@@ -6,7 +6,7 @@ import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { NovoLeadForm } from "./novo-lead-form";
 
 export default async function NovoLeadPage() {
-  const session = await auth();
+  const ator = await obterAtorCrm();
   const [corretores, usuarios] = await Promise.all([
     prisma.corretor.findMany({
       where: { ativo: true },
@@ -17,7 +17,7 @@ export default async function NovoLeadPage() {
   ]);
   const responsaveis = usuarios.map((u) => ({ id: u.id, label: rotuloResponsavel(u) }));
   // Padrão: quem está cadastrando (se for um responsável válido).
-  const sessaoId = session?.user?.id ?? null;
+  const sessaoId = ator.id;
   const responsavelPadrao = responsaveis.some((r) => r.id === sessaoId) ? sessaoId : null;
 
   return (

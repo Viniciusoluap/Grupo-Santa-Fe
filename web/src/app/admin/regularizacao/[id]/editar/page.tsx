@@ -20,6 +20,9 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
   const { id } = await params;
   const r = await prisma.regularizacao.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
   if (!r) notFound();
+  let tiposSelecionados: string[] = [];
+  try { tiposSelecionados = r.tipo ? JSON.parse(r.tipo) : []; } catch { tiposSelecionados = r.tipo ? [r.tipo] : []; }
+  if (!Array.isArray(tiposSelecionados)) tiposSelecionados = r.tipo ? [r.tipo] : [];
 
   const previsaoValue = r.previsaoFim ? new Date(r.previsaoFim).toISOString().split("T")[0] : "";
 
@@ -44,17 +47,21 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo</label>
-              <select name="tipo" defaultValue={r.tipo}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+              <fieldset className="space-y-2">
+                <legend className="sr-only">Tipos de regularização</legend>
                 {Object.entries(REG_TIPO_CONFIG).map(([k, v]) => (
-                  <option key={k} value={k}>{v.icon} {v.label}</option>
+                  <label key={k} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="tipos" value={k} defaultChecked={tiposSelecionados.includes(k)} />
+                    {v.icon} {v.label}
+                  </label>
                 ))}
-              </select>
+              </fieldset>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
               <select name="status" defaultValue={r.status}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+                <option value="" disabled>Selecione</option>
                 {Object.entries(REG_STATUS_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
                 ))}
@@ -78,7 +85,7 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
             )}
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço / Imóvel *</label>
-              <input name="endereco" type="text" required defaultValue={r.endereco}
+              <input name="endereco" type="text" required defaultValue={r.endereco ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
@@ -88,7 +95,7 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável *</label>
-              <input name="responsavel" type="text" required defaultValue={r.responsavel}
+              <input name="responsavel" type="text" required defaultValue={r.responsavel ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>

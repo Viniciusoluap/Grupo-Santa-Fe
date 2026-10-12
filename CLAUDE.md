@@ -1,5 +1,16 @@
 # Regras do projeto Grupo Santa Fé (preferências do dono)
 
+## Escopo específico aprovado em 11/10/2026 — limpeza e CRM
+
+O lote `codex/santa-fe-limpeza-crm-20261011` é exclusivamente do Grupo Santa Fé,
+por instrução expressa do proprietário. A remoção de Dashboard, Central de
+Gestão, Relatórios, Feeds XML, Agregador, Contabilidade e Contratos independente,
+o novo pipeline operacional e a centralização dos quatro serviços no CRM não
+devem ser propagados automaticamente a outro repositório. A Prospecta pode
+ser consultada somente como referência. Esta exceção de escopo prevalece
+sobre a regra geral de paridade para este lote. Merge, deploy e aplicação em
+produção dependem da autorização final.
+
 ## Automação primeiro (REGRA PERMANENTE — estabelecida pelo usuário em 05/07/2026)
 
 **Tudo deve ser automático. O usuário só faz algo manual se NÃO houver outra opção técnica.**

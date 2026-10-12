@@ -54,8 +54,8 @@ export const LEAD_STATUS_CONFIG: Record<
   visita_agendada: { label: "Visita Agendada", color: "text-purple-700", bgColor: "bg-purple-100", order: 2 },
   proposta: { label: "Proposta Enviada", color: "text-orange-700", bgColor: "bg-orange-100", order: 3 },
   negociacao: { label: "Negociação", color: "text-amber-700", bgColor: "bg-amber-100", order: 4 },
-  ganho: { label: "Ganho", color: "text-green-700", bgColor: "bg-green-100", order: 5 },
-  perdido: { label: "Perdido", color: "text-red-600", bgColor: "bg-red-100", order: 6 },
+  ganho: { label: "Ganho", color: "text-green-800", bgColor: "bg-green-100", order: 5 },
+  perdido: { label: "Perdido", color: "text-red-700", bgColor: "bg-red-100", order: 6 },
 };
 
 export const INTERACTION_CONFIG: Record<
@@ -67,4 +67,21 @@ export const INTERACTION_CONFIG: Record<
   email: { label: "E-mail", icon: "✉️" },
   visita: { label: "Visita", icon: "🏠" },
   nota: { label: "Nota Interna", icon: "📝" },
+};
+
+/** Etapa operacional independente do status comercial legado. */
+export const LEAD_STAGES = [
+  "novo_lead", "em_atendimento", "aprovado_follow_up", "projetos_vistorias",
+  "contratos_cartorio", "medicoes", "finalizado",
+] as const;
+export type LeadStage = (typeof LEAD_STAGES)[number];
+
+export const LEAD_STAGE_CONFIG: Record<LeadStage, { label: string; color: string; bgColor: string; order: number }> = {
+  novo_lead: { label: "NOVO LEAD", color: "text-[var(--brand-dark)]", bgColor: "bg-[var(--brand-yellow)]", order: 0 },
+  em_atendimento: { label: "EM ATENDIMENTO", color: "text-blue-700", bgColor: "bg-blue-100", order: 1 },
+  aprovado_follow_up: { label: "APROVADO E FOLLOW-UP", color: "text-amber-800", bgColor: "bg-amber-100", order: 2 },
+  projetos_vistorias: { label: "PROJETOS E VISTORIAS", color: "text-purple-700", bgColor: "bg-purple-100", order: 3 },
+  contratos_cartorio: { label: "CONTRATOS E CARTÓRIO", color: "text-orange-700", bgColor: "bg-orange-100", order: 4 },
+  medicoes: { label: "MEDIÇÕES", color: "text-teal-700", bgColor: "bg-teal-100", order: 5 },
+  finalizado: { label: "FINALIZADO", color: "text-green-800", bgColor: "bg-green-100", order: 6 },
 };

@@ -62,7 +62,6 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
 
   useEffect(() => {
     if (!loading) return;
-    setProgress(0);
     let elapsed = 0;
     timerRef.current = setInterval(() => {
       elapsed += 150;
@@ -74,6 +73,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
   }, [loading]);
 
   async function buscarSugestao() {
+    setProgress(0);
     setLoading(true);
     setError(null);
     setResult(null);

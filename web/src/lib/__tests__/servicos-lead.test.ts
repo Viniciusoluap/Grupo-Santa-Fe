@@ -9,11 +9,8 @@ import {
   parseServicosLead,
   rotaDetalheLead,
   servicoDoModulo,
-  servicosSemRegistro,
   SERVICOS_LEAD,
 } from "../crm/servicos-lead";
-
-const nenhum = { financiamentoTipos: [], obras: 0, projetos: 0, regularizacoes: 0, avaliacoes: 0 };
 
 describe("moduloDoServico", () => {
   it("mapeia cada serviço operacional para o módulo real", () => {
@@ -39,30 +36,6 @@ describe("moduloDoServico", () => {
   });
 });
 
-describe("servicosSemRegistro", () => {
-  it("lista os serviços marcados que ainda não têm registro", () => {
-    const r = servicosSemRegistro(["Obra e reforma", "Compra de imóvel", "Avaliação de imóvel"], nenhum);
-    expect(r.map((x) => x.modulo)).toEqual(["obra", "avaliacao"]);
-  });
-
-  it("é idempotente: não recria o que já existe", () => {
-    const r = servicosSemRegistro(["Obra e reforma", "Avaliação de imóvel"], { ...nenhum, obras: 1, avaliacoes: 2 });
-    expect(r).toEqual([]);
-  });
-
-  it("financiamento compara por tipo, inclusive grafias legadas", () => {
-    const r = servicosSemRegistro(["Financiamento MCMV", "Financiamento Convencional"], {
-      ...nenhum,
-      financiamentoTipos: ["MCMV"],
-    });
-    expect(r).toEqual([{ modulo: "financiamento", servico: "Financiamento Convencional", tipoFinanciamento: "sbpe" }]);
-  });
-
-  it("não duplica serviço repetido na lista", () => {
-    expect(servicosSemRegistro(["Obra e reforma", "Obra e reforma"], nenhum)).toHaveLength(1);
-  });
-});
-
 describe("parseServicosLead", () => {
   it("lê JSON, string legada e valores vazios", () => {
     expect(parseServicosLead('["A","B"]')).toEqual(["A", "B"]);
@@ -78,6 +51,7 @@ describe("normalizarTipoFinanciamento", () => {
     expect(normalizarTipoFinanciamento("MCMV")).toBe("mcmv");
     expect(normalizarTipoFinanciamento("Convencional")).toBe("sbpe");
     expect(normalizarTipoFinanciamento("pro_cotista")).toBe("pro_cotista");
+    expect(servicoDoModulo("financiamento", "pro_cotista")).toBe("Financiamento (pro_cotista)");
   });
 });
 

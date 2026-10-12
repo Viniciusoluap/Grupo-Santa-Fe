@@ -20,12 +20,12 @@ export const SERVICOS_LEAD = [
 
 export type ModuloServico = "financiamento" | "obra" | "projeto" | "regularizacao" | "avaliacao";
 
-export const MODULO_CONFIG: Record<ModuloServico, { label: string; rota: string; novo: string }> = {
-  financiamento: { label: "Financiamento", rota: "/admin/financiamentos", novo: "/admin/financiamentos/novo" },
-  obra: { label: "Obra / Reforma", rota: "/admin/obras", novo: "/admin/obras/novo" },
-  projeto: { label: "Projeto", rota: "/admin/projetos", novo: "/admin/projetos/novo" },
-  regularizacao: { label: "Regularização", rota: "/admin/regularizacao", novo: "/admin/regularizacao/novo" },
-  avaliacao: { label: "Avaliação", rota: "/admin/avaliacoes", novo: "/admin/avaliacoes/nova" },
+export const MODULO_CONFIG: Record<ModuloServico, { label: string; rota: string }> = {
+  financiamento: { label: "Financiamento", rota: "/admin/financiamentos" },
+  obra: { label: "Obra / Reforma", rota: "/admin/obras" },
+  projeto: { label: "Projeto", rota: "/admin/projetos" },
+  regularizacao: { label: "Regularização", rota: "/admin/regularizacao" },
+  avaliacao: { label: "Avaliação", rota: "/admin/avaliacoes" },
 };
 
 export interface ServicoOperacional {
@@ -74,50 +74,6 @@ export function normalizarTipoFinanciamento(tipo: string): string {
   return t;
 }
 
-export interface RegistrosExistentesDoLead {
-  /** Tipos (qualquer grafia) dos financiamentos já vinculados ao lead. */
-  financiamentoTipos: string[];
-  obras: number;
-  projetos: number;
-  regularizacoes: number;
-  avaliacoes: number;
-}
-
-/**
- * Quais serviços do lead ainda NÃO têm registro operacional vinculado.
- * Idempotente: chamar de novo depois de criar os registros devolve lista vazia,
- * então pode rodar tanto no cadastro quanto em toda edição do lead.
- */
-export function servicosSemRegistro(
-  servicos: string[],
-  existentes: RegistrosExistentesDoLead,
-): ServicoOperacional[] {
-  const tiposFin = new Set(existentes.financiamentoTipos.map(normalizarTipoFinanciamento));
-  const contagem: Record<Exclude<ModuloServico, "financiamento">, number> = {
-    obra: existentes.obras,
-    projeto: existentes.projetos,
-    regularizacao: existentes.regularizacoes,
-    avaliacao: existentes.avaliacoes,
-  };
-  const vistos = new Set<string>();
-  const pendentes: ServicoOperacional[] = [];
-
-  for (const servico of servicos) {
-    const op = moduloDoServico(servico);
-    if (!op) continue;
-    const chave = op.modulo === "financiamento" ? `fin:${op.tipoFinanciamento}` : op.modulo;
-    if (vistos.has(chave)) continue;
-    vistos.add(chave);
-
-    if (op.modulo === "financiamento") {
-      if (!tiposFin.has(op.tipoFinanciamento!)) pendentes.push(op);
-    } else if (contagem[op.modulo] === 0) {
-      pendentes.push(op);
-    }
-  }
-  return pendentes;
-}
-
 export interface LeadDadosCliente {
   nome: string;
   telefone: string;
@@ -143,7 +99,9 @@ export function gerarNumeroAvaliacao(agora: Date = new Date(), aleatorio: number
 export function servicoDoModulo(modulo: ModuloServico, tipoFinanciamento?: string | null): string {
   switch (modulo) {
     case "financiamento":
-      return normalizarTipoFinanciamento(tipoFinanciamento ?? "") === "mcmv" ? "Financiamento MCMV" : "Financiamento Convencional";
+      if (normalizarTipoFinanciamento(tipoFinanciamento ?? "") === "mcmv") return "Financiamento MCMV";
+      if (normalizarTipoFinanciamento(tipoFinanciamento ?? "") === "sbpe") return "Financiamento Convencional";
+      return `Financiamento (${tipoFinanciamento ?? "não informado"})`;
     case "obra":
       return "Obra e reforma";
     case "projeto":

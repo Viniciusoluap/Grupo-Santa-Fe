@@ -29,9 +29,9 @@ export default async function ObraDetailPage({ params }: PageProps) {
     bgColor: "bg-gray-100",
     color: "text-gray-600",
   };
-  const tipo = OBRA_TIPO_CONFIG[o.tipo as ObraTipo] ?? { label: o.tipo, icon: "🏗️" };
+  const tipo = OBRA_TIPO_CONFIG[o.tipo as ObraTipo] ?? { label: o.tipo ?? "Pendente de configuração", icon: "🏗️" };
 
-  const aReceber = o.valorTotal - o.valorPago;
+  const aReceber = o.valorTotal == null ? null : o.valorTotal - o.valorPago;
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -122,8 +122,8 @@ export default async function ObraDetailPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Resumo</p>
             {[
               { label: "Tipo", value: `${tipo.icon} ${tipo.label}` },
-              { label: "Engenheiro", value: o.engenheiroResp },
-              { label: "Área", value: `${o.area} m²` },
+              { label: "Engenheiro", value: o.engenheiroResp ?? "Pendente de configuração" },
+              { label: "Área", value: o.area == null ? "Pendente de configuração" : `${o.area} m²` },
               o.dataInicio ? { label: "Início", value: new Date(o.dataInicio).toLocaleDateString("pt-BR") } : null,
               o.dataPrevisaoFim ? { label: "Previsão", value: new Date(o.dataPrevisaoFim).toLocaleDateString("pt-BR") } : null,
               o.dataConclusao ? { label: "Concluída em", value: new Date(o.dataConclusao).toLocaleDateString("pt-BR") } : null,
@@ -141,7 +141,7 @@ export default async function ObraDetailPage({ params }: PageProps) {
             {[
               { label: "Valor total", value: formatCurrency(o.valorTotal), color: "text-[var(--brand-dark)]" },
               { label: "Recebido", value: formatCurrency(o.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(aReceber), color: aReceber > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "A receber", value: formatCurrency(aReceber), color: (aReceber ?? 0) > 0 ? "text-orange-500" : "text-gray-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>

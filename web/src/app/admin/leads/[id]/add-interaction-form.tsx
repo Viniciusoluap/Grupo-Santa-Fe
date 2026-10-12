@@ -8,6 +8,7 @@ import { adicionarInteracao } from "@/lib/actions/leads";
 export function AddInteractionForm({ leadId }: { leadId: string }) {
   const [type, setType] = useState<InteractionType>("nota");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -15,11 +16,15 @@ export function AddInteractionForm({ leadId }: { leadId: string }) {
     setPending(true);
     formData.set("leadId", leadId);
     formData.set("tipo", type);
-    await adicionarInteracao(formData);
-    setPending(false);
-    setSaved(true);
-    formRef.current?.reset();
-    setTimeout(() => setSaved(false), 3000);
+    setError(null);
+    try {
+      await adicionarInteracao(formData);
+      setSaved(true);
+      formRef.current?.reset();
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Não foi possível registrar a interação. Tente novamente.");
+    } finally { setPending(false); }
   }
 
   return (
@@ -36,7 +41,7 @@ export function AddInteractionForm({ leadId }: { leadId: string }) {
               className={`flex flex-col items-center gap-1 py-2 px-1 text-[10px] font-bold border transition-all ${
                 type === t
                   ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                  : "border-gray-200 text-gray-400 hover:border-gray-300"
+                  : "border-gray-200 text-gray-600 hover:border-gray-300"
               }`}
             >
               <span className="text-base">{cfg.icon}</span>
@@ -46,12 +51,14 @@ export function AddInteractionForm({ leadId }: { leadId: string }) {
         )}
       </div>
       <textarea
+        aria-label="Descrição da interação"
         name="descricao"
         rows={3}
         placeholder="Descreva a interação..."
-        className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none"
+        className="w-full border border-gray-200 px-3 py-2.5 text-sm placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none"
         required
       />
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       <div className="flex items-center gap-3">
         <button
           type="submit"
@@ -61,7 +68,7 @@ export function AddInteractionForm({ leadId }: { leadId: string }) {
           {pending ? "Registrando..." : "Registrar"}
         </button>
         {saved && (
-          <div className="flex items-center gap-1 text-green-600 text-xs font-medium">
+          <div className="flex items-center gap-1 text-green-700 text-xs font-medium">
             <CheckCircle2 size={13} /> Interação registrada!
           </div>
         )}

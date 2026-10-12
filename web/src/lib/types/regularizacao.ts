@@ -1,4 +1,4 @@
-export type RegStatus =
+export type RegStatus = "aguardando_configuracao"
   | "analise_inicial"
   | "documentacao"
   | "protocolo"
@@ -60,6 +60,7 @@ export interface Regularizacao {
 }
 
 export const REG_STATUS_CONFIG: Record<RegStatus, { label: string; bgColor: string; color: string; order: number }> = {
+  aguardando_configuracao: { label: "Pendente de configuração", bgColor: "bg-amber-100", color: "text-amber-800", order: 0 },
   analise_inicial: { label: "Análise Inicial", bgColor: "bg-gray-100", color: "text-gray-600", order: 1 },
   documentacao: { label: "Documentação", bgColor: "bg-yellow-100", color: "text-yellow-700", order: 2 },
   protocolo: { label: "Protocolo", bgColor: "bg-blue-100", color: "text-blue-600", order: 3 },

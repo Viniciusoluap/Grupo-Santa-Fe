@@ -1,9 +1,9 @@
 import { PrismaClient } from "../src/generated/prisma/client.ts";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
-// @ts-ignore
+// @ts-expect-error O seed legado usa SQLite; o schema de produção usa Postgres.
 const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" });
-// @ts-ignore
+// @ts-expect-error Adaptador SQLite exclusivo do seed legado.
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

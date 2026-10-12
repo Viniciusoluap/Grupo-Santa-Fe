@@ -8,7 +8,6 @@ const footerLinks = {
     { label: "Todos os Imóveis", href: "/imoveis" },
     { label: "Casas e Apartamentos", href: "/imoveis?type=casa" },
     { label: "Lotes e Terrenos", href: "/imoveis?type=lote" },
-    { label: "Mercado Agregado", href: "/mercado" },
   ],
   servicos: [
     { label: "Nossos Serviços", href: "/servicos" },

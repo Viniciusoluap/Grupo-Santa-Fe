@@ -1,46 +1,17 @@
 "use server";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
+import { REG_TIPO_CONFIG, REG_STATUS_CONFIG } from "@/lib/types/regularizacao";
+import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
-import { carregarLeadParaVinculo, clienteParaRegistro, registrarServicoNoLead } from "@/lib/crm/vinculo-lead";
-import { dadosClienteDoLead } from "@/lib/crm/servicos-lead";
-import { notificarAdmins } from "@/lib/notificacoes";
+import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
-export async function criarRegularizacao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  const tipos = formData.getAll("tipos") as string[];
-  // Vínculo real (EPIC-007): sem processo avulso — cliente vem do lead.
-  const lead = await carregarLeadParaVinculo(formData.get("leadId") as string);
-  const cliente = dadosClienteDoLead(lead);
-  const leadId = lead.id;
-
-  await prisma.regularizacao.create({
-    data: {
-      nome: formData.get("nome") as string,
-      tipo: JSON.stringify(tipos.length > 0 ? tipos : ["regularizacao_escritura"]),
-      clienteNome: cliente.clienteNome,
-      clienteTel: cliente.clienteTel,
-      endereco: formData.get("endereco") as string,
-      responsavel: formData.get("responsavel") as string,
-      valorServico: parseFloat(formData.get("valorServico") as string) || 0,
-      descricao: (formData.get("descricao") as string) || "",
-      leadId,
-    },
-  });
-  await registrarServicoNoLead(leadId, "regularizacao");
-  const nomeReg = formData.get("nome") as string;
-  await notificarAdmins("nova_regularizacao", "Nova regularização cadastrada", `${nomeReg} — ${cliente.clienteNome}`, "/admin/regularizacao").catch(() => {});
-  revalidatePath("/admin/regularizacao");
-  redirect("/admin/regularizacao");
-}
 
 export async function excluirRegularizacao(id: string) {
   const session = await auth();
   requireActionRole(session, "admin");
-  await prisma.regularizacao.delete({ where: { id } });
+  await prisma.regularizacao.update({ where: { id }, data: { status: "cancelado" } });
   revalidatePath("/admin/regularizacao");
 }
 
@@ -48,23 +19,28 @@ export async function editarRegularizacao(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
-  const atual = await prisma.regularizacao.findUnique({ where: { id }, select: { leadId: true } });
-  const cliente = await clienteParaRegistro(atual?.leadId, formData);
-  await prisma.regularizacao.update({
-    where: { id },
-    data: {
-      nome: formData.get("nome") as string,
-      tipo: formData.get("tipo") as string,
-      status: formData.get("status") as string,
-      clienteNome: cliente.clienteNome,
-      clienteTel: cliente.clienteTel,
-      endereco: formData.get("endereco") as string,
-      responsavel: formData.get("responsavel") as string,
-      valorServico: parseFloat(formData.get("valorServico") as string) || 0,
-      descricao: (formData.get("descricao") as string) || "",
-      matricula: (formData.get("matricula") as string) || null,
-      previsaoFim: (formData.get("previsaoFim") as string) ? new Date(formData.get("previsaoFim") as string) : null,
-    },
+  await transacaoCRM(async (tx) => {
+    const atual = await tx.regularizacao.findUnique({ where: { id }, select: { leadId: true } });
+    if (!atual) throw new Error("Registro não encontrado.");
+    if (formData.has("leadId") && formData.get("leadId") !== atual.leadId) throw new Error("O vínculo com o CRM não pode ser alterado neste módulo.");
+    if (atual.leadId) await bloquearLead(tx, atual.leadId);
+    const cliente = await clienteParaRegistro(atual.leadId, formData, tx);
+    await tx.regularizacao.update({
+      where: { id },
+      data: {
+        nome: textoObrigatorio(formData, "nome"),
+        tipo: tiposObrigatorios(formData, REG_TIPO_CONFIG),
+        status: opcaoObrigatoria(formData, "status", REG_STATUS_CONFIG),
+        clienteNome: cliente.clienteNome,
+        clienteTel: cliente.clienteTel,
+        endereco: textoObrigatorio(formData, "endereco"),
+        responsavel: textoObrigatorio(formData, "responsavel"),
+        valorServico: numeroObrigatorio(formData, "valorServico"),
+        descricao: (formData.get("descricao") as string) || "",
+        matricula: (formData.get("matricula") as string) || null,
+        previsaoFim: (formData.get("previsaoFim") as string) ? new Date(formData.get("previsaoFim") as string) : null,
+      },
+    });
   });
   revalidatePath("/admin/regularizacao");
   redirect(`/admin/regularizacao/${id}`);
