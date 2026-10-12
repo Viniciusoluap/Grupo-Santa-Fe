@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — Lote 3 PUBLICADO nos dois sistemas (+ PR de correções da revisão). Próximo: Lote 4.
+Última atualização: 12/10/2026 — Lotes 0–3 PUBLICADOS. Inventário de feito × pendente em §7. Próximo: Lote 4.
 
 ---
 
@@ -330,3 +330,66 @@ erro de código. Refazer pela API/MCP da Vercel com `create_deployment` usando `
    `execute_sql`) **antes** do merge; verificar depois com SELECT.
 6. Commit, push (sem force), PR em rascunho nos dois, aguardar preview Vercel, mesclar (squash),
    confirmar deploy de produção `READY`, atualizar matriz e este arquivo nos dois repos.
+
+## 7. Inventário consolidado — feito × pendente (12/10/2026, após o Lote 3)
+
+> Lista única para retomar depois. Cada pendência tem um código (P-xx) para ser citada.
+> Ao resolver uma, marcar `✅` aqui com data e PR.
+
+### 7.1 Feito e publicado (merge + deploy de produção READY nos dois sistemas)
+
+| Lote | Itens | O que entrou |
+|---|---|---|
+| 0 | — | Diagnóstico, matriz de paridade, este HANDOFF nos dois repositórios |
+| 1 | 05, 06, 07, 08, 09, 15, 16*, 24 | Temperatura do lead separada da etapa; status de obra unificado (causa raiz do `invalid_value`); tipo de projeto vindo do CRM; "Contrato Grupo Santa Fé (CEF)"; botões superiores removidos; corretor automático pelo lead (somente leitura, "Corretor Pago?" removido). *16 no Santa Fé nasceu no Lote 2 |
+| 2 | 10–14, 16, 17–23, 25, 26 | Motor financeiro único (centavos, HALF_UP, ausente ≠ zero) igual nos dois; abas Valores da Operação e Custos; histórico de entradas/CEF/pagamentos (manual ou BPO, cancelar/reativar, nunca apagar, alocação do BPO limitada no banco); investidores (soma ≤ 100%); papel Empreiteiro com acesso só às próprias obras; Pró-Soluto/HP 12C; Dias de Obra; PLS Real; JSON antigo da Prospecta migrado (obra 35) |
+| 3 | 32 | Comissão = VGV × % (regra da obra ou padrão do corretor, nunca inventada); seção automática "Comissões de obras" em Comissões; pagamentos pela categoria "comissão"; investigação Chaleilson documentada; correções da revisão automática (PR #101/#170); RLS nas tabelas financeiras do Santa Fé |
+
+Testes automáticos atuais: Prospecta 639/639 · Santa Fé 517/517 (inclui testes de referência A, B, C, D, F, G).
+
+### 7.2 Falta implementar (lotes restantes)
+
+| Lote | Itens | Observação |
+|---|---|---|
+| 4 | 27 Progresso por incidência (Teste E = 28,20%), 28 Fotos, 29 Relatório PDF | Próximo |
+| 5 | 01–04 Incorporação | **Atenção:** o Codex está trabalhando em incorporação/estudos (PRs #99/#168). Checar PRs `codex/*` abertos antes de começar e não duplicar nem sobrescrever |
+| 6 | 30, 31 Regularização | Tabelas `regularizacoes` órfãs conhecidas na Prospecta (migrations 0019/0027/0028) |
+| 7 | Auditoria final | Relatório A–K, matriz de 32 linhas, Teste H (isolamento) formal |
+
+### 7.3 Pendências que dependem do proprietário (dados/decisões — nada foi alterado sem autorização)
+
+| Código | Sistema | Pendência |
+|---|---|---|
+| P-01 | Santa Fé | 4 de 5 obras têm `valorTotal` antigo (preservado, fora dos cálculos). Definir se era **VGV** ou **Orçamento** e preencher em Valores da Operação / Custos |
+| P-02 | Prospecta | Obra 35: o JSON antigo dizia Entrada Total 13.766, mas a fórmula oficial (VGV − Financiamento − FGTS − Subsídio) dá 21.766. Conferir os valores digitados |
+| P-03 | Prospecta | Obras do Chaleilson (3, 4, 5, 6, 10, 12, 17, 18, 22, 27) e do Paulo Gomes (11) sem VGV e sem percentual de comissão → aparecem como "Dados incompletos". Preencher VGV e o percentual (padrão do corretor em Corretores, ou por obra em Custos). Obras 17, 18, 27 têm valor aprovado no lead (200.000 / 200.000 / 180.000) — **confirmar se é o VGV** antes de usar |
+| P-04 | Prospecta | CRECI do Chaleilson está "0000" (provisório) |
+| P-05 | Prospecta | Comissão manual #1 (Paulo Gomes, "Casa lu", R$ 1.000, 5%): tipo obra sem obra vinculada. Vincular ou corrigir |
+| P-06 | Prospecta | Possíveis obras duplicadas (sem corretor): leads 23 (obras 26 e 35), 25 (28 e 33), 26 (29 e 34). As primeiras vieram da importação de 08/10. Revisar e cancelar a sobra |
+| P-07 | Prospecta | Obra 22 gravada como "Vistoria e medição", mas o serviço do CRM é obra de cliente. Corrigir no lead se for vistoria |
+| P-08 | Santa Fé | 4 obras com tipo antigo "Obra Nova" (preservado); o tipo oficial vem do CRM |
+
+### 7.4 Validação pendente (ambiente do agente não alcança os domínios/banco de produção)
+
+| Código | Pendência |
+|---|---|
+| V-01 | Prospecta: validar em navegador (produção) as telas dos Lotes 1, 2 e 3 — edição de obra (Valores da Operação, Custos, histórico, BPO, investidores), portal `/empreiteiro`, cadastro de corretor (comissão padrão) e Comissões. Só testes automáticos foram possíveis |
+| V-02 | Santa Fé: os fluxos foram testados em navegador com banco local; falta conferência em produção pelo proprietário |
+
+### 7.5 Configuração / infraestrutura
+
+| Código | Pendência |
+|---|---|
+| C-01 | SMTP (`SMTP_HOST/PORT/USER/PASSWORD`) na Vercel dos dois projetos — e-mails de notificação não saem sem isso |
+| C-02 | Google Drive: credenciais e validação real de upload/consulta |
+| C-03 | Integração Git da Vercel instável (`git_info_fail` e deploys sem gatilho): sempre conferir deploy de produção READY; se falhar, redeploy pelo MCP (§5) |
+
+### 7.6 Débitos técnicos registrados (não bloqueiam; corrigir na auditoria final ou quando houver lote relacionado)
+
+| Código | Débito |
+|---|---|
+| D-01 | Prospecta: `parseNumeroBR("1.000")` (sem vírgula) vira 1,00 em campos de dinheiro; no Santa Fé vira 1.000. Unificar (percentuais já foram unificados com `lerPercentualDigitado`) |
+| D-02 | Formulário de comissão **manual** vem com 6% pré-preenchido (Prospecta e Santa Fé, `Comissao.percentual @default(6)`). As automáticas nunca inventam percentual; avaliar remover o 6% sugerido |
+| D-03 | Prospecta: tabela legada `broker_commissions` (0 registros) e colunas antigas de Custos — remover na auditoria final após confirmação |
+| D-04 | Prospecta: coluna `broker_payment_settled` (criada pelo Codex no #99) preserva o antigo "Corretor Pago?"; o pagamento oficial agora vem do financeiro (item 24) — não reexibir na tela |
+| D-05 | Santa Fé: log "Não autorizado." quando um empreiteiro abre uma URL de `/admin` (é redirecionado corretamente; só ruído de log) |
