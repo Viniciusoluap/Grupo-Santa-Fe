@@ -7,6 +7,10 @@ import { prisma } from "@/lib/db";
 import { OBRA_STATUS_CONFIG, WEATHER_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { ObraDiarioClient } from "./_components/obra-diario-client";
+import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
+import type { Indicador } from "@/lib/financeiro/obra";
+
+const exibir = (i: Indicador) => (i.ok ? formatCurrency(i.centavos / 100) : "Não calculado");
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -32,7 +36,10 @@ export default async function ObraDetailPage({ params }: PageProps) {
   };
   const tipo = tipoProjetoObra(o);
 
-  const aReceber = o.valorTotal == null ? null : o.valorTotal - o.valorPago;
+  // EPIC-020 Lote 2: os indicadores saem do motor único (Valores da Operação +
+  // Custos). `valorTotal`/`valorPago` antigos ficam só como referência legada.
+  const resumo = await carregarResumoObra(o.id);
+  const c = resumo!.calculo;
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -140,9 +147,13 @@ export default async function ObraDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Financeiro</p>
             {[
-              { label: "Valor total", value: formatCurrency(o.valorTotal), color: "text-[var(--brand-dark)]" },
-              { label: "Recebido", value: formatCurrency(o.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(aReceber), color: (aReceber ?? 0) > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "VGV", value: resumo!.valores.vgv == null ? "Não informado" : formatCurrency(Number(resumo!.valores.vgv)), color: "text-[var(--brand-dark)]" },
+              { label: "Entrada paga", value: exibir(c.entradaPaga), color: "text-green-600" },
+              { label: "Recebido da CEF", value: exibir(c.recebidoCef), color: "text-green-600" },
+              { label: "A receber do banco", value: exibir(c.receberBanco), color: c.receberBanco.ok && c.receberBanco.centavos > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "Total gasto", value: exibir(c.totalGasto), color: "text-[var(--brand-dark)]" },
+              { label: "Lucro estimado", value: exibir(c.lucroEstimado), color: c.lucroEstimado.ok && c.lucroEstimado.centavos < 0 ? "text-red-600" : "text-[var(--brand-dark)]" },
+              ...(o.valorTotal != null ? [{ label: "Valor total (legado)", value: formatCurrency(o.valorTotal), color: "text-gray-400" }] : []),
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>

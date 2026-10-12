@@ -24,6 +24,7 @@ interface Obra {
   area: number | null;
   valorTotal: number | null;
   valorPago: number;
+  vgv: number | null;
   progresso: number;
   engenheiroResp: string | null;
   dataInicio: Date | null;
@@ -64,8 +65,10 @@ export function ObrasClient({ obras }: Props) {
   });
 
   const emAndamento = obras.filter((o) => o.status === "em_andamento").length;
-  const totalValue = obras.reduce((s, o) => s + (o.valorTotal ?? 0), 0);
-  const totalPaid = obras.reduce((s, o) => s + o.valorPago, 0);
+  // EPIC-020 Lote 2: volume pelo VGV (Valores da Operação); valorTotal antigo
+  // só entra como referência legada quando a obra ainda não tem VGV.
+  const totalValue = obras.reduce((s, o) => s + (o.vgv ?? 0), 0);
+  const semVgv = obras.filter((o) => o.vgv == null).length;
 
   return (
     <div className="space-y-5">
@@ -82,8 +85,8 @@ export function ObrasClient({ obras }: Props) {
         {[
           { label: "Em Andamento", value: emAndamento, sub: "obras ativas" },
           { label: "Concluídas", value: obras.filter((o) => o.status === "concluida").length, sub: "no histórico" },
-          { label: "Volume Total", value: formatCurrency(totalValue), sub: "contratos" },
-          { label: "Recebido", value: formatCurrency(totalPaid), sub: "pagamentos" },
+          { label: "VGV Total", value: formatCurrency(totalValue), sub: semVgv ? `${semVgv} sem VGV informado` : "todas com VGV" },
+          { label: "Sem VGV", value: semVgv, sub: "preencher em Valores da Operação" },
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -133,7 +136,6 @@ export function ObrasClient({ obras }: Props) {
           const cfg = OBRA_STATUS_CONFIG[statusKey] ?? { label: o.status, bgColor: "bg-gray-100", color: "text-gray-600" };
           const tipo = tipoProjetoObra(o);
           const etapasFeitas = o.etapas.filter((e) => e.status === "concluida").length;
-          const saldo = (o.valorTotal ?? 0) - o.valorPago;
           return (
             <div key={o.id} className="bg-white border border-gray-100 p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -147,8 +149,8 @@ export function ObrasClient({ obras }: Props) {
                   <p className="text-gray-400 text-xs mt-0.5">Resp.: {o.engenheiroResp} · {o.area} m²</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-black text-[var(--brand-dark)] text-lg">{formatCurrency(o.valorTotal)}</p>
-                  {saldo > 0 && <p className="text-xs text-orange-500">A receber: {formatCurrency(saldo)}</p>}
+                  <p className="font-black text-[var(--brand-dark)] text-lg">{o.vgv == null ? "VGV não informado" : formatCurrency(o.vgv)}</p>
+                  {o.vgv == null && o.valorTotal != null && <p className="text-xs text-gray-400">Valor total (legado): {formatCurrency(o.valorTotal)}</p>}
                 </div>
               </div>
 

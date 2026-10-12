@@ -20,6 +20,7 @@ export async function criarUsuario(formData: FormData) {
   const telefone = (formData.get("telefone") as string) || null;
 
   if (!nome || !email || !senha || !papel) return { error: "Campos obrigatórios ausentes" };
+  if (!["admin", "colaborador", "corretor", "empreiteiro"].includes(papel)) return { error: "Papel inválido" };
 
   // Corretores precisam de um registro vinculado em Corretor (CRECI, telefone,
   // especialidades) que este formulário não coleta. Criar apenas o Usuario aqui

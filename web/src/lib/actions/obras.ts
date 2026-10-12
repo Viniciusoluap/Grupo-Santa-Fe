@@ -30,6 +30,13 @@ export async function excluirObra(id: string) {
   revalidatePath("/admin/obras");
 }
 
+function dataOpcional(formData: FormData, campo: string): Date | null {
+  const valor = String(formData.get(campo) ?? "").trim();
+  if (!valor) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) throw new Error(`Data inválida em ${campo}.`);
+  return new Date(`${valor}T00:00:00.000Z`);
+}
+
 export async function editarObra(formData: FormData) {
   const session = await auth();
   requireActionRole(session, "admin");
@@ -52,7 +59,9 @@ export async function editarObra(formData: FormData) {
         clienteTel: cliente.clienteTel,
         endereco: textoObrigatorio(formData, "endereco"),
         area: numeroObrigatorio(formData, "area"),
-        valorTotal: numeroObrigatorio(formData, "valorTotal"),
+        // "Valor Total" saiu da tela (Lote 2): o valor antigo é preservado e não é sobrescrito.
+        dataInicio: dataOpcional(formData, "dataInicio"),
+        dataPrevisaoFim: dataOpcional(formData, "dataPrevisaoFim"),
         engenheiroResp: textoObrigatorio(formData, "engenheiroResp"),
         descricao: (formData.get("descricao") as string) || "",
       },

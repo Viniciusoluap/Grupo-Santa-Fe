@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { sessaoAindaValida } from "@/lib/auth/admin-guard";
 
-export type UserRole = "admin" | "corretor" | "colaborador" | "cliente";
+export type UserRole = "admin" | "corretor" | "colaborador" | "cliente" | "empreiteiro";
 
 interface AppUser {
   id: string;

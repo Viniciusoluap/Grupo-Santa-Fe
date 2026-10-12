@@ -74,7 +74,12 @@ export interface ResultadoObra {
   alertas: string[];
 }
 
-const MICRO = 1_000_000n;
+const B0 = BigInt(0);
+const B2 = BigInt(2);
+const B100 = BigInt(100);
+const B10000 = BigInt(10000);
+const MICRO = BigInt(1_000_000);
+const CEM_POR_CENTO = B100 * MICRO;
 
 /** Converte reais (número ou texto decimal "1234.56") em centavos. Inválido → null. */
 export function centavosDe(valor: string | number | null | undefined): number | null {
@@ -84,8 +89,8 @@ export function centavosDe(valor: string | number | null | undefined): number | 
   const negativo = texto.startsWith("-");
   const [inteiro, frac = ""] = texto.replace("-", "").split(".");
   const fracPadded = (frac + "0000").slice(0, 4);
-  const em10000 = BigInt(inteiro) * 10000n + BigInt(fracPadded);
-  const centavos = dividirHalfUp(em10000, 100n);
+  const em10000 = BigInt(inteiro) * B10000 + BigInt(fracPadded);
+  const centavos = dividirHalfUp(em10000, B100);
   return Number(negativo ? -centavos : centavos);
 }
 
@@ -110,20 +115,20 @@ export function percentualMicro(p: number | string | null | undefined): bigint |
 
 /** Divisão inteira com arredondamento HALF_UP (meio para longe do zero). */
 export function dividirHalfUp(numerador: bigint, denominador: bigint): bigint {
-  if (denominador === 0n) throw new Error("Divisão por zero");
-  const negativo = (numerador < 0n) !== (denominador < 0n);
-  const n = numerador < 0n ? -numerador : numerador;
-  const d = denominador < 0n ? -denominador : denominador;
-  const q = (2n * n + d) / (2n * d);
+  if (denominador === B0) throw new Error("Divisão por zero");
+  const negativo = (numerador < B0) !== (denominador < B0);
+  const n = numerador < B0 ? -numerador : numerador;
+  const d = denominador < B0 ? -denominador : denominador;
+  const q = (B2 * n + d) / (B2 * d);
   return negativo ? -q : q;
 }
 
 /** valor × percentual / 100, em centavos, HALF_UP. */
 export function aplicarPercentual(centavos: number, percentual: bigint): number {
-  return Number(dividirHalfUp(BigInt(centavos) * percentual, 100n * MICRO));
+  return Number(dividirHalfUp(BigInt(centavos) * percentual, CEM_POR_CENTO));
 }
 
-const ok = (centavos: number): Indicador => ({ ok: true, centavos });
+const ok = (centavos: number): { ok: true; centavos: number } => ({ ok: true, centavos });
 const falta = (motivo: string): Indicador => ({ ok: false, motivo });
 
 function primeiraFalha(...indicadores: Indicador[]): Indicador {
@@ -154,8 +159,8 @@ export function parcelaPrice(pvCentavos: number | null, taxaPct: number | string
   if (taxa === null || parcelas === null) return falta("Cálculo indisponível: informe taxa mensal e quantidade de parcelas");
   if (!Number.isInteger(parcelas) || parcelas < 0) return falta("Quantidade de parcelas inválida");
   if (parcelas === 0) return falta("Quantidade de parcelas igual a zero: cálculo não realizado");
-  if (taxa < 0n) return falta("Taxa mensal negativa não é aceita");
-  if (taxa === 0n) return ok(Number(dividirHalfUp(BigInt(pvCentavos), BigInt(parcelas))));
+  if (taxa < B0) return falta("Taxa mensal negativa não é aceita");
+  if (taxa === B0) return ok(Number(dividirHalfUp(BigInt(pvCentavos), BigInt(parcelas))));
   const i = Number(taxa) / 1e8;
   const pmt = (pvCentavos * i) / (1 - Math.pow(1 + i, -parcelas));
   return ok(arredondarHalfUp(pmt));
@@ -205,7 +210,7 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
   if (!basePls.ok) plsReal = { ok: false, motivo: basePls.motivo };
   else if (basePls.centavos <= 0) plsReal = { ok: false, motivo: "Base do PLS igual ou menor que zero: cálculo inválido" };
   else {
-    const micro = dividirHalfUp(BigInt(recebidoCef.centavos) * 100n * MICRO, BigInt(basePls.centavos));
+    const micro = dividirHalfUp(BigInt(recebidoCef.centavos) * CEM_POR_CENTO, BigInt(basePls.centavos));
     plsReal = { ok: true, percentual: Number(micro) / 1e6 };
   }
 
@@ -219,11 +224,11 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
   if (lucroEstimado.ok && lucroEstimado.centavos < 0) alertas.push("Lucro estimado negativo (prejuízo estimado).");
 
   const percentuaisInvestidores = e.investidores.map((inv) => ({ inv, micro: percentualMicro(inv.percentual) }));
-  const invalidoInvestidor = percentuaisInvestidores.find((p) => p.micro === null || p.micro < 0n || p.micro > 100n * MICRO);
-  const somaInvestidores = percentuaisInvestidores.reduce((acc, p) => acc + (p.micro ?? 0n), 0n);
+  const invalidoInvestidor = percentuaisInvestidores.find((p) => p.micro === null || p.micro < B0 || p.micro > CEM_POR_CENTO);
+  const somaInvestidores = percentuaisInvestidores.reduce((acc, p) => acc + (p.micro ?? B0), B0);
   let erroInvestidores: string | null = null;
   if (invalidoInvestidor) erroInvestidores = "Percentual de investidor inválido (use de 0% a 100%)";
-  else if (somaInvestidores > 100n * MICRO) erroInvestidores = "A soma das participações dos investidores ultrapassa 100%";
+  else if (somaInvestidores > CEM_POR_CENTO) erroInvestidores = "A soma das participações dos investidores ultrapassa 100%";
   if (erroInvestidores) alertas.push(erroInvestidores);
 
   const investidores: LucroInvestidorCalculado[] = percentuaisInvestidores.map(({ inv, micro }) => ({
@@ -243,7 +248,7 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
   const pEmp = percentualMicro(e.percentualEmpreiteiro);
   let lucroEmpreiteiro: Indicador;
   if (pEmp === null) lucroEmpreiteiro = ok(0);
-  else if (pEmp < 0n || pEmp > 100n * MICRO) {
+  else if (pEmp < B0 || pEmp > CEM_POR_CENTO) {
     lucroEmpreiteiro = falta("Percentual do empreiteiro inválido (use de 0% a 100%)");
     alertas.push("Percentual do empreiteiro inválido (use de 0% a 100%)");
   } else lucroEmpreiteiro = baseEmpreiteiro.ok ? ok(aplicarPercentual(baseEmpreiteiro.centavos, pEmp)) : baseEmpreiteiro;
