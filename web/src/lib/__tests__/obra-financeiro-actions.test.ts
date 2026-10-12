@@ -169,11 +169,18 @@ describe("Lote 3 — comissão da obra pelo CRM (item 32)", () => {
     expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "5750.00", comissaoPercentual: "2.5" });
   });
 
-  it("sem regra cadastrada não inventa percentual e preserva o valor informado", async () => {
+  it("obra com corretor sem regra: não inventa percentual nem reaproveita valor digitado/antigo", async () => {
     prisma.obra.findUnique.mockResolvedValue(corretor(null));
     const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
     await salvarValoresObra({ ...entrada, comissaoPercentual: null });
-    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "1", comissaoPercentual: null });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: null, comissaoPercentual: null });
+  });
+
+  it("obra sem corretor: comissão é o valor informado", async () => {
+    prisma.obra.findUnique.mockResolvedValue({ comissaoPercentual: null, leadVinculado: null });
+    const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
+    await salvarValoresObra({ ...entrada, comissao: "5000", comissaoPercentual: null });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: "5000" });
   });
 
   it("percentual de comissão inválido é recusado sem gravar", async () => {

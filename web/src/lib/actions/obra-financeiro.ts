@@ -116,7 +116,7 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
         fgts: dinheiro(input.fgts, "FGTS"),
         subsidio: dinheiro(input.subsidio, "Subsídio"),
         custoTerreno: dinheiro(input.custoTerreno, "Custo do Terreno"),
-        comissaoValor: calculada !== null ? reaisDeCentavos(calculada) : dinheiro(input.comissao, "Comissão"),
+        comissaoValor: c ? (calculada !== null ? reaisDeCentavos(calculada) : null) : dinheiro(input.comissao, "Comissão"),
         comissaoPercentual: pctComissao,
         orcamentoPrevisto: dinheiro(input.orcamentoPrevisto, "Orçamento Previsto"),
         taxaMensalPct: taxa,
