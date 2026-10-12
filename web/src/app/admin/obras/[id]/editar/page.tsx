@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { OBRA_STATUS_SELECIONAVEIS, isObraStatusSelecionavel, obraStatusLabel, tipoProjetoObra } from "@/lib/types/obra";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
+import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { EditarObraClient } from "./_components/editar-obra-client";
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -24,11 +25,17 @@ export default async function EditarObraPage({ params }: PageProps) {
     },
   });
   if (!o) notFound();
-  const [resumo, empreiteiros] = await Promise.all([
+  const [resumo, empreiteiros, progresso, fotos] = await Promise.all([
     carregarResumoObra(id),
     prisma.usuario.findMany({ where: { papel: "empreiteiro", ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    carregarProgressoObra(id),
+    prisma.obraFoto.findMany({
+      where: { obraId: id },
+      orderBy: [{ tiradaEm: "desc" }, { criadoEm: "desc" }],
+      select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },
+    }),
   ]);
-  if (!resumo) notFound();
+  if (!resumo || !progresso) notFound();
   const tipoProjeto = tipoProjetoObra(o);
   const corretorNome = o.leadVinculado?.corretor?.nome?.trim() || null;
   const campoSomenteLeitura = "w-full border border-gray-100 px-3 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed";
@@ -50,6 +57,8 @@ export default async function EditarObraPage({ params }: PageProps) {
         escritorioCef={o.escritorioCef}
         datas={{ inicio: resumo.valores.dataInicio ?? "", termino: resumo.valores.dataTerminoPrevista ?? "" }}
         cancelarHref={`/admin/obras/${id}`}
+        progresso={progresso}
+        fotos={fotos.map((f) => ({ id: f.id, url: `/api/obras/fotos/${f.id}`, legenda: f.legenda, tiradaEm: f.tiradaEm.toISOString(), incluirNoRelatorio: f.incluirNoRelatorio }))}
       >
           <input type="hidden" name="id" value={id} />
 

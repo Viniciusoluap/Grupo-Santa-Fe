@@ -312,6 +312,11 @@ model Obra {
   percentualEmpreiteiro Decimal? @db.Decimal(9, 6)
   /// EPIC-020 Lote 3: percentual de comissão próprio da obra (prevalece sobre o do corretor).
   comissaoPercentual    Decimal?  @db.Decimal(7, 4)
+  /// EPIC-020 Lote 4: Progresso Geral medido (soma incidência × execução), 6 casas.
+  progressoMedido       Decimal?  @db.Decimal(9, 6)
+  progressoItens        ObraProgressoItem[]
+  progressoHistorico    ObraProgressoHistorico[]
+  fotos                 ObraFoto[]
   movimentos            ObraMovimento[]
   investidores          ObraInvestidor[]
   etapas          ObraEtapa[]
@@ -843,8 +848,55 @@ model Arquivo {
   tamanho   Int      @default(0)
   dados     Bytes
   criadoEm  DateTime @default(now())
+  obraFoto  ObraFoto?
 
   @@map("arquivos")
+}
+
+// ========== EPIC-020 Lote 4 — progresso por incidência e fotos da obra ==========
+
+model ObraProgressoItem {
+  obraId          String
+  obra            Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  chave           String   @db.VarChar(40)
+  incidencia      Decimal  @db.Decimal(7, 4)
+  execucao        Decimal  @default(0) @db.Decimal(7, 4)
+  atualizadoPorId String?
+  atualizadoEm    DateTime @default(now())
+
+  @@id([obraId, chave])
+  @@map("obra_progresso_itens")
+}
+
+model ObraProgressoHistorico {
+  id             String   @id @default(cuid())
+  obraId         String
+  obra           Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  progresso      Decimal  @db.Decimal(9, 6)
+  somaIncidencia Decimal  @db.Decimal(9, 4)
+  itens          Json     @db.JsonB
+  criadoPorId    String?
+  criadoEm       DateTime @default(now())
+
+  @@index([obraId, criadoEm])
+  @@map("obra_progresso_historico")
+}
+
+/// Bytes ficam em `arquivos` (banco próprio); apagar o arquivo apaga a foto.
+model ObraFoto {
+  id                 String   @id @default(cuid())
+  obraId             String
+  obra               Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  arquivoId          String   @unique
+  arquivo            Arquivo  @relation(fields: [arquivoId], references: [id], onDelete: Cascade)
+  legenda            String?
+  tiradaEm           DateTime
+  incluirNoRelatorio Boolean  @default(true)
+  enviadoPorId       String?
+  criadoEm           DateTime @default(now())
+
+  @@index([obraId, tiradaEm])
+  @@map("obra_fotos")
 }
 
 // ========== EPIC-020 Lote 2 — motor financeiro da Obra ==========

@@ -5,16 +5,25 @@ import type { ResumoObra } from "@/lib/financeiro/obra-dados";
 import { editarObra } from "@/lib/actions/obras";
 import { definirInvestidoresObra, salvarValoresObra } from "@/lib/actions/obra-financeiro";
 import { SubmitButton } from "@/components/ui/submit-button";
+import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
+import { ProgressoObra } from "./progresso-obra";
+import { FotosObra, type FotoObra } from "./fotos-obra";
+import { RelatorioObraBotao } from "./relatorio-obra-botao";
 import { Custos, ValoresOperacao, calcularAoVivo, formInicial, inputCls, labelCls, type FormFinanceiro } from "./financeiro-obra";
 
-type Aba = "info" | "valores" | "custos";
+type Aba = "info" | "valores" | "custos" | "progresso" | "fotos" | "relatorios";
 const ABAS: { id: Aba; label: string }[] = [
   { id: "info", label: "Informações" },
   { id: "valores", label: "Valores da Operação" },
   { id: "custos", label: "Custos" },
+  { id: "progresso", label: "Progresso" },
+  { id: "fotos", label: "Fotos" },
+  { id: "relatorios", label: "Relatórios" },
 ];
+// Progresso, Fotos e Relatórios gravam por conta própria (fora do formulário).
+const ABAS_DO_FORMULARIO: Aba[] = ["info", "valores", "custos"];
 
-export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, escritorioCef, datas, cancelarHref, children }: {
+export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, escritorioCef, datas, cancelarHref, progresso, fotos, children }: {
   resumo: ResumoObra;
   empreiteiros: { id: string; nome: string }[];
   clienteNome: string;
@@ -22,6 +31,8 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
   escritorioCef: string | null;
   datas: { inicio: string; termino: string };
   cancelarHref: string;
+  progresso: ProgressoObraDados;
+  fotos: FotoObra[];
   children: React.ReactNode;
 }) {
   const [aba, setAba] = useState<Aba>("info");
@@ -50,7 +61,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
   }
 
   return (
-    <form action={salvar} onInvalidCapture={() => setAba("info")} className="space-y-5">
+    <div className="space-y-5">
       <div role="tablist" className="flex flex-wrap gap-1 border-b border-gray-200">
         {ABAS.map((a) => (
           <button key={a.id} type="button" role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
@@ -59,6 +70,12 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
           </button>
         ))}
       </div>
+
+      {aba === "progresso" && <ProgressoObra obraId={resumo.obra.id} dados={progresso} />}
+      {aba === "fotos" && <FotosObra obraId={resumo.obra.id} fotos={fotos} />}
+      {aba === "relatorios" && <RelatorioObraBotao obraId={resumo.obra.id} />}
+
+    <form action={salvar} onInvalidCapture={() => setAba("info")} className={ABAS_DO_FORMULARIO.includes(aba) ? "space-y-5" : "hidden"}>
 
       <div className={aba === "info" ? "space-y-5" : "hidden"}>
         <div className="bg-white border border-gray-100 p-6 space-y-5">
@@ -112,5 +129,6 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
         </SubmitButton>
       </div>
     </form>
+    </div>
   );
 }

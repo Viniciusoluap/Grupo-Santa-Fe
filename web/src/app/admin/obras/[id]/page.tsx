@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formatarPercentual, progressoDaObra } from "@/lib/financeiro/progresso";
 import Link from "next/link";
 import { ArrowLeft, Phone } from "lucide-react";
 import { auth } from "@/auth";
@@ -40,6 +41,7 @@ export default async function ObraDetailPage({ params }: PageProps) {
   // Custos). `valorTotal`/`valorPago` antigos ficam só como referência legada.
   const resumo = await carregarResumoObra(o.id);
   const c = resumo!.calculo;
+  const progresso = progressoDaObra(o.progressoMedido?.toString(), o.progresso);
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -58,12 +60,12 @@ export default async function ObraDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Progresso Geral</h2>
-              <span className="text-xs font-bold text-[var(--brand-dark)]">{o.progresso}%</span>
+              <span className="text-xs font-bold text-[var(--brand-dark)]">{formatarPercentual(progresso)}</span>
             </div>
             <div className="h-3 bg-gray-100 overflow-hidden">
               <div
-                className={`h-full transition-all ${o.progresso === 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`}
-                style={{ width: `${o.progresso}%` }}
+                className={`h-full transition-all ${progresso >= 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`}
+                style={{ width: `${Math.min(100, progresso)}%` }}
               />
             </div>
           </div>

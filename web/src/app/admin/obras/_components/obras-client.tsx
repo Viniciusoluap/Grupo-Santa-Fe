@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { formatarPercentual } from "@/lib/financeiro/progresso";
 import Link from "next/link";
 import { Search, HardHat, Pencil, Trash2 } from "lucide-react";
 import { OBRA_STATUS_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
@@ -159,9 +160,9 @@ export function ObrasClient({ obras }: Props) {
                   <p className="text-xs text-gray-400 mb-1">Progresso geral</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-gray-100 overflow-hidden">
-                      <div className={`h-full ${o.progresso === 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`} style={{ width: `${o.progresso}%` }} />
+                      <div className={`h-full ${o.progresso >= 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`} style={{ width: `${Math.min(100, o.progresso)}%` }} />
                     </div>
-                    <span className="text-xs font-bold text-[var(--brand-dark)]">{o.progresso}%</span>
+                    <span className="text-xs font-bold text-[var(--brand-dark)]">{formatarPercentual(o.progresso)}</span>
                   </div>
                 </div>
                 <div>
