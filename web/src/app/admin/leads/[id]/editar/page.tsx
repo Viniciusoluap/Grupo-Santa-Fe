@@ -32,7 +32,7 @@ export default async function EditarLeadPage({ params }: PageProps) {
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Lead</h1>
       </div>
       <div className="bg-white border border-gray-100 p-6">
-        <EditarLeadForm lead={{ id: lead.id, nome: lead.nome, telefone: lead.telefone, email: lead.email, servico: lead.servico, status: lead.status, etapaOperacional: lead.etapaOperacional, atualizadoEm: lead.atualizadoEm, origem: lead.origem, orcamento: lead.orcamento, notas: lead.notas, corretorId: lead.corretorId, responsavelId: lead.responsavelId }} corretores={corretores} responsaveis={responsaveis} />
+        <EditarLeadForm lead={{ id: lead.id, nome: lead.nome, telefone: lead.telefone, email: lead.email, servico: lead.servico, status: lead.status, etapaOperacional: lead.etapaOperacional, atualizadoEm: lead.atualizadoEm, origem: lead.origem, temperatura: lead.temperatura, orcamento: lead.orcamento, notas: lead.notas, corretorId: lead.corretorId, responsavelId: lead.responsavelId }} corretores={corretores} responsaveis={responsaveis} />
       </div>
     </div>
   );

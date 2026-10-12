@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LEAD_TEMPERATURAS, leadTemperaturaRotulo } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
 import { Plus, LayoutGrid, List, Search } from "lucide-react";
 import { LEAD_STAGE_CONFIG, LEAD_STAGES, LEAD_STATUS_CONFIG, type LeadStatus } from "@/lib/types/crm";
@@ -18,13 +19,15 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
   const [servico, setServico] = useState("");
   const [situacao, setSituacao] = useState<HistoricoFiltro>("ativos");
   const [stage, setStage] = useState("");
+  const [temperatura, setTemperatura] = useState("");
   const responsaveis = [...new Map(leads.flatMap((l) => l.responsavel ? [[l.responsavel.id, l.responsavel] as const] : [])).values()].sort((a, b) => a.nome.localeCompare(b.nome));
   const servicos = [...new Set(leads.flatMap((l) => parseServicosLead(l.servico)))].sort();
   const encontrados = leads.filter((l) => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
     return (!q || [l.nome, l.telefone, l.email ?? "", parseServicosLead(l.servico).join(" "), l.responsavel?.nome ?? "", l.corretor?.nome ?? ""].some((v) => v.toLocaleLowerCase("pt-BR").includes(q))) &&
       (!responsavel || (responsavel === "sem" ? !l.responsavelId : l.responsavelId === responsavel)) &&
-      (!servico || parseServicosLead(l.servico).includes(servico));
+      (!servico || parseServicosLead(l.servico).includes(servico)) &&
+      (!temperatura || l.temperatura === temperatura);
   });
   const ativos = encontrados.filter(leadNoPipelineAtivo);
   const counts = Object.fromEntries(LEAD_STAGES.map((s) => [s, ativos.filter((l) => etapaDoLead(l) === s).length]));
@@ -54,18 +57,19 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
       {LEAD_STAGES.map((s) => <button type="button" key={s} aria-pressed={stage === s} onClick={() => { setStage(stage === s ? "" : s); setSituacao("ativos"); }} className={`bg-white border rounded-lg p-3 text-center ${stage === s ? "border-[var(--brand-yellow)]" : "border-gray-100"}`}><p className="font-black text-[var(--brand-dark)] text-2xl">{counts[s]}</p><span className="block text-[10px] font-bold text-gray-600 mt-1">{LEAD_STAGE_CONFIG[s].label}</span></button>)}
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
       <label className="text-xs text-gray-600">Buscar<div className="relative mt-1"><Search size={14} className="absolute left-3 top-3.5 text-gray-600" /><input aria-label="Buscar leads" placeholder="Nome, telefone, e-mail ou serviço" value={search} onChange={(e) => setSearch(e.target.value)} className={`${inputClass} pl-9`} /></div></label>
       <label className="text-xs text-gray-600">Responsável<select className={`${inputClass} mt-1`} value={responsavel} onChange={(e) => setResponsavel(e.target.value)}><option value="">Todos os responsáveis</option><option value="sem">Sem responsável</option>{responsaveis.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}</select></label>
       <label className="text-xs text-gray-600">Serviço<select className={`${inputClass} mt-1`} value={servico} onChange={(e) => setServico(e.target.value)}><option value="">Todos os serviços</option>{servicos.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+      <label className="text-xs text-gray-600">Temperatura<select className={`${inputClass} mt-1`} value={temperatura} onChange={(e) => setTemperatura(e.target.value)}><option value="">Todas as temperaturas</option>{LEAD_TEMPERATURAS.map((t) => <option key={t} value={t}>{leadTemperaturaRotulo(t)}</option>)}</select></label>
       <label className="text-xs text-gray-600">Situação<select className={`${inputClass} mt-1`} value={situacao} onChange={(e) => { setSituacao(e.target.value as HistoricoFiltro); setStage(""); }}><option value="ativos">Pipeline ativo</option><option value="a_classificar">A classificar ({naoClassificados})</option><option value="perdidos">Perdidos</option><option value="arquivados">Arquivados</option><option value="excluidos">Excluídos · histórico</option><option value="todos">Todos · histórico completo</option></select></label>
     </div>
-    <div className="flex justify-between gap-3 text-xs text-gray-600"><p>{filtrados.length} leads encontrados{stage && ` · ${LEAD_STAGE_CONFIG[stage as keyof typeof LEAD_STAGE_CONFIG].label}`}</p>{(stage || search || responsavel || servico || situacao !== "ativos") && <button className="font-bold hover:underline" onClick={() => { setSearch(""); setResponsavel(""); setServico(""); setStage(""); setSituacao("ativos"); }}>Limpar filtros</button>}</div>
+    <div className="flex justify-between gap-3 text-xs text-gray-600"><p>{filtrados.length} leads encontrados{stage && ` · ${LEAD_STAGE_CONFIG[stage as keyof typeof LEAD_STAGE_CONFIG].label}`}</p>{(stage || search || responsavel || servico || temperatura || situacao !== "ativos") && <button className="font-bold hover:underline" onClick={() => { setSearch(""); setResponsavel(""); setServico(""); setTemperatura(""); setStage(""); setSituacao("ativos"); }}>Limpar filtros</button>}</div>
     {kanban ? <LeadKanban leads={filtrados} /> : <div className="bg-white border border-gray-100 rounded-lg overflow-x-auto">
       <table className="w-full text-sm"><thead className="bg-gray-50 text-xs text-gray-600"><tr>{["Lead", "Serviços", "Responsável", "Orçamento", "Etapa / situação", "Histórico"].map((label) => <th key={label} className="px-4 py-3 text-left font-bold">{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
         {filtrados.map((lead) => {
           const etapa = etapaDoLead(lead);
-          return <tr key={lead.id} className="hover:bg-gray-50"><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-[var(--brand-dark)] hover:underline">{lead.nome}</Link><p className="text-xs text-gray-600">{formatTelefone(lead.telefone)}</p></td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{parseServicosLead(lead.servico).map((s) => <span key={s} className="text-[10px] rounded bg-gray-100 text-gray-600 px-1.5 py-0.5">{s}</span>)}</div></td><td className="px-4 py-3 text-gray-600">{lead.responsavel?.nome ?? "Sem responsável"}</td><td className="px-4 py-3 text-gray-600">{lead.orcamento !== null ? formatCurrency(lead.orcamento) : "—"}</td><td className="px-4 py-3"><p className="text-[10px] font-bold">{lead.excluidoEm || ["excluido", "deleted"].includes(lead.status) ? "EXCLUÍDO" : lead.arquivadoEm || ["arquivado", "archived"].includes(lead.status) ? "ARQUIVADO" : ["perdido", "lost"].includes(lead.status) ? "PERDIDO" : etapa ? LEAD_STAGE_CONFIG[etapa].label : "A CLASSIFICAR"}</p><p className="text-[10px] text-gray-600 mt-1">Original: {LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.label ?? lead.status}</p></td><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-xs hover:underline">Ver detalhes</Link></td></tr>;
+          return <tr key={lead.id} className="hover:bg-gray-50"><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-[var(--brand-dark)] hover:underline">{lead.temperatura === "fechado" && <span className="mr-1" title="Negócio fechado">🤝</span>}{lead.nome}</Link><p className="text-xs text-gray-600">{formatTelefone(lead.telefone)} · {leadTemperaturaRotulo(lead.temperatura)}</p></td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{parseServicosLead(lead.servico).map((s) => <span key={s} className="text-[10px] rounded bg-gray-100 text-gray-600 px-1.5 py-0.5">{s}</span>)}</div></td><td className="px-4 py-3 text-gray-600">{lead.responsavel?.nome ?? "Sem responsável"}</td><td className="px-4 py-3 text-gray-600">{lead.orcamento !== null ? formatCurrency(lead.orcamento) : "—"}</td><td className="px-4 py-3"><p className="text-[10px] font-bold">{lead.excluidoEm || ["excluido", "deleted"].includes(lead.status) ? "EXCLUÍDO" : lead.arquivadoEm || ["arquivado", "archived"].includes(lead.status) ? "ARQUIVADO" : ["perdido", "lost"].includes(lead.status) ? "PERDIDO" : etapa ? LEAD_STAGE_CONFIG[etapa].label : "A CLASSIFICAR"}</p><p className="text-[10px] text-gray-600 mt-1">Original: {LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.label ?? lead.status}</p></td><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-xs hover:underline">Ver detalhes</Link></td></tr>;
         })}
         {filtrados.length === 0 && <tr><td colSpan={6} className="text-center p-8 text-gray-600">Nenhum lead para estes filtros.</td></tr>}
       </tbody></table>

@@ -4,7 +4,7 @@ import { ArrowLeft, Phone } from "lucide-react";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
-import { OBRA_STATUS_CONFIG, OBRA_TIPO_CONFIG, WEATHER_CONFIG, ObraStatus, ObraTipo } from "@/lib/types/obra";
+import { OBRA_STATUS_CONFIG, WEATHER_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { ObraDiarioClient } from "./_components/obra-diario-client";
 
@@ -20,6 +20,7 @@ export default async function ObraDetailPage({ params }: PageProps) {
     include: {
       etapas: { orderBy: { ordem: "asc" } },
       diario: { orderBy: { data: "desc" }, take: 20 },
+      servicoLead: { select: { servico: true } },
     },
   });
   if (!o) notFound();
@@ -29,7 +30,7 @@ export default async function ObraDetailPage({ params }: PageProps) {
     bgColor: "bg-gray-100",
     color: "text-gray-600",
   };
-  const tipo = OBRA_TIPO_CONFIG[o.tipo as ObraTipo] ?? { label: o.tipo ?? "Pendente de configuração", icon: "🏗️" };
+  const tipo = tipoProjetoObra(o);
 
   const aReceber = o.valorTotal == null ? null : o.valorTotal - o.valorPago;
 
