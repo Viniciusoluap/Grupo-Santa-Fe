@@ -26,6 +26,10 @@ CREATE TABLE "estudo_unidades_eventos" (
 CREATE INDEX "estudo_unidades_eventos_unidadeId_criadoEm_idx" ON "estudo_unidades_eventos"("unidadeId", "criadoEm");
 CREATE UNIQUE INDEX "estudo_unidades_eventos_unidadeId_vendaLegadaId_key" ON "estudo_unidades_eventos"("unidadeId", "vendaLegadaId");
 
+-- Tabelas no esquema public do Supabase: acesso apenas pelo backend autenticado.
+ALTER TABLE "estudo_unidades" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "estudo_unidades_eventos" ENABLE ROW LEVEL SECURITY;
+
 -- A classificação não pode esconder um inventário existente, e vendas antigas
 -- no JSON não podem reaparecer depois da implantação do registro transacional.
 CREATE OR REPLACE FUNCTION protect_estudo_unidade_origin() RETURNS trigger LANGUAGE plpgsql AS $$

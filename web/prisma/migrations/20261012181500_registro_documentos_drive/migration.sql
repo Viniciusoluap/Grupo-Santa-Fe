@@ -20,3 +20,4 @@ CREATE TABLE "estudo_documentos_registro" (
 CREATE UNIQUE INDEX "estudo_documentos_registro_driveFileId_key" ON "estudo_documentos_registro"("driveFileId");
 CREATE INDEX "estudo_documentos_registro_estudoId_itemId_ativo_idx" ON "estudo_documentos_registro"("estudoId", "itemId", "ativo");
 CREATE UNIQUE INDEX "estudo_documentos_registro_um_ativo_idx" ON "estudo_documentos_registro"("estudoId", "itemId") WHERE "ativo" = true;
+ALTER TABLE "estudo_documentos_registro" ENABLE ROW LEVEL SECURITY;
