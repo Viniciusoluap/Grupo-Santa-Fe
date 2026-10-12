@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MapPinned, Mountain, TrendingUp, Grid3x3, Calculator, FileText } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { TerrenoTab } from "./terreno-tab";
 import { TopografiaTab } from "./topografia-tab";
 import { MercadoTab } from "./mercado-tab";
@@ -24,7 +24,6 @@ import { OrcamentoObraTab } from "./orcamento-obra-tab";
 import { CronogramaObraTab } from "./cronograma-obra-tab";
 import { AtendimentoClientesTab } from "./atendimento-clientes-tab";
 import { RelatorioTab } from "./relatorio-tab";
-import { EmBreve } from "./em-breve";
 import { negociacaoFechadaDoJson } from "@/lib/incorporacao/negociacao";
 import { businessPlanPreenchidoDoJson } from "@/lib/finance/captacao";
 import { pesquisaPrimariaPreenchidaDoJson } from "@/lib/incorporacao/pesquisa-primaria";
@@ -288,13 +287,9 @@ const FASES: Fase[] = [
   },
 ];
 
-const ICONE_FASE: Record<string, React.ComponentType<{ size?: number }>> = {
-  planejamento: MapPinned,
-  "novos-negocios": TrendingUp,
-  "incorporacao-produto": Grid3x3,
-  "lancamento-mkt-vendas": Mountain,
-  "projetos-obras": Calculator,
-};
+const MODULOS_ATIVOS = FASES.flatMap((fase) => fase.etapas
+  .filter((etapa) => etapa.componente)
+  .map((etapa) => ({ ...etapa, faseTitulo: fase.titulo })));
 
 /** Progresso por fase — auto-computado a partir do que já está preenchido no estudo (nunca manual). */
 function calcularProgresso(estudo: EstudoData) {
@@ -310,25 +305,20 @@ function calcularProgresso(estudo: EstudoData) {
 }
 
 export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
-  const [faseId, setFaseId] = useState<string>("novos-negocios");
   const [etapaId, setEtapaId] = useState<string>("terreno");
   const [relatorioAtivo, setRelatorioAtivo] = useState(false);
+  const [visitados, setVisitados] = useState<string[]>(["terreno"]);
+  const [alterado, setAlterado] = useState(false);
   const temTerreno = !!estudo.geojson;
 
-  const fase = useMemo(() => FASES.find((f) => f.id === faseId) ?? FASES[0], [faseId]);
-  const etapa = useMemo(
-    () => fase.etapas.find((e) => e.id === etapaId) ?? fase.etapas[0],
-    [fase, etapaId]
-  );
   const progresso = useMemo(() => calcularProgresso(estudo), [estudo]);
 
-  function selecionarFase(f: Fase) {
-    setFaseId(f.id);
-    setEtapaId(f.etapas[0].id);
-    setRelatorioAtivo(false);
-  }
-
-  const Componente = etapa.componente;
+  useEffect(() => {
+    if (!alterado) return;
+    const avisar = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [alterado]);
 
   return (
     <div>
@@ -353,95 +343,47 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
         </div>
       </div>
 
-      {/* Fases (nível 1) */}
-      <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
-        {FASES.map((f) => {
-          const Icon = ICONE_FASE[f.id];
-          const ativo = !relatorioAtivo && faseId === f.id;
+      <nav aria-label="Módulos da incorporação" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        <button type="button" onClick={() => { setEtapaId("dados"); setRelatorioAtivo(false); }}
+          aria-current={!relatorioAtivo && etapaId === "dados" ? "page" : undefined}
+          className={`min-w-0 border px-3 py-3 text-left text-xs font-bold break-words ${!relatorioAtivo && etapaId === "dados" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "bg-white text-[var(--brand-dark)] hover:border-[var(--brand-yellow)]"}`}>
+          Dados Gerais
+        </button>
+        {MODULOS_ATIVOS.map((modulo) => {
+          const ativo = !relatorioAtivo && etapaId === modulo.id;
+          const disabled = modulo.id !== "terreno" && !temTerreno;
           return (
-            <button
-              key={f.id}
-              onClick={() => selecionarFase(f)}
-              className={`flex items-center gap-1.5 text-xs font-bold px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                ativo
-                  ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                  : "border-transparent text-gray-400 hover:text-[var(--brand-dark)]"
-              }`}
-            >
-              <span
-                className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${
-                  ativo ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-400"
-                }`}
-              >
-                {f.numero}
-              </span>
-              <Icon size={13} /> {f.titulo}
+            <button key={modulo.id} type="button" disabled={disabled}
+              onClick={() => { setEtapaId(modulo.id); setRelatorioAtivo(false); setVisitados((anteriores) => anteriores.includes(modulo.id) ? anteriores : [...anteriores, modulo.id]); }}
+              aria-current={ativo ? "page" : undefined}
+              className={`min-w-0 border px-3 py-3 text-left text-xs font-bold break-words ${ativo ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "bg-white text-[var(--brand-dark)] hover:border-[var(--brand-yellow)]"}`}>
+              <span className="block text-[10px] font-normal opacity-70">{modulo.faseTitulo}</span>{modulo.titulo}
             </button>
           );
         })}
-        <button
-          onClick={() => setRelatorioAtivo(true)}
-          disabled={!temTerreno}
-          className={`flex items-center gap-1.5 text-xs font-bold px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-            relatorioAtivo
-              ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
-              : !temTerreno
-              ? "border-transparent text-gray-300 cursor-not-allowed"
-              : "border-transparent text-gray-400 hover:text-[var(--brand-dark)]"
-          }`}
-        >
-          <FileText size={13} /> Relatório
+        <button type="button" disabled={!temTerreno}
+          onClick={() => { setRelatorioAtivo(true); setVisitados((anteriores) => anteriores.includes("relatorio") ? anteriores : [...anteriores, "relatorio"]); }}
+          aria-current={relatorioAtivo ? "page" : undefined}
+          className={`min-w-0 border px-3 py-3 text-left text-xs font-bold ${relatorioAtivo ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : !temTerreno ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "bg-white text-[var(--brand-dark)] hover:border-[var(--brand-yellow)]"}`}>
+          Relatório Executivo
         </button>
-      </div>
-
-      {!relatorioAtivo && (
-        <div className="flex flex-wrap gap-1.5 pt-3">
-          {fase.etapas.map((e) => {
-            const disabled = e.id !== "terreno" && !temTerreno;
-            const ativo = etapaId === e.id;
-            return (
-              <button
-                key={e.id}
-                onClick={() => !disabled && setEtapaId(e.id)}
-                disabled={disabled}
-                className={`flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 border transition-colors whitespace-nowrap ${
-                  ativo
-                    ? "bg-[var(--brand-dark)] border-[var(--brand-dark)] text-[var(--brand-yellow)]"
-                    : disabled
-                    ? "border-gray-100 text-gray-300 cursor-not-allowed"
-                    : "border-gray-200 text-gray-500 hover:border-[var(--brand-yellow)] hover:text-[var(--brand-dark)]"
-                }`}
-              >
-                <span className="text-gray-400">{e.numero}</span> {e.titulo}
-                {!e.componente && (
-                  <span
-                    className={`text-[8px] font-black px-1 py-0.5 uppercase ${
-                      ativo ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-400"
-                    }`}
-                  >
-                    breve
-                  </span>
-                )}
-              </button>
-            );
-          })}
+      </nav>
+      {alterado && <p role="status" className="text-xs text-amber-800 mt-3">Há alterações nesta sessão. Salve antes de sair da página.</p>}
+      <div className="pt-5" onInputCapture={() => setAlterado(true)} onChangeCapture={() => setAlterado(true)}>
+        <div hidden={relatorioAtivo || etapaId !== "dados"} className="bg-white border border-gray-100 p-4 text-sm">
+          <h2 className="font-bold text-[var(--brand-dark)] mb-2">Dados Gerais</h2>
+          <p>{estudo.nome} · {estudo.municipio}/{estudo.estado}</p>
+          <p>Responsável: {estudo.responsavel || "Não informado"}</p>
+          <Link href={`/admin/incorporacao/${estudo.id}/editar`} className="inline-block mt-3 font-bold underline text-[var(--brand-dark)]">Editar dados gerais</Link>
         </div>
-      )}
-
-      <div className="pt-5">
-        {relatorioAtivo ? (
-          <RelatorioTab estudo={estudo} />
-        ) : Componente ? (
-          <Componente estudo={estudo} />
-        ) : (
-          <EmBreve titulo={etapa.titulo} descricao={etapa.descricao ?? "Esta etapa ainda será construída."} />
-        )}
+        {MODULOS_ATIVOS.filter((modulo) => visitados.includes(modulo.id)).map((modulo) => {
+          const Componente = modulo.componente!;
+          return <div key={modulo.id} hidden={relatorioAtivo || etapaId !== modulo.id}><Componente estudo={estudo} /></div>;
+        })}
+        {visitados.includes("relatorio") && <div hidden={!relatorioAtivo}><RelatorioTab estudo={estudo} /></div>}
       </div>
-
-      {!temTerreno && !relatorioAtivo && etapaId !== "terreno" && (
-        <p className="text-xs text-gray-400 mt-3">
-          Envie o KML do terreno na etapa <b>2.1 Documentos do Terreno</b> para habilitar as demais análises.
-        </p>
+      {!temTerreno && etapaId !== "terreno" && etapaId !== "dados" && (
+        <p className="text-xs text-gray-500 mt-3">Envie o KML do terreno para habilitar as análises.</p>
       )}
     </div>
   );
