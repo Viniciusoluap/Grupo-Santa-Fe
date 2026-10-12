@@ -5,10 +5,12 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { EstudoAcoes } from "./_components/estudo-acoes";
+import { SITUACOES_ESTUDO, situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  rascunho:  { label: "Rascunho",  cls: "bg-gray-100 text-gray-500" },
   em_estudo: { label: "Em estudo", cls: "bg-blue-50 text-blue-700" },
+  inviavel: { label: "Inviável", cls: "bg-red-50 text-red-700" },
+  em_andamento: { label: "Em andamento", cls: "bg-amber-50 text-amber-800" },
   concluido: { label: "Concluído", cls: "bg-green-50 text-green-700" },
 };
 
@@ -16,11 +18,14 @@ function hectares(m2: number): string {
   return `${(m2 / 10_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} ha`;
 }
 
-export default async function IncorporacaoPage() {
+export default async function IncorporacaoPage({ searchParams }: { searchParams: Promise<{ situacao?: string }> }) {
   const session = await auth();
   requirePageRole(session, "admin");
+  const filtro = (await searchParams).situacao ?? "todas";
 
   const estudos = await prisma.estudoIncorporacao.findMany({
+    where: situacaoEstudoValida(filtro) ? { status: filtro } : filtro === "pendente"
+      ? { status: { notIn: SITUACOES_ESTUDO.map((item) => item.value) } } : undefined,
     orderBy: { atualizadoEm: "desc" },
   });
 
@@ -42,6 +47,17 @@ export default async function IncorporacaoPage() {
         </Link>
       </div>
 
+      <form method="get" className="flex items-center gap-2 flex-wrap">
+        <label htmlFor="situacao-filtro" className="text-sm font-semibold text-[var(--brand-dark)]">Situação</label>
+        <select id="situacao-filtro" name="situacao" defaultValue={filtro}
+          className="text-sm border border-gray-200 bg-white px-3 py-2 text-[var(--brand-dark)]">
+          <option value="todas">Todas as situações</option>
+          {SITUACOES_ESTUDO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          <option value="pendente">Classificação pendente</option>
+        </select>
+        <button type="submit" className="text-sm font-semibold px-3 py-2 bg-[var(--brand-dark)] text-white">Filtrar</button>
+      </form>
+
       {estudos.length === 0 ? (
         <div className="bg-white border border-gray-100 p-12 text-center">
           <Mountain size={32} className="text-gray-200 mx-auto mb-3" />
@@ -59,7 +75,7 @@ export default async function IncorporacaoPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {estudos.map((e) => {
-            const badge = STATUS_BADGE[e.status] ?? STATUS_BADGE.rascunho;
+            const badge = STATUS_BADGE[e.status] ?? { label: "Classificação pendente", cls: "bg-gray-100 text-gray-700" };
             let vgv = 0;
             if (e.viabilidadeJson) {
               try { vgv = JSON.parse(e.viabilidadeJson)?.resultado?.vgv ?? 0; } catch {}
