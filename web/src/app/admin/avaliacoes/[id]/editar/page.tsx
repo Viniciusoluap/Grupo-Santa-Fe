@@ -8,6 +8,8 @@ import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { editarAvaliacao } from "@/lib/actions/avaliacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { AreaInput } from "@/components/ui/area-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -140,12 +142,12 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área Construída (m²)</label>
-              <input name="areaConstruida" type="number" step="0.01" defaultValue={a.areaConstruida ?? ""}
+              <AreaInput name="areaConstruida" defaultValue={a.areaConstruida}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área do Terreno (m²)</label>
-              <input name="areaTerreno" type="number" step="0.01" defaultValue={a.areaTerreno ?? ""}
+              <AreaInput name="areaTerreno" defaultValue={a.areaTerreno}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
@@ -180,8 +182,8 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Cobrança do Serviço</p>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Serviço (R$)</label>
-            <input name="valorServico" type="number" step="0.01" min="0" placeholder="Ex: 1500,00"
-              defaultValue={a.valorServico ?? ""}
+            <CurrencyInput name="valorServico" placeholder="1500,00"
+              defaultValue={a.valorServico}
               className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             <p className="text-[10px] text-gray-400 mt-1">Ao marcar como entregue, uma cobrança será criada automaticamente no BPO Financeiro.</p>
           </div>

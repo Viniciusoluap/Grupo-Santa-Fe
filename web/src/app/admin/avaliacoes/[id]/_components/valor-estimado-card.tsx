@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, X } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, maskCurrency, currencyToFloat } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
 
 interface Props {
@@ -13,13 +13,11 @@ interface Props {
 }
 
 function toDisplayBR(v: number): string {
-  if (!v) return "";
-  const [int, dec] = v.toFixed(2).split(".");
-  return int.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + dec;
+  return v ? maskCurrency(String(Math.round(v * 100))) : "";
 }
 
 function parseDisplayBR(s: string): number {
-  return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
+  return parseFloat(currencyToFloat(s)) || 0;
 }
 
 export function ValorEstimadoCard({ avaliacaoId, valorEstimado, status, dataEntrega }: Props) {

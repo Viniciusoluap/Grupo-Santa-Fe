@@ -6,6 +6,8 @@ import { ArrowLeft } from "lucide-react";
 import { criarAvaliacao } from "@/lib/actions/avaliacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { LeadSelector, type LeadOpcao } from "@/components/crm/lead-selector";
+import { AreaInput } from "@/components/ui/area-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface Props {
   leads: LeadOpcao[];
@@ -101,12 +103,12 @@ export function NovaAvaliacaoForm({ leads, leadIdInicial = "" }: Props) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área Construída (m²)</label>
-              <input name="areaConstruida" type="number" step="0.01" placeholder="Ex: 120"
+              <AreaInput name="areaConstruida" placeholder="Ex: 120"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área do Terreno (m²)</label>
-              <input name="areaTerreno" type="number" step="0.01" placeholder="Ex: 300"
+              <AreaInput name="areaTerreno" placeholder="Ex: 300"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div>
@@ -141,7 +143,7 @@ export function NovaAvaliacaoForm({ leads, leadIdInicial = "" }: Props) {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Cobrança do Serviço</p>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Serviço (R$)</label>
-            <input name="valorServico" type="number" step="0.01" min="0" placeholder="Ex: 1500,00"
+            <CurrencyInput name="valorServico" placeholder="1500,00"
               className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             <p className="text-[10px] text-gray-400 mt-1">Ao marcar a avaliação como entregue, uma cobrança será criada automaticamente no BPO Financeiro.</p>
           </div>

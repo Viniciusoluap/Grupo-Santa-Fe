@@ -5,6 +5,7 @@ import { criarImovel } from "@/lib/actions/imoveis";
 import { FotoUpload } from "../_components/foto-upload";
 import { PrecoInput } from "../_components/preco-input";
 import { LocalizacaoPicker } from "../_components/localizacao-picker";
+import { AreaInput } from "@/components/ui/area-input";
 
 const tipos = ["casa", "apartamento", "lote", "terreno", "comercial", "chacara"];
 const tipoLabel: Record<string, string> = {
@@ -134,10 +135,8 @@ export default async function NovoImovelPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                   Área (m²)
                 </label>
-                <input
-                  type="number"
+                <AreaInput
                   name="area"
-                  min={0}
                   placeholder="0"
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                 />

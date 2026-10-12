@@ -13,6 +13,8 @@ import {
 import { calcularLoteamento } from "@/lib/finance/loteamento";
 import { salvarNegociacaoTerreno } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
+import { PercentInput } from "@/components/ui/percent-input";
 import type { EstudoData } from "./incorporacao-detail";
 import { montarPremissasLoteamento } from "@/lib/incorporacao/premissas-loteamento";
 
@@ -192,14 +194,14 @@ export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
                 {(p.tipo === "compra_avista" || p.tipo === "compra_parcelada" || p.tipo === "permuta_fisica" || p.tipo === "misto") && (
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Valor (R$)</label>
-                    <input type="number" value={p.valorTotal ?? ""} onChange={(e) => updProposta(p.id, "valorTotal", parseFloat(e.target.value) || 0)} className={inputCls} />
+                    <NumeroBRField value={p.valorTotal ?? 0} onValueChange={(v) => updProposta(p.id, "valorTotal", v)} className={inputCls} />
                   </div>
                 )}
                 {p.tipo === "compra_parcelada" && (
                   <>
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Entrada (%)</label>
-                      <input type="number" value={p.entradaPct ?? ""} onChange={(e) => updProposta(p.id, "entradaPct", parseFloat(e.target.value) || 0)} className={inputCls} />
+                      <PercentInput value={p.entradaPct ?? 0} onValueChange={(v) => updProposta(p.id, "entradaPct", v)} className={inputCls} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Prazo (meses)</label>
@@ -210,7 +212,7 @@ export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
                 {(p.tipo === "permuta_financeira" || p.tipo === "misto") && (
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Permuta (% do VGV)</label>
-                    <input type="number" value={p.permutaPctVgv ?? ""} onChange={(e) => updProposta(p.id, "permutaPctVgv", parseFloat(e.target.value) || 0)} className={inputCls} />
+                    <PercentInput value={p.permutaPctVgv ?? 0} onValueChange={(v) => updProposta(p.id, "permutaPctVgv", v)} className={inputCls} />
                   </div>
                 )}
                 {(p.tipo === "permuta_fisica" || p.tipo === "misto") && (

@@ -11,6 +11,7 @@ import {
 } from "@/lib/incorporacao/fornecedores-lancamento";
 import { salvarFornecedoresLancamento } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Contratação de Fornecedores (4.2 Lançamento, Marketing e Vendas) —
@@ -131,7 +132,7 @@ export function FornecedoresLancamentoTab({ estudo }: { estudo: EstudoData }) {
                   </td>
                   <td className="px-1 py-1"><input value={f.nome} onChange={(e) => upd(f.id, "nome", e.target.value)} className={inputCls} placeholder="Nome" /></td>
                   <td className="px-1 py-1"><input value={f.contato ?? ""} onChange={(e) => upd(f.id, "contato", e.target.value)} className={inputCls} placeholder="Telefone/e-mail" /></td>
-                  <td className="px-1 py-1"><input type="number" value={f.valorContratado || ""} onChange={(e) => upd(f.id, "valorContratado", parseFloat(e.target.value) || 0)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={f.valorContratado} onValueChange={(v) => upd(f.id, "valorContratado", v)} className={numCls} /></td>
                   <td className="px-1 py-1">
                     <select value={f.status} onChange={(e) => upd(f.id, "status", e.target.value as StatusFornecedor)} className={inputCls}>
                       {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}

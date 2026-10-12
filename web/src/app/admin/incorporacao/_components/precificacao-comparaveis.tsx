@@ -9,6 +9,7 @@ import {
 } from "@/lib/mercado/precificacao";
 import { salvarPrecificacaoComparaveis } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Precificação por comparáveis ponderados (2.2 Inteligência de Mercado):
@@ -103,12 +104,12 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
     setDados((d) => ({ ...d, comparaveis: d.comparaveis.filter((_, j) => j !== i) }));
     marcarAlterado();
   }
-  function updComparavel(i: number, campo: "nome" | "precoM2", valor: string) {
+  function updComparavel(i: number, campo: "nome" | "precoM2", valor: string | number) {
     setDados((d) => {
       const comparaveis = [...d.comparaveis];
       comparaveis[i] = {
         ...comparaveis[i],
-        [campo]: campo === "nome" ? valor : (parseFloat(valor) || null),
+        [campo]: campo === "nome" ? valor : (typeof valor === "number" ? (valor || null) : (parseFloat(valor) || null)),
       };
       return { ...d, comparaveis };
     });
@@ -198,7 +199,7 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
               {dados.comparaveis.map((c, i) => (
                 <tr key={i}>
                   <td className="px-1 py-1"><input value={c.nome} onChange={(e) => updComparavel(i, "nome", e.target.value)} className={inputCls} placeholder="Concorrente" /></td>
-                  <td className="px-1 py-1"><input type="number" value={c.precoM2 ?? ""} onChange={(e) => updComparavel(i, "precoM2", e.target.value)} className={inputCls} placeholder="R$/m²" /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={c.precoM2 ?? 0} onValueChange={(v) => updComparavel(i, "precoM2", v)} className={inputCls} placeholder="R$/m²" /></td>
                   {dados.atributos.map((_, ai) => (
                     <td key={ai} className="px-1 py-1">
                       <input type="number" min={0} max={3} step={0.5} value={c.notas[ai] ?? 0}

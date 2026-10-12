@@ -28,6 +28,7 @@ import {
 } from "@/lib/pdf/loteamento";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Aba "Viabilidade" (antes "Loteamento" + "Urbanístico" + "Viabilidade (EVE)" —
@@ -120,10 +121,10 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
     setMix((m) => [...m, { nome: "Novo produto", quantidade: 0, areaUnidadeM2: 0, precoM2: 0 }]);
     setSalvoOk(false);
   }
-  function updProduto(i: number, campo: keyof ItemMixProduto, valor: string) {
+  function updProduto(i: number, campo: keyof ItemMixProduto, valor: string | number) {
     setMix((m) => {
       const novo = [...m];
-      novo[i] = { ...novo[i], [campo]: campo === "nome" ? valor : parseFloat(valor) || 0 };
+      novo[i] = { ...novo[i], [campo]: campo === "nome" ? valor : (typeof valor === "number" ? valor : parseFloat(valor) || 0) };
       return novo;
     });
     setSalvoOk(false);
@@ -211,9 +212,9 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
                   className="col-span-5 text-sm border border-gray-200 px-2 py-1.5" placeholder="Ex.: Lotes, Casas, Apartamentos" />
                 <input type="number" value={p.quantidade || ""} onChange={(e) => updProduto(i, "quantidade", e.target.value)}
                   className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="Qtd" />
-                <input type="number" value={p.areaUnidadeM2 || ""} onChange={(e) => updProduto(i, "areaUnidadeM2", e.target.value)}
+                <NumeroBRField value={p.areaUnidadeM2} onValueChange={(v) => updProduto(i, "areaUnidadeM2", v)}
                   className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="Área m²" />
-                <input type="number" value={p.precoM2 || ""} onChange={(e) => updProduto(i, "precoM2", e.target.value)}
+                <NumeroBRField value={p.precoM2} onValueChange={(v) => updProduto(i, "precoM2", v)}
                   className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="R$/m²" />
                 <button type="button" onClick={() => removerProduto(i)}
                   className="col-span-1 text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
