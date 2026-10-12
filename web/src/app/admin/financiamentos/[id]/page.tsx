@@ -17,6 +17,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
     include: {
       checklist: { orderBy: { grupo: "asc" } },
       corretor: true,
+      leadVinculado: { select: { id: true, nome: true } },
     },
   });
   if (!f) notFound();
@@ -127,6 +128,15 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
                 <span className="text-xs font-medium text-[var(--brand-dark)] text-right">{item.value}</span>
               </div>
             ))}
+            {f.leadVinculado ? (
+              <Link href={`/admin/leads/${f.leadVinculado.id}`} className="mt-3 inline-block text-[11px] font-bold uppercase tracking-wide text-[var(--brand-dark)] underline">
+                Originado do CRM — lead “{f.leadVinculado.nome}”
+              </Link>
+            ) : (
+              <p className="mt-3 text-[11px] text-gray-400">
+                Financiamento legado (sem vínculo com lead no CRM).
+              </p>
+            )}
           </div>
         </div>
       </div>

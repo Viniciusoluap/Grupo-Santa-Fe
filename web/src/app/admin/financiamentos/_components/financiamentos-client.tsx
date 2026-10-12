@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, FileCheck, Pencil, Trash2 } from "lucide-react";
+import { Search, FileCheck, Pencil, Trash2 } from "lucide-react";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency } from "@/lib/utils";
 import { excluirFinanciamento } from "@/lib/actions/financiamentos";
@@ -82,8 +82,11 @@ export function FinanciamentosClient({ financiamentos }: Props) {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Financiamentos</h1>
           <p className="text-gray-400 text-sm mt-0.5">{financiamentos.length} processos cadastrados</p>
         </div>
-        <Link href="/admin/financiamentos/novo" className="flex items-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors">
-          <Plus size={14} /> Novo Financiamento
+        {/* Lote 3: sem criação avulsa — um financiamento só nasce ao vincular
+            o serviço "Financiamento MCMV"/"Financiamento Convencional" a um
+            lead no CRM (/admin/leads). */}
+        <Link href="/admin/leads" className="flex items-center gap-1.5 border border-gray-200 hover:border-[var(--brand-yellow)] text-gray-500 hover:text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors">
+          Vincular no CRM
         </Link>
       </div>
 
