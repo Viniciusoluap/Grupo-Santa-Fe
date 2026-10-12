@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatCurrency,
   formatArea,
+  formatPercent,
   formatTelefone,
   maskPhone,
   maskCurrency,
@@ -36,6 +37,24 @@ describe("formatArea", () => {
     [-10, "-10 m²"],
   ])("formats %s using the pt-BR area convention", (value, expected) => {
     expect(formatArea(value)).toBe(expected);
+  });
+});
+
+describe("formatPercent", () => {
+  it("formats zero", () => {
+    expect(formatPercent(0)).toBe("0%");
+  });
+  it("formats an integer value", () => {
+    expect(formatPercent(20)).toBe("20%");
+  });
+  it("formats a decimal value using the pt-BR comma", () => {
+    expect(formatPercent(12.5)).toBe("12,5%");
+  });
+  it("caps at 2 decimal digits", () => {
+    expect(formatPercent(6.666)).toBe("6,67%");
+  });
+  it("formats a negative value", () => {
+    expect(formatPercent(-5)).toBe("-5%");
   });
 });
 
@@ -129,5 +148,24 @@ describe("parseNumeroBR", () => {
   });
   it("handles a negative value", () => {
     expect(parseNumeroBR("-1.234,56")).toBe(-1234.56);
+  });
+
+  // Valores vindos de integrações externas (feeds XML de agregadores) podem
+  // chegar no formato americano, sem vírgula — e precisam continuar corretos
+  // (Lote 4: regressão encontrada ao corrigir o bug de preço do agregador).
+  it("converts an American-format decimal with two fraction digits and no comma", () => {
+    expect(parseNumeroBR("350000.00")).toBe(350000);
+  });
+  it("converts an American-format decimal with one fraction digit and no comma", () => {
+    expect(parseNumeroBR("120.5")).toBe(120.5);
+  });
+  it("converts a plain integer with no separators at all", () => {
+    expect(parseNumeroBR("350000")).toBe(350000);
+  });
+  it("still treats a lone dot followed by 3 digits as a BR thousands separator", () => {
+    expect(parseNumeroBR("1.234")).toBe(1234);
+  });
+  it("still treats multiple dots with no comma as BR thousands separators", () => {
+    expect(parseNumeroBR("1.234.567")).toBe(1234567);
   });
 });

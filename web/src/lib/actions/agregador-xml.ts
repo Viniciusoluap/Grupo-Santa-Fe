@@ -4,6 +4,7 @@ import { requireActionRole } from "@/lib/auth/rbac";
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { parseNumeroBR } from "@/lib/utils";
 
 function extractXmlTag(xml: string, tag: string): string {
   const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -94,10 +95,16 @@ export async function executarAgregacao(): Promise<{ ok: boolean; importados: nu
 
           const titulo = extractXmlTag(listing, "Title") || extractXmlTag(listing, "ListingTitle") || "Imóvel Importado";
           const descricao = extractXmlTag(listing, "Description") || "";
+          // `parseNumeroBR` trata corretamente tanto o formato BR ("350.000,00")
+          // quanto o formato americano ("350000.00" ou "350000") — um regex que
+          // só removesse caracteres não numéricos (versão anterior) mantinha o
+          // ponto de milhar e descartava a vírgula decimal, corrompendo o valor
+          // em ~1000x (ex.: "350.000,00" → 350 em vez de 350000) sem qualquer
+          // revisão humana antes de gravar em `Imovel.preco`.
           const precoStr = extractXmlTag(listing, "ListPrice") || extractXmlTag(listing, "Price") || "0";
-          const preco = parseFloat(precoStr.replace(/[^\d.]/g, "")) || 0;
+          const preco = parseNumeroBR(precoStr);
           const areaStr = extractXmlTag(listing, "LivingArea") || extractXmlTag(listing, "Area") || "0";
-          const area = parseFloat(areaStr) || 0;
+          const area = parseNumeroBR(areaStr);
           const quartosStr = extractXmlTag(listing, "Bedrooms") || "0";
           const banheirosStr = extractXmlTag(listing, "Bathrooms") || "0";
           const bairro = extractXmlTag(listing, "Neighborhood") || extractXmlTag(listing, "SubLocality") || "Não informado";

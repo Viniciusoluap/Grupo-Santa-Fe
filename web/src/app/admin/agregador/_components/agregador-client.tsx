@@ -5,6 +5,7 @@ import { Search, Plus, ExternalLink, CheckCircle2, Clock, Archive, Loader2, Link
 import { SOURCE_CONFIG, DOCUMENTO_CONFIG, STATUS_CONFIG } from "@/lib/types/agregador";
 import type { AgregadorSource, DocumentoTipo } from "@/lib/types/agregador";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { ScrapedData } from "@/app/api/scraper/fetch/route";
 import { atualizarStatusAgregador, criarAgregadorImovel, importarParaCatalogo } from "@/lib/actions/agregador";
 
@@ -348,20 +349,18 @@ export function AgregadorClient({ initialListings = [] }: { initialListings: DbL
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Preço (R$)</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData((f) => ({ ...f, price: e.target.value }))}
+                  <NumeroBRField
+                    value={formData.price ? parseFloat(formData.price) || 0 : 0}
+                    onValueChange={(v) => setFormData((f) => ({ ...f, price: String(v) }))}
                     placeholder="Ex: 220000"
                     className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área (m²)</label>
-                  <input
-                    type="number"
-                    value={formData.area}
-                    onChange={(e) => setFormData((f) => ({ ...f, area: e.target.value }))}
+                  <NumeroBRField
+                    value={formData.area ? parseFloat(formData.area) || 0 : 0}
+                    onValueChange={(v) => setFormData((f) => ({ ...f, area: String(v) }))}
                     placeholder="Ex: 90"
                     className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
                   />

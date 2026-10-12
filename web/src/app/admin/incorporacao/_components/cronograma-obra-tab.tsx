@@ -7,6 +7,7 @@ import {
   type MedicaoMensal,
 } from "@/lib/incorporacao/cronograma-obra";
 import { salvarCronogramaObra } from "@/lib/actions/incorporacao";
+import { PercentInput } from "@/components/ui/percent-input";
 import type { EstudoData } from "./incorporacao-detail";
 import { montarPremissasLoteamento } from "@/lib/incorporacao/premissas-loteamento";
 
@@ -131,7 +132,7 @@ export function CronogramaObraTab({ estudo }: { estudo: EstudoData }) {
               {resumo.itens.map((m) => (
                 <tr key={m.id}>
                   <td className="px-1 py-1"><input type="number" value={m.mes} onChange={(e) => upd(m.id, "mes", parseFloat(e.target.value) || 0)} className={numCls} /></td>
-                  <td className="px-1 py-1"><input type="number" min={0} max={100} value={m.avancoFisicoAcumuladoPct || ""} onChange={(e) => upd(m.id, "avancoFisicoAcumuladoPct", parseFloat(e.target.value) || 0)} className={numCls} /></td>
+                  <td className="px-1 py-1"><PercentInput value={m.avancoFisicoAcumuladoPct} onValueChange={(v) => upd(m.id, "avancoFisicoAcumuladoPct", v)} className={numCls} /></td>
                   <td className="px-1 py-1 text-right text-gray-400">{fmtPct(m.avancoFinanceiroProjetadoPct)}</td>
                   <td className="px-1 py-1"><input type="date" value={m.data ?? ""} onChange={(e) => upd(m.id, "data", e.target.value)} className={inputCls} /></td>
                   <td className="px-1 py-1">

@@ -9,6 +9,7 @@ import {
 } from "@/lib/orcamento/parametrizado";
 import { salvarOrcamentoParametrizado } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Orçamento Parametrizado (2.4 Novos Negócios) — custo de obra por m²
@@ -63,10 +64,10 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
     setDados((d) => ({ ...d, itens: d.itens.filter((_, j) => j !== i) }));
     marcarAlterado();
   }
-  function updItem(i: number, campo: keyof ItemOrcamentoParametrizado, valor: string) {
+  function updItem(i: number, campo: keyof ItemOrcamentoParametrizado, valor: string | number) {
     setDados((d) => {
       const itens = [...d.itens];
-      itens[i] = { ...itens[i], [campo]: campo === "pavimento" ? valor : (parseFloat(valor) || 0) };
+      itens[i] = { ...itens[i], [campo]: campo === "pavimento" ? valor : (typeof valor === "number" ? valor : parseFloat(valor) || 0) };
       return { ...d, itens };
     });
     marcarAlterado();
@@ -113,8 +114,8 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
               {dados.itens.map((it, i) => (
                 <tr key={i}>
                   <td className="px-1 py-1"><input value={it.pavimento} onChange={(e) => updItem(i, "pavimento", e.target.value)} className={inputCls} placeholder="Ex.: Torre A" /></td>
-                  <td className="px-1 py-1"><input type="number" value={it.areaM2 || ""} onChange={(e) => updItem(i, "areaM2", e.target.value)} className={numCls} /></td>
-                  <td className="px-1 py-1"><input type="number" step={0.05} value={it.coeficienteEquivalencia} onChange={(e) => updItem(i, "coeficienteEquivalencia", e.target.value)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={it.areaM2} onValueChange={(v) => updItem(i, "areaM2", v)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={it.coeficienteEquivalencia} onValueChange={(v) => updItem(i, "coeficienteEquivalencia", v)} decimals={4} className={numCls} /></td>
                   <td className="px-1 py-1 text-right text-gray-400">{Math.round(it.areaM2 * it.coeficienteEquivalencia).toLocaleString("pt-BR")} m²</td>
                   <td className="px-1 py-1">
                     <button type="button" onClick={() => removerItem(i)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>

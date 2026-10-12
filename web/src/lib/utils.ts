@@ -18,6 +18,10 @@ export function formatArea(value: number): string {
   return `${value.toLocaleString("pt-BR")} m²`;
 }
 
+export function formatPercent(value: number): string {
+  return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+}
+
 export function formatTelefone(tel: string): string {
   const d = tel.replace(/\D/g, "");
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d[2]} ${d.slice(3, 7)}-${d.slice(7)}`;
@@ -49,7 +53,16 @@ export function currencyToFloat(masked: string): string {
  * e decimal ",") para `number` — ex.: "1.234,56" → 1234.56, "0,05" → 0.05,
  * "250" → 250. Diferente de `currencyToFloat` (que espera um valor já
  * mascarado em centavos), esta função aceita texto livre digitado pelo
- * usuário em campos numéricos comuns (áreas, percentuais, preços).
+ * usuário em campos numéricos comuns (áreas, percentuais, preços) — e também
+ * valores vindos de integrações externas (feeds XML), que podem chegar no
+ * formato americano.
+ *
+ * Quando a vírgula decimal está presente, qualquer "." é tratado como
+ * separador de milhar (padrão BR). Sem vírgula, um único "." seguido de 1 ou
+ * 2 dígitos finais é tratado como separador decimal — ex.: "350000.00" →
+ * 350000, "120.5" → 120.5 (formato americano, comum em feeds externos) —
+ * enquanto um "." seguido de 3 dígitos (ou múltiplos pontos) continua sendo
+ * tratado como separador de milhar — ex.: "1.234" → 1234.
  *
  * Nunca lança exceção: entrada vazia, nula ou inválida retorna 0.
  */
@@ -57,7 +70,22 @@ export function parseNumeroBR(valor: string | null | undefined): number {
   if (typeof valor !== "string") return 0;
   const limpo = valor.trim().replace(/[^\d,.-]/g, "");
   if (!limpo) return 0;
-  const semSeparadorDeMilhar = limpo.replace(/\./g, "").replace(",", ".");
-  const n = Number(semSeparadorDeMilhar);
+
+  let normalizado: string;
+  if (limpo.includes(",")) {
+    // Padrão BR: "." é sempre separador de milhar, "," é o decimal.
+    normalizado = limpo.replace(/\./g, "").replace(",", ".");
+  } else {
+    const pontos = limpo.match(/\./g);
+    if (!pontos) {
+      normalizado = limpo;
+    } else {
+      const ultimoTrecho = limpo.slice(limpo.lastIndexOf(".") + 1);
+      const ehDecimalAmericano = pontos.length === 1 && ultimoTrecho.length > 0 && ultimoTrecho.length <= 2;
+      normalizado = ehDecimalAmericano ? limpo : limpo.replace(/\./g, "");
+    }
+  }
+
+  const n = Number(normalizado);
   return Number.isFinite(n) ? n : 0;
 }

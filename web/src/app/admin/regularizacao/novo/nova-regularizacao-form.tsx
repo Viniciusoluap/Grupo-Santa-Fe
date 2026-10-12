@@ -7,21 +7,11 @@ import { REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { criarRegularizacao } from "@/lib/actions/regularizacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { LeadSelector, type LeadOpcao } from "@/components/crm/lead-selector";
+import { maskCurrency, currencyToFloat } from "@/lib/utils";
 
 interface Props {
   leads: LeadOpcao[];
   leadIdInicial?: string;
-}
-
-function maskCurrency(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  const num = parseInt(digits, 10) / 100;
-  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function currencyToFloat(masked: string): string {
-  return masked.replace(/\./g, "").replace(",", ".");
 }
 
 export function NovaRegularizacaoForm({ leads, leadIdInicial = "" }: Props) {

@@ -11,6 +11,7 @@ import {
 import { resumoOrcamentoPreliminar, type ItemOrcamentoPreliminar } from "@/lib/incorporacao/orcamento-preliminar";
 import { salvarOrcamentoObra } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Orçamentos (5.2 Projetos Executivos e Obras) — orçamento executivo real
@@ -133,8 +134,8 @@ export function OrcamentoObraTab({ estudo }: { estudo: EstudoData }) {
                       {CATEGORIAS_ORCAMENTO_OBRA.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><input type="number" value={item.valorOrcado || ""} onChange={(e) => upd(item.id, "valorOrcado", parseFloat(e.target.value) || 0)} className={numCls} /></td>
-                  <td className="px-1 py-1"><input type="number" value={item.valorRealizado || ""} onChange={(e) => upd(item.id, "valorRealizado", parseFloat(e.target.value) || 0)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={item.valorOrcado} onValueChange={(v) => upd(item.id, "valorOrcado", v)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={item.valorRealizado} onValueChange={(v) => upd(item.id, "valorRealizado", v)} className={numCls} /></td>
                   <td className="px-1 py-1">
                     <button type="button" onClick={() => removerItem(item.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>

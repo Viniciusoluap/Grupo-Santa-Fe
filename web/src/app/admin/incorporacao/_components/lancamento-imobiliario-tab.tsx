@@ -9,6 +9,7 @@ import {
 import { calcularMix, type ItemMixProduto } from "@/lib/finance/loteamento";
 import { salvarLancamentoImobiliario } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Lançamento Imobiliário (4.4 Lançamento, Marketing e Vendas) — painel do
@@ -126,7 +127,7 @@ export function LancamentoImobiliarioTab({ estudo }: { estudo: EstudoData }) {
                 <tr key={v.id}>
                   <td className="px-1 py-1"><input value={v.unidade} onChange={(e) => upd(v.id, "unidade", e.target.value)} className={inputCls} placeholder="Ex.: Lote 12" /></td>
                   <td className="px-1 py-1"><input value={v.comprador ?? ""} onChange={(e) => upd(v.id, "comprador", e.target.value)} className={inputCls} placeholder="Nome do comprador" /></td>
-                  <td className="px-1 py-1"><input type="number" value={v.valorVenda || ""} onChange={(e) => upd(v.id, "valorVenda", parseFloat(e.target.value) || 0)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={v.valorVenda} onValueChange={(val) => upd(v.id, "valorVenda", val)} className={numCls} /></td>
                   <td className="px-1 py-1"><input type="date" value={v.data ?? ""} onChange={(e) => upd(v.id, "data", e.target.value)} className={inputCls} /></td>
                   <td className="px-1 py-1">
                     <button type="button" onClick={() => removerVenda(v.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>

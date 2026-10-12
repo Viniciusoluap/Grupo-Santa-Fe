@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { criarBpoCliente } from "@/lib/actions/bpo";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const SERVICOS = [
   { value: "contas_pagar",   label: "Contas a Pagar" },
@@ -69,7 +70,7 @@ export default async function NovoBpoClientePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Honorários Mensais (R$) *</label>
-            <input name="honorarios" type="number" step="0.01" required placeholder="Ex: 1500" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <CurrencyInput name="honorarios" required placeholder="1500,00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Dia de Vencimento *</label>

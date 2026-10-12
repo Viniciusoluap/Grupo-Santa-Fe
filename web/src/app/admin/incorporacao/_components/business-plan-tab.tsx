@@ -10,6 +10,8 @@ import {
 import { calcularLoteamento } from "@/lib/finance/loteamento";
 import { salvarBusinessPlan } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
+import { PercentInput } from "@/components/ui/percent-input";
 import type { EstudoData } from "./incorporacao-detail";
 import { montarPremissasLoteamento } from "@/lib/incorporacao/premissas-loteamento";
 
@@ -125,8 +127,8 @@ export function BusinessPlanTab({ estudo }: { estudo: EstudoData }) {
                 return (
                   <tr key={f.id}>
                     <td className="px-1 py-1"><input value={f.nome} onChange={(e) => updFonte(f.id, "nome", e.target.value)} className={inputCls} placeholder="Ex.: Fundo X" /></td>
-                    <td className="px-1 py-1"><input type="number" value={f.capitalAportado || ""} onChange={(e) => updFonte(f.id, "capitalAportado", parseFloat(e.target.value) || 0)} className={numCls} /></td>
-                    <td className="px-1 py-1"><input type="number" step={0.1} value={f.remuneracaoPct} onChange={(e) => updFonte(f.id, "remuneracaoPct", parseFloat(e.target.value) || 0)} className={numCls} /></td>
+                    <td className="px-1 py-1"><NumeroBRField value={f.capitalAportado} onValueChange={(v) => updFonte(f.id, "capitalAportado", v)} className={numCls} /></td>
+                    <td className="px-1 py-1"><PercentInput value={f.remuneracaoPct} onValueChange={(v) => updFonte(f.id, "remuneracaoPct", v)} className={numCls} /></td>
                     <td className="px-1 py-1">
                       <select value={f.periodoRemuneracao} onChange={(e) => updFonte(f.id, "periodoRemuneracao", e.target.value as PeriodoRemuneracao)} className={inputCls}>
                         <option value="mensal">Mensal</option>

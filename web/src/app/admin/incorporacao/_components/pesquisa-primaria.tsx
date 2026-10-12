@@ -13,6 +13,7 @@ import {
   type TipoImovel,
 } from "@/lib/incorporacao/pesquisa-primaria";
 import { salvarPesquisaPrimaria } from "@/lib/actions/incorporacao";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Pesquisa primária com compradores — questionário aplicado a potenciais
@@ -210,7 +211,7 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
                 </label>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tamanho ideal (m²)</label>
-                  <input type="number" value={e.tamanhoIdealM2 || ""} onChange={(ev) => upd(e.id, "tamanhoIdealM2", parseFloat(ev.target.value) || 0)} className={numCls} />
+                  <NumeroBRField value={e.tamanhoIdealM2} onValueChange={(v) => upd(e.id, "tamanhoIdealM2", v)} className={numCls} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Quartos necessários</label>
