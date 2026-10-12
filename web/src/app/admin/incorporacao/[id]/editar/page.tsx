@@ -6,6 +6,7 @@ import { editarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
 import { SeletorLocalizacao } from "../../_components/seletor-localizacao";
 import { CadastroFormalFields } from "../../_components/cadastro-formal-fields";
+import { SITUACOES_ESTUDO, situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 
 export default async function EditarEstudoPage({
   params,
@@ -61,6 +62,14 @@ export default async function EditarEstudoPage({
           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Responsável</label>
           <input name="responsavel" defaultValue={estudo.responsavel ?? ""} placeholder="Opcional"
             className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
+        </div>
+        <div>
+          <label htmlFor="situacao-estudo" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Situação *</label>
+          <select id="situacao-estudo" name="status" required defaultValue={situacaoEstudoValida(estudo.status) ? estudo.status : ""}
+            className="w-full text-sm border border-gray-200 px-3 py-2 bg-white text-[var(--brand-dark)] focus:outline-none focus:border-[var(--brand-yellow)]">
+            <option value="" disabled>Classificar situação antiga</option>
+            {SITUACOES_ESTUDO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
         </div>
         <CadastroFormalFields matriculaImovel={estudo.matriculaImovel} carRegistro={estudo.carRegistro}
           zoneamentoOficial={estudo.zoneamentoOficial} zoneamentoFonte={estudo.zoneamentoFonte} />

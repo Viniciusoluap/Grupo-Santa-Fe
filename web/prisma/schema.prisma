@@ -709,7 +709,7 @@ model EstudoIncorporacao {
   latitude      Float?   // localização exata (Google Maps)
   longitude     Float?
   responsavel   String?
-  status        String   @default("rascunho") // rascunho | em_estudo | concluido
+  status        String   @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
   matriculaImovel String?
   carRegistro String?
   zoneamentoOficial String?

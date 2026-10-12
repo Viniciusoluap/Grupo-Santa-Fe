@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
+import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 
 // Lê os campos de localização do formulário. Aceita um link do Google Maps (ou
 // um par "lat,lng" colado) e extrai as coordenadas exatas quando possível.
@@ -54,7 +55,7 @@ export async function criarEstudo(formData: FormData) {
   if (!nome || !municipio) redirect("/admin/incorporacao/novo");
 
   const estudo = await prisma.estudoIncorporacao.create({
-    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status: "rascunho" },
+    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status: "em_estudo" },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -75,13 +76,15 @@ export async function editarEstudo(formData: FormData) {
   const carRegistro = (formData.get("carRegistro") as string)?.trim() || null;
   const zoneamentoOficial = (formData.get("zoneamentoOficial") as string)?.trim() || null;
   const zoneamentoFonte = (formData.get("zoneamentoFonte") as string)?.trim() || null;
+  const status = formData.get("status");
   const { endereco, latitude, longitude } = lerLocalizacao(formData);
 
   if (!id || !nome || !municipio) redirect(`/admin/incorporacao/${id}/editar`);
+  if (!situacaoEstudoValida(status)) throw new Error("Classifique a situação do estudo antes de salvar.");
 
   await prisma.estudoIncorporacao.update({
     where: { id },
-    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude },
+    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -143,7 +146,6 @@ export async function uploadKml(estudoId: string, formData: FormData) {
       perimetroM: terreno.perimetroM,
       centroLng: terreno.centro[0],
       centroLat: terreno.centro[1],
-      status: "em_estudo",
     },
   });
 
@@ -185,7 +187,7 @@ export async function salvarViabilidade(estudoId: string, premissasJson: string)
   requireActionRole(session, "admin");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
-    data: { loteamentoJson: premissasJson, status: "em_estudo" },
+    data: { loteamentoJson: premissasJson },
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
   return { ok: true };
