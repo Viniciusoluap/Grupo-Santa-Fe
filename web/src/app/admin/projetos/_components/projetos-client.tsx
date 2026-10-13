@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, Ruler, Pencil, Trash2 } from "lucide-react";
+import { Search, Ruler, Pencil } from "lucide-react";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG, ProjetoStatus } from "@/lib/types/projeto";
 import { formatCurrency } from "@/lib/utils";
-import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
+import { excluirProjeto, cancelarProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
+import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
 
 interface Projeto {
   id: string;
@@ -54,20 +55,6 @@ function StatusSelectProjeto({ id, status }: { id: string; status: string }) {
         <option key={v} value={v}>{cfg.label}</option>
       ))}
     </select>
-  );
-}
-
-function ExcluirProjetoBtn({ id, nome }: { id: string; nome: string }) {
-  const [isPending, startTransition] = useTransition();
-  function handleClick() {
-    if (!confirm(`Arquivar projeto "${nome}"? O registro será mantido no histórico.`)) return;
-    startTransition(async () => { await excluirProjeto(id); });
-  }
-  return (
-    <button onClick={handleClick} disabled={isPending} title="Arquivar"
-      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
-      <Trash2 size={14} />
-    </button>
   );
 }
 
@@ -193,7 +180,7 @@ export function ProjetosClient({ projetos }: Props) {
                         <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
-                        <ExcluirProjetoBtn id={p.id} nome={p.nome} />
+                        <AcoesExcluirCancelar id={p.id} rotulo={p.nome} cancelado={p.status === "cancelado"} cancelar={cancelarProjeto} excluir={excluirProjeto} compacto />
                       </div>
                     </td>
                   </tr>

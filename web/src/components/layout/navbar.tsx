@@ -146,7 +146,7 @@ export function Navbar() {
               className="flex items-center gap-1.5 text-gray-400 hover:text-[var(--brand-yellow)] text-xs font-bold uppercase tracking-wider transition-colors"
             >
               <LogIn size={14} />
-              Entrar
+              Minha Conta · Entrar
             </Link>
             <Button variant="primary" size="sm" asChild>
               <Link href="/contato">Fale Conosco</Link>
@@ -199,7 +199,7 @@ export function Navbar() {
               onClick={() => setIsOpen(false)}
             >
               <LogIn size={16} />
-              Entrar (Admin · Corretor · Cliente)
+              Minha Conta · Entrar
             </Link>
             <Button variant="primary" className="mt-3 w-full" asChild>
               <Link href="/contato" onClick={() => setIsOpen(false)}>

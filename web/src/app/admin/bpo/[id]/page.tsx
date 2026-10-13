@@ -1,8 +1,7 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, CheckCircle2, Clock } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { criarLancamentoBpo, marcarLancamentoPago, atualizarStatusBpoCliente } from "@/lib/actions/bpo";
@@ -25,8 +24,7 @@ const SERVICO_LABELS: Record<string, string> = {
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function BpoClientePage({ params }: PageProps) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("bpo");
 
   const { id } = await params;
   const cliente = await prisma.bpoCliente.findUnique({

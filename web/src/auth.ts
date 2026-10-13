@@ -51,13 +51,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           corretorId = corretor?.id;
         }
 
+        // Item 05: o cliente é ligado ao lead por ID. A coincidência de e-mail
+        // fica só para contas antigas ainda sem vínculo (e nunca se o lead
+        // já pertence a outra conta).
         let leadId: string | undefined;
         if (usuario.papel === "cliente") {
-          const lead = await prisma.lead.findFirst({
-            where: { email: usuario.email },
-            select: { id: true },
-          });
-          leadId = lead?.id;
+          if (usuario.leadId) leadId = usuario.leadId;
+          else {
+            const lead = await prisma.lead.findFirst({
+              where: { email: usuario.email, contaCliente: null },
+              select: { id: true },
+            });
+            leadId = lead?.id;
+          }
         }
 
         return {

@@ -1,9 +1,11 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { CorretoresClient } from "./_components/corretores-client";
 
 export default async function AdminCorretoresPage() {
+  await exigirModuloPagina("corretores");
   const session = await auth();
   if ((session?.user as { role?: string })?.role !== "admin") redirect("/admin");
   const corretores = await prisma.corretor.findMany({

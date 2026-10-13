@@ -1,9 +1,8 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { formatarPercentual, progressoDaObra } from "@/lib/financeiro/progresso";
 import Link from "next/link";
 import { ArrowLeft, Phone } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { OBRA_STATUS_CONFIG, WEATHER_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
@@ -16,8 +15,7 @@ const exibir = (i: Indicador) => (i.ok ? formatCurrency(i.centavos / 100) : "Nã
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function ObraDetailPage({ params }: PageProps) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("obras");
 
   const { id } = await params;
   const o = await prisma.obra.findUnique({

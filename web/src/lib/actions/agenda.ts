@@ -1,5 +1,5 @@
 "use server";
-import { auth } from "@/auth";
+import { exigirModuloAcao, type UsuarioDaSessao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -19,10 +19,18 @@ async function dadosDoCliente(formData: FormData): Promise<{ leadId: string | nu
   };
 }
 
+/** Item 06: corretor só mexe nas próprias visitas; o vínculo vem do servidor. */
+async function visitaDoUsuario(u: UsuarioDaSessao, id: string) {
+  if (u.perfil !== "corretor") return;
+  const v = await prisma.visita.findUnique({ where: { id }, select: { corretorId: true } });
+  if (!v || !u.corretorId || v.corretorId !== u.corretorId) throw new Error("Visita não encontrada ou acesso não autorizado.");
+}
+
 export async function criarVisita(formData: FormData) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
-  const corretorId = (formData.get("corretorId") as string) || undefined;
+  // Também chamada pelo agendamento do CRM (módulo Leads).
+  const u = await exigirModuloAcao(["agenda", "leads"]);
+  const corretorId = u.perfil === "corretor" ? (u.corretorId ?? undefined) : ((formData.get("corretorId") as string) || undefined);
+  if (u.perfil === "corretor" && !corretorId) throw new Error("Corretor sem vínculo ativo.");
   const colaboradorNome = (formData.get("colaboradorNome") as string) || undefined;
   const imovelId = (formData.get("imovelId") as string) || undefined;
   const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData);
@@ -45,10 +53,10 @@ export async function criarVisita(formData: FormData) {
 }
 
 export async function editarVisita(formData: FormData) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  const u = await exigirModuloAcao("agenda");
   const id = formData.get("id") as string;
-  const corretorId = (formData.get("corretorId") as string) || null;
+  await visitaDoUsuario(u, id);
+  const corretorId = u.perfil === "corretor" ? u.corretorId : ((formData.get("corretorId") as string) || null);
   const colaboradorNome = (formData.get("colaboradorNome") as string) || null;
   const imovelId = (formData.get("imovelId") as string) || null;
   const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData);
@@ -72,15 +80,15 @@ export async function editarVisita(formData: FormData) {
 }
 
 export async function excluirVisita(id: string) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  const u = await exigirModuloAcao("agenda");
+  await visitaDoUsuario(u, id);
   await prisma.visita.delete({ where: { id } });
   revalidatePath("/admin/agenda");
 }
 
 export async function atualizarStatusVisita(id: string, status: string) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  const u = await exigirModuloAcao("agenda");
+  await visitaDoUsuario(u, id);
   await prisma.visita.update({
     where: { id },
     data: { status },

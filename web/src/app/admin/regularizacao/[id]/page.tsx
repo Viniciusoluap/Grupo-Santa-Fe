@@ -1,8 +1,7 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
@@ -14,8 +13,7 @@ import { EtapasProcesso, FinanceiroRegularizacaoTabela } from "./_components/pro
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function RegDetailPage({ params }: PageProps) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("regularizacao");
 
   const { id } = await params;
   const r = await prisma.regularizacao.findUnique({ where: { id } });

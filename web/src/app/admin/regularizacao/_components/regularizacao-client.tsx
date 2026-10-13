@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, FileCheck, Pencil, Trash2 } from "lucide-react";
+import { Search, FileCheck, Pencil } from "lucide-react";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
-import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
+import { excluirRegularizacao, cancelarRegularizacao } from "@/lib/actions/regularizacoes";
+import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
 import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
 import { STATUS_PROCESSO, ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 
@@ -60,20 +61,6 @@ function StatusSelectReg({ id, status }: { id: string; status: string }) {
       {[...(ehStatusProcesso(status) ? [] : [status]), ...STATUS_PROCESSO].map((s) =>
         <option key={s} value={s} disabled={!ehStatusProcesso(s)}>{REG_STATUS_CONFIG[s as RegStatus]?.label ?? s}</option>)}
     </select>
-  );
-}
-
-function ExcluirRegBtn({ id, nome }: { id: string; nome: string }) {
-  const [isPending, startTransition] = useTransition();
-  function handleClick() {
-    if (!confirm(`Excluir regularização "${nome}"? O registro será mantido no histórico.`)) return;
-    startTransition(async () => { await excluirRegularizacao(id); });
-  }
-  return (
-    <button onClick={handleClick} disabled={isPending} title="Arquivar"
-      className="text-xs border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 font-bold px-3 py-1.5 transition-colors disabled:opacity-40 flex items-center gap-1">
-      <Trash2 size={12} /> Excluir
-    </button>
   );
 }
 
@@ -186,7 +173,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                   <Link href={`/admin/regularizacao/${r.id}/editar`} className="text-xs border border-gray-200 hover:border-blue-300 hover:text-blue-500 text-gray-500 font-bold px-3 py-1.5 transition-colors flex items-center gap-1">
                     <Pencil size={12} /> Editar
                   </Link>
-                  <ExcluirRegBtn id={r.id} nome={r.nome} />
+                  <AcoesExcluirCancelar id={r.id} rotulo={r.nome} cancelado={r.status === "cancelado"} cancelar={cancelarRegularizacao} excluir={excluirRegularizacao} />
                 </div>
               </div>
             </div>

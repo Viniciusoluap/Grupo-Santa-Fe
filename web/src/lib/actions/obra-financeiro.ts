@@ -1,7 +1,7 @@
 "use server";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { centavosDe, reaisDeCentavos } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
@@ -38,7 +38,7 @@ function traduzir(err: unknown): Resultado {
 
 async function exigirAdmin() {
   const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("obras");
   return (session!.user as { id?: string }).id ?? null;
 }
 

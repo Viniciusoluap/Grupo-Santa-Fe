@@ -1,11 +1,12 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { REG_TIPO_CONFIG, REG_STATUS_CONFIG } from "@/lib/types/regularizacao";
 import { ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
 import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
+import { capturarErroAcao } from "@/lib/acao-resultado";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -15,16 +16,29 @@ function statusEditado(status: string, atual: string): string {
   return status;
 }
 
+/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirRegularizacao(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.regularizacao.update({ where: { id }, data: { status: "cancelado" } });
-  revalidatePath("/admin/regularizacao");
+  return capturarErroAcao(async () => {
+    await exigirAdminAtivo();
+    const r = await excluirServicoDefinitivo("regularizacao", id);
+    revalidatePath("/admin/regularizacao");
+    revalidatePath("/admin/leads");
+    return r;
+  });
+}
+
+/** Cancelar mantém o registro e o histórico; só muda a situação. */
+export async function cancelarRegularizacao(id: string) {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("regularizacao");
+    const r = await prisma.regularizacao.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
+    revalidatePath("/admin/regularizacao");
+    return { cancelado: r.count > 0 };
+  });
 }
 
 export async function editarRegularizacao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("regularizacao");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
     const atual = await tx.regularizacao.findUnique({ where: { id }, select: { leadId: true, status: true } });

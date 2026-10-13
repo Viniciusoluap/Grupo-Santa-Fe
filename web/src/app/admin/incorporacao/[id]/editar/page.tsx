@@ -1,6 +1,5 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { editarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
@@ -14,8 +13,7 @@ export default async function EditarEstudoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("incorporacao");
 
   const { id } = await params;
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id } });

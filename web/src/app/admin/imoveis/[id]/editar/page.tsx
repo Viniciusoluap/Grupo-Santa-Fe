@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
@@ -24,6 +25,7 @@ interface PageProps {
 }
 
 export default async function EditarImovelPage({ params }: PageProps) {
+  await exigirModuloPagina("imoveis");
   const { id } = await params;
   const [imovel, corretores] = await Promise.all([
     prisma.imovel.findUnique({ where: { id } }),

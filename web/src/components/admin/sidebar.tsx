@@ -46,7 +46,6 @@ const navItems = [
     label: "Corretores",
     href: "/admin/corretores",
     icon: UserCheck,
-    adminOnly: true,
   },
   {
     label: "Comissões",
@@ -62,19 +61,16 @@ const navItems = [
     label: "Obras",
     href: "/admin/obras",
     icon: HardHat,
-    adminOnly: true,
   },
   {
     label: "Projetos",
     href: "/admin/projetos",
     icon: Ruler,
-    adminOnly: true,
   },
   {
     label: "Regularização",
     href: "/admin/regularizacao",
     icon: FileCheck,
-    adminOnly: true,
   },
   {
     label: "Mapa",
@@ -90,45 +86,41 @@ const navItems = [
     label: "BPO Financeiro",
     href: "/admin/bpo",
     icon: Briefcase,
-    adminOnly: true,
   },
   {
     label: "Avaliações",
     href: "/admin/avaliacoes",
     icon: ClipboardList,
-    adminOnly: true,
   },
   {
     label: "Jurídico",
     href: "/admin/juridico",
     icon: Scale,
-    adminOnly: true,
   },
   {
     label: "Incorporação",
     href: "/admin/incorporacao",
     icon: Mountain,
-    adminOnly: true,
   },
   {
     label: "Configurações",
     href: "/admin/configuracoes",
     icon: Settings,
-    adminOnly: true,
   },
 ];
 
 interface SidebarProps {
   userName: string;
   userRole: string;
+  /** Item 06: rotas liberadas pelo servidor (perfil + permissões). */
+  rotasPermitidas: string[];
   userFoto?: string | null;
   onClose?: () => void;
 }
 
-export function Sidebar({ userName, userRole, userFoto, onClose }: SidebarProps) {
+export function Sidebar({ userName, userRole, rotasPermitidas, userFoto, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const isAdmin = userRole === "admin";
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleNavItems = navItems.filter((item) => rotasPermitidas.includes(item.href));
 
   return (
     <aside className="h-full flex flex-col bg-[var(--brand-dark)] w-64">

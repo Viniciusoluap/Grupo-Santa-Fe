@@ -1,5 +1,12 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { areaDoPerfil, type AreaPerfil } from "@/lib/perfis-acesso";
+
+function rotaDaArea(area: AreaPerfil | null): string {
+  if (area === "portal") return "/portal";
+  if (area === "empreiteiro") return "/empreiteiro";
+  return area ? "/admin" : "/";
+}
 
 export const proxy = auth((req) => {
   // Canonical domain: redirect non-www → www so the HostGator chat widget renders
@@ -19,29 +26,15 @@ export const proxy = auth((req) => {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
+  // Item 02: login único. Quem já entrou vai direto para a área do seu perfil
+  // (o painel escolhe o primeiro módulo liberado; as páginas revalidam no banco).
   if (pathname === "/login" && isLoggedIn) {
-    return NextResponse.redirect(new URL(role === "empreiteiro" ? "/empreiteiro" : "/admin", req.nextUrl));
+    return NextResponse.redirect(new URL(rotaDaArea(areaDoPerfil(role)), req.nextUrl));
   }
 
-  // D-05: empreiteiro nunca renderiza páginas do painel (evita que ações do
-  // CRM rodem e registrem "Não autorizado." antes do redirecionamento).
-  if (role === "empreiteiro" && pathname.startsWith("/admin")) {
-    return NextResponse.redirect(new URL("/empreiteiro", req.nextUrl));
-  }
-
-  // Corretor cannot access admin-only sections
-  const adminOnlyPaths = [
-    "/admin/corretores",
-    "/admin/obras",
-    "/admin/projetos",
-    "/admin/regularizacao",
-    "/admin/configuracoes",
-  ];
-  if (
-    role === "corretor" &&
-    adminOnlyPaths.some((p) => pathname.startsWith(p))
-  ) {
-    return NextResponse.redirect(new URL("/admin", req.nextUrl));
+  // D-05: empreiteiro e cliente nunca renderizam páginas do painel.
+  if (pathname.startsWith("/admin") && (role === "empreiteiro" || role === "cliente")) {
+    return NextResponse.redirect(new URL(rotaDaArea(areaDoPerfil(role)), req.nextUrl));
   }
 
   return NextResponse.next();

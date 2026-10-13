@@ -41,7 +41,11 @@ export function DueDiligenceTab({ estudoId, json }: { estudoId: string; json: st
     if (alterado) { setErro("Salve as etapas antes de anexar arquivos."); return; }
     if (arquivos.some((d) => d.itemId === itemId) && !window.confirm("Substituir o arquivo? O histórico permanece.")) return;
     setBusyItem(itemId); setErro("");
-    try { const result = exigirResultado(await enviarDocumentoRegistro(estudoId, itemId, file)); setArquivos(result.documentos); }
+    try {
+      const result = exigirResultado(await enviarDocumentoRegistro(estudoId, itemId, file));
+      setArquivos(result.documentos);
+      if ("notaArmazenamento" in result && result.notaArmazenamento) setErro(`Documento salvo no sistema. Google Drive indisponível: ${result.notaArmazenamento}`);
+    }
     catch (error) { setErro(error instanceof Error ? error.message : "Falha no envio."); }
     finally { setBusyItem(null); }
   }

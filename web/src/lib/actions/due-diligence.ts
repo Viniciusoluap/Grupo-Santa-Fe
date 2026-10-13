@@ -1,15 +1,13 @@
 "use server";
 
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { capturarErroAcao } from "@/lib/acao-resultado";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { dueDiligenceSchema, lerDueDiligence, type DueDiligence } from "@/lib/incorporacao/due-diligence";
 import { revalidatePath } from "next/cache";
 
 async function salvarDueDiligenceImpl(estudoId: string, esperado: string | null, proximo: DueDiligence) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   if (!estudoId || estudoId.length > 100 || (esperado && esperado.length > 500_000))
     throw new Error("Estudo ou versão inválida.");
   const valido = dueDiligenceSchema.parse(proximo);

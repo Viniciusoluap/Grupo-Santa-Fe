@@ -46,11 +46,17 @@ export default async function ConfiguracoesPage() {
   const sessionUser = session?.user as { role?: string; name?: string } | undefined;
   const userName = sessionUser?.name ?? "Usuário";
 
-  const [configs, usuarios] = await Promise.all([
+  // Item 05: os cinco perfis aparecem aqui; clientes do CRM sem conta para vincular.
+  const [configs, usuarios, leadsSemConta] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
-      where: { papel: { in: ["admin", "colaborador"] } },
       orderBy: { criadoEm: "asc" },
+      include: { leadCliente: { select: { nome: true } } },
+    }),
+    prisma.lead.findMany({
+      where: { excluidoEm: null, contaCliente: null },
+      select: { id: true, nome: true, email: true },
+      orderBy: { nome: "asc" },
     }),
   ]);
   const valoresSalvos = Object.fromEntries(configs.map((c) => [c.chave, c.valor]));
@@ -78,7 +84,9 @@ export default async function ConfiguracoesPage() {
         creci: u.creci,
         telefone: u.telefone,
         permissoes: u.permissoes,
-      }))} />
+        leadId: u.leadId,
+        leadNome: u.leadCliente?.nome ?? null,
+      }))} leadsSemConta={leadsSemConta} />
     </div>
   );
 }

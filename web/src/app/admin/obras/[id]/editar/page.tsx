@@ -1,8 +1,7 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { OBRA_STATUS_SELECIONAVEIS, isObraStatusSelecionavel, obraStatusLabel, tipoProjetoObra } from "@/lib/types/obra";
@@ -13,8 +12,7 @@ import { EditarObraClient } from "./_components/editar-obra-client";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarObraPage({ params }: PageProps) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("obras");
 
   const { id } = await params;
   const o = await prisma.obra.findUnique({

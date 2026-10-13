@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +10,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 interface PageProps { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string }> }
 
 export default async function EditarCorretorPage({ params, searchParams }: PageProps) {
+  await exigirModuloPagina("corretores");
   const { id } = await params;
   const { erro } = await searchParams;
   const c = await prisma.corretor.findUnique({ where: { id }, include: { regraComissao: { select: { percentual: true } } } });

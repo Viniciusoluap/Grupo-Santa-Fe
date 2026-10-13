@@ -11,11 +11,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ doc
   const { documentoId } = await params;
   if (!documentoId || documentoId.length > 100) return NextResponse.json({ error: "Documento inválido." }, { status: 400 });
   const documento = await prisma.estudoDocumentoRegistro.findUnique({
-    where: { id: documentoId }, select: { ativo: true, driveFileId: true, mime: true, nome: true },
+    where: { id: documentoId }, select: { ativo: true, driveFileId: true, mime: true, nome: true, arquivo: { select: { dados: true } } },
   });
   if (!documento?.ativo) return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
   try {
-    const data = await lerDocumentoRegistro(documento.driveFileId);
+    // Arquivo guardado no banco quando o Drive recusou a gravação; senão, no Drive.
+    const data = documento.arquivo ? Buffer.from(documento.arquivo.dados)
+      : documento.driveFileId ? await lerDocumentoRegistro(documento.driveFileId) : null;
+    if (!data) throw new Error("Documento sem arquivo.");
     return new NextResponse(new Uint8Array(data), {
       headers: {
         "Content-Type": documento.mime,

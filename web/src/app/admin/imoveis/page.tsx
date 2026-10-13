@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
@@ -25,6 +26,7 @@ const statusColor: Record<string, string> = {
 type SessionUser = { role?: string; corretorId?: string };
 
 export default async function AdminImoveisPage() {
+  await exigirModuloPagina("imoveis");
   const session = await auth();
   const user = session?.user as SessionUser | undefined;
   const isCorretor = user?.role === "corretor";

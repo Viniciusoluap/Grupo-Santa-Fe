@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import Link from "next/link";
 import { criarCorretor } from "@/lib/actions/corretores";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -9,6 +10,7 @@ export default async function NovoCorretorPage({
 }: {
   searchParams: Promise<{ erro?: string }>;
 }) {
+  await exigirModuloPagina("corretores");
   const { erro } = await searchParams;
   return (
     <div className="max-w-2xl space-y-5">

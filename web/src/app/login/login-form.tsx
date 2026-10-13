@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { areaDoPerfil } from "@/lib/perfis-acesso";
 import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
 
 export function LoginForm() {
@@ -30,9 +31,10 @@ export function LoginForm() {
       return;
     }
 
+    // Item 02: um só login; o perfil da conta decide para onde ir.
     const session = await getSession();
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    router.push(role === "cliente" ? "/portal" : "/admin");
+    const area = areaDoPerfil((session?.user as { role?: string } | undefined)?.role);
+    router.push(area === "portal" ? "/portal" : area === "empreiteiro" ? "/empreiteiro" : "/admin");
     router.refresh();
   }
 

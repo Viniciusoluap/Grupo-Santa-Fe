@@ -1,7 +1,9 @@
 "use server";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 
+import { capturarErroAcao } from "@/lib/acao-resultado";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -23,8 +25,7 @@ export async function criarAvaliacao(_formData: FormData): Promise<never> {
 }
 
 export async function atualizarStatusAvaliacao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("avaliacao");
   const id = formData.get("id") as string;
   const status = formData.get("status") as string;
   const data: Record<string, unknown> = { status };
@@ -58,8 +59,7 @@ export async function atualizarStatusAvaliacao(formData: FormData) {
 }
 
 export async function editarAvaliacao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("avaliacao");
   const id = formData.get("id") as string;
   const atual = await prisma.avaliacao.findUnique({ where: { id }, select: { leadId: true } });
   // Registro vinculado não volta a ser avulso; trocar de lead recopia os dados.
@@ -96,16 +96,19 @@ export async function editarAvaliacao(formData: FormData) {
   redirect(`/admin/avaliacoes/${id}`);
 }
 
+/** Exclusão definitiva (item 03): remove também o vínculo de serviço do CRM que só existia para ela. */
 export async function excluirAvaliacao(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.avaliacao.delete({ where: { id } });
-  revalidatePath("/admin/avaliacoes");
+  return capturarErroAcao(async () => {
+    await exigirAdminAtivo();
+    const r = await excluirServicoDefinitivo("avaliacao", id);
+    revalidatePath("/admin/avaliacoes");
+    revalidatePath("/admin/leads");
+    return r;
+  });
 }
 
 export async function salvarChecklistAvaliacao(id: string, dados: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("avaliacao");
   await prisma.avaliacao.update({
     where: { id },
     data: { caracteristicas: dados },
@@ -116,8 +119,7 @@ export async function salvarChecklistAvaliacao(id: string, dados: string) {
 }
 
 export async function salvarDocumentosAvaliacao(id: string, documentos: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("avaliacao");
   await prisma.avaliacao.update({ where: { id }, data: { documentos } });
   // revalidatePath omitido intencionalmente: a página de avaliação contém fotos
   // em base64 no checklist; re-render via server action envia esses dados no
@@ -125,8 +127,7 @@ export async function salvarDocumentosAvaliacao(id: string, documentos: string) 
 }
 
 export async function salvarSugestaoAvaliacao(id: string, sugestaoJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("avaliacao");
   await prisma.avaliacao.update({ where: { id }, data: { sugestaoJson } });
   // revalidatePath omitido intencionalmente: mesma razão das fotos base64.
 }

@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { AgendaClient } from "./_components/agenda-client";
@@ -5,6 +6,7 @@ import { AgendaClient } from "./_components/agenda-client";
 type SessionUser = { role?: string; corretorId?: string };
 
 export default async function AgendaPage() {
+  await exigirModuloPagina("agenda");
   const session = await auth();
   const user = session?.user as SessionUser | undefined;
   const isCorretor = user?.role === "corretor";

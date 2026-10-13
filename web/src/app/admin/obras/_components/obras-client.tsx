@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState } from "react";
+import { FILTROS_OBRAS_VAZIOS, filtrarObras, filtrosAtivos, type FiltrosObras, type OrdemObras } from "@/lib/obras-filtro";
 import { formatarPercentual } from "@/lib/financeiro/progresso";
 import Link from "next/link";
-import { Search, HardHat, Pencil, Trash2 } from "lucide-react";
+import { Search, HardHat, Pencil } from "lucide-react";
 import { OBRA_STATUS_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
 import { formatCurrency } from "@/lib/utils";
-import { excluirObra } from "@/lib/actions/obras";
+import { excluirObra, cancelarObra } from "@/lib/actions/obras";
+import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
 
 interface ObraEtapa {
   id: string;
@@ -32,38 +34,29 @@ interface Obra {
   dataPrevisaoFim: Date | null;
   dataConclusao: Date | null;
   etapas: ObraEtapa[];
+  criadoEm: Date;
+  empreiteiroNome: string | null;
+}
+
+/** Código curto e estável exibido e pesquisável (o ID interno é longo). */
+export function codigoObra(id: string) {
+  return `OB-${id.slice(-6).toUpperCase()}`;
 }
 
 interface Props {
   obras: Obra[];
 }
 
-function ExcluirObraBtn({ id, nome }: { id: string; nome: string }) {
-  const [isPending, startTransition] = useTransition();
-  function handleClick() {
-    if (!confirm(`Arquivar obra "${nome}"? O registro será mantido no histórico.`)) return;
-    startTransition(async () => { await excluirObra(id); });
-  }
-  return (
-    <button onClick={handleClick} disabled={isPending} title="Arquivar"
-      className="text-xs border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 font-bold px-3 py-2 transition-colors disabled:opacity-40 flex items-center gap-1">
-      <Trash2 size={12} /> Excluir
-    </button>
-  );
-}
-
 export function ObrasClient({ obras }: Props) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ObraStatus | "todas">("todas");
+  const [filtros, setFiltros] = useState<FiltrosObras>(FILTROS_OBRAS_VAZIOS);
+  const set = <K extends keyof FiltrosObras>(campo: K, valor: FiltrosObras[K]) => setFiltros((f) => ({ ...f, [campo]: valor }));
 
-  const filtered = obras.filter((o) => {
-    const matchSearch = !search ||
-      o.nome.toLowerCase().includes(search.toLowerCase()) ||
-      o.clienteNome.toLowerCase().includes(search.toLowerCase()) ||
-      o.endereco?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "todas" || o.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  // Item 01: todos os filtros funcionam juntos (lib/obras-filtro, igual ao Prospecta).
+  const filtered = useMemo(() => filtrarObras(obras.map((o) => ({
+    ...o, codigo: codigoObra(o.id), cliente: o.clienteNome, responsaveis: [o.engenheiroResp, o.empreiteiroNome],
+    origemCrm: o.servicoLead != null, inicio: o.dataInicio, fim: o.dataConclusao ?? o.dataPrevisaoFim,
+  })), filtros), [obras, filtros]);
+  const ativos = filtrosAtivos(filtros);
 
   const emAndamento = obras.filter((o) => o.status === "em_andamento").length;
   // EPIC-020 Lote 2: volume pelo VGV (Valores da Operação); valorTotal antigo
@@ -100,33 +93,55 @@ export function ObrasClient({ obras }: Props) {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, cliente ou endereço..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white"
-          />
+      {/* Filtros (item 01) */}
+      <div className="bg-white border border-gray-100 p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="text-xs font-bold text-gray-500 uppercase">Nome da obra
+            <span className="relative block mt-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={filtros.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Buscar obra" className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white pl-9 font-normal normal-case" /></span>
+          </label>
+          <label className="text-xs font-bold text-gray-500 uppercase">Cliente
+            <input value={filtros.cliente} onChange={(e) => set("cliente", e.target.value)} placeholder="Nome do cliente" className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case" />
+          </label>
+          <label className="text-xs font-bold text-gray-500 uppercase">Código
+            <input value={filtros.codigo} onChange={(e) => set("codigo", e.target.value)} placeholder="OB-…" className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case" />
+          </label>
+          <label className="text-xs font-bold text-gray-500 uppercase">Responsável
+            <input value={filtros.responsavel} onChange={(e) => set("responsavel", e.target.value)} placeholder="Engenheiro ou empreiteiro" className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case" />
+          </label>
+          <label className="text-xs font-bold text-gray-500 uppercase">Situação
+            <select value={filtros.status} onChange={(e) => set("status", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case">
+              <option value="">Todas</option>
+              {(Object.entries(OBRA_STATUS_CONFIG) as [ObraStatus, typeof OBRA_STATUS_CONFIG[ObraStatus]][])
+                .sort(([, a], [, b]) => a.order - b.order)
+                .map(([status, cfg]) => <option key={status} value={status}>{cfg.label} ({obras.filter((o) => o.status === status).length})</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-gray-500 uppercase">Origem
+            <select value={filtros.origem} onChange={(e) => set("origem", e.target.value as FiltrosObras["origem"])} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case">
+              <option value="todas">Todas</option><option value="crm">Criada pelo CRM</option><option value="manual">Sem vínculo com o CRM</option>
+            </select>
+          </label>
+          <fieldset className="text-xs font-bold text-gray-500 uppercase">Período de execução
+            <div className="mt-1 flex gap-2"><input type="date" aria-label="Período de" value={filtros.periodoDe} onChange={(e) => set("periodoDe", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" />
+              <input type="date" aria-label="Período até" value={filtros.periodoAte} onChange={(e) => set("periodoAte", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" /></div>
+          </fieldset>
+          <fieldset className="text-xs font-bold text-gray-500 uppercase">Data de criação
+            <div className="mt-1 flex gap-2"><input type="date" aria-label="Criada de" value={filtros.criadoDe} onChange={(e) => set("criadoDe", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" />
+              <input type="date" aria-label="Criada até" value={filtros.criadoAte} onChange={(e) => set("criadoAte", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" /></div>
+          </fieldset>
         </div>
-        <div className="flex flex-wrap gap-1">
-          <button onClick={() => setStatusFilter("todas")} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todas" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
-            Todas
-          </button>
-          {(Object.entries(OBRA_STATUS_CONFIG) as [ObraStatus, typeof OBRA_STATUS_CONFIG[ObraStatus]][])
-            .sort(([, a], [, b]) => a.order - b.order)
-            .map(([status, cfg]) => {
-              const count = obras.filter((o) => o.status === status).length;
-              if (count === 0) return null;
-              return (
-                <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
-                  {cfg.label} ({count})
-                </button>
-              );
-            })}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">Ordenar
+            <select value={filtros.ordem} onChange={(e) => set("ordem", e.target.value as OrdemObras)} className="px-3 py-2 border border-gray-200 text-sm bg-white font-normal normal-case">
+              <option value="recentes">Mais recentes</option><option value="antigas">Mais antigas</option><option value="az">Nome A–Z</option><option value="za">Nome Z–A</option>
+            </select>
+          </label>
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <span>{filtered.length} de {obras.length} obra(s){ativos ? ` · ${ativos} filtro(s) ativo(s)` : ""}</span>
+            <button type="button" onClick={() => setFiltros(FILTROS_OBRAS_VAZIOS)} disabled={!ativos && filtros.ordem === "recentes"}
+              className="px-3 py-2 border border-gray-200 font-bold uppercase hover:bg-gray-50 disabled:opacity-40">Limpar filtros</button>
+          </div>
         </div>
       </div>
 
@@ -144,6 +159,7 @@ export function ObrasClient({ obras }: Props) {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-lg" title={tipo.label}>{tipo.icon}</span>
                     <h3 className="font-bold text-[var(--brand-dark)]">{o.nome}</h3>
+                    <span className="text-[10px] font-mono text-gray-400">{o.codigo}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
                   </div>
                   <p className="text-gray-400 text-sm">{o.clienteNome} · {o.endereco}</p>
@@ -182,7 +198,7 @@ export function ObrasClient({ obras }: Props) {
                 <Link href={`/admin/obras/${o.id}/editar`} className="text-xs border border-gray-200 hover:border-blue-300 hover:text-blue-500 text-gray-500 font-bold px-3 py-2 transition-colors flex items-center gap-1">
                   <Pencil size={12} /> Editar
                 </Link>
-                <ExcluirObraBtn id={o.id} nome={o.nome} />
+                <AcoesExcluirCancelar id={o.id} rotulo={o.nome} cancelado={o.status === "cancelada"} cancelar={cancelarObra} excluir={excluirObra} />
               </div>
             </div>
           );

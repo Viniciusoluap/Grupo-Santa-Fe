@@ -13,13 +13,12 @@ const footerLinks = {
     { label: "Nossos Serviços", href: "/servicos" },
     { label: "Simulador de Financiamento", href: "/simulador" },
     { label: "Cursos Profissionais", href: "/cursos" },
-    { label: "Portal do Cliente", href: "/login" },
   ],
   empresa: [
     { label: "Sobre o Grupo", href: "/sobre" },
     { label: "Instituto Social", href: "/instituto" },
     { label: "Contato", href: "/contato" },
-    { label: "Entrar no Sistema", href: "/login" },
+    { label: "Minha Conta · Entrar", href: "/login" },
   ],
 };
 

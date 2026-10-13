@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield } from "lucide-react";
-import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes } from "@/lib/actions/usuarios";
+import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes, alterarPerfilUsuario } from "@/lib/actions/usuarios";
+import { MODULOS_PAINEL } from "@/lib/auth/modulos-lista";
 
-type Papel = "admin" | "colaborador" | "empreiteiro";
+type Papel = "admin" | "colaborador" | "corretor" | "cliente" | "empreiteiro";
 
 interface Usuario {
   id: string;
@@ -15,30 +16,21 @@ interface Usuario {
   creci: string | null;
   telefone: string | null;
   permissoes: string | null;  // JSON string
+  leadId: string | null;
+  leadNome: string | null;
 }
+
+interface LeadOpcao { id: string; nome: string; email: string | null }
 
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
   { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
   { value: "colaborador", label: "Colaborador", cor: "bg-purple-100 text-purple-700" },
+  { value: "corretor",    label: "Corretor",    cor: "bg-blue-100 text-blue-700" },
+  { value: "cliente",     label: "Cliente",     cor: "bg-green-100 text-green-700" },
   { value: "empreiteiro", label: "Empreiteiro", cor: "bg-amber-100 text-amber-800" },
 ];
 
-const MODULOS = [
-  { id: "imoveis",        label: "Imóveis" },
-  { id: "leads",          label: "Leads / CRM" },
-  { id: "agenda",         label: "Agenda de Visitas" },
-  { id: "obras",          label: "Obras" },
-  { id: "projetos",       label: "Projetos" },
-  { id: "regularizacao",  label: "Regularização" },
-  { id: "financiamentos", label: "Financiamentos" },
-  { id: "comissoes",      label: "Comissões" },
-  { id: "corretores",     label: "Corretores" },
-  { id: "avaliacao",      label: "Avaliações" },
-  { id: "bpo",            label: "BPO Financeiro" },
-  { id: "banco",          label: "Integração Bancária" },
-  { id: "whatsapp",       label: "WhatsApp" },
-  { id: "configuracoes",  label: "Configurações" },
-];
+const MODULOS = MODULOS_PAINEL;
 
 function Badge({ papel }: { papel: string }) {
   const cfg = PAPEIS.find((p) => p.value === papel);
@@ -51,9 +43,15 @@ function Badge({ papel }: { papel: string }) {
 
 interface Props {
   usuarios: Usuario[];
+  /** Clientes do CRM ainda sem conta (para vincular a conta de cliente). */
+  leadsSemConta: LeadOpcao[];
 }
 
-export function UsuariosClient({ usuarios }: Props) {
+export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
+  const [papelNovo, setPapelNovo] = useState<Papel>("colaborador");
+  const [buscaLead, setBuscaLead] = useState("");
+  const [linkGerado, setLinkGerado] = useState<{ link: string; emailEnviado: boolean } | null>(null);
+  const [perfilId, setPerfilId] = useState<string | null>(null);
   const [aba, setAba] = useState<Papel | "todos">("todos");
   const [showForm, setShowForm] = useState(false);
   const [resetId, setResetId] = useState<string | null>(null);
@@ -75,7 +73,19 @@ export function UsuariosClient({ usuarios }: Props) {
       const res = await criarUsuario(fd);
       if (res?.error) { feedback(`Erro: ${res.error}`); return; }
       setShowForm(false);
+      if (res && "link" in res && res.link) setLinkGerado({ link: res.link, emailEnviado: Boolean(res.emailEnviado) });
       feedback("Usuário cadastrado com sucesso!");
+    });
+  }
+
+  async function handleAlterarPerfil(e: React.FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const res = await alterarPerfilUsuario(id, String(fd.get("papel")), (fd.get("leadId") as string) || null);
+      if (res?.error) { feedback(`Erro: ${res.error}`); return; }
+      setPerfilId(null);
+      feedback("Perfil alterado. A sessão antiga do usuário foi encerrada.");
     });
   }
 
@@ -123,7 +133,7 @@ export function UsuariosClient({ usuarios }: Props) {
         <div className="flex items-center gap-2">
           <Users size={18} className="text-[var(--brand-dark)]" />
           <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">
-            Colaboradores do Sistema
+            Usuários do Sistema
           </h2>
         </div>
         <button
@@ -134,6 +144,14 @@ export function UsuariosClient({ usuarios }: Props) {
         </button>
       </div>
 
+      {linkGerado && (
+        <div className="border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 space-y-1">
+          <p className="font-bold">{linkGerado.emailEnviado ? "Link de primeiro acesso enviado por e-mail." : "E-mail não enviado: repasse este link de primeiro acesso ao usuário (vale 7 dias)."}</p>
+          <p className="break-all font-mono">{linkGerado.link}</p>
+          <button type="button" onClick={() => setLinkGerado(null)} className="text-blue-700 underline">Fechar</button>
+        </div>
+      )}
+
       {msg && (
         <div className="bg-[var(--brand-yellow)]/20 border border-[var(--brand-yellow)] px-3 py-2 text-xs font-bold text-[var(--brand-dark)]">
           {msg}
@@ -142,7 +160,7 @@ export function UsuariosClient({ usuarios }: Props) {
 
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap border-b border-gray-100 pb-0">
-        {(["todos", "admin", "colaborador", "empreiteiro"] as const).map((p) => (
+        {(["todos", "admin", "colaborador", "corretor", "cliente", "empreiteiro"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setAba(p)}
@@ -175,6 +193,7 @@ export function UsuariosClient({ usuarios }: Props) {
               </div>
               <p className="text-xs text-gray-400 mt-0.5">{u.email}</p>
               {u.creci && <p className="text-xs text-gray-400">CRECI: {u.creci}</p>}
+              {u.papel === "cliente" && <p className="text-xs text-gray-400">Cliente do CRM: {u.leadNome ?? "sem vínculo (vincule em Perfil)"}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -186,9 +205,16 @@ export function UsuariosClient({ usuarios }: Props) {
                 {u.ativo ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
               </button>
               <button
+                onClick={() => setPerfilId(perfilId === u.id ? null : u.id)}
+                title="Alterar perfil"
+                className="text-gray-400 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
+              >
+                Perfil
+              </button>
+              <button
                 onClick={() => setPermissoesId(permissoesId === u.id ? null : u.id)}
-                title="Gerenciar permissões"
-                disabled={u.papel === "admin"}
+                title="Módulos liberados (só colaborador)"
+                disabled={u.papel !== "colaborador"}
                 className="text-gray-400 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Shield size={15} />
@@ -210,8 +236,28 @@ export function UsuariosClient({ usuarios }: Props) {
               </button>
             </div>
 
+            {/* Troca de perfil (item 05/06) */}
+            {perfilId === u.id && (
+              <form onSubmit={(e) => handleAlterarPerfil(e, u.id)} className="w-full flex flex-wrap gap-2 pt-2 border-t border-gray-100 mt-1 items-end">
+                <label className="text-xs font-bold text-gray-500 uppercase">Perfil
+                  <select name="papel" defaultValue={u.papel} className="block mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case">
+                    {PAPEIS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-bold text-gray-500 uppercase">Cliente do CRM (se cliente)
+                  <select name="leadId" defaultValue={u.leadId ?? ""} className="block mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case max-w-[16rem]">
+                    <option value="">—</option>
+                    {u.leadId && <option value={u.leadId}>{u.leadNome ?? u.leadId}</option>}
+                    {leadsSemConta.map((l) => <option key={l.id} value={l.id}>{l.nome}{l.email ? ` · ${l.email}` : ""}</option>)}
+                  </select>
+                </label>
+                <button type="submit" disabled={isPending} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold px-3 py-1.5">Salvar perfil</button>
+                <button type="button" onClick={() => setPerfilId(null)} className="text-xs text-gray-400">Fechar</button>
+              </form>
+            )}
+
             {/* Permissões inline */}
-            {permissoesId === u.id && (
+            {permissoesId === u.id && u.papel === "colaborador" && (
               <div className="w-full pt-2 border-t border-gray-100 mt-1">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-2">Permissões de Acesso</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -286,21 +332,49 @@ export function UsuariosClient({ usuarios }: Props) {
                 <input name="email" type="email" required placeholder="email@exemplo.com" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Senha inicial *</label>
-                <input name="senha" type="password" required minLength={6} placeholder="Mín. 6 caracteres" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Papel *</label>
-                <select name="papel" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Perfil *</label>
+                <select name="papel" required value={papelNovo} onChange={(e) => setPapelNovo(e.target.value as Papel)} className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
                   {PAPEIS.map((p) => (
                     <option key={p.value} value={p.value}>{p.label}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
-                <input name="telefone" type="tel" placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Senha inicial</label>
+                <input name="senha" type="password" minLength={8} placeholder="Em branco: envia link de primeiro acesso" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone{papelNovo === "corretor" ? " *" : ""}</label>
+                <input name="telefone" type="tel" required={papelNovo === "corretor"} placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+              </div>
+              {papelNovo === "corretor" && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CRECI *</label>
+                  <input name="creci" type="text" required placeholder="CRECI do corretor" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                </div>
+              )}
+              {papelNovo === "cliente" && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente do CRM *</label>
+                  <input type="search" value={buscaLead} onChange={(e) => setBuscaLead(e.target.value)} placeholder="Pesquisar cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                  <select name="leadId" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] mt-1 bg-white">
+                    <option value="">Selecione</option>
+                    {leadsSemConta.filter((l) => !buscaLead.trim() || `${l.nome} ${l.email ?? ""}`.toLowerCase().includes(buscaLead.trim().toLowerCase())).slice(0, 200)
+                      .map((l) => <option key={l.id} value={l.id}>{l.nome}{l.email ? ` · ${l.email}` : ""}</option>)}
+                  </select>
+                </div>
+              )}
+              {papelNovo === "colaborador" && (
+                <fieldset>
+                  <legend className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Módulos liberados</legend>
+                  <div className="grid grid-cols-2 gap-1">
+                    {MODULOS.map((m) => (
+                      <label key={m.id} className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="permissoes" value={m.id} className="accent-[var(--brand-yellow)]" />{m.label}</label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+              {papelNovo === "empreiteiro" && <p className="text-xs text-gray-500">O empreiteiro vê só as obras em que for escolhido como empreiteiro (na tela da obra).</p>}
 
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={isPending} className="flex-1 bg-[var(--brand-dark)] text-[var(--brand-yellow)] font-bold text-sm uppercase py-2 hover:bg-black disabled:opacity-50 transition-colors">

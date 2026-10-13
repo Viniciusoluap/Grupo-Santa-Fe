@@ -98,6 +98,7 @@ model Lead {
   atualizadoEm      DateTime @updatedAt
 
   @@map("leads")
+  contaCliente  Usuario? @relation("UsuarioCliente")
 }
 
 // Demanda operacional criada exclusivamente pelo CRM; requestKey identifica
@@ -366,6 +367,11 @@ model Projeto {
   clienteNome  String
   clienteTel   String
   engenheiro   String?
+  /// Item 07: colaborador (ou admin) ativo vinculado como engenheiro; `engenheiro` guarda o nome exibido.
+  engenheiroId String?
+  engenheiroUsuario Usuario? @relation("ProjetoEngenheiro", fields: [engenheiroId], references: [id], onDelete: SetNull)
+  /// CREA/CAU ou outra habilitação técnica, quando necessária.
+  engenheiroRegistro String? @db.VarChar(60)
   valorProjeto Float?
   valorPago    Float     @default(0)
   prazoEntrega DateTime?
@@ -665,6 +671,7 @@ model Avaliacao {
 model Usuario {
   id                         String           @id @default(cuid())
   obrasComoEmpreiteiro       Obra[]           @relation("ObraEmpreiteiro")
+  projetosComoEngenheiro     Projeto[]        @relation("ProjetoEngenheiro")
   nome                       String
   email                      String           @unique
   senha                      String
@@ -681,6 +688,9 @@ model Usuario {
   conexaoWhatsApp            ConexaoWhatsApp?
   corretor                   Corretor?
   leadsResponsavel           Lead[]           @relation("LeadResponsavel")
+  /// Item 05: conta de cliente vinculada ao cliente real do CRM.
+  leadId                     String?          @unique
+  leadCliente                Lead?            @relation("UsuarioCliente", fields: [leadId], references: [id], onDelete: SetNull)
   atualizadoEm               DateTime         @updatedAt
   eventosUnidadesIncorporacao EstudoUnidadeEvento[]
 
@@ -932,7 +942,13 @@ model EstudoDocumentoRegistro {
   estudoId       String
   estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
   itemId         String   @db.VarChar(80)
-  driveFileId    String   @unique
+  /// Preenchido quando o arquivo está no Google Drive.
+  driveFileId    String?  @unique
+  /// "drive" ou "banco" (bytes em `arquivos`, quando o Drive recusou a gravação).
+  armazenamento  String   @default("drive") @db.VarChar(10)
+  notaArmazenamento String? @db.VarChar(400)
+  arquivoId      String?  @unique
+  arquivo        Arquivo? @relation(fields: [arquivoId], references: [id], onDelete: Restrict)
   nome           String   @db.VarChar(255)
   mime           String   @db.VarChar(100)
   tamanho        Int
@@ -993,6 +1009,7 @@ model Arquivo {
   dados     Bytes
   criadoEm  DateTime @default(now())
   obraFoto  ObraFoto?
+  documentoRegistro EstudoDocumentoRegistro?
 
   @@map("arquivos")
 }

@@ -17,7 +17,7 @@ interface NotificacaoItem {
   criadoEm: string;
 }
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({ children, rotasPermitidas }: { children: React.ReactNode; rotasPermitidas: string[] }) {
   const { data: session } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -171,7 +171,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       >
         <Sidebar
           userName={userName}
-          userRole={userRole}
+          userRole={userRole} rotasPermitidas={rotasPermitidas}
           userFoto={userFoto}
           onClose={() => setSidebarOpen(false)}
         />

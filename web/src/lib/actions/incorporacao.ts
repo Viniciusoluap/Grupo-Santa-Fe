@@ -1,8 +1,9 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { uploadPublico } from "@/lib/blob";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
+import { capturarErroAcao } from "@/lib/acao-resultado";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
@@ -39,8 +40,7 @@ function lerLocalizacao(formData: FormData): {
 }
 
 export async function criarEstudo(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
 
   const nome = (formData.get("nome") as string)?.trim();
   const tipoIncorporacao = formData.get("tipoIncorporacao");
@@ -67,8 +67,7 @@ export async function criarEstudo(formData: FormData) {
 
 /** Edita os dados de identificação/localização de um estudo. */
 export async function editarEstudo(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
 
   const id = (formData.get("id") as string)?.trim();
   const nome = (formData.get("nome") as string)?.trim();
@@ -97,17 +96,19 @@ export async function editarEstudo(formData: FormData) {
   redirect(`/admin/incorporacao/${id}`);
 }
 
+/** Exclusão definitiva (item 03); bloqueada se houver unidade vendida ou reservada. */
 export async function excluirEstudo(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.estudoIncorporacao.delete({ where: { id } });
-  revalidatePath("/admin/incorporacao");
+  return capturarErroAcao(async () => {
+    await exigirAdminAtivo();
+    const r = await excluirServicoDefinitivo("estudo", id);
+    revalidatePath("/admin/incorporacao");
+    return r;
+  });
 }
 
 /** A leitura de um snapshot antigo exige a mesma permissão administrativa do estudo. */
 export async function obterVersaoEstudo(estudoId: string, numero: number) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   if (!Number.isSafeInteger(numero) || numero < 1) throw new Error("Versão inválida.");
   const versao = await prisma.estudoIncorporacaoVersao.findUnique({
     where: { estudoId_numero: { estudoId, numero } },
@@ -119,8 +120,7 @@ export async function obterVersaoEstudo(estudoId: string, numero: number) {
 
 /** Recebe o KML, salva no Blob, extrai o polígono e persiste geometria/métricas. */
 export async function uploadKml(estudoId: string, formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
 
   const file = formData.get("kml") as File | null;
   if (!file || file.size === 0) return { error: "Selecione um arquivo KML." };
@@ -160,8 +160,7 @@ export async function uploadKml(estudoId: string, formData: FormData) {
 
 /** Salva o grid de elevação (JSON já calculado no client via API de elevação). */
 export async function salvarElevacao(estudoId: string, elevacaoJson: string, corteAterroJson?: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { elevacaoJson, corteAterroJson: corteAterroJson ?? undefined },
@@ -172,8 +171,7 @@ export async function salvarElevacao(estudoId: string, elevacaoJson: string, cor
 
 /** Upload de levantamento topográfico próprio (CSV/qualquer). */
 export async function uploadLevantamento(estudoId: string, formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   const file = formData.get("arquivo") as File | null;
   if (!file || file.size === 0) return { error: "Selecione um arquivo." };
   const blob = await uploadPublico(`incorporacao/${estudoId}/levantamento-${Date.now()}-${file.name}`, file);
@@ -188,8 +186,7 @@ export async function uploadLevantamento(estudoId: string, formData: FormData) {
 
 /** Salva as premissas do estudo de viabilidade determinístico (motor de fórmulas). */
 export async function salvarViabilidade(estudoId: string, premissasJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { loteamentoJson: premissasJson },
@@ -209,8 +206,7 @@ export async function salvarApp(
   estudoId: string,
   payload: { areaM2: number; larguraM: number | null; origem: string }
 ) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: {
@@ -228,8 +224,7 @@ export async function salvarMercado(
   estudoId: string,
   payload: { pesquisaCidade: unknown; estudoMercado: unknown }
 ) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: {
@@ -247,8 +242,7 @@ export async function salvarMercado(
  * estudoMercadoJson da IA, para não ser sobrescrito ao refazer a pesquisa.
  */
 export async function salvarPrecificacaoComparaveis(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { precificacaoComparaveisJson: dadosJson },
@@ -259,8 +253,7 @@ export async function salvarPrecificacaoComparaveis(estudoId: string, dadosJson:
 
 /** Salva a pesquisa primária com compradores (questionário aplicado) — aprimora a 2.2. */
 export async function salvarPesquisaPrimaria(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { pesquisaPrimariaJson: dadosJson },
@@ -271,8 +264,7 @@ export async function salvarPesquisaPrimaria(estudoId: string, dadosJson: string
 
 /** Salva o Quadro de Áreas (NBR 12721) — etapas 2.3/3.3. */
 export async function salvarQuadroAreas(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { quadroAreasJson: dadosJson },
@@ -283,8 +275,7 @@ export async function salvarQuadroAreas(estudoId: string, dadosJson: string) {
 
 /** Salva o Orçamento Parametrizado — etapa 2.4. */
 export async function salvarOrcamentoParametrizado(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { orcamentoParametrizadoJson: dadosJson },
@@ -295,8 +286,7 @@ export async function salvarOrcamentoParametrizado(estudoId: string, dadosJson: 
 
 /** Salva a lista de projetistas contratados e seus status — etapa 3.1. */
 export async function salvarProjetistas(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { projetistasJson: dadosJson },
@@ -307,8 +297,7 @@ export async function salvarProjetistas(estudoId: string, dadosJson: string) {
 
 /** Salva os processos de aprovação do projeto junto aos órgãos competentes — etapa 3.2. */
 export async function salvarAprovacaoProjeto(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { aprovacaoProjetoJson: dadosJson },
@@ -319,8 +308,7 @@ export async function salvarAprovacaoProjeto(estudoId: string, dadosJson: string
 
 /** Salva o checklist de documentos do registro da incorporação — etapa 3.4. */
 export async function salvarRegistroIncorporacao(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { registroIncorporacaoJson: dadosJson },
@@ -331,8 +319,7 @@ export async function salvarRegistroIncorporacao(estudoId: string, dadosJson: st
 
 /** Salva o orçamento preliminar de obra por disciplina — etapa 3.5. */
 export async function salvarOrcamentoPreliminar(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { orcamentoPreliminarJson: dadosJson },
@@ -365,8 +352,7 @@ async function validarResponsaveisCronograma(dadosJson: string, chave: "medicoes
 }
 
 export async function salvarPlanejamentoLancamento(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await validarResponsaveisCronograma(dadosJson, "marcos");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
@@ -378,8 +364,7 @@ export async function salvarPlanejamentoLancamento(estudoId: string, dadosJson: 
 
 /** Salva os fornecedores contratados para o lançamento — etapa 4.2. */
 export async function salvarFornecedoresLancamento(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { fornecedoresLancamentoJson: dadosJson },
@@ -390,8 +375,7 @@ export async function salvarFornecedoresLancamento(estudoId: string, dadosJson: 
 
 /** Salva o repositório de peças publicitárias e status de aprovação — etapa 4.3. */
 export async function salvarMaterialPublicitario(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { materialPublicitarioJson: dadosJson },
@@ -402,8 +386,7 @@ export async function salvarMaterialPublicitario(estudoId: string, dadosJson: st
 
 /** Salva as vendas registradas no evento de lançamento — etapa 4.4. */
 export async function salvarLancamentoImobiliario(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   const result = await prisma.estudoIncorporacao.updateMany({
     where: { id: estudoId, OR: [{ tipoIncorporacao: null }, { tipoIncorporacao: { not: "desmembramento_simples" } }] },
     data: { lancamentoImobiliarioJson: dadosJson },
@@ -415,8 +398,7 @@ export async function salvarLancamentoImobiliario(estudoId: string, dadosJson: s
 
 /** Salva os projetos executivos liberados para obra — etapa 5.1. */
 export async function salvarProjetosExecutivos(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { projetosExecutivosJson: dadosJson },
@@ -427,8 +409,7 @@ export async function salvarProjetosExecutivos(estudoId: string, dadosJson: stri
 
 /** Salva o orçamento executivo real da obra — etapa 5.2. */
 export async function salvarOrcamentoObra(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { orcamentoObraJson: dadosJson },
@@ -439,8 +420,7 @@ export async function salvarOrcamentoObra(estudoId: string, dadosJson: string) {
 
 /** Salva as medições do cronograma físico-financeiro da obra — etapa 5.3. */
 export async function salvarCronogramaObra(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await validarResponsaveisCronograma(dadosJson, "medicoes");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
@@ -452,8 +432,7 @@ export async function salvarCronogramaObra(estudoId: string, dadosJson: string) 
 
 /** Salva os chamados de atendimento pós-venda — etapa 5.4. */
 export async function salvarAtendimentoClientes(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { atendimentoClientesJson: dadosJson },
@@ -464,8 +443,7 @@ export async function salvarAtendimentoClientes(estudoId: string, dadosJson: str
 
 /** Salva a simulação de captação com fundos/investidores — etapa 2.6. */
 export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { businessPlanJson: dadosJson },
@@ -476,8 +454,7 @@ export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
 
 /** Salva a negociação do terreno (proprietário/terreneiro) — etapa 2.7. */
 export async function salvarNegociacaoTerreno(estudoId: string, dadosJson: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { negociacaoTerrenoJson: dadosJson },
@@ -493,8 +470,7 @@ export async function salvarMassa(
   cenarioEscolhidoId?: string | null,
   mix?: unknown
 ) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: {
@@ -509,8 +485,7 @@ export async function salvarMassa(
 
 /** Anexa a URL de um relatório PDF gerado. */
 export async function anexarRelatorio(estudoId: string, url: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId } });
   if (!estudo) return { error: "Estudo não encontrado." };
   let lista: string[] = [];
