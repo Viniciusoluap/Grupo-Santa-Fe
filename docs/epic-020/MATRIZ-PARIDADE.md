@@ -41,38 +41,38 @@ confirmado em produção (Vercel `READY` no commit do merge) antes de o lote ser
 
 | Nº | Funcionalidade | Prospecta | Grupo Santa Fé | Testes | Paridade |
 |---|---|---|---|---|---|
-| 01 | Situações dos estudos de incorporação | Não iniciado | Não iniciado | — | Pendente |
-| 02 | Incorporação em grid modular | Não iniciado | Não iniciado | — | Pendente |
-| 03 | Documentos opcionais via Google Drive | Não iniciado | Não iniciado | — | Pendente |
-| 04 | Tipos de incorporação / Desmembramento simples | Não iniciado | Não iniciado | — | Pendente |
+| 01 | Situações dos estudos de incorporação | Publicado (Lote 5) | Publicado (Lote 5) | 4 situações, migrações e E2E Santa Fé | Igual; Prospecta sem E2E autenticado |
+| 02 | Incorporação em grid modular | Publicado (Lote 5) | Publicado (Lote 5) | 17 módulos no Desmembramento, E2E Santa Fé | Igual; Prospecta sem validação visual |
+| 03 | Documentos opcionais via Google Drive | Código publicado (Lote 5); upload real pendente | Código publicado (Lote 5); Drive da empresa não configurado | Testes de código; sem upload/consulta real em ambos | Funcionalidade não validada de ponta a ponta |
+| 04 | Tipos de incorporação / Desmembramento simples | Publicado (Lote 5) | Publicado (Lote 5) | 20 vendas concorrentes → 1 aceita; E2E Santa Fé | Igual na regra; Prospecta sem E2E |
 | 05 | Temperatura "🤝 Negócio fechado" | Publicado | Publicado (temperatura criada) | `server/lote1-crm-obras.test.ts`; `web/src/lib/__tests__/lote1-crm-obras.test.ts` | Igual (mesmas 4 opções e emojis) |
 | 06 | Limpeza das classificações de Obras | Publicado | Publicado | idem | Igual (5 opções; "Contrato Grupo Santa Fé" no Santa Fé por identidade visual) |
 | 07 | Erro `invalid_value` ao salvar Obras | Publicado (causa raiz corrigida) | Publicado (sem divergência; mesma regra aplicada) | idem | Igual |
 | 08 | Nome do cliente vindo do CRM | Publicado | Publicado (já existia no EPIC-007; tela alinhada) | idem | Igual |
 | 09 | Tipo de projeto vindo do CRM | Publicado | Publicado | idem | Igual |
-| 10 | Padronização monetária R$ | Implementado (Lote 2): Campos BRL com vazio = não informado; motor em centavos | Implementado (Lote 2): Campos BRL com vazio = não informado; motor em centavos | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 11 | Entrada Paga automática | Implementado (Lote 2): Soma das entradas confirmadas (histórico) | Implementado (Lote 2): Soma das entradas confirmadas (histórico) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 12 | Entrada Total | Implementado (Lote 2): VGV − Financiamento − FGTS − Subsídio | Implementado (Lote 2): VGV − Financiamento − FGTS − Subsídio | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 13 | Saldo da Entrada | Implementado (Lote 2): Entrada Total − Entrada Paga | Implementado (Lote 2): Entrada Total − Entrada Paga | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 14 | Valor Recebido CEF | Implementado (Lote 2): Soma dos recebimentos CEF (manual ou BPO) | Implementado (Lote 2): Soma dos recebimentos CEF (manual ou BPO) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 10 | Padronização monetária R$ | Publicado (Lote 2): Campos BRL com vazio = não informado; motor em centavos | Publicado (Lote 2): Campos BRL com vazio = não informado; motor em centavos | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 11 | Entrada Paga automática | Publicado (Lote 2): Soma das entradas confirmadas (histórico) | Publicado (Lote 2): Soma das entradas confirmadas (histórico) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 12 | Entrada Total | Publicado (Lote 2): VGV − Financiamento − FGTS − Subsídio | Publicado (Lote 2): VGV − Financiamento − FGTS − Subsídio | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 13 | Saldo da Entrada | Publicado (Lote 2): Entrada Total − Entrada Paga | Publicado (Lote 2): Entrada Total − Entrada Paga | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 14 | Valor Recebido CEF | Publicado (Lote 2): Soma dos recebimentos CEF (manual ou BPO) | Publicado (Lote 2): Soma dos recebimentos CEF (manual ou BPO) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
 | 15 | Remoção dos botões superiores | Publicado — Medições movidas para a aba Progresso | Publicado — só "Salvar" à direita | build + typecheck | Igual |
-| 16 | "MCMV/CEF" → "Valores da Operação" | Publicado | Implementado (Lote 2) — seção nasce como "Valores da Operação" | build | Igual |
-| 17 | Reestruturação da aba Custos | Implementado (Lote 2): Orçamento, terreno, comissão, empreiteiro + histórico de pagamentos (BPO) | Implementado (Lote 2): Orçamento, terreno, comissão, empreiteiro + histórico de pagamentos (BPO) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 18 | Custos ↔ Valores da Operação | Implementado (Lote 2): Custo Construção/Gasto Realizado vindos de Custos | Implementado (Lote 2): Custo Construção/Gasto Realizado vindos de Custos | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 19 | Valor a Receber do Banco | Implementado (Lote 2): Fin + Subs + FGTS − Terreno − Recebido | Implementado (Lote 2): Fin + Subs + FGTS − Terreno − Recebido | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 20 | Lucro Estimado | Implementado (Lote 2): VGV − Terreno − Comissão − Orçamento | Implementado (Lote 2): VGV − Terreno − Comissão − Orçamento | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 21 | Lucro do Investidor | Implementado (Lote 2): % por investidor (soma ≤ 100%) | Implementado (Lote 2): % por investidor (soma ≤ 100%) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 22 | Lucro do Empreiteiro | Implementado (Lote 2): % sobre (Lucro − Investidores); papel Empreiteiro | Implementado (Lote 2): % sobre (Lucro − Investidores); papel Empreiteiro | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 23 | Lucro da Empresa | Implementado (Lote 2): Lucro − Investidores − Empreiteiro | Implementado (Lote 2): Lucro − Investidores − Empreiteiro | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 16 | "MCMV/CEF" → "Valores da Operação" | Publicado | Publicado (Lote 2) — seção nasce como "Valores da Operação" | build | Igual |
+| 17 | Reestruturação da aba Custos | Publicado (Lote 2): Orçamento, terreno, comissão, empreiteiro + histórico de pagamentos (BPO) | Publicado (Lote 2): Orçamento, terreno, comissão, empreiteiro + histórico de pagamentos (BPO) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 18 | Custos ↔ Valores da Operação | Publicado (Lote 2): Custo Construção/Gasto Realizado vindos de Custos | Publicado (Lote 2): Custo Construção/Gasto Realizado vindos de Custos | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 19 | Valor a Receber do Banco | Publicado (Lote 2): Fin + Subs + FGTS − Terreno − Recebido | Publicado (Lote 2): Fin + Subs + FGTS − Terreno − Recebido | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 20 | Lucro Estimado | Publicado (Lote 2): VGV − Terreno − Comissão − Orçamento | Publicado (Lote 2): VGV − Terreno − Comissão − Orçamento | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 21 | Lucro do Investidor | Publicado (Lote 2): % por investidor (soma ≤ 100%) | Publicado (Lote 2): % por investidor (soma ≤ 100%) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 22 | Lucro do Empreiteiro | Publicado (Lote 2): % sobre (Lucro − Investidores); papel Empreiteiro | Publicado (Lote 2): % sobre (Lucro − Investidores); papel Empreiteiro | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 23 | Lucro da Empresa | Publicado (Lote 2): Lucro − Investidores − Empreiteiro | Publicado (Lote 2): Lucro − Investidores − Empreiteiro | testes A–F + actions/rotas + E2E Santa Fé | Igual |
 | 24 | Corretor automático pelo lead | Publicado | Publicado | idem | Igual |
-| 25 | Pró-Soluto e HP 12C | Implementado (Lote 2): Saldo da entrada; parcela Price (HP 12C END) | Implementado (Lote 2): Saldo da entrada; parcela Price (HP 12C END) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 26 | Dias de Obra e PLS Real | Implementado (Lote 2): Datas da obra; PLS = Recebido CEF ÷ base | Implementado (Lote 2): Datas da obra; PLS = Recebido CEF ÷ base | testes A–F + actions/rotas + E2E Santa Fé | Igual |
-| 27 | Progresso físico com incidências | Não iniciado | Não iniciado | — | Pendente |
-| 28 | Upload de fotografias | Não iniciado | Não iniciado | — | Pendente |
-| 29 | Relatório executivo da Obra em PDF | Não iniciado | Não iniciado | — | Pendente |
-| 30 | Regularização: status e etapas | Não iniciado | Não iniciado | — | Pendente |
-| 31 | Regularização: controle financeiro documental | Não iniciado | Não iniciado | — | Pendente |
-| 32 | Comissões automáticas pelo CRM (caso Chaleilson) | Implementado (Lote 3): lista derivada das obras com corretor, VGV × %, regra da obra/corretor, pagamentos da obra; caso Chaleilson documentado | Implementado (Lote 3): mesma lógica, corretores próprios, sem dados da Prospecta | Teste G + rotas/actions + E2E Santa Fé | Igual |
+| 25 | Pró-Soluto e HP 12C | Publicado (Lote 2): Saldo da entrada; parcela Price (HP 12C END) | Publicado (Lote 2): Saldo da entrada; parcela Price (HP 12C END) | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 26 | Dias de Obra e PLS Real | Publicado (Lote 2): Datas da obra; PLS = Recebido CEF ÷ base | Publicado (Lote 2): Datas da obra; PLS = Recebido CEF ÷ base | testes A–F + actions/rotas + E2E Santa Fé | Igual |
+| 27 | Progresso físico com incidências | Publicado (Lote 4) | Publicado (Lote 4) | Teste E = 28,20%; E2E Santa Fé | Igual; Prospecta sem E2E |
+| 28 | Upload de fotografias | Publicado (Lote 4) | Publicado (Lote 4) | Endpoint com posse; E2E Santa Fé PNG; HEIC real pendente | Igual na regra; Safari/HEIC pendente |
+| 29 | Relatório executivo da Obra em PDF | Publicado (Lote 4) | Publicado (Lote 4) | Teste de completude; PDF 10 páginas Santa Fé | Igual; PDF real Prospecta pendente |
+| 30 | Regularização: status e etapas | Publicado (Lote 6) | Publicado (Lote 6) | 10 testes da regra; E2E Santa Fé | Igual; Prospecta sem E2E |
+| 31 | Regularização: controle financeiro documental | Publicado (Lote 6) | Publicado (Lote 6) | 20 alocações simultâneas BPO; E2E Santa Fé | Igual; Prospecta sem E2E |
+| 32 | Comissões automáticas pelo CRM (caso Chaleilson) | Publicado (Lote 3): lista derivada, VGV × %, regra da obra/corretor, pagamentos da obra; caso Chaleilson documentado | Publicado (Lote 3): mesma lógica, corretores próprios | Teste G + rotas/actions + E2E Santa Fé | Igual |
 
 ## Lote 1 — CRM e estrutura de Obras (itens 05, 06, 07, 08, 09, 15, 16, 24)
 
