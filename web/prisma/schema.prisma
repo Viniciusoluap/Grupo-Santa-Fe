@@ -932,7 +932,13 @@ model EstudoDocumentoRegistro {
   estudoId       String
   estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
   itemId         String   @db.VarChar(80)
-  driveFileId    String   @unique
+  /// Preenchido quando o arquivo está no Google Drive.
+  driveFileId    String?  @unique
+  /// "drive" ou "banco" (bytes em `arquivos`, quando o Drive recusou a gravação).
+  armazenamento  String   @default("drive") @db.VarChar(10)
+  notaArmazenamento String? @db.VarChar(400)
+  arquivoId      String?  @unique
+  arquivo        Arquivo? @relation(fields: [arquivoId], references: [id], onDelete: Restrict)
   nome           String   @db.VarChar(255)
   mime           String   @db.VarChar(100)
   tamanho        Int
@@ -993,6 +999,7 @@ model Arquivo {
   dados     Bytes
   criadoEm  DateTime @default(now())
   obraFoto  ObraFoto?
+  documentoRegistro EstudoDocumentoRegistro?
 
   @@map("arquivos")
 }

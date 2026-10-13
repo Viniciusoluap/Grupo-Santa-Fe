@@ -11,6 +11,7 @@ import {
 } from "@/lib/incorporacao/registro-incorporacao";
 import { salvarRegistroIncorporacao } from "@/lib/actions/incorporacao";
 import { desvincularDocumentoRegistro, enviarDocumentoRegistro, listarDocumentosRegistro } from "@/lib/actions/documentos-registro";
+import { DriveDiagnostico } from "./drive-diagnostico";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Registro da Incorporação (3.4 Incorporação e Produto) — checklist dos
@@ -54,6 +55,7 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
   const [salvo, setSalvo] = useState(false);
   const [arquivos, setArquivos] = useState<Exclude<Awaited<ReturnType<typeof listarDocumentosRegistro>>, ErroAcao>["documentos"]>([]);
   const [driveAtivo, setDriveAtivo] = useState(false);
+  const [avisoArquivo, setAvisoArquivo] = useState<string | null>(null);
   const [arquivoPendente, setArquivoPendente] = useState<string | null>(null);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
 
@@ -72,6 +74,8 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
     try {
       const resultado = exigirResultado(await enviarDocumentoRegistro(estudo.id, itemId, arquivo));
       setArquivos(resultado.documentos);
+      setAvisoArquivo("notaArmazenamento" in resultado && resultado.notaArmazenamento
+        ? `Documento salvo no sistema. Google Drive indisponível: ${resultado.notaArmazenamento}` : null);
     } catch (error) {
       setErroArquivo(error instanceof Error ? error.message : "Falha no envio do documento.");
     } finally { setArquivoPendente(null); }
@@ -121,7 +125,8 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
         <p className="text-[11px] text-gray-400 max-w-xl">
           Checklist padrão do art. 32 da Lei 4.591/64, já pré-preenchido. A etapa fica concluída quando todos os documentos estiverem marcados como obtidos.
         </p>
-        {!driveAtivo && <p className="text-xs text-amber-700 mt-2" role="status">Upload privado indisponível: configure o Google Drive exclusivo do Grupo Santa Fé.</p>}
+        <DriveDiagnostico />
+        {avisoArquivo && <p className="text-xs text-amber-700 mt-2" role="status">{avisoArquivo}</p>}
         {erroArquivo && <p className="text-xs text-red-700 mt-2" role="alert">{erroArquivo}</p>}
       </div>
 
