@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -28,10 +29,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; docId: string }> }
 ) {
-  const session = await auth();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  if (role !== "admin") return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+  // Item 06: mesma permissão das telas de Avaliações (módulo liberado, conta ativa).
+  const usuario = await usuarioAtual();
+  if (!usuario?.ativo) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  if (!podeAcessarModulo(usuario, "avaliacao")) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
   const { id, docId } = await params;
   const avaliacao = await prisma.avaliacao.findUnique({

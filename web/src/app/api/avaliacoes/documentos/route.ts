@@ -3,17 +3,17 @@ import { list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
 
 export const runtime = "nodejs";
 
-// Avaliações é uma seção adminOnly (ver src/components/admin/sidebar.tsx e as
-// paginas /admin/avaliacoes/*, que ja aplicam requirePageRole(admin)) - esta
-// rota gerava/consultava tokens de upload para qualquer usuario autenticado,
-// checando so `if (!session)`, sem repetir a mesma exigencia de papel.
-function requireAdmin(session: Session | null): NextResponse | null {
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  const role = (session.user as { role?: string })?.role;
-  if (role !== "admin") return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+// Tokens de upload só para quem acessa o módulo Avaliações (item 06: admin ou
+// colaborador com o módulo liberado, conta ativa) — a mesma regra das telas.
+async function exigirModuloAvaliacao(_session: Session | null): Promise<NextResponse | null> {
+  const usuario = await usuarioAtual();
+  if (!usuario?.ativo) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  if (!podeAcessarModulo(usuario, "avaliacao")) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   return null;
 }
 
@@ -21,7 +21,7 @@ function requireAdmin(session: Session | null): NextResponse | null {
 // Client calls GET with the known blob path to retrieve the URL directly from storage.
 export async function GET(request: NextRequest) {
   const session = await auth();
-  const forbidden = requireAdmin(session);
+  const forbidden = await exigirModuloAvaliacao(session);
   if (forbidden) return forbidden;
 
   const path = request.nextUrl.searchParams.get("path");
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 // Token generation for client-side Vercel Blob upload
 export async function POST(request: NextRequest) {
   const session = await auth();
-  const forbidden = requireAdmin(session);
+  const forbidden = await exigirModuloAvaliacao(session);
   if (forbidden) return forbidden;
 
   const body = (await request.json()) as HandleUploadBody;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 import { filtrarDestinatariosValidos } from "@/lib/whatsapp/validacao";
 
@@ -24,12 +25,15 @@ async function enviarBusiness(token: string, phoneNumberId: string, numero: stri
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  // Item 06: perfil, situação e permissões vêm do banco; só quem tem o módulo
+  // WhatsApp (admin, colaborador liberado ou corretor ativo) envia.
+  const usuario = await usuarioAtual();
+  if (!usuario?.ativo) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (!podeAcessarModulo(usuario, "whatsapp")) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+  if (usuario.perfil === "corretor" && !usuario.corretorId) return NextResponse.json({ error: "Cadastro de corretor inativo" }, { status: 403 });
 
-  const user = session.user as { id?: string; role?: string; corretorId?: string };
-  const role = user.role;
-  if (role === "cliente") return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+  const user = { id: usuario.id, corretorId: usuario.corretorId ?? undefined };
+  const role = usuario.perfil ?? undefined;
 
   const { mensagem, destinatarios } = await req.json() as { mensagem: string; destinatarios: Destinatario[] };
 
