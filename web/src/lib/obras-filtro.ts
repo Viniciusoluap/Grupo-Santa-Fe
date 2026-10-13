@@ -11,8 +11,6 @@ export interface ObraFiltravel {
   status: string;
   /** Nomes de responsáveis (engenheiro, empreiteiro, responsável do CRM). */
   responsaveis: (string | null | undefined)[];
-  /** Obra nascida de um serviço do CRM. */
-  origemCrm: boolean;
   criadoEm: Date | string;
   /** Período de execução (início e previsão/conclusão), quando houver. */
   inicio?: Date | string | null;
@@ -28,7 +26,6 @@ export interface FiltrosObras {
   /** "" = todas as situações. */
   status: string;
   responsavel: string;
-  origem: "todas" | "crm" | "manual";
   /** Período de execução que se sobrepõe ao intervalo (AAAA-MM-DD). */
   periodoDe: string;
   periodoAte: string;
@@ -39,7 +36,7 @@ export interface FiltrosObras {
 }
 
 export const FILTROS_OBRAS_VAZIOS: FiltrosObras = {
-  nome: "", cliente: "", codigo: "", status: "", responsavel: "", origem: "todas",
+  nome: "", cliente: "", codigo: "", status: "", responsavel: "",
   periodoDe: "", periodoAte: "", criadoDe: "", criadoAte: "", ordem: "recentes",
 };
 
@@ -63,7 +60,7 @@ function dia(valor: Date | string | null | undefined): number | null {
 
 export function filtrosAtivos(f: FiltrosObras): number {
   return (["nome", "cliente", "codigo", "status", "responsavel", "periodoDe", "periodoAte", "criadoDe", "criadoAte"] as const)
-    .filter((k) => f[k].trim() !== "").length + (f.origem !== "todas" ? 1 : 0);
+    .filter((k) => f[k].trim() !== "").length;
 }
 
 export function filtrarObras<T extends ObraFiltravel>(obras: T[], f: FiltrosObras): T[] {
@@ -75,8 +72,6 @@ export function filtrarObras<T extends ObraFiltravel>(obras: T[], f: FiltrosObra
     if (!contem(o.codigo, f.codigo.replace(/^#/, "")) && !contem(String(o.id), f.codigo.replace(/^#/, ""))) return false;
     if (f.status && o.status !== f.status) return false;
     if (f.responsavel.trim() && !o.responsaveis.some((r) => r && contem(r, f.responsavel))) return false;
-    if (f.origem === "crm" && !o.origemCrm) return false;
-    if (f.origem === "manual" && o.origemCrm) return false;
     if (de !== null || ate !== null) {
       // Sobreposição do período de execução com o intervalo pedido.
       const inicio = dia(o.inicio), fim = dia(o.fim) ?? inicio;
