@@ -44,7 +44,7 @@ Nenhuma operação de exclusão foi feita neste lote. A migration 0047 é aditiv
 
 ## J. Publicação
 
-PRs #109 e #178 em rascunho. Sem merge e sem deploy de produção deste lote neste checkpoint. Antes de publicar: verificar o head final dos previews, smoke das rotas afetadas, testar upload/consulta privado e revisitar a remoção faseada de D-03.
+PRs #109 e #178 em rascunho. Previews do head final READY: Prospecta `d38d3ee`/`dpl_AnD16ntdGnQ6ELxSEbYXSvziwEHp`; Santa Fé `574b2c9`/`dpl_8AgDR2GhSKJtE2E8Xdj9GyoLCE95`. Home Prospecta respondeu HTTP 200; `/portal/obras` Santa Fé sem sessão apresenta login (HTTP 200 após redirecionamento). Sem merge e sem deploy de produção deste lote neste checkpoint. Antes de publicar: smoke autenticado das rotas afetadas, testar upload/consulta privado e revisitar a remoção faseada de D-03.
 
 ## K. Pendências reais
 
