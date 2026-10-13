@@ -1,11 +1,10 @@
+// EPIC-020 Lote 6 (30): Status do Processo com 3 opções escolhíveis
+// (em_analise, em_andamento, concluido). "aguardando_configuracao" é a fila do
+// CRM e "cancelado" vem da exclusão; os status antigos foram convertidos e o
+// original ficou em "statusLegado".
 export type RegStatus = "aguardando_configuracao"
-  | "analise_inicial"
-  | "documentacao"
-  | "protocolo"
-  | "em_analise_orgao"
-  | "pendencias"
-  | "aprovado"
-  | "registrado"
+  | "em_analise"
+  | "em_andamento"
   | "concluido"
   | "cancelado";
 
@@ -61,15 +60,10 @@ export interface Regularizacao {
 
 export const REG_STATUS_CONFIG: Record<RegStatus, { label: string; bgColor: string; color: string; order: number }> = {
   aguardando_configuracao: { label: "Pendente de configuração", bgColor: "bg-amber-100", color: "text-amber-800", order: 0 },
-  analise_inicial: { label: "Análise Inicial", bgColor: "bg-gray-100", color: "text-gray-600", order: 1 },
-  documentacao: { label: "Documentação", bgColor: "bg-yellow-100", color: "text-yellow-700", order: 2 },
-  protocolo: { label: "Protocolo", bgColor: "bg-blue-100", color: "text-blue-600", order: 3 },
-  em_analise_orgao: { label: "Em Análise", bgColor: "bg-purple-100", color: "text-purple-700", order: 4 },
-  pendencias: { label: "Pendências", bgColor: "bg-orange-100", color: "text-orange-600", order: 5 },
-  aprovado: { label: "Aprovado", bgColor: "bg-teal-100", color: "text-teal-700", order: 6 },
-  registrado: { label: "Registrado", bgColor: "bg-indigo-100", color: "text-indigo-700", order: 7 },
-  concluido: { label: "Concluído", bgColor: "bg-green-100", color: "text-green-700", order: 8 },
-  cancelado: { label: "Cancelado", bgColor: "bg-red-100", color: "text-red-500", order: 9 },
+  em_analise: { label: "Em análise", bgColor: "bg-gray-100", color: "text-gray-600", order: 1 },
+  em_andamento: { label: "Em andamento", bgColor: "bg-blue-100", color: "text-blue-700", order: 2 },
+  concluido: { label: "Concluído", bgColor: "bg-green-100", color: "text-green-700", order: 3 },
+  cancelado: { label: "Cancelado", bgColor: "bg-red-100", color: "text-red-500", order: 4 },
 };
 
 export const REG_TIPO_CONFIG: Record<RegTipo, { label: string; icon: string }> = {

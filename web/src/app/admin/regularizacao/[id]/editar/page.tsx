@@ -6,6 +6,7 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
+import { STATUS_PROCESSO, ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 import { editarRegularizacao } from "@/lib/actions/regularizacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -58,12 +59,13 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
               </fieldset>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status do processo</label>
               <select name="status" defaultValue={r.status}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
                 <option value="" disabled>Selecione</option>
-                {Object.entries(REG_STATUS_CONFIG).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
+                {/* Lote 6: só as 3 situações; a atual aparece mesmo se for da fila do CRM. */}
+                {[...new Set<string>([...(ehStatusProcesso(r.status) ? [] : [r.status]), ...STATUS_PROCESSO])].map((k) => (
+                  <option key={k} value={k}>{REG_STATUS_CONFIG[k as keyof typeof REG_STATUS_CONFIG]?.label ?? k}</option>
                 ))}
               </select>
             </div>

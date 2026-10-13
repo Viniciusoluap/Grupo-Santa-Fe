@@ -7,6 +7,7 @@ import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regul
 import { formatCurrency } from "@/lib/utils";
 import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
 import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
+import { STATUS_PROCESSO, ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 
 function parseTiposLabelReg(tipo: string | null): string {
   try {
@@ -28,11 +29,6 @@ function parseTipoIconReg(tipo: string | null): string {
   return REG_TIPO_CONFIG[tipo as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📋";
 }
 
-interface RegDocumento {
-  id: string;
-  status: string;
-}
-
 interface Regularizacao {
   id: string;
   nome: string;
@@ -44,9 +40,7 @@ interface Regularizacao {
   matricula: string | null;
   responsavel: string | null;
   valorServico: number | null;
-  valorPago: number;
   previsaoFim: Date | null;
-  documentos: RegDocumento[];
 }
 
 interface Props {
@@ -62,9 +56,9 @@ function StatusSelectReg({ id, status }: { id: string; status: string }) {
       onChange={(e) => startTransition(async () => { await alterarStatusRegularizacao(id, e.target.value); })}
       className="text-[10px] font-bold uppercase border border-gray-200 bg-white px-2 py-1 focus:outline-none focus:border-[var(--brand-yellow)] disabled:opacity-60 cursor-pointer"
     >
-      {(Object.entries(REG_STATUS_CONFIG) as [RegStatus, typeof REG_STATUS_CONFIG[RegStatus]][])
-        .sort(([, a], [, b]) => a.order - b.order)
-        .map(([s, cfg]) => <option key={s} value={s}>{cfg.label}</option>)}
+      {/* Lote 6: só as 3 situações; a atual aparece mesmo se for da fila do CRM. */}
+      {[...(ehStatusProcesso(status) ? [] : [status]), ...STATUS_PROCESSO].map((s) =>
+        <option key={s} value={s} disabled={!ehStatusProcesso(s)}>{REG_STATUS_CONFIG[s as RegStatus]?.label ?? s}</option>)}
     </select>
   );
 }
@@ -110,12 +104,11 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { label: "Em Andamento", value: ativos },
           { label: "Concluídos", value: regularizacoes.filter((r) => r.status === "concluido").length },
           { label: "Faturamento", value: formatCurrency(totalValue) },
-          { label: "A Receber", value: formatCurrency(regularizacoes.reduce((s, r) => s + ((r.valorServico ?? 0) - r.valorPago), 0)) },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -161,7 +154,6 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
       <div className="space-y-3">
         {filtered.map((r) => {
           const tipo = { icon: parseTipoIconReg(r.tipo), label: parseTiposLabelReg(r.tipo) };
-          const docsOk = r.documentos.filter((d) => d.status === "aprovado" || d.status === "obtido").length;
           return (
             <div key={r.id} className="bg-white border border-gray-100 p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -179,14 +171,12 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-[var(--brand-dark)]">{formatCurrency(r.valorServico)}</p>
-                  {r.valorServico != null && r.valorPago < r.valorServico && <p className="text-xs text-orange-400">A receber: {formatCurrency((r.valorServico ?? 0) - r.valorPago)}</p>}
                 </div>
               </div>
 
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-xs text-gray-400">
                   <span>Resp.: {r.responsavel}</span>
-                  <span>Docs: {docsOk}/{r.documentos.length} em ordem</span>
                   {r.previsaoFim && <span>Previsão: {new Date(r.previsaoFim).toLocaleDateString("pt-BR")}</span>}
                 </div>
                 <div className="flex items-center gap-2">
