@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -14,6 +15,7 @@ import { PercentInput } from "@/components/ui/percent-input";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarFinanciamentoPage({ params }: PageProps) {
+  await exigirModuloPagina("financiamentos");
   const { id } = await params;
   await financiamentoDoAtor(id);
   const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });

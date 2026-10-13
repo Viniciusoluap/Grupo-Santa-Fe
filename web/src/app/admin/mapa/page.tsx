@@ -1,7 +1,9 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { MapaClient } from "./_components/mapa-client";
 
 export default async function AdminMapaPage() {
+  await exigirModuloPagina("mapa");
   const imoveis = await prisma.imovel.findMany({
     where: { status: { notIn: ["vendido", "locado"] } },
     select: { id: true, titulo: true, tipo: true, bairro: true, preco: true, slug: true, quartos: true, banheiros: true, area: true, latitude: true, longitude: true },

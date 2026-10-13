@@ -98,6 +98,7 @@ model Lead {
   atualizadoEm      DateTime @updatedAt
 
   @@map("leads")
+  contaCliente  Usuario? @relation("UsuarioCliente")
 }
 
 // Demanda operacional criada exclusivamente pelo CRM; requestKey identifica
@@ -687,6 +688,9 @@ model Usuario {
   conexaoWhatsApp            ConexaoWhatsApp?
   corretor                   Corretor?
   leadsResponsavel           Lead[]           @relation("LeadResponsavel")
+  /// Item 05: conta de cliente vinculada ao cliente real do CRM.
+  leadId                     String?          @unique
+  leadCliente                Lead?            @relation("UsuarioCliente", fields: [leadId], references: [id], onDelete: SetNull)
   atualizadoEm               DateTime         @updatedAt
   eventosUnidadesIncorporacao EstudoUnidadeEvento[]
 

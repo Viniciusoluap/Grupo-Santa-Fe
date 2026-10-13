@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { obterAtorCrm } from "@/lib/crm/acesso-lead";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
@@ -6,6 +7,7 @@ import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { NovoLeadForm } from "./novo-lead-form";
 
 export default async function NovoLeadPage() {
+  await exigirModuloPagina("leads");
   const ator = await obterAtorCrm();
   const [corretores, usuarios] = await Promise.all([
     prisma.corretor.findMany({

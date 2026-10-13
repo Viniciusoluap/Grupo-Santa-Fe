@@ -1,6 +1,5 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { validarNovoCorretor } from "@/lib/corretores/validacao";
@@ -10,8 +9,7 @@ import bcrypt from "bcryptjs";
 import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
 
 export async function excluirCorretor(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirAdminAtivo();
   const corretor = await prisma.corretor.findUnique({ where: { id }, select: { usuarioId: true } });
   await prisma.$transaction([
     prisma.lead.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),
@@ -36,8 +34,7 @@ function regraComissaoOperacao(corretorId: string, percentual: string | null) {
 }
 
 export async function editarCorretor(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("corretores", { somenteEquipe: true });
   const id = formData.get("id") as string;
   const email = formData.get("email") as string;
   let percentualComissao: string | null;
@@ -78,8 +75,7 @@ export async function editarCorretor(formData: FormData) {
 // sem nenhuma orientacao na UI, um segundo registro em /admin/configuracoes com o
 // mesmo e-mail.
 export async function criarCorretor(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("corretores", { somenteEquipe: true });
 
   const nome = formData.get("nome") as string;
   const email = formData.get("email") as string;

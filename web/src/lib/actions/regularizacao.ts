@@ -1,6 +1,6 @@
 "use server";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 import { exigirConfiguracaoParaStatus } from "@/lib/crm/configuracao-servico";
 import { REG_STATUS_CONFIG } from "@/lib/types/regularizacao";
 import { prisma } from "@/lib/db";
@@ -26,7 +26,7 @@ const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
 async function exigirAdmin() {
   const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("regularizacao");
   return (session!.user as { id?: string }).id ?? null;
 }
 

@@ -1,13 +1,12 @@
 "use server";
-import { auth } from "@/auth";
+import { exigirAdminAtivo, exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarImovel(formData: FormData) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  const u = await exigirModuloAcao("imoveis");
   const titulo = formData.get("titulo") as string;
   const tipo = formData.get("tipo") as string;
   const status = formData.get("status") as string;
@@ -20,7 +19,7 @@ export async function criarImovel(formData: FormData) {
   const banheiros = parseInt(formData.get("banheiros") as string) || null;
   const vagas = parseInt(formData.get("vagas") as string) || null;
   const suites = parseInt(formData.get("suites") as string) || null;
-  const corretorId = (formData.get("corretorId") as string) || null;
+  const corretorId = u.perfil === "corretor" ? u.corretorId : ((formData.get("corretorId") as string) || null);
   const imagens = (formData.get("imagens") as string) || "[]";
   const latRaw = formData.get("latitude") as string;
   const lngRaw = formData.get("longitude") as string;
@@ -68,9 +67,13 @@ export async function criarImovel(formData: FormData) {
 }
 
 export async function editarImovel(formData: FormData) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  const u = await exigirModuloAcao("imoveis");
   const id = formData.get("id") as string;
+  // Item 06: corretor só edita os próprios imóveis e não troca o responsável.
+  if (u.perfil === "corretor") {
+    const atual = await prisma.imovel.findUnique({ where: { id }, select: { corretorId: true } });
+    if (!atual || !u.corretorId || atual.corretorId !== u.corretorId) throw new Error("Imóvel não encontrado ou acesso não autorizado.");
+  }
   const titulo = formData.get("titulo") as string;
   const tipo = formData.get("tipo") as string;
   const status = formData.get("status") as string;
@@ -83,7 +86,7 @@ export async function editarImovel(formData: FormData) {
   const banheiros = parseInt(formData.get("banheiros") as string) || null;
   const vagas = parseInt(formData.get("vagas") as string) || null;
   const suites = parseInt(formData.get("suites") as string) || null;
-  const corretorId = (formData.get("corretorId") as string) || null;
+  const corretorId = u.perfil === "corretor" ? u.corretorId : ((formData.get("corretorId") as string) || null);
   const destaque = formData.get("destaque") === "on";
   const publicadoSite = formData.get("publicadoSite") === "on";
   const imagens = (formData.get("imagens") as string) || "[]";
@@ -106,9 +109,9 @@ export async function editarImovel(formData: FormData) {
   redirect("/admin/imoveis");
 }
 
+/** Exclusão definitiva: só admin (item 06 — ação destrutiva). */
 export async function excluirImovel(id: string) {
-  const session = await auth();
-  if (!session) throw new Error("Não autorizado");
+  await exigirAdminAtivo();
   await prisma.imovel.delete({ where: { id } });
   revalidatePath("/admin/imoveis");
 }

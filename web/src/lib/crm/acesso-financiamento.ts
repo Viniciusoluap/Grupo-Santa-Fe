@@ -9,7 +9,7 @@ export function escopoFinanciamentosDoAtor(ator: AtorCrm): Prisma.FinanciamentoW
 }
 
 export async function financiamentoDoAtor(id: string) {
-  const ator = await obterAtorCrm();
+  const ator = await obterAtorCrm("financiamentos");
   const financiamento = await prisma.financiamento.findFirst({ where: { id, ...escopoFinanciamentosDoAtor(ator) } });
   if (!financiamento) throw new Error("Financiamento não encontrado ou acesso não autorizado.");
   return financiamento;

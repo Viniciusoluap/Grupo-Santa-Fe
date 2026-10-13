@@ -47,8 +47,8 @@ describe("remoção dos módulos independentes", () => {
     expect(sourceFiles(src).filter((file) => obsolete.test(readFileSync(file, "utf8")))).toEqual([]);
   });
 
-  it("abre o CRM ao entrar no painel", () => {
-    expect(() => AdminPage()).toThrow("REDIRECT:/admin/leads");
+  it("abre o CRM ao entrar no painel (admin: primeiro módulo liberado)", async () => {
+    await expect(AdminPage()).rejects.toThrow("REDIRECT:/admin/leads");
   });
 });
 

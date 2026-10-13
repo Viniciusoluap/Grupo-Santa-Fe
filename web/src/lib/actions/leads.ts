@@ -41,6 +41,19 @@ function orcamentoDoFormulario(formData: FormData) {
   return n;
 }
 
+/** Item 04: recusa (em vez de ignorar) responsável que não seja admin/colaborador ativo. */
+async function responsavelValido(id: string): Promise<string> {
+  const valido = await resolverResponsavelId(id);
+  if (!valido) throw new Error("Responsável inválido: escolha um admin ou colaborador ativo (ou \"Sem responsável\").");
+  return valido;
+}
+
+async function responsavelDoFormulario(escolhido: string, atual: string | null): Promise<string | null> {
+  if (!escolhido) return null;
+  if (escolhido === atual) return atual;
+  return responsavelValido(escolhido);
+}
+
 export async function criarLead(formData: FormData) {
   const ator = await obterAtorCrm();
   const servicos = validarServicos(formData.getAll("servicos"));
@@ -54,9 +67,10 @@ export async function criarLead(formData: FormData) {
   const senhaHash = senhaRaw ? await bcrypt.hash(senhaRaw, 10) : null;
 
   // Responsável = usuário real do sistema; sem escolha explícita, quem cadastrou.
-  const responsavelId =
-    (await resolverResponsavelId(formData.get("responsavelId") as string)) ??
-    (await resolverResponsavelId(ator.id));
+  const escolhido = String(formData.get("responsavelId") ?? "").trim();
+  const responsavelId = escolhido
+    ? await responsavelValido(escolhido)
+    : await resolverResponsavelId(ator.id);
 
   await transacaoCRM(async (tx) => {
     const existente = await tx.lead.findUnique({ where: { creationRequestKey: `${ator.id}:${requestKey}` } });
@@ -164,7 +178,9 @@ export async function editarLead(formData: FormData) {
       notas: (formData.get("notas") as string) || "",
       // "Sem corretor" precisa desvincular de verdade (antes `undefined` mantinha o antigo).
       corretorId: ator.papel === "corretor" ? ator.corretorId : (formData.get("corretorId") as string) || null,
-      responsavelId: await resolverResponsavelId(formData.get("responsavelId") as string),
+      // Item 04: só admin/colaborador ativo; o responsável anterior (ex.: corretor
+      // de registros antigos) é preservado enquanto não for trocado.
+      responsavelId: await responsavelDoFormulario(String(formData.get("responsavelId") ?? "").trim(), atual.responsavelId),
     },
     select: { id: true, nome: true, telefone: true, email: true },
     });

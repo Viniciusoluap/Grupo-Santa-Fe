@@ -1,6 +1,5 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { REG_TIPO_CONFIG, REG_STATUS_CONFIG } from "@/lib/types/regularizacao";
 import { ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
@@ -20,8 +19,7 @@ function statusEditado(status: string, atual: string): string {
 /** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirRegularizacao(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirAdminAtivo();
     const r = await excluirServicoDefinitivo("regularizacao", id);
     revalidatePath("/admin/regularizacao");
     revalidatePath("/admin/leads");
@@ -32,8 +30,7 @@ export async function excluirRegularizacao(id: string) {
 /** Cancelar mantém o registro e o histórico; só muda a situação. */
 export async function cancelarRegularizacao(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirModuloAcao("regularizacao");
     const r = await prisma.regularizacao.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
     revalidatePath("/admin/regularizacao");
     return { cancelado: r.count > 0 };
@@ -41,8 +38,7 @@ export async function cancelarRegularizacao(id: string) {
 }
 
 export async function editarRegularizacao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("regularizacao");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
     const atual = await tx.regularizacao.findUnique({ where: { id }, select: { leadId: true, status: true } });

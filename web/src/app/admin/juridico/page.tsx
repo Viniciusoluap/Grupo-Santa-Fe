@@ -1,6 +1,5 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { FileText, Plus, Scale, MessageSquare } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { JuridicoNovoContrato } from "./_components/juridico-novo-contrato";
@@ -31,8 +30,7 @@ export default async function JuridicoPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("juridico");
 
   const sp = await searchParams;
   const activeTab: Tab = sp.tab === "chat" ? "chat" : "contratos";

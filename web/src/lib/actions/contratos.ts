@@ -1,14 +1,12 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 // Operações compartilhadas pelos formulários do módulo Jurídico.
 export async function criarContrato(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("juridico");
   const numero = `GSF-${Date.now()}`;
   await prisma.contrato.create({
     data: {
@@ -31,8 +29,7 @@ export async function criarContrato(formData: FormData) {
 }
 
 export async function editarContrato(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("juridico");
   const id = formData.get("id") as string;
   await prisma.contrato.update({
     where: { id },
@@ -55,8 +52,7 @@ export async function editarContrato(formData: FormData) {
 }
 
 export async function excluirContrato(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirAdminAtivo();
   await prisma.contrato.delete({ where: { id } });
   revalidatePath("/admin/juridico");
 }

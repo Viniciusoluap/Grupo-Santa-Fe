@@ -1,15 +1,13 @@
 export const dynamic = "force-dynamic";
 
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { BpoClient } from "./_components/bpo-client";
 
 const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
 
 export default async function BpoPage() {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("bpo");
 
   const [
     lancamentos,

@@ -1,8 +1,10 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { obterAtorCrm, escopoLeadsDoAtor } from "@/lib/crm/acesso-lead";
 import { LeadsClient } from "./_components/leads-client";
 
 export default async function LeadsPage() {
+  await exigirModuloPagina("leads");
   const ator = await obterAtorCrm();
   const leads = await prisma.lead.findMany({
     where: escopoLeadsDoAtor(ator),

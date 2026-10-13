@@ -1,6 +1,5 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { OBRA_STATUS_CONFIG, validarMudancaStatusObra } from "@/lib/types/obra";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
@@ -11,8 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function criarDiarioObra(obraId: string, formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("obras");
   await prisma.obraDiario.create({
     data: {
       obraId,
@@ -28,8 +26,7 @@ export async function criarDiarioObra(obraId: string, formData: FormData) {
 /** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirObra(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirAdminAtivo();
     const r = await excluirServicoDefinitivo("obra", id);
     revalidatePath("/admin/obras");
     revalidatePath("/admin/leads");
@@ -40,8 +37,7 @@ export async function excluirObra(id: string) {
 /** Cancelar mantém o registro e o histórico; só muda a situação. */
 export async function cancelarObra(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirModuloAcao("obras");
     const r = await prisma.obra.updateMany({ where: { id, status: { not: "cancelada" } }, data: { status: "cancelada" } });
     revalidatePath("/admin/obras");
     return { cancelado: r.count > 0 };
@@ -56,8 +52,7 @@ function dataOpcional(formData: FormData, campo: string): Date | null {
 }
 
 export async function editarObra(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("obras");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
     const atual = await tx.obra.findUnique({ where: { id }, select: { leadId: true, status: true } });

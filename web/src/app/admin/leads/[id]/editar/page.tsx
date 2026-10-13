@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
@@ -12,6 +13,7 @@ interface PageProps {
 }
 
 export default async function EditarLeadPage({ params }: PageProps) {
+  await exigirModuloPagina("leads");
   const ator = await obterAtorCrm();
   const { id } = await params;
   const [lead, corretores, usuarios] = await Promise.all([
@@ -22,6 +24,11 @@ export default async function EditarLeadPage({ params }: PageProps) {
   const responsaveis = usuarios.map((u) => ({ id: u.id, label: rotuloResponsavel(u) }));
 
   if (!lead) notFound();
+  // Item 04: responsável antigo fora da regra (ex.: corretor) continua visível até ser trocado.
+  if (lead.responsavelId && !responsaveis.some((r) => r.id === lead.responsavelId)) {
+    const anterior = await prisma.usuario.findUnique({ where: { id: lead.responsavelId }, select: { nome: true, papel: true } });
+    responsaveis.push({ id: lead.responsavelId, label: `Registro anterior: ${anterior ? rotuloResponsavel(anterior) : "usuário removido"}` });
+  }
   autorizarLeadDoAtor(ator, lead);
   if (!leadNoPipelineAtivo(lead)) notFound();
 

@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { ComissoesClient } from "./_components/comissoes-client";
@@ -8,6 +9,7 @@ import { ComissoesDeObras } from "./_components/comissoes-de-obras";
 type SessionUser = { role?: string; corretorId?: string };
 
 export default async function ComissoesPage() {
+  await exigirModuloPagina("comissoes");
   const session = await auth();
   const user = session?.user as SessionUser | undefined;
   const isAdmin = user?.role === "admin";

@@ -1,6 +1,5 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto";
 import { exigirConfiguracaoParaStatus, textoObrigatorio, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
@@ -11,8 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function alterarStatusProjeto(id: string, status: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("projetos");
   const registro = await prisma.projeto.findUnique({ where: { id } });
   exigirConfiguracaoParaStatus(registro, status, ['tipo', 'engenheiro', 'valorProjeto'], PROJETO_STATUS_CONFIG);
   await prisma.projeto.update({ where: { id }, data: { status } });
@@ -21,22 +19,19 @@ export async function alterarStatusProjeto(id: string, status: string) {
 }
 
 export async function salvarChecklistProjeto(id: string, checklist: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("projetos");
   await prisma.projeto.update({ where: { id }, data: { checklist } });
   revalidatePath(`/admin/projetos/${id}`);
 }
 
 export async function salvarArquivosProjeto(id: string, arquivos: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("projetos");
   await prisma.projeto.update({ where: { id }, data: { arquivos } });
   revalidatePath(`/admin/projetos/${id}`);
 }
 
 export async function alterarStatusProjetoFromDetail(id: string, status: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("projetos");
   const registro = await prisma.projeto.findUnique({ where: { id } });
   exigirConfiguracaoParaStatus(registro, status, ["tipo", "engenheiro", "valorProjeto"], PROJETO_STATUS_CONFIG);
   await prisma.projeto.update({ where: { id }, data: { status } });
@@ -47,8 +42,7 @@ export async function alterarStatusProjetoFromDetail(id: string, status: string)
 /** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirProjeto(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirAdminAtivo();
     const r = await excluirServicoDefinitivo("projeto", id);
     revalidatePath("/admin/projetos");
     revalidatePath("/admin/leads");
@@ -59,8 +53,7 @@ export async function excluirProjeto(id: string) {
 /** Cancelar mantém o registro e o histórico; só muda a situação. */
 export async function cancelarProjeto(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirModuloAcao("projetos");
     const r = await prisma.projeto.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
     revalidatePath("/admin/projetos");
     return { cancelado: r.count > 0 };
@@ -68,8 +61,7 @@ export async function cancelarProjeto(id: string) {
 }
 
 async function editarProjetoImpl(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("projetos");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
     const atual = await tx.projeto.findUnique({ where: { id }, select: { leadId: true, status: true, engenheiro: true } });

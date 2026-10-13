@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import { podeSerResponsavel, rotuloResponsavel } from "../crm/responsavel";
 
 describe("podeSerResponsavel", () => {
-  it("aceita admin, colaborador e corretor ativos", () => {
-    for (const papel of ["admin", "colaborador", "corretor"]) {
+  it("aceita admin e colaborador ativos", () => {
+    for (const papel of ["admin", "colaborador"]) {
       expect(podeSerResponsavel({ papel, ativo: true })).toBe(true);
     }
+  });
+
+  it("item 04: corretor nunca é responsável operacional do CRM", () => {
+    expect(podeSerResponsavel({ papel: "corretor", ativo: true })).toBe(false);
+    expect(podeSerResponsavel({ papel: "empreiteiro", ativo: true })).toBe(false);
   });
 
   it("recusa cliente, inativo ou inexistente", () => {

@@ -1,7 +1,6 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { criarBpoCliente } from "@/lib/actions/bpo";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
@@ -15,8 +14,7 @@ const SERVICOS = [
 ];
 
 export default async function NovoBpoClientePage() {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("bpo");
 
   return (
     <div className="max-w-2xl space-y-5">

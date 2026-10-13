@@ -28,14 +28,16 @@ const valoresBase = {
 describe("obra-financeiro — permissões", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it.each([null, { user: { id: "c", role: "colaborador" } }, { user: { id: "e", role: "empreiteiro" } }, { user: { id: "k", role: "corretor" } }])(
-    "bloqueia quem não é admin (%o)",
+  // Item 06: colaborador só com o módulo Obras liberado; empreiteiro e corretor nunca.
+  it.each([null, { user: { id: "c", role: "colaborador", permissoes: ["leads"] } }, { user: { id: "e", role: "empreiteiro" } }, { user: { id: "k", role: "corretor" } }])(
+    "bloqueia quem não tem o módulo Obras (%o)",
     async (sessao) => {
       auth.mockResolvedValue(sessao);
       const a = await import("@/lib/actions/obra-financeiro");
-      await expect(a.salvarValoresObra(valoresBase)).rejects.toThrow("Não autorizado");
-      await expect(a.adicionarMovimentoObra({ obraId: "o1", natureza: "entrada", descricao: "Sinal", valor: "10", data: "2026-10-01" })).rejects.toThrow("Não autorizado");
-      await expect(a.cancelarMovimentoObra("m1", "motivo")).rejects.toThrow("Não autorizado");
+      const negado = /Não autorizado|Sem permissão/;
+      await expect(a.salvarValoresObra(valoresBase)).rejects.toThrow(negado);
+      await expect(a.adicionarMovimentoObra({ obraId: "o1", natureza: "entrada", descricao: "Sinal", valor: "10", data: "2026-10-01" })).rejects.toThrow(negado);
+      await expect(a.cancelarMovimentoObra("m1", "motivo")).rejects.toThrow(negado);
       expect(prisma.obra.update).not.toHaveBeenCalled();
       expect(prisma.obraMovimento.create).not.toHaveBeenCalled();
     },

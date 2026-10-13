@@ -1,12 +1,10 @@
-import { auth } from "@/auth";
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { progressoDaObra } from "@/lib/financeiro/progresso";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { ObrasClient } from "./_components/obras-client";
 
 export default async function ObrasPage() {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("obras");
 
   const registros = await prisma.obra.findMany({
     orderBy: { criadoEm: "desc" },

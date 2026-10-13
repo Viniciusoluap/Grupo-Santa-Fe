@@ -1,8 +1,11 @@
 // Responsável pelo lead = usuário real do sistema (EPIC-007 S-08). Nunca nomes
 // fixos no código: a lista vem de `usuarios`, filtrada por estas regras.
 
-/** Papéis internos que podem responder por um atendimento (cliente não). */
-export const PAPEIS_RESPONSAVEL = ["admin", "colaborador", "corretor"] as const;
+/**
+ * Item 04: responsável operacional do CRM = Admin ou Colaborador ativo (ou ninguém).
+ * Corretor não entra aqui: ele aparece só no campo separado "Corretor vinculado".
+ */
+export const PAPEIS_RESPONSAVEL = ["admin", "colaborador"] as const;
 
 const ROTULO_PAPEL: Record<string, string> = {
   admin: "Admin",

@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Calendar } from "lucide-react";
@@ -8,6 +9,7 @@ import { formatCurrency, formatTelefone } from "@/lib/utils";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function CorretorDetailPage({ params }: PageProps) {
+  await exigirModuloPagina("corretores");
   const { id } = await params;
   const c = await prisma.corretor.findUnique({
     where: { id },

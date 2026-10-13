@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
@@ -22,6 +23,7 @@ const bairros = [
 ];
 
 export default async function NovoImovelPage() {
+  await exigirModuloPagina("imoveis");
   const corretores = await prisma.corretor.findMany({
     where: { ativo: true },
     orderBy: { nome: "asc" },

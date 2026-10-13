@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -8,6 +9,7 @@ import { WhatsAppClient } from "./_components/whatsapp-client";
 type SessionUser = { id?: string; role?: string; corretorId?: string };
 
 export default async function WhatsAppPage() {
+  await exigirModuloPagina("whatsapp");
   const session = await auth();
   if (!session) redirect("/login");
 

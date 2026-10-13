@@ -1,6 +1,5 @@
 "use server";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 
 import { prisma } from "@/lib/db";
 import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
@@ -29,8 +28,7 @@ function lerNegocioEValor(formData: FormData) {
 // conseguia alterar o valor, reatribuir para outro corretorId, ou marcar
 // qualquer comissao (inclusive de outro corretor) como paga.
 export async function criarComissao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("comissoes", { somenteEquipe: true });
   const vencimentoStr = formData.get("vencimento") as string;
   const pagamentoStr = formData.get("pagamentoEm") as string;
   const beneficiario = (formData.get("beneficiario") as string) || "corretor";
@@ -54,8 +52,7 @@ export async function criarComissao(formData: FormData) {
 }
 
 export async function editarComissao(formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("comissoes", { somenteEquipe: true });
   const id = formData.get("id") as string;
   const vencimentoStr = formData.get("vencimento") as string;
   const pagamentoStr = formData.get("pagamentoEm") as string;
@@ -83,8 +80,7 @@ export async function editarComissao(formData: FormData) {
 /** Exclusão definitiva (item 03); comissão paga é registro contábil: cancele/estorne. */
 export async function excluirComissao(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirAdminAtivo();
     const r = await excluirServicoDefinitivo("comissao", id);
     revalidatePath("/admin/comissoes");
     return r;
@@ -92,8 +88,7 @@ export async function excluirComissao(id: string) {
 }
 
 export async function alterarStatusComissao(id: string, status: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("comissoes", { somenteEquipe: true });
   await prisma.comissao.update({
     where: { id },
     data: {

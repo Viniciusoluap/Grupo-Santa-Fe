@@ -1,7 +1,6 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import Link from "next/link";
 import { Mountain, Plus, MapPin } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { EstudoAcoes } from "./_components/estudo-acoes";
@@ -19,8 +18,7 @@ function hectares(m2: number): string {
 }
 
 export default async function IncorporacaoPage({ searchParams }: { searchParams: Promise<{ situacao?: string }> }) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("incorporacao");
   const filtro = (await searchParams).situacao ?? "todas";
 
   const estudos = await prisma.estudoIncorporacao.findMany({

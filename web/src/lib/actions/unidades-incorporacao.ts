@@ -1,17 +1,14 @@
 "use server";
 
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { capturarErroAcao } from "@/lib/acao-resultado";
-import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { chaveUnidade, vendasLegadas } from "@/lib/incorporacao/unidades";
 import { revalidatePath } from "next/cache";
 
 async function admin() {
-  const session = await auth(); requireActionRole(session, "admin");
-  const id = (session!.user as { id?: string }).id;
-  if (!id) throw new Error("Não autorizado.");
-  return id;
+  const usuario = await exigirModuloAcao("incorporacao");
+  return usuario.id;
 }
 
 function validarEstudo(estudo: { tipoIncorporacao: string | null; lancamentoImobiliarioJson: string | null } | null) {

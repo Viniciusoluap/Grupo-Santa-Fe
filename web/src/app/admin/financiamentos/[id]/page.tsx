@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +13,7 @@ interface PageProps { params: Promise<{ id: string }> }
 const stageOrder: FinanciamentoStatus[] = ["pre_analise", "documentacao", "analise_banco", "aprovado", "contrato", "registro", "liberado"];
 
 export default async function FinanciamentoDetailPage({ params }: PageProps) {
+  await exigirModuloPagina("financiamentos");
   const { id } = await params;
   await financiamentoDoAtor(id);
   const f = await prisma.financiamento.findUnique({

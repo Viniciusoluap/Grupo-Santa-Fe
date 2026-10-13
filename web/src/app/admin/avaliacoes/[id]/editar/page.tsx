@@ -1,8 +1,7 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { editarAvaliacao } from "@/lib/actions/avaliacoes";
@@ -14,8 +13,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditarAvaliacaoPage({ params }: PageProps) {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("avaliacao");
 
   const { id } = await params;
   const [a, leads] = await Promise.all([

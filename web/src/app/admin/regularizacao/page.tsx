@@ -1,11 +1,9 @@
-import { auth } from "@/auth";
-import { requirePageRole } from "@/lib/auth/rbac";
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { RegularizacaoClient } from "./_components/regularizacao-client";
 
 export default async function RegularizacaoPage() {
-  const session = await auth();
-  requirePageRole(session, "admin");
+  await exigirModuloPagina("regularizacao");
 
   const regularizacoes = await prisma.regularizacao.findMany({
     orderBy: { criadoEm: "desc" },

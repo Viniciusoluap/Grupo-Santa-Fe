@@ -1,6 +1,6 @@
 "use server";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 import { TIPO_CONFIG, BANCO_CONFIG, STATUS_CONFIG } from "@/lib/types/financiamento";
 import { exigirConfiguracaoParaStatus, textoObrigatorio, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { obterAtorCrm } from "@/lib/crm/acesso-lead";
@@ -26,8 +26,7 @@ export async function criarFinanciamento(_formData: FormData): Promise<never> {
 /** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirFinanciamento(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirAdminAtivo();
     const r = await excluirServicoDefinitivo("financiamento", id);
     revalidatePath("/admin/financiamentos");
     revalidatePath("/admin/leads");
@@ -38,8 +37,7 @@ export async function excluirFinanciamento(id: string) {
 /** Cancelar mantém o registro e o histórico; só muda a situação. */
 export async function cancelarFinanciamento(id: string) {
   return capturarErroAcao(async () => {
-    const session = await auth();
-    requireActionRole(session, "admin");
+    await exigirModuloAcao("financiamentos");
     const r = await prisma.financiamento.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
     revalidatePath("/admin/financiamentos");
     return { cancelado: r.count > 0 };
@@ -47,7 +45,7 @@ export async function cancelarFinanciamento(id: string) {
 }
 
 export async function editarFinanciamento(formData: FormData) {
-  const ator = await obterAtorCrm();
+  const ator = await obterAtorCrm("financiamentos");
   const id = textoObrigatorio(formData, "id");
   await transacaoCRM(async (tx) => {
     const atual = await tx.financiamento.findFirst({ where: { id, ...escopoFinanciamentosDoAtor(ator) } });

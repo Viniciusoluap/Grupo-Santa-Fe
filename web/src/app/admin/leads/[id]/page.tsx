@@ -1,3 +1,4 @@
+import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
@@ -23,6 +24,7 @@ interface PageProps {
 const statusOrder = LEAD_STAGES.map((s) => [s, LEAD_STAGE_CONFIG[s]] as const);
 
 export default async function LeadDetailPage({ params, searchParams }: PageProps) {
+  await exigirModuloPagina("leads");
   const ator = await obterAtorCrm();
   const { id } = await params;
   // Serviços cuja criação automática falhou no último cadastro/edição do lead.

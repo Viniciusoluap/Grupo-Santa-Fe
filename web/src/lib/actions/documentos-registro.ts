@@ -1,8 +1,8 @@
 "use server";
 
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { auth } from "@/auth";
-import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { diagnosticarDrive, driveRegistroConfigurado, hashDocumento, tentarUploadDrive, uploadDocumentoRegistro } from "@/lib/incorporacao/registro-drive";
@@ -10,7 +10,7 @@ import { itemRegistroValido, LIMITE_DOCUMENTO_REGISTRO, mimeDocumentoRegistro } 
 
 async function administrador() {
   const session = await auth();
-  requireActionRole(session, "admin");
+  await exigirModuloAcao("incorporacao");
   const id = (session!.user as { id?: string }).id;
   if (!id) throw new Error("Não autorizado.");
   return id;
