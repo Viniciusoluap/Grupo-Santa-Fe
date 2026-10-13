@@ -82,8 +82,10 @@ Merge, deploy e migrações em produção continuam dependendo de autorização 
 | 09 | **Concluído no código** (`50d775f`) — falta validar em produção | **Concluído no código** (`b3f7931`) — idem |
 | 10 | BLOQUEADO (aguarda autorização) | Referência |
 
-"Concluído no código" = commit na branch `claude/sync-mirrored-repos-bsqnz3` com testes;
-**nada mesclado, publicado ou migrado em produção.**
+**Publicado em produção em 13/10/2026** (autorização do proprietário: "Merge + migrações + deploy"):
+Prospecta PR #111 → `main` `adf2b09`, deploy `dpl_48M6sdpBKpMNqK6tEk4F57idBTGQ` READY;
+Santa Fé PR #180 → `main` `3868f33`, deploy `dpl_8ZM2x3iUNduwULVbQajQXV2ABNwV` READY.
+Itens 01–09 estão em produção; o 10 continua bloqueado.
 
 ## 4. Registro por implementação
 
@@ -196,13 +198,24 @@ Merge, deploy e migrações em produção continuam dependendo de autorização 
   `obras-filtro`, `perfis-acesso`); diferenças só as previstas (04 só Santa Fé; 08 só Prospecta;
   corretor usa o painel com 4 módulos no Santa Fé e o Portal do Corretor + Agenda/WhatsApp na Prospecta).
 
-### Migrações pendentes de aplicação em produção (todas aditivas; dependem de autorização)
-- Prospecta: `drizzle/0048_document_db_storage.sql`, `drizzle/0049_project_engineer_user.sql`.
-- Santa Fé: `20261013200000_documentos_armazenamento_banco`, `20261013210000_projeto_engenheiro_usuario`,
-  `20261013220000_usuario_cliente_lead`.
+### Publicação (13/10/2026)
+- **Pré-verificação em produção (somente leitura):** nenhuma coluna/tabela nova existia; 0 documentos nas
+  tabelas afetadas. Usuários reais conferidos com a regra nova: os 2 colaboradores do Santa Fé mantêm
+  os módulos que já tinham (Incorporação, BPO e Jurídico já eram só do admin; o **Mapa** não está nas
+  permissões deles — o admin libera em Configurações → Usuários se quiser). Os 3 corretores do Santa Fé
+  têm cadastro de corretor ativo. Na Prospecta, permissões gravadas para corretor/cliente/empreiteiro
+  passam a ser ignoradas (regra do item 06); o colaborador com só "projetos" vê só Projetos.
+- **Migrações aplicadas antes do merge:** Supabase (`apply_migration`) `documentos_armazenamento_banco`,
+  `projeto_engenheiro_usuario`, `usuario_cliente_lead` (0 contas de cliente para vincular por e-mail);
+  Neon (transação única) 0048 e 0049, registradas em `drizzle.__drizzle_migrations` (ids 37 `778fce1e…`
+  e 38 `0cdd3d6e…`). Conferido depois: 6 colunas + 2 tabelas (Neon), 6 colunas + 4 restrições +
+  `driveFileId` opcional (Supabase); contagens de leads/projetos/usuários inalteradas.
+- **Merge** (squash) dos PRs #111 e #180 e **deploy de produção READY** nos dois. Verificação sem login:
+  `/login` responde nos dois; `/portal` do Santa Fé sem sessão vai para o login; sem erros de execução
+  na Vercel após a publicação.
 
 ### Próximo passo exato
-1. Aguardar autorização do proprietário para: (a) merge dos PRs Prospecta #111 e Santa Fé #180,
-   (b) aplicar as migrações acima, (c) deploy. Depois: clicar "Testar Google Drive" em produção e
-   repetir o teste de acesso por perfil.
+1. **Validar com login real em produção (proprietário):** clicar "Testar Google Drive" (Prospecta:
+   Documentos do lead; Santa Fé: Registro da incorporação) e corrigir a configuração do Google
+   conforme o motivo exibido; conferir o menu de um colaborador e de um corretor.
 2. **Item 10 (Incorporação em 5 fases, Prospecta) — BLOQUEADO:** só iniciar com nova autorização expressa.
