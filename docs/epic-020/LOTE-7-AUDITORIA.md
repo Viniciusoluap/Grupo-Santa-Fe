@@ -14,7 +14,7 @@ A matriz foi atualizada linha por linha: 01–04 e 27–31 deixaram o status obs
 
 ## C. Testes de regra A–G
 
-Testes automatizados existentes cobrem cálculos financeiros, comissão, progresso, concorrência e regularização. Prospecta: 682/682 testes, TypeScript e build Vite/esbuild aprovados neste lote. Santa Fé: 565/565 testes, TypeScript, geração Prisma e lint dos arquivos modificados aprovados; compilação Next e checagem TypeScript passaram, mas prerender local sem banco falhou com `ECONNREFUSED`. Previews Vercel anteriores à última revisão estavam READY. Ainda falta repetir o estado READY no head final.
+Testes automatizados existentes cobrem cálculos financeiros, comissão, progresso, concorrência e regularização. Prospecta: 682/682 testes, TypeScript e build Vite/esbuild aprovados neste lote. Santa Fé: 565/565 testes, TypeScript, geração Prisma e lint dos arquivos modificados aprovados; compilação Next e checagem TypeScript passaram, mas prerender local sem banco falhou com `ECONNREFUSED`. Previews de implementação foram READY. Commits posteriores ajustaram o limite de 3 MiB, o separador da migration e os handoffs; conferir o estado do último head antes do merge.
 
 ## D. Teste H — isolamento interempresas e entre clientes
 
@@ -44,7 +44,7 @@ Nenhuma operação de exclusão foi feita neste lote. A migration 0047 é aditiv
 
 ## J. Publicação
 
-PRs #109 e #178 em rascunho. Previews do head final READY: Prospecta `d38d3ee`/`dpl_AnD16ntdGnQ6ELxSEbYXSvziwEHp`; Santa Fé `574b2c9`/`dpl_8AgDR2GhSKJtE2E8Xdj9GyoLCE95`. Home Prospecta respondeu HTTP 200; `/portal/obras` Santa Fé sem sessão apresenta login (HTTP 200 após redirecionamento). Sem merge e sem deploy de produção deste lote neste checkpoint. Antes de publicar: smoke autenticado das rotas afetadas, testar upload/consulta privado e revisitar a remoção faseada de D-03.
+PRs #109 e #178 em rascunho. Previews de implementação READY: Prospecta `d38d3ee`/`dpl_AnD16ntdGnQ6ELxSEbYXSvziwEHp`; Santa Fé `574b2c9`/`dpl_8AgDR2GhSKJtE2E8Xdj9GyoLCE95`. Home Prospecta respondeu HTTP 200; `/portal/obras` Santa Fé sem sessão apresenta login (HTTP 200 após redirecionamento). Sem merge e sem deploy de produção deste lote neste checkpoint. Antes de publicar: smoke autenticado das rotas afetadas, testar upload/consulta privado e revisitar a remoção faseada de D-03.
 
 ## K. Pendências reais
 
