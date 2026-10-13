@@ -71,14 +71,14 @@ Merge, deploy e migrações em produção continuam dependendo de autorização 
 
 | ID | Prospecta | Santa Fé |
 |---|---|---|
-| 01 | Pendente (exclusão de obra já no servidor, item 03; falta tela + filtros) | Pendente (exclusão real pronta pelo item 03; faltam filtros) |
+| 01 | **Concluído no código** (`1c18ed8`) | **Concluído no código** (`3de3f9a`) |
 | 02 | Pendente | Parcial (login único já existe) |
 | 03 | **Concluído no código** (`644a941`) | **Concluído no código** (`36c37c2`) |
 | 04 | Não aplicável | Pendente |
 | 05 | Pendente | Pendente |
 | 06 | Parcial (módulos por colaborador já existem) | Parcial (idem) |
-| 07 | A verificar | Pendente (causa localizada) |
-| 08 | Pendente (arquivos localizados) | Não aplicável |
+| 07 | **Concluído no código** (`e6f4fe7`) | **Concluído no código** (`4b2360b`) |
+| 08 | **Concluído no código** (`861a767`) | Não aplicável |
 | 09 | **Concluído no código** (`50d775f`) — falta validar em produção | **Concluído no código** (`b3f7931`) — idem |
 | 10 | BLOQUEADO (aguarda autorização) | Referência |
 
@@ -130,6 +130,31 @@ Merge, deploy e migrações em produção continuam dependendo de autorização 
   integração local (4) fora do repositório (driver neon-http não conecta em Postgres local).
   Suítes: Santa Fé 583 ok; Prospecta 697 ok (antes do teste novo).
 
+### 01 — Obras: filtros e exclusão (concluído no código)
+- Filtro comum `Prospecta/shared/obras-filtro.ts` = `Grupo-Santa-Fe/web/src/lib/obras-filtro.ts`
+  (`filtrarObras`, `filtrosAtivos`, `FILTROS_OBRAS_VAZIOS`): nome, cliente, código, situação,
+  responsável, origem CRM, período de execução (sobreposição), data de criação, ordenação A–Z/Z–A/
+  recentes/antigas, limpar — todos combinados. Testes: `obras-filtro.test.ts` (8) nos dois.
+- Santa Fé `app/admin/obras` (código `OB-XXXXXX`); Prospecta `client/src/pages/AdminObras.tsx`
+  (código `#id`; `construction.allProjects` agora traz cliente, empreiteiro e responsável do CRM).
+- Exclusão/cancelamento: componentes do item 03 nas duas listas.
+
+### 07 — Projetos (concluído no código)
+- Causa do "types → too_small": no Prospecta o formulário fazia `projectInput.parse` no navegador e
+  o ZodError aparecia como JSON. Agora: validação antes de enviar + `shared/erro-validacao.ts`
+  (`mensagemValidacao`) + `errorFormatter` do tRPC (nenhum erro de validação vira JSON).
+  No Santa Fé a action lançava erro e a página quebrava: agora formulário cliente
+  (`projetos/[id]/editar/_components/editar-projeto-form.tsx`) com erro na tela e dados preservados.
+- Engenheiro = colaborador/admin ativo por ID (busca + select), nome exibido do cadastro, texto
+  antigo preservado, campo CREA/CAU. Migrações aditivas: Prospecta `0049_project_engineer_user.sql`;
+  Santa Fé `20261013210000_projeto_engenheiro_usuario`. Testadas localmente; **não aplicadas em produção**.
+- Tipos de projeto no Prospecta viram a mesma lista do Santa Fé (`PROJECT_TYPE_LABELS`).
+
+### 08 — E-mails da Prospecta (concluído no código)
+- `shared/email-identidade.ts`: "Prospecta Construções - VFX Capital", `rodapeEmail()` com ano atual;
+  remetente, assuntos e rodapés de todos os templates. Endereço/SMTP inalterados.
+  Teste `server/email-identidade.test.ts` (11).
+
 ### Próximo passo exato
-Item 01 (obras: filtros combinados nos dois + tela de exclusão no Prospecta), depois Lote 2
-(02, 04, 05, 06), depois 07 e 08, depois Lote 6. Não iniciar o item 10.
+Lote 2 (02 login, 04 responsável CRM, 05 cinco perfis, 06 permissões), depois Lote 6
+(testes integrados e paridade). Não iniciar o item 10 sem nova autorização.
