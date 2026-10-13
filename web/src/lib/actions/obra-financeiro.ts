@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { centavosDe, reaisDeCentavos } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
+import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 
 // EPIC-020 Lote 2 — ações financeiras da obra (somente admin), com as mesmas
 // regras da API `obraFinanceiro` da Prospecta. Os campos calculados não são
@@ -16,7 +17,9 @@ const PERCENTUAL = /^\d{1,3}(\.\d{1,6})?$/;
 const TAXA = /^\d{1,3}(\.\d{1,4})?$/;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const NATUREZAS = ["entrada", "recebimento_cef", "pagamento"] as const;
-const CATEGORIAS = ["terreno", "comissao", "empreiteiro", "fornecedor", "outros"] as const;
+const CATEGORIAS = ["terreno", "comissao", "empreiteiro", "fornecedor", "outros", "mao_de_obra", "material"] as const;
+// Etapas da obra = serviços da Medição por serviço (pedido de 13/10/2026).
+const ETAPAS = new Set(SERVICOS_PROGRESSO.map((s) => s.chave));
 
 const MENSAGENS_BANCO: Record<string, string> = {
   BPO_ALOCACAO_EXCEDIDA: "Este lançamento do BPO já está totalmente alocado (ou o valor ultrapassa o disponível).",
@@ -200,6 +203,7 @@ export interface NovoMovimentoInput {
   obraId: string;
   natureza: (typeof NATUREZAS)[number];
   categoria?: (typeof CATEGORIAS)[number];
+  etapa?: string;
   descricao: string;
   valor: string;
   data: string;
@@ -213,6 +217,8 @@ export async function adicionarMovimentoObra(input: NovoMovimentoInput): Promise
   if ((input.natureza === "pagamento") !== !!input.categoria)
     return { ok: false, erro: input.natureza === "pagamento" ? "Informe a categoria do pagamento." : "Recebimentos não têm categoria." };
   if (input.categoria && !CATEGORIAS.includes(input.categoria)) return { ok: false, erro: "Categoria inválida." };
+  if (input.etapa && input.natureza !== "pagamento") return { ok: false, erro: "Só pagamentos têm etapa da obra." };
+  if (input.etapa && !ETAPAS.has(input.etapa)) return { ok: false, erro: "Etapa inválida." };
   if (!DINHEIRO.test(input.valor ?? "") || Number(input.valor) <= 0) return { ok: false, erro: "O valor deve ser maior que zero." };
   if (!DATA.test(input.data ?? "")) return { ok: false, erro: "Data inválida." };
   const descricao = input.descricao?.trim();
@@ -223,6 +229,7 @@ export async function adicionarMovimentoObra(input: NovoMovimentoInput): Promise
         obraId: input.obraId,
         natureza: input.natureza,
         categoria: input.natureza === "pagamento" ? input.categoria : null,
+        etapa: input.natureza === "pagamento" ? input.etapa || null : null,
         descricao: descricao.slice(0, 255),
         valor: input.valor,
         data: new Date(`${input.data}T00:00:00.000Z`),

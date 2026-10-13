@@ -115,7 +115,7 @@ function pct(v: string | number | null | undefined, casas = 2): string {
 }
 
 const CATEGORIAS: Record<string, string> = {
-  terreno: "Terreno", comissao: "Comissão", empreiteiro: "Empreiteiro", fornecedor: "Fornecedor", outros: "Outros", nao_detalhado: "Não detalhado",
+  terreno: "Terreno", comissao: "Comissão", empreiteiro: "Empreiteiro", fornecedor: "Fornecedor", outros: "Outros", nao_detalhado: "Não detalhado", mao_de_obra: "Mão de obra", material: "Material",
 };
 const ORIGENS: Record<string, string> = { manual: "Manual", bpo: "BPO", migracao: "Migração" };
 const STATUS_COMISSAO: Record<string, string> = { dados_incompletos: "Dados incompletos", pendente: "Pendente", parcial: "Paga parcialmente", paga: "Paga" };

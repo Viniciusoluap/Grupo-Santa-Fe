@@ -6,6 +6,7 @@ import { AlertTriangle, Ban, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide
 import { calcularObra, centavosDe, lerPercentualDigitado, type Indicador, type Natureza, type ResultadoObra } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import type { MovimentoResumo, ResumoObra } from "@/lib/financeiro/obra-dados";
+import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 import { parseNumeroBR } from "@/lib/utils";
 import {
   adicionarMovimentoObra,
@@ -174,7 +175,10 @@ export function Alertas({ calculo }: { calculo: ResultadoObra }) {
 const ORIGEM: Record<string, string> = { manual: "Manual", bpo: "BPO", migracao: "Migrado" };
 const CATEGORIA: Record<string, string> = {
   terreno: "Terreno", comissao: "Comissão", empreiteiro: "Empreiteiro", fornecedor: "Fornecedor", outros: "Outros", nao_detalhado: "Não detalhado (migrado)",
+  mao_de_obra: "Mão de obra", material: "Material",
 };
+const CATEGORIAS_PAGAMENTO = ["empreiteiro", "terreno", "comissao", "fornecedor", "outros", "mao_de_obra", "material"] as const;
+const ETAPA: Record<string, string> = Object.fromEntries(SERVICOS_PROGRESSO.map((s) => [s.chave, s.nome]));
 
 function Historico({ titulo, movimentos }: { titulo: string; movimentos: MovimentoResumo[] }) {
   const router = useRouter();
@@ -207,6 +211,7 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
                   <td className="p-2">
                     {m.descricao}
                     {m.categoria && <span className="ml-2 text-[10px] uppercase text-gray-400">{CATEGORIA[m.categoria]}</span>}
+                    {m.etapa && <span className="ml-2 text-[10px] uppercase text-gray-400">· {ETAPA[m.etapa] ?? m.etapa}</span>}
                     {m.observacao && <span className="block text-xs text-gray-400">{m.observacao}</span>}
                     {m.bpo && <span className="block text-xs text-gray-400">BPO: {m.bpo.descricao}{!m.bpo.pago ? " — não está mais pago!" : ""}</span>}
                     {m.status === "cancelado" && m.motivoCancelamento && <span className="block text-xs text-red-500">Cancelado: {m.motivoCancelamento}</span>}
@@ -254,6 +259,7 @@ function NovoMovimento({ obraId, natureza, rotulo }: { obraId: string; natureza:
   const [data, setData] = useState(hoje);
   const [observacao, setObservacao] = useState("");
   const [categoria, setCategoria] = useState("empreiteiro");
+  const [etapa, setEtapa] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, start] = useTransition();
   useEffect(() => {
@@ -273,11 +279,19 @@ function NovoMovimento({ obraId, natureza, rotulo }: { obraId: string; natureza:
           </select>
         </label>
         {natureza === "pagamento" && (
-          <label className={labelCls}>Categoria
-            <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={`${inputCls} mt-1 normal-case font-normal`}>
-              {["empreiteiro", "terreno", "comissao", "fornecedor", "outros"].map((c) => <option key={c} value={c}>{CATEGORIA[c]}</option>)}
-            </select>
-          </label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className={`${labelCls} min-w-0`}>Categoria
+              <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={`${inputCls} mt-1 normal-case font-normal`}>
+                {CATEGORIAS_PAGAMENTO.map((c) => <option key={c} value={c}>{CATEGORIA[c]}</option>)}
+              </select>
+            </label>
+            <label className={`${labelCls} min-w-0`}>Etapa
+              <select value={etapa} onChange={(e) => setEtapa(e.target.value)} className={`${inputCls} mt-1 normal-case font-normal`}>
+                <option value="">Sem etapa</option>
+                {SERVICOS_PROGRESSO.map((s) => <option key={s.chave} value={s.chave}>{s.nome}</option>)}
+              </select>
+            </label>
+          </div>
         )}
         {origem === "bpo" && (
           <label className={labelCls}>Lançamento do BPO (pago)
@@ -305,11 +319,12 @@ function NovoMovimento({ obraId, natureza, rotulo }: { obraId: string; natureza:
             const r = await adicionarMovimentoObra({
               obraId, natureza, descricao, valor: valor!, data,
               categoria: natureza === "pagamento" ? (categoria as "empreiteiro") : undefined,
+              etapa: natureza === "pagamento" && etapa ? etapa : undefined,
               observacao: observacao || undefined,
               bpoLancamentoId: origem === "bpo" ? bpoId : undefined,
             });
             if (!r.ok) return setErro(r.erro);
-            setAberto(false); setDescricao(""); setValor(null); setObservacao(""); setBpoId(""); setBpo(null); setOrigem("manual"); setData(hoje);
+            setAberto(false); setDescricao(""); setValor(null); setObservacao(""); setBpoId(""); setBpo(null); setOrigem("manual"); setData(hoje); setEtapa("");
             router.refresh();
           })}
           className="w-full bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase py-2.5 disabled:opacity-50">
