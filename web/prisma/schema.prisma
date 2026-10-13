@@ -366,6 +366,11 @@ model Projeto {
   clienteNome  String
   clienteTel   String
   engenheiro   String?
+  /// Item 07: colaborador (ou admin) ativo vinculado como engenheiro; `engenheiro` guarda o nome exibido.
+  engenheiroId String?
+  engenheiroUsuario Usuario? @relation("ProjetoEngenheiro", fields: [engenheiroId], references: [id], onDelete: SetNull)
+  /// CREA/CAU ou outra habilitação técnica, quando necessária.
+  engenheiroRegistro String? @db.VarChar(60)
   valorProjeto Float?
   valorPago    Float     @default(0)
   prazoEntrega DateTime?
@@ -665,6 +670,7 @@ model Avaliacao {
 model Usuario {
   id                         String           @id @default(cuid())
   obrasComoEmpreiteiro       Obra[]           @relation("ObraEmpreiteiro")
+  projetosComoEngenheiro     Projeto[]        @relation("ProjetoEngenheiro")
   nome                       String
   email                      String           @unique
   senha                      String
