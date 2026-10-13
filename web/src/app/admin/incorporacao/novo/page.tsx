@@ -4,6 +4,7 @@ import { criarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
 import { SeletorLocalizacao } from "../_components/seletor-localizacao";
 import { CadastroFormalFields } from "../_components/cadastro-formal-fields";
+import { TIPOS_INCORPORACAO } from "@/lib/incorporacao/tipo-estudo";
 
 export default async function NovoEstudoPage() {
   const session = await auth();
@@ -18,6 +19,13 @@ export default async function NovoEstudoPage() {
       </div>
 
       <form action={criarEstudo} className="bg-white border border-gray-100 p-5 space-y-4">
+        <div>
+          <label htmlFor="tipo-incorporacao" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Tipo de incorporação *</label>
+          <select id="tipo-incorporacao" name="tipoIncorporacao" required defaultValue="" className="w-full text-sm border border-gray-200 px-3 py-2 bg-white text-[var(--brand-dark)]">
+            <option value="" disabled>Selecione o tipo</option>
+            {TIPOS_INCORPORACAO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
+          </select>
+        </div>
         <div>
           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome do estudo *</label>
           <input name="nome" required placeholder="Ex.: Loteamento Jardim das Palmeiras"

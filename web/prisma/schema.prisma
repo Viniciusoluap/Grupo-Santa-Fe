@@ -601,6 +601,7 @@ model Usuario {
   corretor                   Corretor?
   leadsResponsavel           Lead[]           @relation("LeadResponsavel")
   atualizadoEm               DateTime         @updatedAt
+  eventosUnidadesIncorporacao EstudoUnidadeEvento[]
 
   @@map("usuarios")
 }
@@ -709,7 +710,10 @@ model EstudoIncorporacao {
   latitude      Float?   // localização exata (Google Maps)
   longitude     Float?
   responsavel   String?
-  status        String   @default("rascunho") // rascunho | em_estudo | concluido
+  status        String   @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
+  tipoIncorporacao String? // legado NULL: não inferir tipo pelo nome ou pelo status
+  dueDiligenceJson String?
+  unidades      EstudoUnidade[]
   matriculaImovel String?
   carRegistro String?
   zoneamentoOficial String?
@@ -776,6 +780,7 @@ model EstudoIncorporacao {
 
   // Registro da Incorporação (3.4 Incorporação e Produto)
   registroIncorporacaoJson String?
+  documentosRegistro EstudoDocumentoRegistro[]
 
   // Orçamento Preliminar e EVE (3.5 Incorporação e Produto)
   orcamentoPreliminarJson String?
@@ -837,6 +842,64 @@ model EstudoIncorporacaoVersao {
   @@unique([estudoId, numero])
   @@index([estudoId, criadoEm])
   @@map("estudos_incorporacao_versoes")
+}
+
+// Referências privadas ao Google Drive; versões substituídas/desvinculadas
+// permanecem na trilha de auditoria sem publicar ou apagar o arquivo remoto.
+model EstudoDocumentoRegistro {
+  id             String   @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
+  itemId         String   @db.VarChar(80)
+  driveFileId    String   @unique
+  nome           String   @db.VarChar(255)
+  mime           String   @db.VarChar(100)
+  tamanho        Int
+  sha256         String   @db.VarChar(64)
+  enviadoPorId   String
+  enviadoEm      DateTime @default(now())
+  ativo          Boolean  @default(true)
+  desvinculadoEm DateTime?
+  desvinculadoPorId String?
+
+  @@index([estudoId, itemId, ativo])
+  @@map("estudo_documentos_registro")
+}
+
+model EstudoUnidade {
+  id             String @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
+  codigo         String @db.VarChar(120)
+  codigoChave    String @db.VarChar(120)
+  tipo           String @db.VarChar(40)
+  status         String @default("disponivel") @db.VarChar(20)
+  comprador      String? @db.VarChar(255)
+  valorVenda     Decimal? @db.Decimal(15, 2)
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+  eventos        EstudoUnidadeEvento[]
+
+  @@unique([estudoId, codigoChave])
+  @@map("estudo_unidades")
+}
+
+model EstudoUnidadeEvento {
+  id             String @id @default(cuid())
+  unidadeId      String
+  unidade        EstudoUnidade @relation(fields: [unidadeId], references: [id], onDelete: Restrict)
+  statusAnterior String? @db.VarChar(20)
+  statusNovo     String @db.VarChar(20)
+  comprador      String? @db.VarChar(255)
+  valorVenda     Decimal? @db.Decimal(15, 2)
+  vendaLegadaId  String? @db.VarChar(120)
+  usuarioId      String
+  usuario        Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  criadoEm       DateTime @default(now())
+
+  @@index([unidadeId, criadoEm])
+  @@unique([unidadeId, vendaLegadaId])
+  @@map("estudo_unidades_eventos")
 }
 
 // ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────
