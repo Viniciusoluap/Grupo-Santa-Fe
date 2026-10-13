@@ -83,14 +83,6 @@ export function SeletorLocalizacao({
       if (cancelled || !ref.current) return;
       LRef.current = L;
 
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
-
       if (mapRef.current) {
         (mapRef.current as import("leaflet").Map).remove();
         mapRef.current = null;

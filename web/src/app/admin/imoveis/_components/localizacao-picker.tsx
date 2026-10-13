@@ -80,9 +80,9 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconUrl: "/leaflet/marker-icon.png",
+        iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+        shadowUrl: "/leaflet/marker-shadow.png",
       });
 
       const yellowIcon = L.divIcon({
@@ -188,7 +188,6 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
         <p className="text-xs text-gray-400 mb-2">Clique no mapa para marcar ou cole o link acima</p>
       )}
 
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <div ref={mapRef} style={{ height: "280px", width: "100%" }} className="z-0 border border-gray-200" />
     </div>
   );

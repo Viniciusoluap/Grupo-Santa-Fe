@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Home, FileText, CalendarDays, MessageSquare, LogOut } from "lucide-react";
+import { Home, FileText, CalendarDays, MessageSquare, LogOut, HardHat } from "lucide-react";
 import { auth } from "@/auth";
 
 const portalNav = [
   { href: "/portal", label: "Início", icon: Home },
   { href: "/portal/documentos", label: "Documentos", icon: FileText },
+  { href: "/portal/obras", label: "Minhas obras", icon: HardHat },
   { href: "/portal/visitas", label: "Visitas", icon: CalendarDays },
   { href: "/portal/acompanhamento", label: "Acompanhamento", icon: MessageSquare },
   { href: "/portal/chat", label: "Chat", icon: MessageSquare },

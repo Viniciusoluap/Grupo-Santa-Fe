@@ -64,3 +64,19 @@ export async function getPortalDocumentos(leadId: string) {
     },
   });
 }
+
+/** A consulta é delimitada pelo lead da sessão; nunca recebe um id de obra da URL. */
+export async function getPortalObras(leadId: string) {
+  return prisma.obra.findMany({
+    where: { leadId },
+    orderBy: { criadoEm: "desc" },
+    select: {
+      id: true, nome: true, endereco: true, status: true, progresso: true,
+      progressoMedido: true, dataPrevisaoFim: true,
+      fotos: {
+        orderBy: { tiradaEm: "desc" }, take: 6,
+        select: { id: true, legenda: true, tiradaEm: true },
+      },
+    },
+  });
+}
