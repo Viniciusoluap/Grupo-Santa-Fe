@@ -5,6 +5,8 @@ import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto"
 import { exigirConfiguracaoParaStatus, textoObrigatorio, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
 import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
+import { capturarErroAcao } from "@/lib/acao-resultado";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -42,11 +44,27 @@ export async function alterarStatusProjetoFromDetail(id: string, status: string)
   revalidatePath(`/admin/projetos/${id}`);
 }
 
+/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirProjeto(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.projeto.update({ where: { id }, data: { status: "cancelado" } });
-  revalidatePath("/admin/projetos");
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await excluirServicoDefinitivo("projeto", id);
+    revalidatePath("/admin/projetos");
+    revalidatePath("/admin/leads");
+    return r;
+  });
+}
+
+/** Cancelar mantém o registro e o histórico; só muda a situação. */
+export async function cancelarProjeto(id: string) {
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await prisma.projeto.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
+    revalidatePath("/admin/projetos");
+    return { cancelado: r.count > 0 };
+  });
 }
 
 export async function editarProjeto(formData: FormData) {

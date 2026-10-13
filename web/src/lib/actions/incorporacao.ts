@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { uploadPublico } from "@/lib/blob";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
+import { capturarErroAcao } from "@/lib/acao-resultado";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseKmlTerreno } from "@/lib/geo/kml";
@@ -97,11 +99,15 @@ export async function editarEstudo(formData: FormData) {
   redirect(`/admin/incorporacao/${id}`);
 }
 
+/** Exclusão definitiva (item 03); bloqueada se houver unidade vendida ou reservada. */
 export async function excluirEstudo(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.estudoIncorporacao.delete({ where: { id } });
-  revalidatePath("/admin/incorporacao");
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await excluirServicoDefinitivo("estudo", id);
+    revalidatePath("/admin/incorporacao");
+    return r;
+  });
 }
 
 /** A leitura de um snapshot antigo exige a mesma permissão administrativa do estudo. */

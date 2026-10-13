@@ -5,6 +5,8 @@ import { OBRA_STATUS_CONFIG, validarMudancaStatusObra } from "@/lib/types/obra";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
 import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
+import { capturarErroAcao } from "@/lib/acao-resultado";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -23,11 +25,27 @@ export async function criarDiarioObra(obraId: string, formData: FormData) {
   revalidatePath(`/admin/obras/${obraId}`);
 }
 
+/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
 export async function excluirObra(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.obra.update({ where: { id }, data: { status: "cancelada" } });
-  revalidatePath("/admin/obras");
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await excluirServicoDefinitivo("obra", id);
+    revalidatePath("/admin/obras");
+    revalidatePath("/admin/leads");
+    return r;
+  });
+}
+
+/** Cancelar mantém o registro e o histórico; só muda a situação. */
+export async function cancelarObra(id: string) {
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await prisma.obra.updateMany({ where: { id, status: { not: "cancelada" } }, data: { status: "cancelada" } });
+    revalidatePath("/admin/obras");
+    return { cancelado: r.count > 0 };
+  });
 }
 
 function dataOpcional(formData: FormData, campo: string): Date | null {

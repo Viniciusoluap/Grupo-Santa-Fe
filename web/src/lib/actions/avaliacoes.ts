@@ -2,6 +2,8 @@
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 
+import { capturarErroAcao } from "@/lib/acao-resultado";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -96,11 +98,16 @@ export async function editarAvaliacao(formData: FormData) {
   redirect(`/admin/avaliacoes/${id}`);
 }
 
+/** Exclusão definitiva (item 03): remove também o vínculo de serviço do CRM que só existia para ela. */
 export async function excluirAvaliacao(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.avaliacao.delete({ where: { id } });
-  revalidatePath("/admin/avaliacoes");
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await excluirServicoDefinitivo("avaliacao", id);
+    revalidatePath("/admin/avaliacoes");
+    revalidatePath("/admin/leads");
+    return r;
+  });
 }
 
 export async function salvarChecklistAvaliacao(id: string, dados: string) {

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Search, FileCheck, Pencil, Trash2 } from "lucide-react";
+import { Search, FileCheck, Pencil } from "lucide-react";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency } from "@/lib/utils";
-import { excluirFinanciamento } from "@/lib/actions/financiamentos";
+import { excluirFinanciamento, cancelarFinanciamento } from "@/lib/actions/financiamentos";
+import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
 
 interface ChecklistItem {
   id: string;
@@ -38,20 +39,6 @@ interface Financiamento {
 interface Props {
   financiamentos: Financiamento[];
   podeArquivar: boolean;
-}
-
-function ExcluirFinanciamentoBtn({ id, nome }: { id: string; nome: string }) {
-  const [isPending, startTransition] = useTransition();
-  function handleClick() {
-    if (!confirm(`Arquivar financiamento de "${nome}"? O registro será mantido no histórico.`)) return;
-    startTransition(async () => { await excluirFinanciamento(id); });
-  }
-  return (
-    <button onClick={handleClick} disabled={isPending} title="Arquivar"
-      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
-      <Trash2 size={14} />
-    </button>
-  );
 }
 
 export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
@@ -202,7 +189,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                         <Link href={`/admin/financiamentos/${f.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
-                        {podeArquivar && <ExcluirFinanciamentoBtn id={f.id} nome={f.clienteNome} />}
+                        {podeArquivar && <AcoesExcluirCancelar id={f.id} rotulo={f.clienteNome} cancelado={f.status === "cancelado"} cancelar={cancelarFinanciamento} excluir={excluirFinanciamento} compacto />}
                       </div>
                     </td>
                   </tr>

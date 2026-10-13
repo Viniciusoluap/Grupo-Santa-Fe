@@ -72,7 +72,10 @@ function ExcluirComissaoBtn({ id }: { id: string }) {
 
   function handleClick() {
     if (!confirm("Excluir esta comissão? Esta ação não pode ser desfeita.")) return;
-    startTransition(async () => { await excluirComissao(id); });
+    startTransition(async () => {
+      const resultado = await excluirComissao(id);
+      if (resultado && "erroAcao" in resultado) window.alert(resultado.erroAcao);
+    });
   }
 
   return (

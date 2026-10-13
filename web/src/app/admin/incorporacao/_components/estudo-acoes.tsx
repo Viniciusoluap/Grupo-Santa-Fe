@@ -22,7 +22,8 @@ export function EstudoAcoes({ estudoId, nome }: Props) {
       return;
     }
     startTransition(async () => {
-      await excluirEstudo(estudoId);
+      const resultado = await excluirEstudo(estudoId);
+      if (resultado && "erroAcao" in resultado) window.alert(resultado.erroAcao);
       setConfirmando(false);
       router.refresh();
     });

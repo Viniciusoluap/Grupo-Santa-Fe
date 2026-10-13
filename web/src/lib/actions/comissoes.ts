@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 
 import { prisma } from "@/lib/db";
+import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
+import { capturarErroAcao } from "@/lib/acao-resultado";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -78,11 +80,15 @@ export async function editarComissao(formData: FormData) {
   redirect("/admin/comissoes");
 }
 
+/** Exclusão definitiva (item 03); comissão paga é registro contábil: cancele/estorne. */
 export async function excluirComissao(id: string) {
-  const session = await auth();
-  requireActionRole(session, "admin");
-  await prisma.comissao.delete({ where: { id } });
-  revalidatePath("/admin/comissoes");
+  return capturarErroAcao(async () => {
+    const session = await auth();
+    requireActionRole(session, "admin");
+    const r = await excluirServicoDefinitivo("comissao", id);
+    revalidatePath("/admin/comissoes");
+    return r;
+  });
 }
 
 export async function alterarStatusComissao(id: string, status: string) {

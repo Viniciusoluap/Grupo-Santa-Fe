@@ -48,7 +48,7 @@ async function enviarDocumentoRegistroImpl(estudoId: string, itemId: string, arq
   // Serializa alterações concorrentes ao mesmo item; a versão antiga continua
   // auditável, sem excluir ou publicar seu arquivo no Drive.
   await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${estudoId}), hashtext(${itemId}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${estudoId}), hashtext(${itemId}))`;
     await tx.estudoDocumentoRegistro.updateMany({ where: { estudoId, itemId, ativo: true }, data: { ativo: false, desvinculadoEm: new Date(), desvinculadoPorId: usuarioId } });
     if (fileId) {
       await tx.estudoDocumentoRegistro.create({ data: { estudoId, itemId, nome, mime, tamanho: bytes.length, sha256, driveFileId: fileId, enviadoPorId: usuarioId } });
