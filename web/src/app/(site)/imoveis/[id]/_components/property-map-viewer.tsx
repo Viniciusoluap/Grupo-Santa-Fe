@@ -19,9 +19,9 @@ export function PropertyMapViewer({ lat, lng, title }: PropertyMapViewerProps) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconUrl: "/leaflet/marker-icon.png",
+        iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+        shadowUrl: "/leaflet/marker-shadow.png",
       });
 
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: false });
@@ -59,7 +59,6 @@ export function PropertyMapViewer({ lat, lng, title }: PropertyMapViewerProps) {
 
   return (
     <>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       <div ref={mapRef} style={{ height: "300px", width: "100%" }} className="z-0 rounded-none" />
     </>
   );

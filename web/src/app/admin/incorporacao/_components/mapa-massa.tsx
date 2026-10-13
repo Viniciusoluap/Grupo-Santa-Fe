@@ -46,14 +46,6 @@ export function MapaMassa({ geojson, lotes, height = 420 }: Props) {
       const L = (await import("leaflet")).default;
       if (cancelled || !ref.current) return;
 
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
-
       // destrói uma instância anterior (ex.: regeneração rápida de cenário)
       // antes de criar a nova — nunca duas instâncias vivas no mesmo container.
       removerMapaSeguro(mapRef);

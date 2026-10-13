@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AdminSessionProvider } from "@/components/admin/session-provider";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 
 const inter = Inter({
   variable: "--font-inter",

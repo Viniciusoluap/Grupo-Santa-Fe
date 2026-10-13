@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FileText, CalendarDays, MessageSquare, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { FileText, CalendarDays, MessageSquare, CheckCircle2, Clock, AlertCircle, HardHat } from "lucide-react";
 import { getPortalDashboard } from "@/lib/data/portal-real";
 import { formatCurrency } from "@/lib/utils";
 
@@ -99,6 +99,7 @@ export default async function PortalDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { href: "/portal/documentos", label: "Documentos", icon: FileText, desc: "Envie e acompanhe" },
+          { href: "/portal/obras", label: "Minhas obras", icon: HardHat, desc: "Progresso e fotos" },
           { href: "/portal/visitas", label: "Visitas", icon: CalendarDays, desc: "Seu histórico" },
           { href: "/portal/acompanhamento", label: "Acompanhamento", icon: CheckCircle2, desc: "Atualizações" },
           { href: "/portal/chat", label: "Chat", icon: MessageSquare, desc: "Fale com corretor" },
