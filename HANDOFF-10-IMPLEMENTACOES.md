@@ -72,11 +72,11 @@ Merge, deploy e migrações em produção continuam dependendo de autorização 
 | ID | Prospecta | Santa Fé |
 |---|---|---|
 | 01 | **Concluído no código** (`1c18ed8`) | **Concluído no código** (`3de3f9a`) |
-| 02 | Pendente | Parcial (login único já existe) |
+| 02 | **Concluído no código** (`9b19e3a`) | **Concluído no código** (`3925984`) |
 | 03 | **Concluído no código** (`644a941`) | **Concluído no código** (`36c37c2`) |
-| 04 | Não aplicável | Pendente |
-| 05 | Pendente | Pendente |
-| 06 | Parcial (módulos por colaborador já existem) | Parcial (idem) |
+| 04 | Não aplicável | **Concluído no código** (`3925984`) |
+| 05 | **Concluído no código** (`9b19e3a`) | **Concluído no código** (`3925984`) |
+| 06 | **Concluído no código** (`9b19e3a`) | **Concluído no código** (`3925984` + correção do portal no Lote 6) |
 | 07 | **Concluído no código** (`e6f4fe7`) | **Concluído no código** (`4b2360b`) |
 | 08 | **Concluído no código** (`861a767`) | Não aplicável |
 | 09 | **Concluído no código** (`50d775f`) — falta validar em produção | **Concluído no código** (`b3f7931`) — idem |
@@ -155,6 +155,54 @@ Merge, deploy e migrações em produção continuam dependendo de autorização 
   remetente, assuntos e rodapés de todos os templates. Endereço/SMTP inalterados.
   Teste `server/email-identidade.test.ts` (11).
 
+### Lote 2 — 02 login, 04 responsável do CRM, 05 cinco perfis, 06 permissões (concluído no código)
+- Regra comum `Prospecta/shared/perfis-acesso.ts` = `Grupo-Santa-Fe/web/src/lib/perfis-acesso.ts`:
+  `PERFIS` (admin, colaborador, corretor, cliente, empreiteiro), `areaDoPerfil`, `podeAcessarModulo`,
+  `podeAcessarAlgum`, `podeAdministrarSeguranca`, `primeiroModulo`, `normalizarPermissoes`.
+  Admin: tudo. Colaborador: só módulos liberados. Corretor: Imóveis, Agenda, WhatsApp e Comissões,
+  só dos próprios registros (permissões gravadas para ele são ignoradas). Cliente: portal.
+  Empreiteiro: área do empreiteiro. Inativo: nada. Usuários/perfis/permissões e exclusão definitiva: só admin ativo.
+- **02 Login único:** um "Minha Conta · Entrar"; o sistema descobre o perfil e manda para a área
+  certa (Prospecta: escolha de perfil e `?perfil=` removidos; Santa Fé: destino pelo primeiro módulo liberado,
+  `/admin/sem-acesso` se não houver nenhum).
+- **05 Cadastro dos 5 perfis** (Configurações → Usuários): corretor cria/vincula o cadastro de
+  corretor; cliente exige vínculo com um lead sem conta; troca de perfil/desativação derruba as
+  sessões (`sessionVersion`). Santa Fé: `Usuario.leadId` (migração aditiva
+  `20261013220000_usuario_cliente_lead`, com preenchimento seguro por e-mail único).
+- **06 Permissões no servidor:** Santa Fé lê perfil/situação/permissões do banco a cada requisição
+  (`lib/auth/modulos.ts`: `exigirModuloPagina`, `exigirModuloAcao`, `exigirAdminAtivo`) em todas as
+  páginas e actions do painel; menu lateral filtrado. Prospecta: `canAccessAdminProcedure` no tRPC
+  (corretor só agenda/WhatsApp no painel, escopados aos próprios leads), `AdminRoute` no cliente.
+- **04 (só Santa Fé):** responsável do lead só admin/colaborador ativo (`crm/responsavel.ts`);
+  valor legado preservado e exibido como "Registro anterior".
+- Testes: `perfis-acesso.test.ts` (7) nos dois; Santa Fé `usuarios-perfis.db.test.ts` (5) e testes de
+  CRM/obras atualizados para a regra nova. Suítes: Santa Fé 600 ok (14 pulados sem banco);
+  Prospecta 731 ok.
+
+### Lote 6 — testes integrados e paridade (13/10/2026)
+- **Santa Fé, navegador (Playwright) contra build de produção local** (`next start` + Postgres local),
+  com um usuário de cada perfil. Resultado (login → destino; URLs proibidas → redirecionadas):
+  admin → `/admin/leads` (todos os 16 módulos no menu); colaborador só com "obras" → `/admin/obras`
+  (menu só Obras; leads/configurações/imóveis/comissões voltam para Obras); colaborador sem módulos →
+  `/admin/sem-acesso`; corretor (com permissões indevidas gravadas) → `/admin/imoveis` (menu: Imóveis,
+  Agenda, Comissões, WhatsApp; obras/leads/configurações bloqueados); cliente → `/portal` (todo `/admin`
+  bloqueado); empreiteiro → `/empreiteiro`; usuário inativo não entra.
+- **Falha encontrada e corrigida:** `/portal` abria (vazio) para qualquer perfil logado. Agora o
+  `portal/layout.tsx` devolve quem não é cliente para a própria área. Teste repetido: ok.
+- **Prospecta:** o portal já era restrito ao cliente (`PortalRoute` + `portal-router`). O teste de
+  navegador não roda localmente (driver `neon-http` não conecta em Postgres local); a regra está
+  coberta pelos testes de procedimentos tRPC. **Validar em produção/preview após autorização.**
+- Paridade conferida: arquivos comuns idênticos nos dois repositórios (`drive-erro`, `exclusao`,
+  `obras-filtro`, `perfis-acesso`); diferenças só as previstas (04 só Santa Fé; 08 só Prospecta;
+  corretor usa o painel com 4 módulos no Santa Fé e o Portal do Corretor + Agenda/WhatsApp na Prospecta).
+
+### Migrações pendentes de aplicação em produção (todas aditivas; dependem de autorização)
+- Prospecta: `drizzle/0048_document_db_storage.sql`, `drizzle/0049_project_engineer_user.sql`.
+- Santa Fé: `20261013200000_documentos_armazenamento_banco`, `20261013210000_projeto_engenheiro_usuario`,
+  `20261013220000_usuario_cliente_lead`.
+
 ### Próximo passo exato
-Lote 2 (02 login, 04 responsável CRM, 05 cinco perfis, 06 permissões), depois Lote 6
-(testes integrados e paridade). Não iniciar o item 10 sem nova autorização.
+1. Aguardar autorização do proprietário para: (a) merge dos PRs Prospecta #111 e Santa Fé #180,
+   (b) aplicar as migrações acima, (c) deploy. Depois: clicar "Testar Google Drive" em produção e
+   repetir o teste de acesso por perfil.
+2. **Item 10 (Incorporação em 5 fases, Prospecta) — BLOQUEADO:** só iniciar com nova autorização expressa.
