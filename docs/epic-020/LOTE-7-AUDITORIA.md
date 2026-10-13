@@ -32,7 +32,7 @@ CSS importado pelo bundle em ambos os apps; Santa Fé serve os ícones do marcad
 
 ## G. D-06 — documentos Prospecta
 
-Antes: Jurídico e portal usavam Forge quando o Drive faltava. Pré-flight: zero linhas de documentos contratuais e de checklist no Neon produção. A migration aditiva `0047_private_portal_files.sql` criou duas tabelas de bytes com FK ao registro pai e foi aplicada em produção/registrada no ledger Drizzle (id 36). Uploads sem Drive ou de contrato sem lead gravam bytes privados no banco; consulta exige a autorização já aplicada pelos routers. Com Drive e lead, o fluxo Drive permanece. URLs antigas continuam consultáveis onde existirem. Typecheck, suíte e build passaram; upload/download real nos dois perfis ainda precisa de prova.
+Antes: Jurídico e portal usavam Forge quando o Drive faltava. Pré-flight: zero linhas de documentos contratuais e de checklist no Neon produção. A migration aditiva `0047_private_portal_files.sql` criou duas tabelas de bytes com FK ao registro pai e foi aplicada em produção/registrada no ledger Drizzle (id 36). Uploads sem Drive ou de contrato sem lead gravam bytes privados no banco; consulta exige a autorização já aplicada pelos routers. Com Drive e lead, o fluxo Drive permanece. URLs antigas continuam consultáveis onde existirem. Limite de 3 MiB inclusive no fallback, para comportar a resposta base64 na função Vercel. Typecheck, suíte e build passaram antes deste ajuste final; após ele, TypeScript e 13 testes focados passaram. Upload/download real nos dois perfis ainda precisa de prova.
 
 ## H. D-03 — comissões legadas Prospecta
 
