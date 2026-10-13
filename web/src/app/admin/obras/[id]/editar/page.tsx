@@ -83,7 +83,7 @@ export default async function EditarObraPage({ params }: PageProps) {
                   <option key={valor} value={valor}>{obraStatusLabel(valor)}</option>
                 ))}
                 {!isObraStatusSelecionavel(o.status) && (
-                  <option value={o.status}>{obraStatusLabel(o.status)} (classificação antiga — mantida até ser trocada)</option>
+                  <option value={o.status}>{obraStatusLabel(o.status)} (situação atual — escolha outra para trocar)</option>
                 )}
               </select>
             </div>
