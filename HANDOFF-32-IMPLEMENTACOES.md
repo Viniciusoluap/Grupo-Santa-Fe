@@ -6,7 +6,7 @@
 > `Prospecta/docs/stories/epics/epic-020-32-implementacoes-paridade/MATRIZ-PARIDADE.md` (cópia em `Grupo-Santa-Fe/docs/epic-020/MATRIZ-PARIDADE.md`).
 > **Ao terminar cada lote, atualize a seção "Estado atual" deste arquivo nos dois repositórios.**
 
-Última atualização: 12/10/2026 — Lotes 0–4 publicados. Lote 5 em execução em branch isolada. Inventário de feito × pendente em §7 e checkpoint recente no fim deste arquivo.
+Última atualização: 13/10/2026 — Lotes 0–6 publicados. Falta o Lote 7 (auditoria final). Inventário de feito × pendente em §7.
 
 ---
 
@@ -245,13 +245,25 @@ calculado alterado via API, arredondamento, operações simultâneas.
 | 3 Comissões | ✅ Publicado (12/10/2026) | Prospecta PR #100 → `8156616`, deploy `dpl_8Wt96UfR1PTpj7SbwWk3Y5hgDzoQ` READY · Santa Fé PR #169 → `bb099d6`, deploy `dpl_AL6TPm9vDwzKJyfMLJG2CZgBj1Ln` READY · correções da revisão automática (percentual com ponto, comissão sem regra não reaproveita valor, erro no cadastro do corretor, reconciliação na tela) em PR seguinte · Motor `shared/financeiro/comissao.ts` ≡ `web/src/lib/financeiro/comissao.ts` (Teste G 11.500,00 ✅) · migrations em produção em 12/10: Prospecta `0039_lote3_comissoes` (Neon) e Santa Fé `20261012150000_lote3_comissoes` (Supabase, inclui **RLS nas tabelas do Lote 2 que tinham ficado sem**) · testes Prospecta 634/634, Santa Fé 512/512 · E2E navegador Santa Fé (padrão do corretor 5% → 7.900; 3% da obra → 4.740; pagamento 1.000 → parcial, saldo 3.740) · investigação Chaleilson: `docs/stories/epics/epic-020-32-implementacoes-paridade/RELATORIO-LOTE3-COMISSOES.md` (só na Prospecta) · **Prospecta sem teste em navegador** |
 | 4 Progresso/Fotos/PDF | ✅ Publicado (12/10/2026): Prospecta PR #104 → `e20642b`, deploy `dpl_HiZEf6YJvXsCFXKwSkrJ2mebUwVJ` READY · Santa Fé PR #173 → `ea0a745`, deploy `dpl_7tSdsEmwXAZG8xoUjZZq8LQiinEx` READY · achados da revisão do Codex (barra de progresso com largura inválida na lista da Prospecta; relatório mostrava 0% em obra com progresso antigo e sem medição; telefone/e-mail do cliente ausentes; legenda longa podia sair da página) corrigidos em PR seguinte | Motor `shared/financeiro/progresso.ts` ≡ `web/src/lib/financeiro/progresso.ts` (20 serviços, BigInt + HALF_UP, **Teste E = 28,20%** ✅); fotos no próprio banco (Prospecta `construction_photo_files`, Santa Fé `arquivos` + `obra_fotos`), servidas por rota autenticada (`/api/obra-foto/:id` · `/api/obras/fotos/:id`) só para admin ou cliente da obra; relatório PDF por `shared/relatorio-obra.ts` ≡ `web/src/lib/obras/relatorio.ts` com teste de completude · migrations: Prospecta `0040_lote4_progresso_fotos` (validada no branch Neon `teste-migrations-0024-0026`), Santa Fé `20261012170000_lote4_progresso_fotos` (com RLS) · testes Prospecta 663/663, Santa Fé 539/539 · E2E navegador Santa Fé: Teste E na tela, persistido, detalhe/lista 28,20%; soma 101% bloqueia; PNG de 16,5 MB comprimido e gravado; HEIC não decodificável → erro claro, sem travar; foto sem sessão → 401; PDF de 10 páginas com capa/sumário/rodapé "Página X de Y", logo do Grupo Santa Fé e nenhuma menção à Prospecta · **Prospecta sem teste em navegador** (Neon inacessível do ambiente) |
 | 5 Incorporação | ✅ Publicado (13/10/2026) — trabalho do Codex (PRs rascunho #105/#174) revisado, corrigido e publicado pelo Claude; merge/deploy na linha do PR | Itens 01–04 nos dois: 4 situações (sem "Rascunho"), grade de módulos, anexos privados por item (Drive), Tipo de Incorporação; Desmembramento Simples com os 17 módulos; Due Diligence (etapas/tarefas/documentos/progresso, gravação com controle de versão); inventário de unidades (código único, reserva/venda/liberação, auditoria, conciliação de vendas antigas, gatilho que impede esconder o inventário ou voltar a gravar vendas no JSON). **Correções do Claude:** primeira tecla de cada campo se perdia (marcação de "alterações" na captura do evento); mensagens de erro do Santa Fé apareciam como texto genérico em inglês (Server Actions agora devolvem o erro como dado — `lib/acao-resultado.ts`); unidade duplicada com mensagem clara; migrations Prospecta com `statement-breakpoint` e idempotentes. **Validação:** Postgres real — 20 vendas simultâneas da mesma unidade → 1 aceita; gatilhos; migrations reaplicáveis · E2E Santa Fé (17 módulos, Due Diligence persistida, venda simultânea em 2 abas → 1 venda + mensagem clara, lista sem "Rascunho") · testes Prospecta 672/672, Santa Fé 553/553 · migrations em produção 13/10: Prospecta 0041–0045 (Neon, registradas em `drizzle.__drizzle_migrations`), Santa Fé `lote5_incorporacao` (Supabase, RLS) · **Pendências:** Prospecta sem teste em navegador (driver neon-http); Drive do Santa Fé não configurado (`SANTA_FE_GOOGLE_DRIVE_*` — sem ele o botão Anexar fica oculto); CSS do Leaflet vem do unpkg (D-07) |
-| 6 Regularização | ⏳ Não iniciado | — |
+| 6 Regularização | ✅ Publicado (13/10/2026) — merge/deploy na linha do PR | Itens 30 e 31 nos dois. Regras únicas em `shared/financeiro/regularizacao.ts` ≡ `web/src/lib/financeiro/regularizacao.ts` (testes idênticos 10/10). **30:** Status do Processo = Em análise / Em andamento / Concluído (status antigo convertido e preservado em `legacy_status`/`statusLegado`; Santa Fé mantém "Pendente de configuração" da fila do CRM e "Cancelado" da exclusão, fora do seletor). Etapas livres por processo (criar, editar, excluir, reordenar, progresso 0–100%, observações) + média das etapas; status e etapas independentes. **31:** "Valor Pago" e "Documentos" antigos saíram da tela e da API (dados preservados no banco; Valor Pago > 0 vira recebimento `migracao` — 0 casos em produção). Tabela financeira com os 17 itens iniciais semeados por gatilho em todo processo (novo ou existente), itens extras, Previsto editável, Recebido = soma dos recebimentos confirmados, Saldo = Previsto − Recebido, totais por grupo e geral. Recebimentos manuais ou do BPO (só receitas recebidas), parciais, histórico automático, cancelar/reativar, nunca apagados; item com recebimento não é excluído. **Sem duplicidade de BPO:** `bpo_valor_alocado()` soma obras + regularizações sob o mesmo lock — 20 vinculações simultâneas (10 obra, 10 regularização) numa receita de R$ 1.000 → exatamente R$ 1.000 alocados. Migrations: Prospecta `0046_lote6_regularizacao`, Santa Fé `20261013100000_lote6_regularizacao` (RLS), ambas reaplicáveis · testes Prospecta 682/682, Santa Fé 563/563 · E2E Santa Fé (status 3 opções, etapas com reordenação/persistência e média 50%, Projetos 1.500 − 750,25 = 749,75, BPO acima do disponível bloqueado, BPO esgotado e despesas fora da lista, cancelar/reativar, totais por grupo e geral, item novo, nenhum erro de página) · **Prospecta sem teste em navegador** (driver neon-http) |
 | 7 Auditoria final | ⏳ Não iniciado | relatório A–K + matriz de 32 linhas |
 
 ### Próximo passo exato
-1. **Lote 6 (Regularização, itens 30 e 31).** Lote 5 publicado. Os PRs rascunho do Codex #105/#174 ficaram
-   superados (todo o conteúdo entrou pelo PR do Claude) e podem ser fechados.
+1. **Lote 7 (auditoria final):** relatório A–K, matriz de 32 linhas, Teste H (isolamento) formal, D-03
+   (remover `broker_commissions`), D-06 (jurídico e portal ainda usam o storage externo na Prospecta),
+   D-07 (CSS do Leaflet local), V-04 (portal do cliente Santa Fé). Os PRs rascunho do Codex #105/#174
+   ficaram superados e podem ser fechados.
 2. Responder ao proprietário P-07, D-04, C-03 (texto pronto em §7.7).
+
+### Decisões do Lote 6 (não reabrir)
+- Status do Processo e Etapas são independentes: mudar etapas nunca muda o status, e vice-versa.
+- Progresso das etapas = média simples dos progressos (HALF_UP, 2 casas); sem etapas → não mostra.
+- Os 17 itens são criados por gatilho no banco (`regularizacao_semear_itens`) para qualquer processo,
+  venha do CRM, da fila ou de importação. Itens extras ganham ordem depois do último item normal.
+- Recebimento da regularização usa apenas receitas do BPO (tipo ≠ despesa) já recebidas. A soma do
+  que obras e regularizações alocam numa transação nunca passa do valor dela (`bpo_valor_alocado`).
+- "Valor do serviço" (valor contratado) continua no cadastro do processo; a tabela financeira não o
+  substitui nem o recalcula.
 
 ### Decisões do Lote 4 (não reabrir)
 - Progresso Geral nunca é digitado: soma de Incidência × Execução dos 20 serviços (incidências iniciais da
@@ -369,8 +381,8 @@ Testes automáticos atuais: Prospecta 663/663 · Santa Fé 539/539 (inclui teste
 
 | Lote | Itens | Observação |
 |---|---|---|
-| 5 | 01–04 Incorporação | **Próximo. Atenção:** o Codex está trabalhando em incorporação/estudos (PRs #99/#168). Checar PRs `codex/*` abertos antes de começar e não duplicar nem sobrescrever |
-| 6 | 30, 31 Regularização | Tabelas `regularizacoes` órfãs conhecidas na Prospecta (migrations 0019/0027/0028) |
+| ✅ 5 | 01–04 Incorporação | Publicado em 13/10/2026 |
+| ✅ 6 | 30, 31 Regularização | Publicado em 13/10/2026 |
 | 7 | Auditoria final | Relatório A–K, matriz de 32 linhas, Teste H (isolamento) formal |
 
 ### 7.3 Pendências que dependem do proprietário (dados/decisões — nada foi alterado sem autorização)
@@ -411,7 +423,7 @@ Testes automáticos atuais: Prospecta 663/663 · Santa Fé 539/539 (inclui teste
 | ✅ D-02 | Resolvido 12/10: sugestão de **5% editável** nos dois (Santa Fé: default da coluna também 5). Antes: formulário de comissão **manual** vinha com 6% pré-preenchido (Prospecta e Santa Fé, `Comissao.percentual @default(6)`). As automáticas nunca inventam percentual; avaliar remover o 6% sugerido |
 | D-03 | **Autorizado; executar no Lote 7** (toca relatórios/exportação/testes — fazer junto da regressão completa). Verificado 12/10: 0 registros, nenhuma FK, e as colunas antigas de Custos nunca existiram no banco. Tabela legada `broker_commissions` e colunas antigas de Custos — remover na auditoria final após confirmação |
 | D-04 | Prospecta: coluna `broker_payment_settled` (criada pelo Codex no #99) preserva o antigo "Corretor Pago?"; o pagamento oficial agora vem do financeiro (item 24) — não reexibir na tela |
-| D-06 | Prospecta: regularização, jurídico e portal ainda usam o storage externo (`server/storage.ts`, Forge), que não está configurado em produção. Migrar para armazenamento no banco (como fotos no Lote 4) — avaliar no Lote 6 (regularização) e no Lote 7 |
+| D-06 | Prospecta: **regularização resolvida no Lote 6** (seção Documentos removida, sem upload). Jurídico e portal ainda usam o storage externo (`server/storage.ts`, Forge), que não está configurado em produção. Migrar para armazenamento no banco (como fotos no Lote 4) — avaliar no Lote 6 (regularização) e no Lote 7 |
 | D-07 | Santa Fé: o CSS do Leaflet (mapas da Incorporação e Imóveis) é baixado do unpkg.com; se o CDN falhar, os pedaços do mapa se espalham pela página e cobrem botões. Empacotar `leaflet/dist/leaflet.css` localmente (paridade: conferir a Prospecta) |
 | ✅ D-05 | Resolvido 12/10: Santa Fé desvia o empreiteiro no proxy antes de renderizar o painel; Prospecta manda o empreiteiro para `/empreiteiro` (antes ia para a home). Antes: log "Não autorizado." quando um empreiteiro abre uma URL de `/admin` (é redirecionado corretamente; só ruído de log) |
 

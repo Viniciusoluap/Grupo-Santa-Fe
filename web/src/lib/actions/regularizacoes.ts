@@ -2,11 +2,18 @@
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { REG_TIPO_CONFIG, REG_STATUS_CONFIG } from "@/lib/types/regularizacao";
+import { ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
 import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
+/** Lote 6: na edição só se escolhe uma das 3 situações (ou se mantém a atual). */
+function statusEditado(status: string, atual: string): string {
+  if (status !== atual && !ehStatusProcesso(status)) throw new Error("Status inválido.");
+  return status;
+}
 
 export async function excluirRegularizacao(id: string) {
   const session = await auth();
@@ -20,7 +27,7 @@ export async function editarRegularizacao(formData: FormData) {
   requireActionRole(session, "admin");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
-    const atual = await tx.regularizacao.findUnique({ where: { id }, select: { leadId: true } });
+    const atual = await tx.regularizacao.findUnique({ where: { id }, select: { leadId: true, status: true } });
     if (!atual) throw new Error("Registro não encontrado.");
     if (formData.has("leadId") && formData.get("leadId") !== atual.leadId) throw new Error("O vínculo com o CRM não pode ser alterado neste módulo.");
     if (atual.leadId) await bloquearLead(tx, atual.leadId);
@@ -30,7 +37,7 @@ export async function editarRegularizacao(formData: FormData) {
       data: {
         nome: textoObrigatorio(formData, "nome"),
         tipo: tiposObrigatorios(formData, REG_TIPO_CONFIG),
-        status: opcaoObrigatoria(formData, "status", REG_STATUS_CONFIG),
+        status: statusEditado(opcaoObrigatoria(formData, "status", REG_STATUS_CONFIG), atual.status),
         clienteNome: cliente.clienteNome,
         clienteTel: cliente.clienteTel,
         endereco: textoObrigatorio(formData, "endereco"),

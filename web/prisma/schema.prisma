@@ -389,7 +389,9 @@ model Regularizacao {
   id           String         @id @default(cuid())
   nome         String
   tipo         String?
-  status       String         @default("analise")
+  // EPIC-020 Lote 6: em_analise | em_andamento | concluido (| aguardando_configuracao | cancelado)
+  status       String         @default("em_analise")
+  statusLegado String?
   clienteNome  String
   clienteTel   String
   endereco     String?
@@ -401,15 +403,93 @@ model Regularizacao {
   servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   leadVinculado Lead?          @relation("RegularizacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
   valorServico Float?
+  /// Legado: substituído pela tabela financeira (Lote 6); mantido sem edição.
   valorPago    Float          @default(0)
   previsaoFim  DateTime?
   descricao    String         @default("")
   documentos   RegDocumento[]
+  etapas       RegularizacaoEtapa[]
+  itensFinanceiros RegularizacaoItemFinanceiro[]
+  recebimentos RegularizacaoRecebimento[]
   criadoEm     DateTime       @default(now())
   atualizadoEm DateTime       @updatedAt
 
   @@map("regularizacoes")
   @@unique([servicoLeadId, leadId])
+}
+
+// EPIC-020 Lote 6 — Regularização: etapas livres (30) e tabela financeira (31).
+// Garantias no banco (migração 20261013100000): recebimento nunca é apagado,
+// histórico automático, item com recebimento não é excluído, 17 itens semeados
+// por gatilho e alocação do BPO somada com a das obras.
+model RegularizacaoEtapa {
+  id              String        @id @default(cuid())
+  regularizacaoId String
+  regularizacao   Regularizacao @relation(fields: [regularizacaoId], references: [id], onDelete: Cascade)
+  nome            String        @db.VarChar(120)
+  ordem           Int
+  progresso       Int           @default(0)
+  observacoes     String?
+  criadoEm        DateTime      @default(now())
+  atualizadoEm    DateTime      @updatedAt
+
+  @@index([regularizacaoId, ordem], map: "regularizacao_etapas_reg_idx")
+  @@map("regularizacao_etapas")
+}
+
+model RegularizacaoItemFinanceiro {
+  id              String                     @id @default(cuid())
+  regularizacaoId String
+  regularizacao   Regularizacao              @relation(fields: [regularizacaoId], references: [id], onDelete: Cascade)
+  chavePadrao     String?                    @db.VarChar(40)
+  nome            String                     @db.VarChar(120)
+  grupo           String                     @db.VarChar(20) // durante_obra | casa_pronta
+  ordem           Int
+  previsto        Decimal                    @default(0) @db.Decimal(15, 2)
+  recebimentos    RegularizacaoRecebimento[]
+  criadoEm        DateTime                   @default(now())
+  atualizadoEm    DateTime                   @updatedAt
+
+  @@unique([id, regularizacaoId], map: "regularizacao_itens_id_reg_unique")
+  @@map("regularizacao_itens_financeiros")
+}
+
+model RegularizacaoRecebimento {
+  id                 String                              @id @default(cuid())
+  regularizacaoId    String
+  regularizacao      Regularizacao                       @relation(fields: [regularizacaoId], references: [id], onDelete: Restrict)
+  itemId             String
+  item               RegularizacaoItemFinanceiro         @relation(fields: [itemId, regularizacaoId], references: [id, regularizacaoId], onDelete: Restrict, map: "regularizacao_recebimentos_item_fk")
+  valor              Decimal                             @db.Decimal(15, 2)
+  data               DateTime                            @db.Date
+  observacao         String?
+  origem             String // manual | bpo | migracao
+  bpoLancamentoId    String?
+  bpoLancamento      BpoLancamento?                      @relation(fields: [bpoLancamentoId], references: [id], onDelete: Restrict)
+  status             String                              @default("confirmado") // confirmado | cancelado
+  motivoCancelamento String?
+  criadoPorId        String?
+  atualizadoPorId    String?
+  historico          RegularizacaoRecebimentoHistorico[]
+  criadoEm           DateTime                            @default(now())
+  atualizadoEm       DateTime                            @updatedAt
+
+  @@index([regularizacaoId], map: "regularizacao_recebimentos_reg_idx")
+  @@index([bpoLancamentoId], map: "regularizacao_recebimentos_bpo_idx")
+  @@map("regularizacao_recebimentos")
+}
+
+model RegularizacaoRecebimentoHistorico {
+  id            String                   @id @default(cuid())
+  recebimentoId String
+  recebimento   RegularizacaoRecebimento @relation(fields: [recebimentoId], references: [id], onDelete: Restrict)
+  acao          String
+  antes         Json?
+  depois        Json
+  usuarioId     String?
+  criadoEm      DateTime                 @default(now())
+
+  @@map("regularizacao_recebimentos_historico")
 }
 
 model RegDocumento {
@@ -519,6 +599,7 @@ model BpoCliente {
 model BpoLancamento {
   id               String      @id @default(cuid())
   movimentosObra   ObraMovimento[]
+  recebimentosRegularizacao RegularizacaoRecebimento[]
   clienteId        String?
   cliente          BpoCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   clienteNomeLivre String?     // nome do lead/cliente quando não há clienteId

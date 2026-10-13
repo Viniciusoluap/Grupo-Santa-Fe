@@ -179,13 +179,19 @@ export async function listarBpoDisponiveis(natureza: (typeof NATUREZAS)[number])
   const lancamentos = await prisma.bpoLancamento.findMany({
     where: { pago: true, tipo: natureza === "pagamento" ? "despesa" : { not: "despesa" } },
     orderBy: { vencimento: "asc" },
-    select: { id: true, descricao: true, valor: true, movimentosObra: { where: { status: "confirmado" }, select: { valor: true } } },
+    select: {
+      id: true, descricao: true, valor: true,
+      movimentosObra: { where: { status: "confirmado" }, select: { valor: true } },
+      // Lote 6: o que regularizações já usaram também sai do disponível.
+      recebimentosRegularizacao: { where: { status: "confirmado" }, select: { valor: true } },
+    },
   });
   return lancamentos
     .map((l) => ({
       id: l.id,
       descricao: l.descricao,
-      disponivelCentavos: centavosDe(l.valor)! - l.movimentosObra.reduce((acc, m) => acc + centavosDe(m.valor.toString())!, 0),
+      disponivelCentavos: centavosDe(l.valor)!
+        - [...l.movimentosObra, ...l.recebimentosRegularizacao].reduce((acc, m) => acc + centavosDe(m.valor.toString())!, 0),
     }))
     .filter((l) => l.disponivelCentavos > 0);
 }

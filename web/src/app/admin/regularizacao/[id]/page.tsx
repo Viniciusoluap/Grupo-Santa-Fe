@@ -7,24 +7,20 @@ import { prisma } from "@/lib/db";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
-import RegDocumentosClient from "./_components/reg-documentos-client";
+import { STATUS_PROCESSO } from "@/lib/financeiro/regularizacao";
+import { carregarProcessoRegularizacao } from "@/lib/regularizacao/processo-dados";
+import { EtapasProcesso, FinanceiroRegularizacaoTabela } from "./_components/processo-regularizacao";
 
 interface PageProps { params: Promise<{ id: string }> }
-
-const stageOrder: Array<import("@/lib/types/regularizacao").RegStatus> = [
-  "analise_inicial", "documentacao", "protocolo", "em_analise_orgao", "pendencias", "aprovado", "registrado", "concluido"
-];
 
 export default async function RegDetailPage({ params }: PageProps) {
   const session = await auth();
   requirePageRole(session, "admin");
 
   const { id } = await params;
-  const r = await prisma.regularizacao.findUnique({
-    where: { id },
-    include: { documentos: true },
-  });
+  const r = await prisma.regularizacao.findUnique({ where: { id } });
   if (!r) notFound();
+  const processo = await carregarProcessoRegularizacao(r.id);
 
   const cfg = REG_STATUS_CONFIG[r.status as keyof typeof REG_STATUS_CONFIG] ?? {
     label: r.status,
@@ -53,7 +49,6 @@ export default async function RegDetailPage({ params }: PageProps) {
     return REG_TIPO_CONFIG[tipoStr as keyof typeof REG_TIPO_CONFIG]?.icon ?? "📁";
   }
   const tipo = { label: parseTiposLabelReg(r.tipo), icon: parseTipoIconReg(r.tipo) };
-  const currentOrder = cfg.order;
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -68,31 +63,12 @@ export default async function RegDetailPage({ params }: PageProps) {
         {r.leadId ? <Link href={`/admin/leads/${r.leadId}`} className="font-bold underline">Cliente no CRM</Link> : "Registro legado sem vínculo com o CRM"}
       </p>
 
-      {/* Pipeline */}
-      <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
-        <div className="flex items-center gap-0 min-w-max">
-          {stageOrder.map((stage, i, arr) => {
-            const sc = REG_STATUS_CONFIG[stage];
-            const isActive = stage === r.status;
-            const isPast = sc.order < currentOrder && r.status !== "cancelado";
-            return (
-              <div key={stage} className="flex items-center">
-                <div className={`flex flex-col items-center px-2 py-1 ${isActive ? "opacity-100" : "opacity-50"}`}>
-                  <div className={`w-3 h-3 rounded-full border-2 ${isActive ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)]" : isPast ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"}`} />
-                  <span className={`text-[9px] font-bold mt-1 uppercase text-center max-w-[52px] leading-tight ${isActive ? "text-[var(--brand-dark)]" : "text-gray-400"}`}>{sc.label}</span>
-                </div>
-                {i < arr.length - 1 && <div className={`h-0.5 w-5 ${isPast || isActive ? "bg-[var(--brand-yellow)]" : "bg-gray-200"}`} />}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Status change */}
+      {/* Status do Processo (Lote 6, item 30): 3 situações, independentes das etapas */}
       <div className="bg-white border border-gray-100 p-4 flex items-center gap-4 flex-wrap">
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Alterar Status:</span>
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Status do processo:</span>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(REG_STATUS_CONFIG).map(([status, sc]) => {
+          {STATUS_PROCESSO.map((status) => {
+            const sc = REG_STATUS_CONFIG[status];
             const isActive = status === r.status;
             return (
               <form key={status} action={alterarStatusRegularizacao.bind(null, r.id, status)}>
@@ -100,6 +76,7 @@ export default async function RegDetailPage({ params }: PageProps) {
                   type="submit"
                   className={`text-[10px] font-bold px-3 py-1.5 uppercase transition-colors border ${isActive ? `${sc.bgColor} ${sc.color} border-transparent cursor-default` : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
                   disabled={isActive}
+                  aria-pressed={isActive}
                 >
                   {sc.label}
                 </button>
@@ -112,16 +89,12 @@ export default async function RegDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main */}
         <div className="lg:col-span-2 space-y-5">
-          {/* Documents — interactive client component */}
-          <RegDocumentosClient
+          <EtapasProcesso regularizacaoId={r.id} etapas={processo.etapas} progressoEtapas={processo.progressoEtapas} />
+          <FinanceiroRegularizacaoTabela
             regularizacaoId={r.id}
-            documentos={r.documentos.map((d) => ({
-              id: d.id,
-              nome: d.nome,
-              status: d.status,
-              observacao: d.observacao,
-            }))}
-            currentStatus={r.status}
+            financeiro={processo.financeiro}
+            recebimentos={processo.recebimentos}
+            itensComRecebimento={processo.itensComRecebimento}
           />
 
           {/* Descrição */}
@@ -164,8 +137,9 @@ export default async function RegDetailPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Financeiro</p>
             {[
               { label: "Valor do serviço", value: formatCurrency(r.valorServico), color: "text-[var(--brand-dark)]" },
-              { label: "Pago", value: formatCurrency(r.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(r.valorServico == null ? null : r.valorServico - r.valorPago), color: (r.valorServico ?? 0) - r.valorPago > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "Previsto (tabela)", value: formatCurrency(processo.financeiro.geral.previsto / 100), color: "text-[var(--brand-dark)]" },
+              { label: "Recebido", value: formatCurrency(processo.financeiro.geral.recebido / 100), color: "text-green-600" },
+              { label: "Saldo", value: formatCurrency(processo.financeiro.geral.saldo / 100), color: processo.financeiro.geral.saldo > 0 ? "text-orange-500" : processo.financeiro.geral.saldo < 0 ? "text-red-600" : "text-gray-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>
