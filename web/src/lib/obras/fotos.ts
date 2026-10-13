@@ -44,6 +44,11 @@ export interface UsuarioFoto {
   papel: string;
   /** Lead do cliente logado no portal (quando houver). */
   leadId?: number | string | null;
+  /**
+   * Item 06: acesso ao módulo Obras (admin ou colaborador com o módulo liberado,
+   * conta ativa), calculado pelo chamador com a regra de shared/perfis-acesso.
+   */
+  acessoObras?: boolean;
 }
 export interface ObraFotoDona {
   /** Cliente dono da obra (cadastro antigo) — quando houver. */
@@ -51,15 +56,18 @@ export interface ObraFotoDona {
   leadId?: number | string | null;
 }
 
-/** Quem pode VER as fotos: admin e o cliente da obra (portal). Enviar/editar/excluir: só admin. */
+/**
+ * Quem pode VER as fotos: admin, equipe com o módulo Obras e o cliente da obra (portal).
+ * Enviar/editar/excluir: admin e equipe com o módulo Obras.
+ */
 export function podeVerFotosDaObra(u: UsuarioFoto | null, obra: ObraFotoDona): boolean {
   if (!u) return false;
-  if (u.papel === "admin") return true;
+  if (u.papel === "admin" || u.acessoObras === true) return true;
   if (obra.usuarioId != null && String(obra.usuarioId) === String(u.id)) return true;
   const cliente = u.papel === "cliente" || u.papel === "user";
   return cliente && u.leadId != null && obra.leadId != null && String(u.leadId) === String(obra.leadId);
 }
 
 export function podeGerenciarFotos(u: UsuarioFoto | null): boolean {
-  return u?.papel === "admin";
+  return u?.papel === "admin" || u?.acessoObras === true;
 }

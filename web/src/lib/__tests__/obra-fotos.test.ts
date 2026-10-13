@@ -49,4 +49,10 @@ describe("fotos da obra — permissões", () => {
     expect(podeVerFotosDaObra({ id: 9, papel: "corretor", leadId: 30 }, obra)).toBe(false);
     expect(podeVerFotosDaObra({ id: 9, papel: "empreiteiro" }, obra)).toBe(false);
   });
+  it("equipe com o módulo Obras vê e gerencia; sem o módulo, não (item 06)", () => {
+    expect(podeVerFotosDaObra({ id: 5, papel: "colaborador", acessoObras: true }, obra)).toBe(true);
+    expect(podeGerenciarFotos({ id: 5, papel: "colaborador", acessoObras: true })).toBe(true);
+    expect(podeVerFotosDaObra({ id: 5, papel: "colaborador", acessoObras: false }, obra)).toBe(false);
+    expect(podeGerenciarFotos({ id: 5, papel: "colaborador" })).toBe(false);
+  });
 });

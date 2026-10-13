@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 import { lerDataUrl, podeGerenciarFotos, validarFotoObra } from "@/lib/obras/fotos";
 
 export const runtime = "nodejs";
 
-// EPIC-020 Lote 4 (item 28) — envio de foto da obra (somente admin). Os bytes
+// EPIC-020 Lote 4 (item 28) — envio de foto da obra (admin ou equipe com o módulo Obras). Os bytes
 // vão para a tabela "arquivos" (banco próprio) e os metadados para
 // "obra_fotos", na mesma transação. Mesmas regras da Prospecta.
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth();
-    const user = session?.user as { id?: string; role?: string } | undefined;
-    if (!user?.id) return NextResponse.json({ error: "Sessão expirada. Entre novamente." }, { status: 401 });
-    if (!podeGerenciarFotos({ id: user.id, papel: user.role ?? "" }))
-      return NextResponse.json({ error: "Somente administradores enviam fotos." }, { status: 403 });
+    const user = await usuarioAtual();
+    if (!user?.ativo) return NextResponse.json({ error: "Sessão expirada. Entre novamente." }, { status: 401 });
+    if (!podeGerenciarFotos({ id: user.id, papel: user.perfil ?? "", acessoObras: podeAcessarModulo(user, "obras") }))
+      return NextResponse.json({ error: "Sem permissão para enviar fotos desta obra." }, { status: 403 });
     const { id: obraId } = await params;
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;

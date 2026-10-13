@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { hasRole } from "@/lib/auth/rbac";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 import { lerDocumentoRegistro } from "@/lib/incorporacao/registro-drive";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ documentoId: string }> }) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  if (!hasRole(session, "admin")) return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+  // Item 06: mesma permissão das telas/actions do registro (módulo Incorporação).
+  const usuario = await usuarioAtual();
+  if (!usuario?.ativo) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  if (!podeAcessarModulo(usuario, "incorporacao")) return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   const { documentoId } = await params;
   if (!documentoId || documentoId.length > 100) return NextResponse.json({ error: "Documento inválido." }, { status: 400 });
   const documento = await prisma.estudoDocumentoRegistro.findUnique({

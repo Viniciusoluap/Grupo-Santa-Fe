@@ -6,10 +6,14 @@ import { revalidatePath } from "next/cache";
 // Deriva nome/telefone do cliente sempre a partir do Lead selecionado (quando
 // houver leadId) — evita que a visita fique com um "nome aleatório" digitado à
 // mão, dissociado de um lead real cadastrado no CRM.
-async function dadosDoCliente(formData: FormData): Promise<{ leadId: string | null; clienteNome: string; clienteTel: string }> {
+// Revisão do Codex (Prospecta #111, mesma regra aqui): o corretor só agenda
+// para lead da própria carteira — senão leria nome/telefone de cliente alheio.
+async function dadosDoCliente(formData: FormData, u: UsuarioDaSessao): Promise<{ leadId: string | null; clienteNome: string; clienteTel: string }> {
   const leadId = (formData.get("leadId") as string) || null;
   if (leadId) {
-    const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { nome: true, telefone: true } });
+    const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { nome: true, telefone: true, corretorId: true, excluidoEm: true } });
+    if (u.perfil === "corretor" && (!lead || lead.excluidoEm || !u.corretorId || lead.corretorId !== u.corretorId))
+      throw new Error("Lead não encontrado na sua carteira.");
     if (lead) return { leadId, clienteNome: lead.nome, clienteTel: lead.telefone };
   }
   return {
@@ -33,7 +37,7 @@ export async function criarVisita(formData: FormData) {
   if (u.perfil === "corretor" && !corretorId) throw new Error("Corretor sem vínculo ativo.");
   const colaboradorNome = (formData.get("colaboradorNome") as string) || undefined;
   const imovelId = (formData.get("imovelId") as string) || undefined;
-  const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData);
+  const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData, u);
 
   await prisma.visita.create({
     data: {
@@ -59,7 +63,7 @@ export async function editarVisita(formData: FormData) {
   const corretorId = u.perfil === "corretor" ? u.corretorId : ((formData.get("corretorId") as string) || null);
   const colaboradorNome = (formData.get("colaboradorNome") as string) || null;
   const imovelId = (formData.get("imovelId") as string) || null;
-  const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData);
+  const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData, u);
 
   await prisma.visita.update({
     where: { id },
