@@ -10,7 +10,7 @@ export default async function ObrasPage() {
 
   const registros = await prisma.obra.findMany({
     orderBy: { criadoEm: "desc" },
-    include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } } },
+    include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } }, empreiteiro: { select: { nome: true } } },
   });
   // Campos Decimal (EPIC-020 Lote 2) não atravessam para Client Components:
   // a lista recebe só o VGV como número para exibição.
@@ -20,6 +20,7 @@ export default async function ObrasPage() {
     valorTotal: o.valorTotal, valorPago: o.valorPago, progresso: progressoDaObra(o.progressoMedido?.toString(), o.progresso), engenheiroResp: o.engenheiroResp,
     dataInicio: o.dataInicio, dataPrevisaoFim: o.dataPrevisaoFim, dataConclusao: o.dataConclusao, etapas: o.etapas,
     vgv: o.vgv == null ? null : Number(o.vgv),
+    criadoEm: o.criadoEm, empreiteiroNome: o.empreiteiro?.nome ?? null,
   }));
 
   return <ObrasClient obras={obras} />;
