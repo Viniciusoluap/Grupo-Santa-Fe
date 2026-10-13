@@ -64,18 +64,72 @@ por serem os defeitos em uso hoje; depois Lote 2. Aguardando o proprietário aut
 
 ## 3. Estado atual
 
+**Autorização do proprietário (13/10/2026):** "siga a recomendação, pode executar todos os
+lotes, porém o 10 da incorporação antes de executar eu preciso autorizar novamente".
+Lotes 2, 3, 4 e 6 autorizados; **Lote 5 (item 10) BLOQUEADO até nova autorização.**
+Merge, deploy e migrações em produção continuam dependendo de autorização separada.
+
 | ID | Prospecta | Santa Fé |
 |---|---|---|
-| 01 | Pendente | Pendente (parcial: `excluirObra` existe) |
+| 01 | Pendente (exclusão de obra já no servidor, item 03; falta tela + filtros) | Pendente (exclusão real pronta pelo item 03; faltam filtros) |
 | 02 | Pendente | Parcial (login único já existe) |
-| 03 | Pendente (auditar) | Pendente (defeito confirmado) |
+| 03 | **Concluído no código** (`644a941`) | **Concluído no código** (`36c37c2`) |
 | 04 | Não aplicável | Pendente |
 | 05 | Pendente | Pendente |
 | 06 | Parcial (módulos por colaborador já existem) | Parcial (idem) |
 | 07 | A verificar | Pendente (causa localizada) |
 | 08 | Pendente (arquivos localizados) | Não aplicável |
-| 09 | Pendente (erro mascarado) | Pendente (403) |
-| 10 | Pendente | Referência |
+| 09 | **Concluído no código** (`50d775f`) — falta validar em produção | **Concluído no código** (`b3f7931`) — idem |
+| 10 | BLOQUEADO (aguarda autorização) | Referência |
+
+"Concluído no código" = commit na branch `claude/sync-mirrored-repos-bsqnz3` com testes;
+**nada mesclado, publicado ou migrado em produção.**
+
+## 4. Registro por implementação
+
+### 09 — Google Drive (concluído no código)
+- **Causa provável do 403** (as duas fotos): conta de serviço gravando no "Meu Drive" de conta
+  pessoal (`storageQuotaExceeded`), API desligada ou pasta compartilhada como Leitor. O código
+  agora mostra o motivo exato devolvido pelo Google.
+- Arquivo comum `Prospecta/shared/drive-erro.ts` = `Grupo-Santa-Fe/web/src/lib/drive-erro.ts`
+  (`ErroDrive`, `lerCorpoErroGoogle`, `descreverErroDrive`).
+- Prospecta `server/drive-documents.ts`: erros por etapa, `diagnosticarDrive()` (teste real com
+  arquivo de 1 KB apagado em seguida), `tryDriveUpload()`. Se o Drive falhar, o arquivo fica no
+  banco: `lead_document_file_data`, `incorporation_registration_file_data` (novas) e as já
+  existentes do checklist/jurídico. Colunas `storage` ('drive'|'banco') e `storage_note`.
+- Santa Fé `lib/incorporacao/registro-drive.ts`: mesmo comportamento; bytes em `arquivos`
+  (`EstudoDocumentoRegistro.arquivoId`, `armazenamento`, `notaArmazenamento`, `driveFileId` opcional).
+- Botão **"Testar Google Drive"** (admin): Prospecta em Documentos do lead e no Registro da
+  incorporação; Santa Fé no Registro da incorporação.
+- Migrações (aditivas, **não aplicadas em produção**): Prospecta `drizzle/0048_document_db_storage.sql`;
+  Santa Fé `web/prisma/migrations/20261013200000_documentos_armazenamento_banco/`.
+  Testadas em Postgres local.
+- Testes: `server/drive-erro.test.ts` (15) e `web/src/lib/__tests__/drive-erro.test.ts` (15).
+- Pendente: aplicar migrações + publicar (autorização), clicar "Testar Google Drive" em produção
+  e corrigir a configuração conforme o motivo exibido.
+
+### 03 — Excluir ≠ Cancelar (concluído no código)
+- Regra comum `Prospecta/shared/exclusao.ts` = `Grupo-Santa-Fe/web/src/lib/exclusao.ts`:
+  bloqueia exclusão com movimentos financeiros, recebimentos, medições, investidores, comissões,
+  pagamento registrado, comissão paga ou unidade vendida/reservada, e orienta a cancelar.
+- Santa Fé `lib/crm/excluir-servico.ts` (`excluirServicoDefinitivo`, transação): obra,
+  financiamento, projeto, regularização, avaliação, estudo, comissão; remove dependentes
+  exclusivos (etapas, fotos+arquivos, checklist, itens, `ServicoLead`); lead preservado.
+  Ações `excluirX` (definitivo) e novas `cancelarX`; componente `components/admin/acoes-excluir-cancelar.tsx`.
+  Corrigido também `pg_advisory_xact_lock` via `$queryRaw` (quebrava) em `documentos-registro.ts`.
+- Prospecta `server/exclusao-definitiva.ts` (`excluirDefinitivo`, `db.batch`): mesmos módulos;
+  `deleteProject` virou só-admin (antes o cliente dono podia apagar) + `cancelProject`;
+  `financiamentos.cancel`, `projetos.cancel`, `regularizacao.cancel`, `incorporacao.delete`;
+  CRM `leadServices.remove` passa pela mesma regra. Componente `client/src/components/AcoesExcluirCancelar.tsx`
+  em Projetos, Financiamentos, Regularizações, Avaliações e Incorporação.
+- CRM/lead: "excluir lead" continua ocultando (`excluidoEm`), pois o lead é o cadastro
+  compartilhado do cliente. Agenda/Tarefas/Imóveis já excluíam de verdade. Movimentos e
+  recebimentos financeiros continuam só com cancelamento (guarda contábil, por trigger).
+- Testes: Santa Fé `exclusao-regras.test.ts` (3) + `exclusao-definitiva.db.test.ts` (5, roda com
+  `TEST_DATABASE_URL=postgresql://...`); Prospecta `server/exclusao-regras.test.ts` (3) +
+  integração local (4) fora do repositório (driver neon-http não conecta em Postgres local).
+  Suítes: Santa Fé 583 ok; Prospecta 697 ok (antes do teste novo).
 
 ### Próximo passo exato
-Aguardar autorização do proprietário para os lotes. Ao autorizar, começar pelo item indicado em §2.
+Item 01 (obras: filtros combinados nos dois + tela de exclusão no Prospecta), depois Lote 2
+(02, 04, 05, 06), depois 07 e 08, depois Lote 6. Não iniciar o item 10.
