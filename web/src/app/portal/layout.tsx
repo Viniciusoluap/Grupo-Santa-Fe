@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Home, FileText, CalendarDays, MessageSquare, LogOut, HardHat } from "lucide-react";
 import { auth } from "@/auth";
+import { destinoDoUsuario, usuarioAtual } from "@/lib/auth/modulos";
+import { areaDoPerfil } from "@/lib/perfis-acesso";
 
 const portalNav = [
   { href: "/portal", label: "Início", icon: Home },
@@ -15,6 +17,10 @@ const portalNav = [
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/login");
+  // Item 06: o portal é só do cliente; os demais perfis voltam para a própria área.
+  const usuario = await usuarioAtual();
+  if (!usuario?.ativo) redirect("/login");
+  if (areaDoPerfil(usuario.perfil) !== "portal") redirect(destinoDoUsuario(usuario));
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
