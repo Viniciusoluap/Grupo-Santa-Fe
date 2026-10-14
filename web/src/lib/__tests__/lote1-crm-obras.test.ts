@@ -58,9 +58,10 @@ describe("item 05 — temperatura do lead (mesmas opções da Prospecta)", () =>
 });
 
 describe("itens 06 e 07 — classificações de Obra", () => {
-  it("o seletor oferece exatamente as 5 classificações, com a marca do Grupo Santa Fé", () => {
+  it("pedido A1: o seletor oferece as situações do filtro, na mesma ordem, com a marca do Grupo Santa Fé", () => {
     expect(OBRA_STATUS_SELECIONAVEIS.map(obraStatusLabel)).toEqual([
       "Planejamento", "Aprovação", "Contrato Grupo Santa Fé", "Laudo CEF", "Conformidade CEF",
+      "Orçamento", "Contratada", "Em Andamento", "Pausada", "Concluída", "Cancelada",
     ]);
     expect(OBRA_STATUS_SELECIONAVEIS.map(obraStatusLabel).join(" ")).not.toContain("Prospecta");
   });
@@ -71,10 +72,12 @@ describe("itens 06 e 07 — classificações de Obra", () => {
     }
   });
 
-  it("permite manter classificação antiga, mas não escolher uma removida", () => {
+  it("todas as situações do filtro podem ser escolhidas; o estado de sistema da fila do CRM não", () => {
     expect(validarMudancaStatusObra("pausada", "pausada")).toBeNull();
     expect(validarMudancaStatusObra("aguardando_configuracao", "aprovacao")).toBeNull();
-    expect(validarMudancaStatusObra("planejamento", "cancelada")).toMatch(/não está disponível.*Planejamento, Aprovação/);
+    expect(validarMudancaStatusObra("planejamento", "cancelada")).toBeNull();
+    expect(validarMudancaStatusObra("aguardando_configuracao", "aguardando_configuracao")).toBeNull();
+    expect(validarMudancaStatusObra("planejamento", "aguardando_configuracao")).toMatch(/não está disponível/);
   });
 
   it("editarObra salva obra antiga sem trocar a classificação e grava nova classificação válida", async () => {
@@ -85,9 +88,9 @@ describe("itens 06 e 07 — classificações de Obra", () => {
     expect(mocks.update.mock.calls[1][0].data.status).toBe("laudo_cef");
   });
 
-  it("editarObra recusa classificação removida com mensagem compreensível", async () => {
+  it("editarObra recusa o estado de sistema da fila do CRM com mensagem compreensível", async () => {
     const { editarObra } = await import("@/lib/actions/obras");
-    await expect(editarObra(formObra({ status: "cancelada" }))).rejects.toThrow(/Cancelada.*não está disponível/);
+    await expect(editarObra(formObra({ status: "aguardando_configuracao" }))).rejects.toThrow(/Pendente de configuração.*não está disponível/);
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });

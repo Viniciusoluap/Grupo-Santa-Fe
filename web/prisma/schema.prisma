@@ -1096,7 +1096,8 @@ model ObraMovimento {
   obraId             String
   obra               Obra                     @relation(fields: [obraId], references: [id], onDelete: Restrict)
   natureza           String // entrada | recebimento_cef | pagamento
-  categoria          String? // terreno | comissao | empreiteiro | fornecedor | outros | nao_detalhado (só pagamento)
+  categoria          String? // terreno | comissao | empreiteiro | fornecedor | outros | mao_de_obra | material | nao_detalhado (só pagamento)
+  etapa              String? // chave de SERVICOS_PROGRESSO (só pagamento; migração 20261013230000)
   descricao          String
   valor              Decimal                  @db.Decimal(15, 2)
   data               DateTime                 @db.Date

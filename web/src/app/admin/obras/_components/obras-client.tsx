@@ -54,7 +54,7 @@ export function ObrasClient({ obras }: Props) {
   // Item 01: todos os filtros funcionam juntos (lib/obras-filtro, igual ao Prospecta).
   const filtered = useMemo(() => filtrarObras(obras.map((o) => ({
     ...o, codigo: codigoObra(o.id), cliente: o.clienteNome, responsaveis: [o.engenheiroResp, o.empreiteiroNome],
-    origemCrm: o.servicoLead != null, inicio: o.dataInicio, fim: o.dataConclusao ?? o.dataPrevisaoFim,
+    inicio: o.dataInicio, fim: o.dataConclusao ?? o.dataPrevisaoFim,
   })), filtros), [obras, filtros]);
   const ativos = filtrosAtivos(filtros);
 
@@ -109,7 +109,11 @@ export function ObrasClient({ obras }: Props) {
           <label className="text-xs font-bold text-gray-500 uppercase">Responsável
             <input value={filtros.responsavel} onChange={(e) => set("responsavel", e.target.value)} placeholder="Engenheiro ou empreiteiro" className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case" />
           </label>
-          <label className="text-xs font-bold text-gray-500 uppercase">Situação
+        </div>
+        {/* Datas com espaço próprio: cada intervalo ocupa a sua coluna, com "De" e "Até"
+            lado a lado e encolhendo junto (pedido A3, 13/10/2026). */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <label className="min-w-0 text-xs font-bold text-gray-500 uppercase">Situação
             <select value={filtros.status} onChange={(e) => set("status", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case">
               <option value="">Todas</option>
               {(Object.entries(OBRA_STATUS_CONFIG) as [ObraStatus, typeof OBRA_STATUS_CONFIG[ObraStatus]][])
@@ -117,19 +121,8 @@ export function ObrasClient({ obras }: Props) {
                 .map(([status, cfg]) => <option key={status} value={status}>{cfg.label} ({obras.filter((o) => o.status === status).length})</option>)}
             </select>
           </label>
-          <label className="text-xs font-bold text-gray-500 uppercase">Origem
-            <select value={filtros.origem} onChange={(e) => set("origem", e.target.value as FiltrosObras["origem"])} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case">
-              <option value="todas">Todas</option><option value="crm">Criada pelo CRM</option><option value="manual">Sem vínculo com o CRM</option>
-            </select>
-          </label>
-          <fieldset className="text-xs font-bold text-gray-500 uppercase">Período de execução
-            <div className="mt-1 flex gap-2"><input type="date" aria-label="Período de" value={filtros.periodoDe} onChange={(e) => set("periodoDe", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" />
-              <input type="date" aria-label="Período até" value={filtros.periodoAte} onChange={(e) => set("periodoAte", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" /></div>
-          </fieldset>
-          <fieldset className="text-xs font-bold text-gray-500 uppercase">Data de criação
-            <div className="mt-1 flex gap-2"><input type="date" aria-label="Criada de" value={filtros.criadoDe} onChange={(e) => set("criadoDe", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" />
-              <input type="date" aria-label="Criada até" value={filtros.criadoAte} onChange={(e) => set("criadoAte", e.target.value)} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal" /></div>
-          </fieldset>
+          <IntervaloDatas titulo="Período de execução" de={filtros.periodoDe} ate={filtros.periodoAte} onDe={(v) => set("periodoDe", v)} onAte={(v) => set("periodoAte", v)} />
+          <IntervaloDatas titulo="Data de criação" de={filtros.criadoDe} ate={filtros.criadoAte} onDe={(v) => set("criadoDe", v)} onAte={(v) => set("criadoAte", v)} />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">Ordenar
@@ -205,5 +198,18 @@ export function ObrasClient({ obras }: Props) {
         })}
       </div>
     </div>
+  );
+}
+
+function IntervaloDatas({ titulo, de, ate, onDe, onAte }: { titulo: string; de: string; ate: string; onDe: (v: string) => void; onAte: (v: string) => void }) {
+  const campo = "mt-1 w-full min-w-0 px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white font-normal";
+  return (
+    <fieldset className="min-w-0 text-xs font-bold text-gray-500 uppercase">
+      <legend>{titulo}</legend>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-400">De<input type="date" aria-label={`${titulo}: de`} value={de} onChange={(e) => onDe(e.target.value)} className={campo} /></label>
+        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-400">Até<input type="date" aria-label={`${titulo}: até`} value={ate} onChange={(e) => onAte(e.target.value)} className={campo} /></label>
+      </div>
+    </fieldset>
   );
 }

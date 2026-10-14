@@ -13,6 +13,7 @@ export type MovimentoResumo = {
   id: string;
   natureza: "entrada" | "recebimento_cef" | "pagamento";
   categoria: string | null;
+  etapa: string | null;
   descricao: string;
   valor: string;
   data: string;
@@ -124,6 +125,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
       id: m.id,
       natureza: m.natureza as MovimentoResumo["natureza"],
       categoria: m.categoria,
+      etapa: m.etapa,
       descricao: m.descricao,
       valor: m.valor.toString(),
       data: m.data.toISOString().slice(0, 10),

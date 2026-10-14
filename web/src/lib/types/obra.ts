@@ -60,7 +60,7 @@ export const OBRA_STATUS_CONFIG: Record<ObraStatus, { label: string; bgColor: st
   contrato_grupo_santa_fe: { label: "Contrato Grupo Santa Fé", bgColor: "bg-yellow-100", color: "text-yellow-800", order: 3 },
   laudo_cef: { label: "Laudo CEF", bgColor: "bg-emerald-100", color: "text-emerald-700", order: 4 },
   conformidade_cef: { label: "Conformidade CEF", bgColor: "bg-teal-100", color: "text-teal-700", order: 5 },
-  // Estados de sistema e classificações antigas: exibidos, mas fora do seletor.
+  // Estado de sistema da fila do CRM: exibido e filtrável, mas não escolhido à mão.
   aguardando_configuracao: { label: "Pendente de configuração", bgColor: "bg-amber-100", color: "text-amber-800", order: 0 },
   orcamento: { label: "Orçamento", bgColor: "bg-gray-100", color: "text-gray-600", order: 6 },
   contratada: { label: "Contratada", bgColor: "bg-blue-100", color: "text-blue-600", order: 7 },
@@ -70,15 +70,12 @@ export const OBRA_STATUS_CONFIG: Record<ObraStatus, { label: string; bgColor: st
   cancelada: { label: "Cancelada", bgColor: "bg-red-100", color: "text-red-500", order: 11 },
 };
 
-// Lote 1 (itens 06/07): únicas classificações oferecidas no seletor. As demais
-// continuam válidas para obras que já as têm, mas não podem ser escolhidas.
-export const OBRA_STATUS_SELECIONAVEIS = [
-  "planejamento",
-  "aprovacao",
-  "contrato_grupo_santa_fe",
-  "laudo_cef",
-  "conformidade_cef",
-] as const satisfies readonly ObraStatus[];
+// Pedido A1 (13/10/2026, paridade com a Prospecta): o seletor da edição oferece as
+// mesmas situações do filtro da lista de obras, na mesma ordem. Só o estado de
+// sistema "Pendente de configuração" (fila do CRM) fica fora da escolha manual.
+export const OBRA_STATUS_SELECIONAVEIS = (Object.keys(OBRA_STATUS_CONFIG) as ObraStatus[])
+  .filter((s) => s !== "aguardando_configuracao")
+  .sort((a, b) => OBRA_STATUS_CONFIG[a].order - OBRA_STATUS_CONFIG[b].order);
 
 export function obraStatusLabel(status: string): string {
   return OBRA_STATUS_CONFIG[status as ObraStatus]?.label ?? status;
