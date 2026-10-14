@@ -7,8 +7,8 @@ import Link from "next/link";
 import { Search, HardHat, Pencil } from "lucide-react";
 import { OBRA_STATUS_CONFIG, ObraStatus, tipoProjetoObra } from "@/lib/types/obra";
 import { formatCurrency } from "@/lib/utils";
-import { excluirObra, cancelarObra } from "@/lib/actions/obras";
-import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
+import { excluirObra } from "@/lib/actions/obras";
+import { AcoesExcluir } from "@/components/admin/acoes-excluir";
 
 interface ObraEtapa {
   id: string;
@@ -191,7 +191,7 @@ export function ObrasClient({ obras }: Props) {
                 <Link href={`/admin/obras/${o.id}/editar`} className="text-xs border border-gray-200 hover:border-blue-300 hover:text-blue-500 text-gray-500 font-bold px-3 py-2 transition-colors flex items-center gap-1">
                   <Pencil size={12} /> Editar
                 </Link>
-                <AcoesExcluirCancelar id={o.id} rotulo={o.nome} cancelado={o.status === "cancelada"} cancelar={cancelarObra} excluir={excluirObra} />
+                <AcoesExcluir id={o.id} rotulo={o.nome} excluir={excluirObra} />
               </div>
             </div>
           );

@@ -230,37 +230,17 @@ async function adicionarRecebimentoImpl(input: RecebimentoInput) {
   return { ok: true as const };
 }
 
-async function cancelarRecebimentoImpl(id: string, motivo: string) {
-  const usuarioId = await exigirAdmin();
-  if (!motivo || motivo.trim().length < 3) throw new Error("Informe o motivo do cancelamento.");
+/** Pedido A6: excluir apaga o recebimento de vez (e o histórico dele). */
+async function excluirRecebimentoImpl(id: string) {
+  await exigirAdmin();
   const atual = await prisma.regularizacaoRecebimento.findUnique({ where: { id }, select: { regularizacaoId: true } });
-  const r = await prisma.regularizacaoRecebimento.updateMany({
-    where: { id, status: "confirmado" },
-    data: { status: "cancelado", motivoCancelamento: motivo.trim().slice(0, 500), atualizadoPorId: usuarioId },
-  });
-  if (r.count === 0 || !atual) throw new Error("Recebimento inexistente ou já cancelado.");
+  if (!atual) throw new Error("Recebimento não encontrado (talvez já excluído).");
+  await prisma.regularizacaoRecebimento.deleteMany({ where: { id } });
   revalidar(atual.regularizacaoId);
   return { ok: true as const };
 }
 
-async function reativarRecebimentoImpl(id: string) {
-  const usuarioId = await exigirAdmin();
-  const atual = await prisma.regularizacaoRecebimento.findUnique({ where: { id }, select: { regularizacaoId: true } });
-  try {
-    const r = await prisma.regularizacaoRecebimento.updateMany({
-      where: { id, status: "cancelado" },
-      data: { status: "confirmado", motivoCancelamento: null, atualizadoPorId: usuarioId },
-    });
-    if (r.count === 0 || !atual) throw new Error("Recebimento inexistente ou já confirmado.");
-  } catch (err) {
-    traduzir(err);
-  }
-  revalidar(atual!.regularizacaoId);
-  return { ok: true as const };
-}
-
 export async function adicionarRecebimentoRegularizacao(input: RecebimentoInput) { return capturarErroAcao(() => adicionarRecebimentoImpl(input)); }
-export async function cancelarRecebimentoRegularizacao(id: string, motivo: string) { return capturarErroAcao(() => cancelarRecebimentoImpl(id, motivo)); }
-export async function reativarRecebimentoRegularizacao(id: string) { return capturarErroAcao(() => reativarRecebimentoImpl(id)); }
+export async function excluirRecebimentoRegularizacao(id: string) { return capturarErroAcao(() => excluirRecebimentoImpl(id)); }
 
 // Novas regularizações são materializadas exclusivamente pelas demandas do CRM.

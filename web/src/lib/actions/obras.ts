@@ -23,7 +23,7 @@ export async function criarDiarioObra(obraId: string, formData: FormData) {
   revalidatePath(`/admin/obras/${obraId}`);
 }
 
-/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
+/** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirObra(id: string) {
   return capturarErroAcao(async () => {
     await exigirAdminAtivo();
@@ -31,16 +31,6 @@ export async function excluirObra(id: string) {
     revalidatePath("/admin/obras");
     revalidatePath("/admin/leads");
     return r;
-  });
-}
-
-/** Cancelar mantém o registro e o histórico; só muda a situação. */
-export async function cancelarObra(id: string) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("obras");
-    const r = await prisma.obra.updateMany({ where: { id, status: { not: "cancelada" } }, data: { status: "cancelada" } });
-    revalidatePath("/admin/obras");
-    return { cancelado: r.count > 0 };
   });
 }
 

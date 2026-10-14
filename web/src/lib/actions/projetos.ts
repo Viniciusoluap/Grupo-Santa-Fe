@@ -39,7 +39,7 @@ export async function alterarStatusProjetoFromDetail(id: string, status: string)
   revalidatePath(`/admin/projetos/${id}`);
 }
 
-/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
+/** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirProjeto(id: string) {
   return capturarErroAcao(async () => {
     await exigirAdminAtivo();
@@ -47,16 +47,6 @@ export async function excluirProjeto(id: string) {
     revalidatePath("/admin/projetos");
     revalidatePath("/admin/leads");
     return r;
-  });
-}
-
-/** Cancelar mantém o registro e o histórico; só muda a situação. */
-export async function cancelarProjeto(id: string) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("projetos");
-    const r = await prisma.projeto.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
-    revalidatePath("/admin/projetos");
-    return { cancelado: r.count > 0 };
   });
 }
 
