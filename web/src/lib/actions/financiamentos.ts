@@ -2,7 +2,7 @@
 import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
 import { TIPO_CONFIG, BANCO_CONFIG, STATUS_CONFIG } from "@/lib/types/financiamento";
-import { exigirConfiguracaoParaStatus, textoObrigatorio, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
+import { textoObrigatorio, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { obterAtorCrm } from "@/lib/crm/acesso-lead";
 import { escopoFinanciamentosDoAtor } from "@/lib/crm/acesso-financiamento";
 import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
@@ -90,10 +90,28 @@ export async function atualizarNotasChecklist(id: string, notas: string, financi
   revalidatePath(`/admin/financiamentos/${financiamentoId}`);
 }
 
+/**
+ * Pedido A9 (14/10/2026, paridade com a Prospecta): a etapa do financiamento é
+ * escolhida livremente na lista (as 8 etapas dos filtros), sem exigir a
+ * configuração completa antes. É só do financiamento: não altera o lead no CRM.
+ */
 export async function alterarStatusFinanciamento(id: string, status: string) {
-  const registro = await financiamentoDoAtor(id);
-  exigirConfiguracaoParaStatus(registro, status, ['imovel', 'banco', 'valorImovel', 'valorFinanciado', 'entrada', 'taxa', 'prazo'], STATUS_CONFIG);
+  await financiamentoDoAtor(id);
+  if (status === "aguardando_configuracao" || !Object.hasOwn(STATUS_CONFIG, status)) throw new Error("Etapa inválida.");
   await prisma.financiamento.update({ where: { id }, data: { status } });
   revalidatePath(`/admin/financiamentos/${id}`);
   revalidatePath("/admin/financiamentos");
+}
+
+/** Pedido A9: valor total (imóvel) e valor financiado editados direto na lista. */
+export async function atualizarValoresFinanciamento(id: string, valorImovel: number, valorFinanciado: number) {
+  return capturarErroAcao(async () => {
+    await financiamentoDoAtor(id);
+    for (const v of [valorImovel, valorFinanciado]) if (!Number.isFinite(v) || v < 0 || v > 1e12) throw new Error("Valor inválido.");
+    if (valorFinanciado > valorImovel) throw new Error("O valor financiado não pode superar o valor total.");
+    await prisma.financiamento.update({ where: { id }, data: { valorImovel, valorFinanciado } });
+    revalidatePath(`/admin/financiamentos/${id}`);
+    revalidatePath("/admin/financiamentos");
+    return { ok: true as const };
+  });
 }

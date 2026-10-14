@@ -7,6 +7,7 @@ import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@
 import { formatCurrency } from "@/lib/utils";
 import { excluirFinanciamento } from "@/lib/actions/financiamentos";
 import { AcoesExcluir } from "@/components/admin/acoes-excluir";
+import { EtapaRapida, ValoresRapidos } from "./edicao-rapida";
 
 interface ChecklistItem {
   id: string;
@@ -85,7 +86,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
           { label: "Em andamento", value: ativos, sub: "processos ativos" },
           { label: "Aprovados/Liberados", value: aprovados, sub: "concluídos com êxito" },
           { label: "Volume Total", value: formatCurrency(totalFinanciado), sub: "total financiado" },
-          { label: "Taxa média", value: `${taxaMedia}% a.a.`, sub: "taxa de juros" },
+          { label: "Taxa média", value: taxasInformadas.length ? `${taxaMedia} a.a.` : taxaMedia, sub: "taxa de juros" },
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{label}</p>
@@ -104,7 +105,8 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
           .sort(([, a], [, b]) => a.order - b.order)
           .map(([status, cfg]) => {
             const count = financiamentos.filter((f) => f.status === status).length;
-            if (count === 0) return null;
+            // Pedido A9: as 8 etapas sempre aparecem (como na Prospecta); "Pendente de configuração" só quando houver.
+            if (count === 0 && status === "aguardando_configuracao") return null;
             return (
               <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
                 {cfg.label} ({count})
@@ -134,9 +136,9 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Cliente</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Imóvel</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase hidden lg:table-cell">Tipo / Banco</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase hidden lg:table-cell">Valor</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Valores</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Checklist</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Etapa</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Ações</th>
               </tr>
             </thead>
@@ -163,9 +165,8 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                       <p className="text-xs font-medium text-[var(--brand-dark)]">{TIPO_CONFIG[tipoKey]?.label ?? f.tipo}</p>
                       <p className="text-xs text-gray-400">{BANCO_CONFIG[bancoKey]?.label ?? f.banco}</p>
                     </td>
-                    <td className="px-4 py-3 text-right hidden lg:table-cell">
-                      <p className="font-bold text-sm">{formatCurrency(f.valorFinanciado)}</p>
-                      <p className="text-xs text-gray-400">{f.taxa}% a.a.</p>
+                    <td className="px-4 py-3 text-right">
+                      <ValoresRapidos key={`${f.valorImovel}-${f.valorFinanciado}`} id={f.id} cliente={f.clienteNome} valorImovel={f.valorImovel} valorFinanciado={f.valorFinanciado} />
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -179,7 +180,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+                      <EtapaRapida id={f.id} status={f.status} cliente={f.clienteNome} />
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
