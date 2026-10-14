@@ -219,3 +219,22 @@ Itens 01–09 estão em produção; o 10 continua bloqueado.
    Documentos do lead; Santa Fé: Registro da incorporação) e corrigir a configuração do Google
    conforme o motivo exibido; conferir o menu de um colaborador e de um corretor.
 2. **Item 10 (Incorporação em 5 fases, Prospecta) — BLOQUEADO:** só iniciar com nova autorização expressa.
+
+### Pedidos A1–A8 (13–14/10/2026) — publicados
+- **A1** situação da obra (seletor = opções do filtro); **A2** abas do Editar Obra (Prospecta);
+  **A3** filtros de data da lista de Obras; **A4a** filtro "Origem" removido; **A4b** obra da Lucia
+  (#28) vinculada ao lead 25 e duplicata #33 apagada (Prospecta); **A7** financiamentos do CRM
+  materializados (Prospecta). PRs #114 (Prospecta) e #183 (Santa Fé), em produção.
+- **A8** pagamento da obra: categorias "Mão de obra" e "Material" + campo **Etapa** (lista da Medição
+  por serviço). Migrações Neon `0050` e Supabase `20261013230000`, aplicadas antes do merge.
+- **A6 / Lote 3 — excluir é excluir, em todo o sistema:** sem botão Cancelar; lançamentos financeiros
+  (movimentos da obra, recebimentos da regularização) são apagados de verdade com o histórico; excluir
+  obra/financiamento/projeto/regularização leva junto lançamentos, medições, comissões e aportes.
+  Lançamentos já cancelados apagados com autorização do dono (Prospecta: 6 movimentos + 16 recebimentos;
+  Santa Fé: 0). Neon `0051` (gatilhos sem DELETE + histórico em cascata); Supabase
+  `20261014120000` aplicada **sem DROP** (o conector não executa DROP): as funções de guarda aceitam
+  DELETE e apagam o histórico antes — mesmo efeito. PRs #115 e #184, em produção.
+- **A5 / Lote 4 (Google Drive):** ainda falha após a configuração do dono. Aguardando o texto exato do
+  "Testar Google Drive". Hipótese: conta Google pessoal (sem Drive compartilhado) → pasta no "Meu Drive"
+  continua com `storageQuotaExceeded`. Alternativa proposta: conectar o Drive pela conta do próprio dono (OAuth).
+- **Item 10:** continua bloqueado até a revisão do dono.
