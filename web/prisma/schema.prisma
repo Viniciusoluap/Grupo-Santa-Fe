@@ -488,7 +488,7 @@ model RegularizacaoRecebimento {
 model RegularizacaoRecebimentoHistorico {
   id            String                   @id @default(cuid())
   recebimentoId String
-  recebimento   RegularizacaoRecebimento @relation(fields: [recebimentoId], references: [id], onDelete: Cascade)
+  recebimento   RegularizacaoRecebimento @relation(fields: [recebimentoId], references: [id], onDelete: Restrict)
   acao          String
   antes         Json?
   depois        Json
@@ -1121,7 +1121,7 @@ model ObraMovimento {
 model ObraMovimentoHistorico {
   id          String        @id @default(cuid())
   movimentoId String
-  movimento   ObraMovimento @relation(fields: [movimentoId], references: [id], onDelete: Cascade)
+  movimento   ObraMovimento @relation(fields: [movimentoId], references: [id], onDelete: Restrict)
   acao        String
   antes       Json?
   depois      Json
