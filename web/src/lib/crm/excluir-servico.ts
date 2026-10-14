@@ -1,52 +1,20 @@
 import { transacaoCRM, type TransacaoCRM } from "@/lib/crm/vinculo-lead";
-import { motivoBloqueioExclusao, type DependenciasExclusao, type ModuloExclusao } from "@/lib/exclusao";
+import type { ModuloExclusao } from "@/lib/exclusao";
 
-// 10 implementações, item 03 — exclusão definitiva (serviços do CRM, estudos, comissões).
-// Remove o registro e o que só existe por causa dele; o lead/cliente fica.
-// Com guarda obrigatória (financeiro, comissão, investidor), nada é apagado
-// e a mensagem orienta a cancelar.
+// Exclusão definitiva (item 03 + pedido A6; mesma regra da Prospecta:
+// server/exclusao-definitiva.ts). Remove o registro e tudo o que só existe por
+// causa dele (lançamentos, comissões, aportes, unidades); o lead/cliente fica.
 
-async function dependencias(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Promise<DependenciasExclusao | null> {
+async function existe(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Promise<boolean> {
+  const sel = { where: { id }, select: { id: true } } as const;
   switch (modulo) {
-    case "obra": {
-      const obra = await tx.obra.findUnique({ where: { id }, select: { id: true } });
-      if (!obra) return null;
-      const [movimentosFinanceiros, investidores, comissoes] = await Promise.all([
-        tx.obraMovimento.count({ where: { obraId: id } }),
-        tx.obraInvestidor.count({ where: { obraId: id } }),
-        tx.comissao.count({ where: { tipoNegocio: "obra", negocioId: id } }),
-      ]);
-      return { movimentosFinanceiros, investidores, comissoes };
-    }
-    case "financiamento": {
-      const fin = await tx.financiamento.findUnique({ where: { id }, select: { id: true } });
-      if (!fin) return null;
-      return { comissoes: await tx.comissao.count({ where: { tipoNegocio: "financiamento", negocioId: id } }) };
-    }
-    case "regularizacao": {
-      const reg = await tx.regularizacao.findUnique({ where: { id }, select: { id: true } });
-      if (!reg) return null;
-      return { recebimentos: await tx.regularizacaoRecebimento.count({ where: { regularizacaoId: id } }) };
-    }
-    case "projeto": {
-      const projeto = await tx.projeto.findUnique({ where: { id }, select: { valorPago: true } });
-      if (!projeto) return null;
-      return { valorPago: projeto.valorPago };
-    }
-    case "avaliacao": {
-      const avaliacao = await tx.avaliacao.findUnique({ where: { id }, select: { id: true } });
-      return avaliacao ? {} : null;
-    }
-    case "estudo": {
-      const estudo = await tx.estudoIncorporacao.findUnique({ where: { id }, select: { id: true } });
-      if (!estudo) return null;
-      return { unidadesComercializadas: await tx.estudoUnidade.count({ where: { estudoId: id, status: { not: "disponivel" } } }) };
-    }
-    case "comissao": {
-      const comissao = await tx.comissao.findUnique({ where: { id }, select: { status: true } });
-      if (!comissao) return null;
-      return { comissaoPaga: comissao.status === "paga" };
-    }
+    case "obra": return Boolean(await tx.obra.findUnique(sel));
+    case "financiamento": return Boolean(await tx.financiamento.findUnique(sel));
+    case "regularizacao": return Boolean(await tx.regularizacao.findUnique(sel));
+    case "projeto": return Boolean(await tx.projeto.findUnique(sel));
+    case "avaliacao": return Boolean(await tx.avaliacao.findUnique(sel));
+    case "estudo": return Boolean(await tx.estudoIncorporacao.findUnique(sel));
+    case "comissao": return Boolean(await tx.comissao.findUnique(sel));
   }
 }
 
@@ -57,16 +25,21 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
       // Fotos guardam os bytes em `arquivos`; apagar o arquivo apaga a foto.
       const fotos = await tx.obraFoto.findMany({ where: { obraId: id }, select: { arquivoId: true } });
       if (fotos.length) await tx.arquivo.deleteMany({ where: { id: { in: fotos.map((f) => f.arquivoId) } } });
-      await tx.obra.delete({ where: { id } }); // etapas, diário e progresso saem em cascata
+      // Pedido A6: lançamentos e comissões da obra saem junto (histórico em cascata).
+      await tx.obraMovimento.deleteMany({ where: { obraId: id } });
+      await tx.comissao.deleteMany({ where: { tipoNegocio: "obra", negocioId: id } });
+      await tx.obra.delete({ where: { id } }); // etapas, diário, progresso e aportes saem em cascata
       return servicoLeadId;
     }
     case "financiamento": {
       const { servicoLeadId } = await tx.financiamento.findUniqueOrThrow({ where: { id }, select: { servicoLeadId: true } });
+      await tx.comissao.deleteMany({ where: { tipoNegocio: "financiamento", negocioId: id } });
       await tx.financiamento.delete({ where: { id } }); // checklist sai em cascata
       return servicoLeadId;
     }
     case "regularizacao": {
       const { servicoLeadId } = await tx.regularizacao.findUniqueOrThrow({ where: { id }, select: { servicoLeadId: true } });
+      await tx.regularizacaoRecebimento.deleteMany({ where: { regularizacaoId: id } });
       await tx.regularizacao.delete({ where: { id } }); // etapas, itens e documentos saem em cascata
       return servicoLeadId;
     }
@@ -81,7 +54,7 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
       return servicoLeadId;
     }
     case "estudo": {
-      // Unidades só disponíveis (sem comprador), seus eventos e as referências de
+      // Unidades (inclusive vendidas/reservadas), seus eventos e as referências de
       // documentos; os bytes guardados no banco saem junto. Arquivos no Drive ficam lá.
       await tx.estudoUnidadeEvento.deleteMany({ where: { unidade: { estudoId: id } } });
       await tx.estudoUnidade.deleteMany({ where: { estudoId: id } });
@@ -100,17 +73,14 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
 }
 
 /**
- * Exclui definitivamente. Lança erro com a explicação quando a exclusão é
- * impedida. Registro inexistente (já excluído) não é erro: a operação é idempotente.
+ * Exclui definitivamente o registro e tudo o que só existe por causa dele.
+ * Registro inexistente (já excluído) não é erro: a operação é idempotente.
  */
 export async function excluirServicoDefinitivo(modulo: ModuloExclusao, id: string): Promise<{ excluido: boolean }> {
   if (!id || id.length > 100) throw new Error("Registro inválido.");
   return transacaoCRM(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`excluir:${modulo}:${id}`}))`;
-    const deps = await dependencias(tx, modulo, id);
-    if (!deps) return { excluido: false };
-    const bloqueio = motivoBloqueioExclusao(modulo, deps);
-    if (bloqueio) throw new Error(bloqueio);
+    if (!(await existe(tx, modulo, id))) return { excluido: false };
     const servicoLeadId = await apagar(tx, modulo, id);
     // O vínculo de serviço só existia para este registro; o lead permanece.
     if (servicoLeadId) await tx.servicoLead.deleteMany({ where: { id: servicoLeadId } });

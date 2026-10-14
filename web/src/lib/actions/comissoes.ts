@@ -77,7 +77,7 @@ export async function editarComissao(formData: FormData) {
   redirect("/admin/comissoes");
 }
 
-/** Exclusão definitiva (item 03); comissão paga é registro contábil: cancele/estorne. */
+/** Exclusão definitiva (item 03 + pedido A6), inclusive comissão paga. */
 export async function excluirComissao(id: string) {
   return capturarErroAcao(async () => {
     await exigirAdminAtivo();

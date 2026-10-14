@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Search, FileCheck, Pencil } from "lucide-react";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
-import { excluirRegularizacao, cancelarRegularizacao } from "@/lib/actions/regularizacoes";
-import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
+import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
+import { AcoesExcluir } from "@/components/admin/acoes-excluir";
 import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
 import { STATUS_PROCESSO, ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 
@@ -173,7 +173,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                   <Link href={`/admin/regularizacao/${r.id}/editar`} className="text-xs border border-gray-200 hover:border-blue-300 hover:text-blue-500 text-gray-500 font-bold px-3 py-1.5 transition-colors flex items-center gap-1">
                     <Pencil size={12} /> Editar
                   </Link>
-                  <AcoesExcluirCancelar id={r.id} rotulo={r.nome} cancelado={r.status === "cancelado"} cancelar={cancelarRegularizacao} excluir={excluirRegularizacao} />
+                  <AcoesExcluir id={r.id} rotulo={r.nome} excluir={excluirRegularizacao} />
                 </div>
               </div>
             </div>

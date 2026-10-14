@@ -16,7 +16,7 @@ function statusEditado(status: string, atual: string): string {
   return status;
 }
 
-/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
+/** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirRegularizacao(id: string) {
   return capturarErroAcao(async () => {
     await exigirAdminAtivo();
@@ -24,16 +24,6 @@ export async function excluirRegularizacao(id: string) {
     revalidatePath("/admin/regularizacao");
     revalidatePath("/admin/leads");
     return r;
-  });
-}
-
-/** Cancelar mantém o registro e o histórico; só muda a situação. */
-export async function cancelarRegularizacao(id: string) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("regularizacao");
-    const r = await prisma.regularizacao.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
-    revalidatePath("/admin/regularizacao");
-    return { cancelado: r.count > 0 };
   });
 }
 

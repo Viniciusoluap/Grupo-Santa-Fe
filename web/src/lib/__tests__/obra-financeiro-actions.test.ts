@@ -10,7 +10,7 @@ const prisma = {
   obra: { update: vi.fn(), findUnique: vi.fn() },
   investidor: { count: vi.fn() },
   obraInvestidor: { deleteMany: vi.fn(), createMany: vi.fn() },
-  obraMovimento: { create: vi.fn(), updateMany: vi.fn() },
+  obraMovimento: { create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
   $transaction: vi.fn(),
 };
 
@@ -37,7 +37,7 @@ describe("obra-financeiro — permissões", () => {
       const negado = /Não autorizado|Sem permissão/;
       await expect(a.salvarValoresObra(valoresBase)).rejects.toThrow(negado);
       await expect(a.adicionarMovimentoObra({ obraId: "o1", natureza: "entrada", descricao: "Sinal", valor: "10", data: "2026-10-01" })).rejects.toThrow(negado);
-      await expect(a.cancelarMovimentoObra("m1", "motivo")).rejects.toThrow(negado);
+      await expect(a.excluirMovimentoObra("m1")).rejects.toThrow(negado);
       expect(prisma.obra.update).not.toHaveBeenCalled();
       expect(prisma.obraMovimento.create).not.toHaveBeenCalled();
     },
@@ -133,19 +133,13 @@ describe("movimentos", () => {
     await expect(adicionarMovimentoObra({ obraId: "o1", natureza: "entrada", descricao: "Sinal", valor: "10", data: "2026-10-01" })).rejects.toThrow("conexão perdida");
   });
 
-  it("cancelar exige motivo e preserva o registro (update, nunca delete)", async () => {
-    prisma.obraMovimento.updateMany.mockResolvedValue({ count: 1 });
-    const { cancelarMovimentoObra } = await import("@/lib/actions/obra-financeiro");
-    expect((await cancelarMovimentoObra("m1", " ")).ok).toBe(false);
-    expect(await cancelarMovimentoObra("m1", "Lançado em duplicidade")).toEqual({ ok: true });
-    expect(prisma.obraMovimento.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "m1", status: "confirmado" }, data: expect.objectContaining({ status: "cancelado" }) }));
-  });
-
-  it("reativar traduz alocação excedida do BPO", async () => {
-    prisma.obraMovimento.updateMany.mockRejectedValue(new Error("BPO_ALOCACAO_EXCEDIDA"));
-    const { reativarMovimentoObra } = await import("@/lib/actions/obra-financeiro");
-    const r = await reativarMovimentoObra("m1");
-    expect(r.ok).toBe(false);
+  it("pedido A6: excluir apaga o movimento de vez (delete, nunca cancelar)", async () => {
+    prisma.obraMovimento.deleteMany.mockResolvedValue({ count: 1 });
+    const { excluirMovimentoObra } = await import("@/lib/actions/obra-financeiro");
+    expect(await excluirMovimentoObra("m1")).toEqual({ ok: true });
+    expect(prisma.obraMovimento.deleteMany).toHaveBeenCalledWith({ where: { id: "m1" } });
+    prisma.obraMovimento.deleteMany.mockResolvedValue({ count: 0 });
+    expect((await excluirMovimentoObra("m1")).ok).toBe(false);
   });
 });
 

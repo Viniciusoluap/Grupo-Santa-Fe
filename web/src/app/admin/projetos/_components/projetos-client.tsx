@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Search, Ruler, Pencil } from "lucide-react";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG, ProjetoStatus } from "@/lib/types/projeto";
 import { formatCurrency } from "@/lib/utils";
-import { excluirProjeto, cancelarProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
-import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
+import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
+import { AcoesExcluir } from "@/components/admin/acoes-excluir";
 
 interface Projeto {
   id: string;
@@ -180,7 +180,7 @@ export function ProjetosClient({ projetos }: Props) {
                         <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
-                        <AcoesExcluirCancelar id={p.id} rotulo={p.nome} cancelado={p.status === "cancelado"} cancelar={cancelarProjeto} excluir={excluirProjeto} compacto />
+                        <AcoesExcluir id={p.id} rotulo={p.nome} excluir={excluirProjeto} compacto />
                       </div>
                     </td>
                   </tr>

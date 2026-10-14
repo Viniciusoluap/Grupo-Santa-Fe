@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Ban, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { calcularObra, centavosDe, lerPercentualDigitado, type Indicador, type Natureza, type ResultadoObra } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import type { MovimentoResumo, ResumoObra } from "@/lib/financeiro/obra-dados";
@@ -10,11 +10,10 @@ import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 import { parseNumeroBR } from "@/lib/utils";
 import {
   adicionarMovimentoObra,
-  cancelarMovimentoObra,
+  excluirMovimentoObra,
   criarInvestidor,
   listarBpoDisponiveis,
   listarInvestidores,
-  reativarMovimentoObra,
 } from "@/lib/actions/obra-financeiro";
 
 // EPIC-020 Lote 2 — abas "Valores da Operação" e "Custos" do Grupo Santa Fé.
@@ -183,8 +182,7 @@ const ETAPA: Record<string, string> = Object.fromEntries(SERVICOS_PROGRESSO.map(
 function Historico({ titulo, movimentos }: { titulo: string; movimentos: MovimentoResumo[] }) {
   const router = useRouter();
   const [pendente, start] = useTransition();
-  const [cancelando, setCancelando] = useState<MovimentoResumo | null>(null);
-  const [motivo, setMotivo] = useState("");
+  const [excluindo, setExcluindo] = useState<MovimentoResumo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const executar = (fn: () => Promise<{ ok: true } | { ok: false; erro: string }>, depois?: () => void) =>
     start(async () => {
@@ -202,11 +200,11 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
         <div className="overflow-x-auto border border-gray-100">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-[10px] uppercase text-gray-500">
-              <tr><th className="p-2 text-left">Data</th><th className="p-2 text-left">Descrição</th><th className="p-2 text-left">Origem</th><th className="p-2 text-right">Valor</th><th className="p-2 text-left">Situação</th><th className="p-2" /></tr>
+              <tr><th className="p-2 text-left">Data</th><th className="p-2 text-left">Descrição</th><th className="p-2 text-left">Origem</th><th className="p-2 text-right">Valor</th><th className="p-2" /></tr>
             </thead>
             <tbody>
               {movimentos.map((m) => (
-                <tr key={m.id} className={`border-t border-gray-100 ${m.status === "cancelado" ? "text-gray-400 line-through" : ""}`}>
+                <tr key={m.id} className="border-t border-gray-100">
                   <td className="p-2 whitespace-nowrap">{dataBr(m.data)}</td>
                   <td className="p-2">
                     {m.descricao}
@@ -214,17 +212,11 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
                     {m.etapa && <span className="ml-2 text-[10px] uppercase text-gray-400">· {ETAPA[m.etapa] ?? m.etapa}</span>}
                     {m.observacao && <span className="block text-xs text-gray-400">{m.observacao}</span>}
                     {m.bpo && <span className="block text-xs text-gray-400">BPO: {m.bpo.descricao}{!m.bpo.pago ? " — não está mais pago!" : ""}</span>}
-                    {m.status === "cancelado" && m.motivoCancelamento && <span className="block text-xs text-red-500">Cancelado: {m.motivoCancelamento}</span>}
                   </td>
                   <td className="p-2">{ORIGEM[m.origem]}</td>
                   <td className="p-2 text-right whitespace-nowrap">{brlTexto(m.valor)}</td>
-                  <td className="p-2">{m.status === "confirmado" ? "Confirmado" : "Cancelado"}</td>
                   <td className="p-2 text-right">
-                    {m.status === "confirmado" ? (
-                      <button type="button" className="text-red-500" onClick={() => setCancelando(m)} aria-label={`Cancelar ${m.descricao}`}><Ban size={15} /></button>
-                    ) : (
-                      <button type="button" className="text-[var(--brand-dark)]" disabled={pendente} onClick={() => executar(() => reativarMovimentoObra(m.id))} aria-label={`Reativar ${m.descricao}`}><RotateCcw size={15} /></button>
-                    )}
+                    <button type="button" className="text-red-500" onClick={() => setExcluindo(m)} aria-label={`Excluir ${m.descricao}`}><Trash2 size={15} /></button>
                   </td>
                 </tr>
               ))}
@@ -232,16 +224,14 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
           </table>
         </div>
       )}
-      <Modal titulo="Cancelar lançamento" aberto={!!cancelando} onFechar={() => setCancelando(null)}>
+      <Modal titulo="Excluir lançamento" aberto={!!excluindo} onFechar={() => setExcluindo(null)}>
         <p className="text-sm text-gray-600">
-          {cancelando?.descricao} — {brlTexto(cancelando?.valor)}. O lançamento continua no histórico e deixa de entrar nos totais.
-          {cancelando?.origem === "bpo" && " O lançamento original no BPO não é alterado (isto desvincula o BPO desta obra)."}
+          {excluindo?.descricao} — {brlTexto(excluindo?.valor)}. O lançamento será removido definitivamente e sai dos totais. Esta ação não pode ser desfeita.
+          {excluindo?.origem === "bpo" && " O lançamento original no BPO não é alterado (só deixa de estar vinculado a esta obra)."}
         </p>
-        <label className={labelCls} htmlFor="motivo-cancelamento">Motivo</label>
-        <textarea id="motivo-cancelamento" value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} className={inputCls} />
-        <button type="button" disabled={pendente || motivo.trim().length < 3}
-          onClick={() => cancelando && executar(() => cancelarMovimentoObra(cancelando.id, motivo), () => { setCancelando(null); setMotivo(""); })}
-          className="bg-red-500 text-white font-bold text-xs uppercase px-4 py-2 disabled:opacity-50">Confirmar cancelamento</button>
+        <button type="button" disabled={pendente}
+          onClick={() => excluindo && executar(() => excluirMovimentoObra(excluindo.id), () => setExcluindo(null))}
+          className="bg-red-500 text-white font-bold text-xs uppercase px-4 py-2 disabled:opacity-50">Excluir definitivamente</button>
       </Modal>
     </div>
   );

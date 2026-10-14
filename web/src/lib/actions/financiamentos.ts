@@ -23,7 +23,7 @@ export async function criarFinanciamento(_formData: FormData): Promise<never> {
     "Criação avulsa de financiamento não é permitida. Vincule o serviço de financiamento (\"Financiamento MCMV\" ou \"Financiamento Convencional\") ao lead no CRM para criar o processo automaticamente."
   );
 }
-/** Exclusão definitiva (item 03): some das listas, pesquisas e totais. Bloqueada quando há guarda financeira. */
+/** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirFinanciamento(id: string) {
   return capturarErroAcao(async () => {
     await exigirAdminAtivo();
@@ -31,16 +31,6 @@ export async function excluirFinanciamento(id: string) {
     revalidatePath("/admin/financiamentos");
     revalidatePath("/admin/leads");
     return r;
-  });
-}
-
-/** Cancelar mantém o registro e o histórico; só muda a situação. */
-export async function cancelarFinanciamento(id: string) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("financiamentos");
-    const r = await prisma.financiamento.updateMany({ where: { id, status: { not: "cancelado" } }, data: { status: "cancelado" } });
-    revalidatePath("/admin/financiamentos");
-    return { cancelado: r.count > 0 };
   });
 }
 

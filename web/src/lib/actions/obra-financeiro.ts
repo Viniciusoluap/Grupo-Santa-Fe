@@ -26,7 +26,6 @@ const MENSAGENS_BANCO: Record<string, string> = {
   BPO_LANCAMENTO_NAO_PAGO: "Só lançamentos do BPO já pagos/recebidos podem ser vinculados.",
   BPO_NATUREZA_INCOMPATIVEL: "Pagamentos usam despesas do BPO; recebimentos usam receitas do BPO.",
   BPO_LANCAMENTO_INEXISTENTE: "Lançamento do BPO não encontrado.",
-  MOVIMENTO_NAO_PODE_SER_APAGADO: "Movimentos não são apagados: cancele para preservar o histórico.",
 };
 
 export type Resultado = { ok: true } | { ok: false; erro: string };
@@ -246,27 +245,10 @@ export async function adicionarMovimentoObra(input: NovoMovimentoInput): Promise
   return { ok: true };
 }
 
-export async function cancelarMovimentoObra(id: string, motivo: string): Promise<Resultado> {
-  const usuarioId = await exigirAdmin();
-  if (!motivo || motivo.trim().length < 3) return { ok: false, erro: "Informe o motivo do cancelamento." };
-  const r = await prisma.obraMovimento.updateMany({
-    where: { id, status: "confirmado" },
-    data: { status: "cancelado", motivoCancelamento: motivo.trim().slice(0, 500), atualizadoPorId: usuarioId },
-  });
-  if (r.count === 0) return { ok: false, erro: "Movimento inexistente ou já cancelado." };
-  return { ok: true };
-}
-
-export async function reativarMovimentoObra(id: string): Promise<Resultado> {
-  const usuarioId = await exigirAdmin();
-  try {
-    const r = await prisma.obraMovimento.updateMany({
-      where: { id, status: "cancelado" },
-      data: { status: "confirmado", motivoCancelamento: null, atualizadoPorId: usuarioId },
-    });
-    if (r.count === 0) return { ok: false, erro: "Movimento inexistente ou já confirmado." };
-  } catch (err) {
-    return traduzir(err);
-  }
+/** Pedido A6: excluir apaga o movimento de vez (e o histórico dele). */
+export async function excluirMovimentoObra(id: string): Promise<Resultado> {
+  await exigirAdmin();
+  const r = await prisma.obraMovimento.deleteMany({ where: { id } });
+  if (r.count === 0) return { ok: false, erro: "Movimento não encontrado (talvez já excluído)." };
   return { ok: true };
 }

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Search, FileCheck, Pencil } from "lucide-react";
 import { STATUS_CONFIG, TIPO_CONFIG, BANCO_CONFIG, FinanciamentoStatus } from "@/lib/types/financiamento";
 import { formatCurrency } from "@/lib/utils";
-import { excluirFinanciamento, cancelarFinanciamento } from "@/lib/actions/financiamentos";
-import { AcoesExcluirCancelar } from "@/components/admin/acoes-excluir-cancelar";
+import { excluirFinanciamento } from "@/lib/actions/financiamentos";
+import { AcoesExcluir } from "@/components/admin/acoes-excluir";
 
 interface ChecklistItem {
   id: string;
@@ -189,7 +189,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                         <Link href={`/admin/financiamentos/${f.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
-                        {podeArquivar && <AcoesExcluirCancelar id={f.id} rotulo={f.clienteNome} cancelado={f.status === "cancelado"} cancelar={cancelarFinanciamento} excluir={excluirFinanciamento} compacto />}
+                        {podeArquivar && <AcoesExcluir id={f.id} rotulo={f.clienteNome} excluir={excluirFinanciamento} compacto />}
                       </div>
                     </td>
                   </tr>

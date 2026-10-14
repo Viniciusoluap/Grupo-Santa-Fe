@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Ban, ListChecks, Pencil, Plus, RotateCcw, Trash2, Wallet, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ListChecks, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { CampoDecimal, inputCls } from "@/app/admin/obras/[id]/editar/_components/financeiro-obra";
 import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { centavosDe } from "@/lib/financeiro/obra";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/financeiro/regularizacao";
 import {
   adicionarRecebimentoRegularizacao,
-  cancelarRecebimentoRegularizacao,
+  excluirRecebimentoRegularizacao,
   criarEtapaRegularizacao,
   criarItemFinanceiroRegularizacao,
   editarEtapaRegularizacao,
@@ -23,7 +23,6 @@ import {
   excluirItemFinanceiroRegularizacao,
   listarBpoDisponiveisRegularizacao,
   moverEtapaRegularizacao,
-  reativarRecebimentoRegularizacao,
 } from "@/lib/actions/regularizacao";
 
 // EPIC-020 Lote 6 — Etapas do Processo (30) e Tabela financeira (31).
@@ -167,8 +166,7 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
 }) {
   const [item, setItem] = useState<{ id?: string; nome: string; grupo: GrupoFinanceiro; previsto: string | null } | null>(null);
   const [recebendo, setRecebendo] = useState(false);
-  const [cancelando, setCancelando] = useState<RecebimentoTela | null>(null);
-  const [motivo, setMotivo] = useState("");
+  const [excluindo, setExcluindo] = useState<RecebimentoTela | null>(null);
   const { pendente, erro, setErro, executar } = useAcao();
 
   const salvarItem = () => {
@@ -190,7 +188,7 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
             disabled={!financeiro.linhas.length} onClick={() => setRecebendo(true)}><Plus size={14} />Registrar recebimento</button>
         </div>
       </div>
-      {erro && !item && !cancelando && <p role="alert" className="text-xs text-red-600">{erro}</p>}
+      {erro && !item && !excluindo && <p role="alert" className="text-xs text-red-600">{erro}</p>}
 
       <div className="overflow-x-auto border border-gray-100">
         <table className="w-full min-w-[560px] text-sm">
@@ -252,20 +250,17 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
               </thead>
               <tbody>
                 {recebimentos.map((r) => (
-                  <tr key={r.id} className={`border-t border-gray-100 ${r.status === "cancelado" ? "opacity-60" : ""}`}>
+                  <tr key={r.id} className="border-t border-gray-100">
                     <td className="p-2 whitespace-nowrap">{dataBr(r.data)}</td>
                     <td className="p-2">
-                      <span className={r.status === "cancelado" ? "line-through" : ""}>{r.item}</span>
+                      <span>{r.item}</span>
                       {r.observacao && <span className="block text-xs text-gray-400">{r.observacao}</span>}
                       {r.bpoDescricao && <span className="block text-xs text-gray-400">BPO: {r.bpoDescricao}</span>}
-                      {r.status === "cancelado" && r.motivoCancelamento && <span className="block text-xs text-red-500">Cancelado: {r.motivoCancelamento}</span>}
                     </td>
                     <td className="p-2 text-gray-500">{ORIGEM_LABEL[r.origem] ?? r.origem}</td>
                     <td className="p-2 text-right whitespace-nowrap">{brl(centavosDe(r.valor) ?? 0)}</td>
                     <td className="p-2 text-right">
-                      {r.status === "confirmado"
-                        ? <button type="button" className="p-1 text-red-400" aria-label="Cancelar recebimento" onClick={() => { setErro(null); setMotivo(""); setCancelando(r); }}><Ban size={14} /></button>
-                        : <button type="button" className="p-1 text-[var(--brand-dark)] disabled:opacity-30" aria-label="Reativar recebimento" disabled={pendente} onClick={() => executar(() => reativarRecebimentoRegularizacao(r.id))}><RotateCcw size={14} /></button>}
+                      <button type="button" className="p-1 text-red-400" aria-label="Excluir recebimento" onClick={() => { setErro(null); setExcluindo(r); }}><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 ))}
@@ -293,16 +288,15 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
         <NovoRecebimento regularizacaoId={regularizacaoId} itens={financeiro.linhas.map((l) => ({ id: String(l.id), nome: l.nome }))} onFechar={() => setRecebendo(false)} />
       )}
 
-      {cancelando && (
-        <Modal titulo="Cancelar recebimento" onFechar={() => setCancelando(null)}>
+      {excluindo && (
+        <Modal titulo="Excluir recebimento" onFechar={() => setExcluindo(null)}>
           <p className="text-sm text-gray-600">
-            {cancelando.item} — {brl(centavosDe(cancelando.valor) ?? 0)}. O recebimento continua no histórico e deixa de entrar nos totais.
-            {cancelando.origem === "bpo" && " O lançamento original no BPO não é alterado (o valor volta a ficar disponível)."}
+            {excluindo.item} — {brl(centavosDe(excluindo.valor) ?? 0)}. O recebimento será removido definitivamente e sai dos totais. Esta ação não pode ser desfeita.
+            {excluindo.origem === "bpo" && " O lançamento original no BPO não é alterado (o valor volta a ficar disponível)."}
           </p>
-          <label className={labelCls}>Motivo<textarea className={`${inputCls} mt-1 normal-case font-normal`} rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} /></label>
           {erro && <p role="alert" className="text-xs text-red-600">{erro}</p>}
-          <button type="button" className="w-full bg-red-500 text-white font-bold text-xs uppercase py-2.5 disabled:opacity-50" disabled={pendente || motivo.trim().length < 3}
-            onClick={() => executar(() => cancelarRecebimentoRegularizacao(cancelando.id, motivo), () => setCancelando(null))}>Confirmar cancelamento</button>
+          <button type="button" className="w-full bg-red-500 text-white font-bold text-xs uppercase py-2.5 disabled:opacity-50" disabled={pendente}
+            onClick={() => executar(() => excluirRecebimentoRegularizacao(excluindo.id), () => setExcluindo(null))}>Excluir definitivamente</button>
         </Modal>
       )}
     </section>

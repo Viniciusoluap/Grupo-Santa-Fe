@@ -230,8 +230,7 @@ export const MENSAGENS_BANCO_REGULARIZACAO: Record<string, string> = {
   BPO_LANCAMENTO_NAO_PAGO: "Só lançamentos do BPO já pagos/recebidos podem ser vinculados.",
   BPO_NATUREZA_INCOMPATIVEL: "Recebimentos da regularização usam receitas do BPO (não despesas).",
   BPO_LANCAMENTO_INEXISTENTE: "Lançamento do BPO não encontrado.",
-  RECEBIMENTO_NAO_PODE_SER_APAGADO: "Recebimentos não são apagados: cancele para preservar o histórico.",
-  ITEM_COM_RECEBIMENTOS: "Este item tem recebimentos registrados e não pode ser excluído. Cancele os recebimentos ou mantenha o item.",
+  ITEM_COM_RECEBIMENTOS: "Este item tem recebimentos registrados. Exclua os recebimentos dele antes de excluir o item.",
 };
 
 /** Traduz o erro do banco para a mensagem ao usuário; null quando não é uma garantia conhecida. */
