@@ -25,7 +25,7 @@ async function listarDocumentosRegistroImpl(estudoId: string) {
   if (!estudo) throw new Error("Estudo não encontrado.");
   const documentos = await prisma.estudoDocumentoRegistro.findMany({ where: { estudoId, ativo: true }, select, orderBy: { enviadoEm: "desc" } });
   // Sem Drive (ou com o Drive recusando) o arquivo fica no banco: o envio sempre funciona.
-  return { configurado: true, drive: driveRegistroConfigurado(), documentos: documentos.map((doc) => ({ ...doc, enviadoEm: doc.enviadoEm.toISOString() })) };
+  return { configurado: true, drive: await driveRegistroConfigurado(), documentos: documentos.map((doc) => ({ ...doc, enviadoEm: doc.enviadoEm.toISOString() })) };
 }
 
 async function enviarDocumentoRegistroImpl(estudoId: string, itemId: string, arquivo: File) {

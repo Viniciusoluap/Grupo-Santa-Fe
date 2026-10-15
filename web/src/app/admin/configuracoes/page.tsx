@@ -5,6 +5,10 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FotoPerfilClient } from "./_components/foto-perfil-client";
+import { GoogleDriveCard } from "./_components/google-drive-card";
+import { headers } from "next/headers";
+import { estadoOAuth } from "@/lib/google-drive-conexao";
+import { origemDaRequisicao } from "@/lib/google-drive-oauth";
 
 const SECTIONS = [
   {
@@ -40,7 +44,7 @@ const SECTIONS = [
   },
 ];
 
-export default async function ConfiguracoesPage() {
+export default async function ConfiguracoesPage({ searchParams }: { searchParams: Promise<{ drive?: string; motivo?: string }> }) {
   const session = await auth();
   requirePageRole(session, "admin");
   const sessionUser = session?.user as { role?: string; name?: string } | undefined;
@@ -60,6 +64,12 @@ export default async function ConfiguracoesPage() {
     }),
   ]);
   const valoresSalvos = Object.fromEntries(configs.map((c) => [c.chave, c.valor]));
+  // Resultado da volta do Google ao conectar o Drive (?drive=ok|erro&motivo=...).
+  const { drive, motivo } = await searchParams;
+  const h = await headers();
+  const statusDrive = await estadoOAuth(origemDaRequisicao(h.get("x-forwarded-host") ?? h.get("host") ?? undefined));
+  const retornoDrive = drive === "ok" ? { tipo: "ok" as const, texto: "Google Drive conectado! Os próximos arquivos vão para o seu Drive." }
+    : drive === "erro" ? { tipo: "erro" as const, texto: (motivo ?? "Não foi possível conectar o Google Drive.").slice(0, 300) } : null;
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -74,6 +84,8 @@ export default async function ConfiguracoesPage() {
       <FotoPerfilClient userName={userName} />
 
       <ConfiguracoesClient sections={SECTIONS} valoresSalvos={valoresSalvos} />
+
+      <GoogleDriveCard retorno={retornoDrive} inicial={statusDrive} />
 
       <UsuariosClient usuarios={usuarios.map((u) => ({
         id: u.id,
