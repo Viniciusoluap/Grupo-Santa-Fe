@@ -18,6 +18,8 @@ interface Props {
   obraId: string;
   diario: DiarioEntry[];
   weatherConfig: Record<string, { label: string; icon: string }>;
+  /** Portal do Empreiteiro: consulta o diário sem criar registros. */
+  somenteLeitura?: boolean;
 }
 
 function toDatetimeLocal(d?: Date | string) {
@@ -27,7 +29,7 @@ function toDatetimeLocal(d?: Date | string) {
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`;
 }
 
-export function ObraDiarioClient({ obraId, diario, weatherConfig }: Props) {
+export function ObraDiarioClient({ obraId, diario, weatherConfig, somenteLeitura = false }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -48,12 +50,12 @@ export function ObraDiarioClient({ obraId, diario, weatherConfig }: Props) {
         <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">
           Diário de Obra ({diario.length > 0 ? `${diario.length} registros recentes` : "sem registros"})
         </h2>
-        <button
+        {!somenteLeitura && <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-1 text-xs bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold uppercase tracking-wide px-3 py-1.5 transition-colors"
         >
           <Plus size={11} /> Novo Registro
-        </button>
+        </button>}
       </div>
 
       {diario.length === 0 ? (

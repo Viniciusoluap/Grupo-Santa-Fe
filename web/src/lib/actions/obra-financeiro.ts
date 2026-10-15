@@ -1,5 +1,6 @@
 "use server";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
+import { empreiteiroDaSessao, exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -218,7 +219,10 @@ export interface NovoMovimentoInput {
 }
 
 export async function adicionarMovimentoObra(input: NovoMovimentoInput): Promise<Resultado> {
-  const usuarioId = await exigirAdmin();
+  // Portal do Empreiteiro (15/10): na obra dele, só pagamentos e sem vincular o BPO da empresa.
+  if ((await empreiteiroDaSessao()) && (input.natureza !== "pagamento" || input.bpoLancamentoId))
+    return { ok: false, erro: "O empreiteiro lança somente pagamentos da obra." };
+  const usuarioId = await exigirObraOuEmpreiteiro(input.obraId);
   if (!NATUREZAS.includes(input.natureza)) return { ok: false, erro: "Natureza inválida." };
   if ((input.natureza === "pagamento") !== !!input.categoria)
     return { ok: false, erro: input.natureza === "pagamento" ? "Informe a categoria do pagamento." : "Recebimentos não têm categoria." };
@@ -249,12 +253,16 @@ export async function adicionarMovimentoObra(input: NovoMovimentoInput): Promise
     return traduzir(err);
   }
   revalidatePath(`/admin/obras/${input.obraId}`);
+  revalidatePath(`/empreiteiro/obras/${input.obraId}/editar`);
   return { ok: true };
 }
 
 /** Pedido A6: excluir apaga o movimento de vez (e o histórico dele). */
 export async function excluirMovimentoObra(id: string): Promise<Resultado> {
-  await exigirAdmin();
+  const mov = await prisma.obraMovimento.findUnique({ where: { id }, select: { obraId: true, natureza: true } });
+  if ((await empreiteiroDaSessao()) && mov && mov.natureza !== "pagamento")
+    return { ok: false, erro: "O empreiteiro exclui somente pagamentos da obra." };
+  await exigirObraOuEmpreiteiro(mov?.obraId);
   const r = await prisma.obraMovimento.deleteMany({ where: { id } });
   if (r.count === 0) return { ok: false, erro: "Movimento não encontrado (talvez já excluído)." };
   return { ok: true };

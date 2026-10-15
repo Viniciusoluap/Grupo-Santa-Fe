@@ -1,13 +1,12 @@
 "use server";
-import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { calcularProgresso } from "@/lib/financeiro/progresso";
 import { LIMITE_LEGENDA } from "@/lib/obras/fotos";
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { tipoProjetoObra } from "@/lib/types/obra";
+import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
 
 // EPIC-020 Lote 4 — progresso por incidência (27), fotos (28) e dados do
 // relatório executivo (29), com as mesmas regras da API `obraProgresso` da
@@ -17,23 +16,26 @@ export type Resultado<T = object> = ({ ok: true } & T) | { ok: false; erro: stri
 
 const PERCENTUAL4 = /^\d{1,3}(\.\d{1,4})?$/;
 
-async function exigirAdmin() {
-  const session = await auth();
-  await exigirModuloAcao("obras");
-  return (session!.user as { id?: string }).id ?? null;
-}
-
 function revalidar(obraId: string) {
   revalidatePath(`/admin/obras/${obraId}`);
   revalidatePath(`/admin/obras/${obraId}/editar`);
   revalidatePath("/admin/obras");
+  // Portal do Empreiteiro (15/10): mesmas telas em /empreiteiro.
+  revalidatePath(`/empreiteiro/obras/${obraId}`);
+  revalidatePath(`/empreiteiro/obras/${obraId}/editar`);
+  revalidatePath("/empreiteiro");
+}
+
+/** Obra da foto, para conferir o vínculo do empreiteiro. */
+async function obraDaFoto(fotoId: string) {
+  return (await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { obraId: true } }))?.obraId ?? null;
 }
 
 export async function salvarProgressoObra(
   obraId: string,
   itens: { chave: string; incidencia: string; execucao: string }[]
 ): Promise<Resultado<{ progresso: number; avisos: string[] }>> {
-  const usuarioId = await exigirAdmin();
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
   if (!Array.isArray(itens) || itens.length !== 20) return { ok: false, erro: "Envie os 20 serviços." };
   for (const i of itens) {
     if (typeof i?.chave !== "string" || !PERCENTUAL4.test(String(i.incidencia)) || !PERCENTUAL4.test(String(i.execucao)))
@@ -69,7 +71,7 @@ export async function salvarProgressoObra(
 }
 
 export async function atualizarFotoObra(fotoId: string, legenda: string | null, incluirNoRelatorio: boolean): Promise<Resultado> {
-  await exigirAdmin();
+  await exigirObraOuEmpreiteiro(await obraDaFoto(fotoId));
   const texto = legenda?.trim() || null;
   if (texto && texto.length > LIMITE_LEGENDA) return { ok: false, erro: `A legenda pode ter até ${LIMITE_LEGENDA} caracteres.` };
   const r = await prisma.obraFoto.updateMany({ where: { id: fotoId }, data: { legenda: texto, incluirNoRelatorio: !!incluirNoRelatorio } });
@@ -80,7 +82,7 @@ export async function atualizarFotoObra(fotoId: string, legenda: string | null, 
 }
 
 export async function excluirFotoObra(fotoId: string): Promise<Resultado> {
-  await exigirAdmin();
+  await exigirObraOuEmpreiteiro(await obraDaFoto(fotoId));
   const foto = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { arquivoId: true, obraId: true } });
   if (!foto) return { ok: false, erro: "Foto não encontrada." };
   // Apagar o arquivo apaga a foto (ON DELETE CASCADE em obra_fotos.arquivoId).
@@ -89,9 +91,9 @@ export async function excluirFotoObra(fotoId: string): Promise<Resultado> {
   return { ok: true };
 }
 
-/** Tudo o que o relatório executivo (item 29) precisa, numa leitura só (admin). */
+/** Tudo o que o relatório executivo (item 29) precisa, numa leitura só (admin ou empreiteiro da obra). */
 export async function dadosRelatorioObra(obraId: string) {
-  await exigirAdmin();
+  await exigirObraOuEmpreiteiro(obraId);
   const [o, resumo, progresso, fotos] = await Promise.all([
     prisma.obra.findUnique({
       where: { id: obraId },

@@ -105,7 +105,7 @@ push (Prospecta `f17281e`, Santa Fé `3a3bbcb`).
   - VGV automático no Santa Fé (confirmado por captura de tela).
 - **(c) Pendente em produção:** ver §5.
 
-## 4. PRÓXIMA ETAPA — Portal do Empreiteiro (pedido do dono, ainda NÃO implementado)
+## 4. Portal do Empreiteiro (pedido do dono — IMPLEMENTADO em 15/10, ver §6)
 
 Implementar **primeiro na Prospecta e depois no Santa Fé** (paridade), conforme o pedido literal:
 
@@ -190,7 +190,24 @@ Implementar **primeiro na Prospecta e depois no Santa Fé** (paridade), conforme
 
 ## 6. Estado atual
 
-- 15/10/2026: PRs #125 (Prospecta) e #192 (Santa Fé) mergeados e em produção. Portal do empreiteiro: **não iniciado** (apenas investigado, §4.2). Este handoff foi publicado na branch `claude/sync-mirrored-repos-bsqnz3` dos dois repositórios.
+- 15/10/2026: PRs #125 (Prospecta) e #192 (Santa Fé) mergeados e em produção; handoff mergeado (#126 / #193).
+- 15/10/2026 (tarde): **Portal do Empreiteiro implementado nos dois sistemas** na branch `claude/sync-mirrored-repos-bsqnz3`
+  (PRs novos, ainda **sem merge/deploy** — aguardando autorização do dono). Sem migração de banco.
+  - Prospecta: `server/obra-acesso.ts` (vínculo por obra no `adminProcedure`), `empreiteiro.minhasObras` com os
+    campos da lista do admin + indicadores, `client/src/components/obra/ListaObras.tsx` (lista compartilhada),
+    `EmpreiteiroPortal.tsx` (abas + gráficos), `AdminEditarObra` com `modo="empreiteiro"`, `ObraDetalhes empreiteiro`,
+    rotas `/empreiteiro/obras/editar/:id` e `/empreiteiro/obras/:id`, fotos do empreiteiro (`shared/obra-fotos.ts`).
+  - Santa Fé: `src/lib/obras/acesso-empreiteiro.ts` nas actions de progresso/fotos/pagamentos/relatório,
+    `src/components/obras/{lista-obras,obra-detalhe,editar-obra-pagina}.tsx` (telas compartilhadas com o painel),
+    `src/app/empreiteiro/{layout,page}.tsx` + `obras/[id]` e `obras/[id]/editar`, rotas de foto aceitam o empreiteiro.
+  - Regras: empreiteiro só vê/edita obras com `contractorUserId`/`empreiteiroId` = ele; lança/exclui só pagamentos
+    (sem vincular BPO); Informações, Valores da Operação, Custos previstos e Salvar ficam bloqueados; diário de obra
+    (Santa Fé) só leitura.
+  - Testes: Prospecta 798 ✓ (`server/portal-empreiteiro.test.ts`); Santa Fé 679 ✓
+    (`src/lib/__tests__/portal-empreiteiro.test.ts`) + `next build` ✓. E2E local: Prospecta com API simulada;
+    Santa Fé com servidor real e usuário `e2e-empreiteiro@teste.local` (lista, relatórios, editar restrito,
+    pagamento gravado, obra de outro → 404, /admin bloqueado).
+  - Pendente: validação em produção com um empreiteiro real vinculado a obras.
 
 ## 7. Como testar localmente (resumo)
 

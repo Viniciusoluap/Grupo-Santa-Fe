@@ -23,7 +23,7 @@ const ABAS: { id: Aba; label: string }[] = [
 // Progresso, Fotos e Relatórios gravam por conta própria (fora do formulário).
 const ABAS_DO_FORMULARIO: Aba[] = ["info", "valores", "custos"];
 
-export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, escritorioCef, datas, cancelarHref, progresso, fotos, children }: {
+export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, escritorioCef, datas, cancelarHref, progresso, fotos, modoEmpreiteiro = false, children }: {
   resumo: ResumoObra;
   empreiteiros: { id: string; nome: string }[];
   clienteNome: string;
@@ -33,6 +33,13 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
   cancelarHref: string;
   progresso: ProgressoObraDados;
   fotos: FotoObra[];
+  /**
+   * Pedido de 15/10: o empreiteiro usa este mesmo painel nas obras vinculadas a ele.
+   * Informações, Valores da Operação e Custos previstos ficam só leitura; Pagamentos,
+   * Progresso, Fotos e Relatórios funcionam como no painel. As actions conferem o
+   * vínculo (lib/obras/acesso-empreiteiro.ts).
+   */
+  modoEmpreiteiro?: boolean;
   children: React.ReactNode;
 }) {
   const [aba, setAba] = useState<Aba>("info");
@@ -78,6 +85,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
     <form action={salvar} onInvalidCapture={() => setAba("info")} className={ABAS_DO_FORMULARIO.includes(aba) ? "space-y-5" : "hidden"}>
 
       <div className={aba === "info" ? "space-y-5" : "hidden"}>
+        <fieldset disabled={modoEmpreiteiro} className="contents">
         <div className="bg-white border border-gray-100 p-6 space-y-5">
           {children}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -89,9 +97,11 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
             </label>
           </div>
         </div>
+        </fieldset>
       </div>
 
       <div className={aba === "valores" ? "space-y-4" : "hidden"}>
+        <fieldset disabled={modoEmpreiteiro} className="contents">
         <section className="bg-white border border-gray-100 p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className={labelCls}>Nome do Cliente</p>
@@ -110,14 +120,16 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
           )}
         </section>
         <ValoresOperacao resumo={resumo} form={form} setForm={setForm} calculo={calculo} empreiteiroNome={empreiteiroNome} />
+        </fieldset>
       </div>
 
       <div className={aba === "custos" ? "space-y-4" : "hidden"}>
-        <Custos resumo={resumo} form={form} setForm={setForm} calculo={calculo} empreiteiros={empreiteiros} corretor={corretor} />
+        <Custos resumo={resumo} form={form} setForm={setForm} calculo={calculo} empreiteiros={empreiteiros} corretor={corretor} modoEmpreiteiro={modoEmpreiteiro} />
       </div>
 
       {erro && <p role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
-      <div className="flex justify-between gap-3 pt-2 border-t border-gray-100">
+      {/* Salvar grava Informações e Valores: o empreiteiro não altera esses dados. */}
+      {!modoEmpreiteiro && <div className="flex justify-between gap-3 pt-2 border-t border-gray-100">
         <a href={cancelarHref} className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
           Cancelar
         </a>
@@ -127,7 +139,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
         >
           Salvar
         </SubmitButton>
-      </div>
+      </div>}
     </form>
     </div>
   );

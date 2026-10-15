@@ -17,12 +17,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ fot
   const { fotoId } = await params;
   const foto = await prisma.obraFoto.findUnique({
     where: { id: fotoId },
-    select: { obra: { select: { leadId: true } }, arquivo: { select: { mime: true, dados: true } } },
+    select: { obra: { select: { leadId: true, empreiteiroId: true } }, arquivo: { select: { mime: true, dados: true } } },
   });
   const acessoObras = user.role === "admin" || user.role === "colaborador"
     ? podeAcessarModulo((await usuarioAtual()) ?? { perfil: null, ativo: false, permissoes: [] }, "obras")
     : false;
-  const pode = foto && podeVerFotosDaObra({ id: user.id, papel: user.role ?? "", leadId: user.leadId ?? null, acessoObras }, { leadId: foto.obra.leadId });
+  const pode = foto && podeVerFotosDaObra({ id: user.id, papel: user.role ?? "", leadId: user.leadId ?? null, acessoObras }, { leadId: foto.obra.leadId, empreiteiroId: foto.obra.empreiteiroId });
   if (!foto || !pode || !foto.arquivo.dados) return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
   const corpo = new Uint8Array(foto.arquivo.dados as unknown as Buffer);
   return new NextResponse(corpo, {
