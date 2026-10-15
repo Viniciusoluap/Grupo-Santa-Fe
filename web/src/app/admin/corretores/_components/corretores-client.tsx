@@ -317,7 +317,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
 
       {linkGerado && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full p-6 space-y-4">
+          <div className="bg-white max-w-md w-full p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
             <h3 className="font-black text-[var(--brand-dark)] text-lg uppercase">
               Conta criada para {linkGerado.nome}
             </h3>
@@ -349,7 +349,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
 
       {erroVinculo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-sm w-full p-6 space-y-4">
+          <div className="bg-white max-w-sm w-full p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
             <p className="text-sm text-red-500">{erroVinculo}</p>
             <button
               type="button"

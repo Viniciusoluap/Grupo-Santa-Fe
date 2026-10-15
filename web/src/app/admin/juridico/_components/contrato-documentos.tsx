@@ -42,7 +42,7 @@ export function ContratoDocumentos({ contratoNumero, documentos }: Props) {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white w-full max-w-lg overflow-hidden shadow-2xl">
+          <div className="bg-white w-full max-w-lg max-h-[90dvh] overflow-y-auto shadow-2xl">
             <div className="bg-[var(--brand-dark)] flex items-center justify-between px-5 py-4">
               <div>
                 <p className="text-[var(--brand-yellow)] font-black text-sm uppercase tracking-wide">Documentos</p>
