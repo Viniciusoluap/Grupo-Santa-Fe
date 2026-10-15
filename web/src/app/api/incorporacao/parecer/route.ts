@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
+import { formatCurrency } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -57,14 +58,14 @@ Empreendimento: ${d.nome} — ${d.municipio}/${d.estado}
 Área do terreno: ${d.areaM2.toLocaleString("pt-BR")} m²
 
 Indicadores calculados (EVE):
-- VGV: R$ ${d.vgv.toLocaleString("pt-BR")}
-- Custo total: R$ ${d.custoTotal.toLocaleString("pt-BR")}
-- Lucro bruto: R$ ${d.lucroBruto.toLocaleString("pt-BR")}
+- VGV: ${formatCurrency(d.vgv)}
+- Custo total: ${formatCurrency(d.custoTotal)}
+- Lucro bruto: ${formatCurrency(d.lucroBruto)}
 - Margem líquida: ${(d.margemLiquida * 100).toFixed(1)}%
-- VPL: R$ ${d.vpl.toLocaleString("pt-BR")}
+- VPL: ${formatCurrency(d.vpl)}
 - TIR: ${tirMensal} (${tirAnual})
 - Payback: ${d.paybackMes != null ? d.paybackMes + " meses" : "não recuperado no horizonte"}
-- Exposição máxima de caixa: R$ ${d.exposicaoMaxima.toLocaleString("pt-BR")}
+- Exposição máxima de caixa: ${formatCurrency(d.exposicaoMaxima)}
 
 Escreva um parecer técnico objetivo em português (máx. 4 parágrafos) analisando: (1) se a margem e a TIR são atrativas para o mercado brasileiro de incorporação; (2) o risco de exposição de caixa; (3) o payback; (4) uma recomendação clara GO / GO COM RESSALVAS / NO-GO com justificativa. Não invente números além dos fornecidos. Seja direto e prático.`;
 

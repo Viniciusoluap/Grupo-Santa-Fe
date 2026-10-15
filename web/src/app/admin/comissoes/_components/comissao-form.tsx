@@ -5,7 +5,7 @@ import { X, Calculator } from "lucide-react";
 import { criarComissao, editarComissao } from "@/lib/actions/comissoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PercentInput } from "@/components/ui/percent-input";
-import { formatCurrency, maskCurrency, currencyToFloat } from "@/lib/utils";
+import { formatCurrency, maskCurrency, currencyToFloat, mascararDinheiro } from "@/lib/utils";
 import {
   TIPOS_COMISSAO,
   calcularValorComissao,
@@ -245,7 +245,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">R$</span>
                 <input type="text" inputMode="numeric" required placeholder="0,00"
-                  value={valorDisplay} onChange={(e) => setValorDisplay(maskCurrency(e.target.value))}
+                  value={valorDisplay} onChange={(e) => setValorDisplay(mascararDinheiro(e.target.value).texto)}
                   className="w-full border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 <input type="hidden" name="valor" value={currencyToFloat(valorDisplay)} />
               </div>

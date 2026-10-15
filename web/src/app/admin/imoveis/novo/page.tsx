@@ -1,4 +1,5 @@
 import { exigirModuloPagina } from "@/lib/auth/modulos";
+import { tiposDoCadastro } from "@/lib/portal-corretor";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
@@ -8,22 +9,15 @@ import { PrecoInput } from "../_components/preco-input";
 import { LocalizacaoPicker } from "../_components/localizacao-picker";
 import { AreaInput } from "@/components/ui/area-input";
 
-const tipos = ["casa", "apartamento", "lote", "terreno", "comercial", "chacara"];
-const tipoLabel: Record<string, string> = {
-  casa: "Casa",
-  apartamento: "Apartamento",
-  lote: "Lote",
-  terreno: "Terreno",
-  comercial: "Comercial",
-  chacara: "Chácara",
-};
 const bairros = [
   "Centro", "Ouro Preto", "Novo Horizonte", "Residencial Norte", "Vila dos Funcionários",
   "Jardim Primavera", "Setor Sul", "Setor Norte", "Bairro de Lourdes", "Outro",
 ];
 
 export default async function NovoImovelPage() {
-  await exigirModuloPagina("imoveis");
+  const usuario = await exigirModuloPagina("imoveis");
+  // Pedido de 15/10: o corretor marca só Casa, Apartamento, Lote, Sala comercial ou Galpão.
+  const tipos = tiposDoCadastro(usuario.perfil);
   const corretores = await prisma.corretor.findMany({
     where: { ativo: true },
     orderBy: { nome: "asc" },
@@ -69,8 +63,8 @@ export default async function NovoImovelPage() {
                 >
                   <option value="">Selecione...</option>
                   {tipos.map((t) => (
-                    <option key={t} value={t}>
-                      {tipoLabel[t]}
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>

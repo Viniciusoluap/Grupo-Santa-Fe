@@ -9,6 +9,8 @@ const types = [
   { value: "casa", label: "Casa" },
   { value: "apartamento", label: "Apartamento" },
   { value: "lote", label: "Lote / Terreno" },
+  { value: "sala_comercial", label: "Sala comercial" },
+  { value: "galpao", label: "Galpão" },
   { value: "chacara", label: "Chácara" },
   { value: "comercial", label: "Comercial" },
 ];

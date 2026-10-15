@@ -19,6 +19,8 @@ export default async function AdminLayout({
 
   const rotasPermitidas = MODULOS_PAINEL.filter((m) => podeAcessarModulo(usuario, m.id)).map((m) => m.rota as string);
   if (podeAdministrarSeguranca(usuario)) rotasPermitidas.push("/admin/configuracoes");
+  // Pedido de 15/10: acompanhamento dos próprios clientes, só para o corretor.
+  if (usuario.perfil === "corretor") rotasPermitidas.unshift("/admin/meus-clientes");
 
   return <AdminShell rotasPermitidas={rotasPermitidas}>{children}</AdminShell>;
 }

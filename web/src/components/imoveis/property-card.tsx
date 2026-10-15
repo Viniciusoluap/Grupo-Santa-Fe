@@ -10,6 +10,8 @@ const typeLabel: Record<string, string> = {
   lote: "Lote",
   terreno: "Terreno",
   comercial: "Comercial",
+  sala_comercial: "Sala comercial",
+  galpao: "Galpão",
   chacara: "Chácara",
 };
 

@@ -35,7 +35,8 @@ export async function criarVisita(formData: FormData) {
   const u = await exigirModuloAcao(["agenda", "leads"]);
   const corretorId = u.perfil === "corretor" ? (u.corretorId ?? undefined) : ((formData.get("corretorId") as string) || undefined);
   if (u.perfil === "corretor" && !corretorId) throw new Error("Corretor sem vínculo ativo.");
-  const colaboradorNome = (formData.get("colaboradorNome") as string) || undefined;
+  // Pedido de 15/10: para o corretor, acompanhante vem só da sessão.
+  const colaboradorNome = u.perfil === "corretor" ? undefined : (formData.get("colaboradorNome") as string) || undefined;
   const imovelId = (formData.get("imovelId") as string) || undefined;
   const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData, u);
 
@@ -61,7 +62,7 @@ export async function editarVisita(formData: FormData) {
   const id = formData.get("id") as string;
   await visitaDoUsuario(u, id);
   const corretorId = u.perfil === "corretor" ? u.corretorId : ((formData.get("corretorId") as string) || null);
-  const colaboradorNome = (formData.get("colaboradorNome") as string) || null;
+  const colaboradorNome = u.perfil === "corretor" ? null : (formData.get("colaboradorNome") as string) || null;
   const imovelId = (formData.get("imovelId") as string) || null;
   const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData, u);
 

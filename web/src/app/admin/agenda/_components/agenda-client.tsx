@@ -35,6 +35,8 @@ interface Props {
   corretores: Corretor[];
   imoveis: ImovelItem[];
   leads: LeadItem[];
+  /** Pedido de 15/10: o corretor não escolhe corretor/colaborador (vem da sessão). */
+  ehCorretor?: boolean;
 }
 
 const TIPO_VISITA_OPTIONS = [
@@ -315,9 +317,10 @@ function LeadSearch({
 
 /* ────────── Modal de formulário ────────── */
 function VisitaModal({
-  onClose, visita, corretores, imoveis, leads,
+  onClose, visita, corretores, imoveis, leads, ehCorretor = false,
 }: {
   onClose: () => void;
+  ehCorretor?: boolean;
   visita?: VisitaData;
   corretores: Corretor[];
   imoveis: ImovelItem[];
@@ -402,7 +405,8 @@ function VisitaModal({
               </div>
             )}
 
-            {/* Acompanhante */}
+            {/* Acompanhante — o corretor não escolhe: o vínculo vem da sessão. */}
+            {!ehCorretor && (
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Acompanhante</label>
               <div className="grid grid-cols-3 gap-2 mb-3">
@@ -432,6 +436,7 @@ function VisitaModal({
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               )}
             </div>
+            )}
 
             {/* Notas */}
             <div className="sm:col-span-2">
@@ -460,7 +465,7 @@ function VisitaModal({
 }
 
 /* ────────── Componente principal ────────── */
-export function AgendaClient({ visitas, corretores, imoveis, leads }: Props) {
+export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor = false }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -631,6 +636,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads }: Props) {
 
       {showForm && (
         <VisitaModal
+          ehCorretor={ehCorretor}
           onClose={() => { setShowForm(false); setEditando(null); }}
           visita={editando ?? undefined}
           corretores={corretores}

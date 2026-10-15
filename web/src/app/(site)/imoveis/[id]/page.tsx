@@ -47,6 +47,8 @@ const typeLabel: Record<string, string> = {
   lote: "Lote",
   terreno: "Terreno",
   comercial: "Comercial",
+  sala_comercial: "Sala comercial",
+  galpao: "Galpão",
   chacara: "Chácara",
 };
 
@@ -65,7 +67,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
   const property = imovelToProperty(imovel);
 
   const whatsappMsg = encodeURIComponent(
-    `Olá! Tenho interesse no imóvel: ${property.title} (R$ ${property.price.toLocaleString("pt-BR")}). Poderia me dar mais informações?`
+    `Olá! Tenho interesse no imóvel: ${property.title} (${formatCurrency(property.price)}). Poderia me dar mais informações?`
   );
 
   return (

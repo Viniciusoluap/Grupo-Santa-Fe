@@ -1,4 +1,5 @@
 import { exigirModuloPagina } from "@/lib/auth/modulos";
+import { ROTULO_TIPO_IMOVEL, tiposDoCadastro } from "@/lib/portal-corretor";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
@@ -10,11 +11,6 @@ import { LocalizacaoPicker } from "../../_components/localizacao-picker";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { AreaInput } from "@/components/ui/area-input";
 
-const tipos = ["casa", "apartamento", "lote", "terreno", "comercial", "chacara"];
-const tipoLabel: Record<string, string> = {
-  casa: "Casa", apartamento: "Apartamento", lote: "Lote",
-  terreno: "Terreno", comercial: "Comercial", chacara: "Chácara",
-};
 const bairros = [
   "Centro", "Ouro Preto", "Novo Horizonte", "Residencial Norte", "Vila dos Funcionários",
   "Jardim Primavera", "Setor Sul", "Setor Norte", "Bairro de Lourdes", "Outro",
@@ -25,7 +21,9 @@ interface PageProps {
 }
 
 export default async function EditarImovelPage({ params }: PageProps) {
-  await exigirModuloPagina("imoveis");
+  const usuario = await exigirModuloPagina("imoveis");
+  // Pedido de 15/10: o corretor marca só Casa, Apartamento, Lote, Sala comercial ou Galpão.
+  const tipos = tiposDoCadastro(usuario.perfil);
   const { id } = await params;
   const [imovel, corretores] = await Promise.all([
     prisma.imovel.findUnique({ where: { id } }),
@@ -60,7 +58,8 @@ export default async function EditarImovelPage({ params }: PageProps) {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo *</label>
                 <select name="tipo" required defaultValue={imovel.tipo}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                  {tipos.map((t) => <option key={t} value={t}>{tipoLabel[t]}</option>)}
+                  {tipos.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  {!tipos.some((t) => t.value === imovel.tipo) && <option value={imovel.tipo}>{ROTULO_TIPO_IMOVEL[imovel.tipo] ?? imovel.tipo}</option>}
                 </select>
               </div>
               <div>

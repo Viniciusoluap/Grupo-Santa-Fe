@@ -54,6 +54,7 @@ export default async function AgendaPage() {
       corretores={corretores}
       imoveis={imoveis}
       leads={leads}
+      ehCorretor={isCorretor}
     />
   );
 }

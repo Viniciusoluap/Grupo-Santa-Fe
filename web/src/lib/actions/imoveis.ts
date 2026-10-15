@@ -3,12 +3,20 @@ import { exigirAdminAtivo, exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
+import { tiposDoCadastro } from "@/lib/portal-corretor";
 import { redirect } from "next/navigation";
+
+/** Pedido de 15/10: o tipo vem só da lista (o corretor tem 5 opções). */
+function tipoValido(perfil: string | null | undefined, tipo: string, atual?: string | null) {
+  if (tipo && (tipo === atual || tiposDoCadastro(perfil).some((t) => t.value === tipo))) return;
+  throw new Error("Escolha o tipo do imóvel na lista.");
+}
 
 export async function criarImovel(formData: FormData) {
   const u = await exigirModuloAcao("imoveis");
   const titulo = formData.get("titulo") as string;
   const tipo = formData.get("tipo") as string;
+  tipoValido(u.perfil, tipo);
   const status = formData.get("status") as string;
   const preco = parseFloat(formData.get("preco") as string);
   const area = parseFloat(formData.get("area") as string) || 0;
@@ -76,6 +84,7 @@ export async function editarImovel(formData: FormData) {
   }
   const titulo = formData.get("titulo") as string;
   const tipo = formData.get("tipo") as string;
+  tipoValido(u.perfil, tipo, (await prisma.imovel.findUnique({ where: { id }, select: { tipo: true } }))?.tipo);
   const status = formData.get("status") as string;
   const preco = parseFloat(formData.get("preco") as string);
   const area = parseFloat(formData.get("area") as string) || 0;
