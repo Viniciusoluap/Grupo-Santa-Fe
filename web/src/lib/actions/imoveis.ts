@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { tiposDoCadastro } from "@/lib/portal-corretor";
+import { aplicarFotosImovel, lerFotos } from "@/lib/imovel-fotos";
 import { redirect } from "next/navigation";
 
 /** Pedido de 15/10: o tipo vem só da lista (o corretor tem 5 opções). */
@@ -46,7 +47,8 @@ export async function criarImovel(formData: FormData) {
     "-" +
     Date.now();
 
-  await prisma.imovel.create({
+  const criado = await prisma.imovel.create({
+    select: { id: true },
     data: {
       slug,
       titulo,
@@ -61,12 +63,14 @@ export async function criarImovel(formData: FormData) {
       banheiros,
       vagas,
       suites,
-      imagens,
+      imagens: "[]",
       latitude,
       longitude,
       corretorId: corretorId || undefined,
     },
   });
+  // Pedido de 15/10: fotos vão para o Google Drive (Imóveis/<Título (nº)>/01 - Fotos).
+  await aplicarFotosImovel(criado.id, lerFotos(imagens), u.id);
 
   await notificarAdmins("novo_imovel", "Novo imóvel cadastrado", `${titulo} — ${bairro}`, "/admin/imoveis").catch(() => {});
 
@@ -109,9 +113,10 @@ export async function editarImovel(formData: FormData) {
     data: {
       titulo, tipo, status, preco, area, bairro, cidade, descricao,
       quartos, banheiros, vagas, suites, corretorId: corretorId || undefined,
-      destaque, publicadoSite, imagens, latitude, longitude,
+      destaque, publicadoSite, latitude, longitude,
     },
   });
+  await aplicarFotosImovel(id, lerFotos(imagens), u.id);
 
   revalidatePath("/admin/imoveis");
   revalidatePath(`/admin/imoveis/${id}/editar`);

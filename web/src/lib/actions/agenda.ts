@@ -16,11 +16,10 @@ async function dadosDoCliente(formData: FormData, u: UsuarioDaSessao): Promise<{
       throw new Error("Lead não encontrado na sua carteira.");
     if (lead) return { leadId, clienteNome: lead.nome, clienteTel: lead.telefone };
   }
-  return {
-    leadId: null,
-    clienteNome: (formData.get("clienteNome") as string) || "",
-    clienteTel: (formData.get("clienteTel") as string) || "",
-  };
+  // Pedido de 15/10 (paridade com a Prospecta): cliente sem lead, com nome obrigatório.
+  const clienteNome = String(formData.get("clienteNome") ?? "").trim().slice(0, 255);
+  if (!clienteNome) throw new Error("Selecione um lead ou informe o nome do cliente sem lead.");
+  return { leadId: null, clienteNome, clienteTel: String(formData.get("clienteTel") ?? "").trim().slice(0, 40) };
 }
 
 /** Item 06: corretor só mexe nas próprias visitas; o vínculo vem do servidor. */

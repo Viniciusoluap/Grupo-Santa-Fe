@@ -46,6 +46,7 @@ describe.skipIf(!url)("Drive: estrutura de pastas legível (banco real)", () => 
     const prefixo = `outro-${Date.now()}-`;
     await prisma.$executeRaw`UPDATE estudo_documentos_registro SET "driveFileId" = ${prefixo} || "driveFileId" WHERE "driveFileId" ~ '^f[0-9]+$'`;
     await prisma.$executeRaw`UPDATE arquivos SET "driveFileId" = ${prefixo} || "driveFileId" WHERE "driveFileId" ~ '^f[0-9]+$'`;
+    await prisma.$executeRaw`UPDATE imovel_fotos SET "driveFileId" = ${prefixo} || "driveFileId" WHERE "driveFileId" ~ '^f[0-9]+$'`;
 
     leadId = (await prisma.lead.create({ data: { nome: "Maria da Silva", telefone: "94999999999", servico: "financiamento" } })).id;
     estudoId = (await prisma.estudoIncorporacao.create({ data: { nome: "Loteamento Jardim X", municipio: "Parauapebas" } })).id;

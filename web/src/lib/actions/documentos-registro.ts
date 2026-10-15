@@ -74,7 +74,18 @@ async function desvincularDocumentoRegistroImpl(estudoId: string, itemId: string
 
 async function diagnosticarDriveImpl() {
   await administrador();
-  return diagnosticarDrive();
+  const r = await diagnosticarDrive();
+  // Pedido de 15/10: com o Drive funcionando, envia as fotos de imóveis pendentes.
+  if (!r.configurado || !r.etapas.some((e) => e.etapa === "Gravação de arquivo de teste" && e.ok)) return r;
+  const { enviarFotosPendentesAoDrive } = await import("@/lib/imovel-fotos");
+  const fotos = await enviarFotosPendentesAoDrive();
+  if (fotos.enviadas || fotos.falhas) {
+    r.etapas.push({
+      etapa: `Fotos de imóveis enviadas ao Drive: ${fotos.enviadas}${fotos.falhas ? `, ${fotos.falhas} pendente(s) — será tentado de novo` : ""}`,
+      ok: fotos.falhas === 0,
+    });
+  }
+  return r;
 }
 
 /** Teste real do Google Drive (admin): mostra em que etapa e por que falha. */

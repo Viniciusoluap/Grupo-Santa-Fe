@@ -3,8 +3,8 @@ import { createHash, createSign } from "node:crypto";
 import { descreverErroDrive, ErroDrive, lerCorpoErroGoogle, type EtapaDrive } from "@/lib/drive-erro";
 import { conexaoOAuth, tokenOAuth } from "@/lib/google-drive-conexao";
 import { prisma } from "@/lib/db";
-import { CHAVE_RAIZ, nomeArquivo, pastaLegada, PROPRIEDADE_PASTA, type AreaCliente, type PastaAlvo } from "@/lib/drive-estrutura";
-import { caminhoDocumentoCliente, destinoDocumentoEstudo } from "@/lib/drive-pastas";
+import { caminhoImovel, CHAVE_RAIZ, nomeArquivo, nomeFotoImovel, pastaLegada, PASTAS_IMOVEL, PROPRIEDADE_PASTA, type AreaCliente, type PastaAlvo } from "@/lib/drive-estrutura";
+import { caminhoDocumentoCliente, destinoDocumentoEstudo, numeroCurto } from "@/lib/drive-pastas";
 
 const DRIVE = "https://www.googleapis.com";
 const SCOPE = "https://www.googleapis.com/auth/drive";
@@ -167,6 +167,47 @@ export async function uploadDocumentoCliente(doc: { leadId: string; area: AreaCl
   const root = await prepararRaiz(fonte);
   const pasta = await pastaDoCaminho(fonte, root, await caminhoDocumentoCliente(doc.leadId, doc.area));
   return enviarParaPasta(fonte, pasta, nomeArquivo(doc.rotulo, new Date(), doc.nomeOriginal, doc.mime), doc.mime, doc.bytes);
+}
+
+/**
+ * Pedido de 15/10: Imóveis/<Título (nº)>/ com o checklist fixo de pastas
+ * (01 - Fotos, 02 - Documentos, 03 - Plantas, 04 - Propostas). Devolve a pasta
+ * de fotos já criada/renomeada. Gêmeo de pastaFotosImovel da Prospecta.
+ */
+async function pastaFotosImovel(fonte: FonteDrive, imovel: { id: string; titulo: string }): Promise<string> {
+  const root = await prepararRaiz(fonte);
+  const base = { id: imovel.id, numero: numeroCurto(imovel.id), nome: imovel.titulo };
+  let fotos = "";
+  for (const p of PASTAS_IMOVEL) {
+    const id = await pastaDoCaminho(fonte, root, caminhoImovel(base, p.chave));
+    if (p.chave === "fotos") fotos = id;
+  }
+  return fotos;
+}
+
+/** Grava as fotos em "01 - Fotos" como "Foto NN — dd-mm-aaaa.ext"; devolve os IDs na mesma ordem. */
+export async function uploadFotosImovel(imovel: { id: string; titulo: string }, fotos: { ordem: number; mime: string; bytes: Buffer }[]): Promise<string[]> {
+  const fonte = await fonteObrigatoria();
+  const pasta = await pastaFotosImovel(fonte, imovel);
+  const ids: string[] = [];
+  for (const f of fotos) ids.push(await enviarParaPasta(fonte, pasta, nomeFotoImovel(f.ordem, new Date(), f.mime), f.mime, f.bytes));
+  return ids;
+}
+
+/** Mantém a numeração das fotos igual à ordem do anúncio (e a pasta com o título atual). */
+export async function organizarFotosImovel(imovel: { id: string; titulo: string }, fotos: { driveFileId: string; mime: string; criadaEm: Date }[]): Promise<void> {
+  if (!fotos.length) return;
+  const fonte = await fonteObrigatoria();
+  const pasta = await pastaFotosImovel(fonte, imovel);
+  for (let i = 0; i < fotos.length; i++) await moverArquivo(fonte, fotos[i].driveFileId, pasta, nomeFotoImovel(i + 1, fotos[i].criadaEm, fotos[i].mime));
+}
+
+/** Foto retirada do anúncio vai para a lixeira do Drive (recuperável por 30 dias). */
+export async function enviarParaLixeira(fileId: string): Promise<void> {
+  const fonte = await fonteObrigatoria();
+  await authorized(fonte, `${DRIVE}/drive/v3/files/${encodeURIComponent(fileId)}?supportsAllDrives=true&fields=id`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trashed: true }),
+  });
 }
 
 /** Lê pela fonte atual; arquivo gravado antes por outra fonte (ex.: conta de serviço) é lido por ela. */
@@ -370,6 +411,24 @@ async function reorganizar(fonte: FonteDrive, root: string): Promise<ResultadoOr
       if (erro instanceof ErroDrive && erro.status === 404 && erro.etapa === "leitura") { resultado.ignorados += 1; continue; }
       resultado.falhas += 1;
       console.error("[drive] arquivo não reorganizado:", erro instanceof Error ? erro.message : "erro desconhecido");
+    }
+  }
+  // Pedido de 15/10: fotos de imóveis em Imóveis/<Título (nº)>/01 - Fotos, numeradas na ordem de envio.
+  const fotos = await prisma.imovelFoto.findMany({
+    where: { driveFileId: { not: null } }, orderBy: [{ imovelId: "asc" }, { criadoEm: "asc" }],
+    select: { imovelId: true, driveFileId: true, mime: true, criadoEm: true, imovel: { select: { titulo: true } } },
+  });
+  const posicao = new Map<string, number>();
+  for (const f of fotos) {
+    const n = (posicao.get(f.imovelId) ?? 0) + 1;
+    posicao.set(f.imovelId, n);
+    try {
+      const pasta = await pastaDoCaminho(fonte, root, caminhoImovel({ id: f.imovelId, numero: numeroCurto(f.imovelId), nome: f.imovel.titulo }, "fotos"));
+      if (await moverArquivo(fonte, f.driveFileId!, pasta, nomeFotoImovel(n, f.criadoEm, f.mime))) resultado.arquivosMovidos += 1;
+    } catch (erro) {
+      if (erro instanceof ErroDrive && erro.status === 404 && erro.etapa === "leitura") { resultado.ignorados += 1; continue; }
+      resultado.falhas += 1;
+      console.error("[drive] foto não reorganizada:", erro instanceof Error ? erro.message : "erro desconhecido");
     }
   }
   for (const item of await filhos(fonte, root)) {

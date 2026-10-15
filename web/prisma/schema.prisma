@@ -55,6 +55,7 @@ model Imovel {
   atualizadoEm    DateTime @updatedAt
 
   @@map("imoveis")
+  fotos           ImovelFoto[]
 }
 
 // ─── LEADS / CRM ─────────────────────────────────────────────────────────────
@@ -1150,4 +1151,22 @@ model GoogleDriveOauth {
   updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("google_drive_oauth")
+}
+
+/// Pedido de 15/10: fotos de imóveis no Google Drive
+/// (Imóveis/<Título (nº)>/01 - Fotos). `dados` só guarda a foto enquanto o Drive
+/// está indisponível; o "Testar Google Drive" envia as pendentes depois.
+model ImovelFoto {
+  id          String   @id @default(cuid())
+  imovelId    String
+  imovel      Imovel   @relation(fields: [imovelId], references: [id], onDelete: Cascade)
+  mime        String
+  tamanho     Int
+  driveFileId String?
+  dados       Bytes?
+  criadoPorId String?
+  criadoEm    DateTime @default(now())
+
+  @@index([imovelId])
+  @@map("imovel_fotos")
 }
