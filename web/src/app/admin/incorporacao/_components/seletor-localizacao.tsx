@@ -97,7 +97,9 @@ export function SeletorLocalizacao({
       // Satélite Esri (keyless) + rótulos/vias por cima.
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "© Esri, Maxar, Earthstar Geographics", maxZoom: 19 }
+        // Esri não tem foto acima do zoom 17 em boa parte do interior (devolve o
+        // ladrilho "Map data not yet available"); acima disso o Leaflet amplia o 17.
+        { attribution: "© Esri, Maxar, Earthstar Geographics", maxZoom: 19, maxNativeZoom: 17 }
       ).addTo(map);
       L.tileLayer(
         "https://stamen-tiles.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png",
