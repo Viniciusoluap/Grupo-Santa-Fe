@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ doc
   if (!documento?.ativo) return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
   try {
     // Arquivo guardado no banco quando o Drive recusou a gravação; senão, no Drive.
-    const data = documento.arquivo ? Buffer.from(documento.arquivo.dados)
+    const data = documento.arquivo?.dados ? Buffer.from(documento.arquivo.dados)
       : documento.driveFileId ? await lerDocumentoRegistro(documento.driveFileId) : null;
     if (!data) throw new Error("Documento sem arquivo.");
     return new NextResponse(new Uint8Array(data), {

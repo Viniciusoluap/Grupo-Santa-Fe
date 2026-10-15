@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ fot
     ? podeAcessarModulo((await usuarioAtual()) ?? { perfil: null, ativo: false, permissoes: [] }, "obras")
     : false;
   const pode = foto && podeVerFotosDaObra({ id: user.id, papel: user.role ?? "", leadId: user.leadId ?? null, acessoObras }, { leadId: foto.obra.leadId });
-  if (!foto || !pode) return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
+  if (!foto || !pode || !foto.arquivo.dados) return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
   const corpo = new Uint8Array(foto.arquivo.dados as unknown as Buffer);
   return new NextResponse(corpo, {
     status: 200,

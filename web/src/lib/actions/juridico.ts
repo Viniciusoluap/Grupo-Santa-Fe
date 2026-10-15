@@ -2,7 +2,7 @@
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
-import { uploadPublico } from "@/lib/blob";
+import { salvarContratoCliente } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 import { jsPDF } from "jspdf";
 
@@ -127,7 +127,7 @@ export async function gerarPdfContrato(contratoId: string) {
   doc.text("Grupo Santa Fé — gruposantafe.com.br — (94) 99304-4689", pw / 2, fh - 4, { align: "center" });
 
   const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-  const blob = await uploadPublico(`contratos/${contrato.numero}-${Date.now()}.pdf`, pdfBuffer, "application/pdf");
+  const blob = await salvarContratoCliente({ leadId: contrato.leadId, rotulo: `Contrato ${contrato.numero}`, nome: `${contrato.numero}-${Date.now()}.pdf`, bytes: pdfBuffer });
   if (!blob.url) return { error: blob.erro };
 
   await prisma.$transaction([
@@ -154,10 +154,10 @@ export async function uploadContratoAssinado(contratoId: string, formData: FormD
   if (arquivo.type !== "application/pdf") throw new Error("Apenas PDF é aceito");
   if (arquivo.size > 10 * 1024 * 1024) throw new Error("Arquivo deve ter menos de 10MB");
 
-  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, select: { numero: true } });
+  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, select: { numero: true, leadId: true } });
   if (!contrato) throw new Error("Contrato não encontrado");
 
-  const blob = await uploadPublico(`contratos/assinados/${contrato.numero}-${Date.now()}.pdf`, arquivo, "application/pdf");
+  const blob = await salvarContratoCliente({ leadId: contrato.leadId, rotulo: `Contrato ${contrato.numero} assinado`, nome: `${contrato.numero}-assinado-${Date.now()}.pdf`, bytes: arquivo });
   if (!blob.url) return { error: blob.erro };
 
   await prisma.$transaction([
