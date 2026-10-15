@@ -13,3 +13,6 @@ CREATE TABLE IF NOT EXISTS "google_drive_oauth" (
   CONSTRAINT "google_drive_oauth_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "google_drive_oauth_linha_unica" CHECK ("id" = 1)
 );
+
+-- Bloqueia a API pública do Supabase (PostgREST), como nas demais tabelas; o Prisma acessa como dono.
+ALTER TABLE "google_drive_oauth" ENABLE ROW LEVEL SECURITY;
