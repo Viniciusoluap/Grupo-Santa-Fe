@@ -192,7 +192,8 @@ Implementar **primeiro na Prospecta e depois no Santa Fé** (paridade), conforme
 
 - 15/10/2026: PRs #125 (Prospecta) e #192 (Santa Fé) mergeados e em produção; handoff mergeado (#126 / #193).
 - 15/10/2026 (tarde): **Portal do Empreiteiro implementado nos dois sistemas** na branch `claude/sync-mirrored-repos-bsqnz3`
-  (PRs novos, ainda **sem merge/deploy** — aguardando autorização do dono). Sem migração de banco.
+  — **mergeado e em produção** (autorizado pelo dono): Prospecta #127 → `8443d1d` (`dpl_E8eya3kL8TyAu9nHE9vpeSE51o1X` READY),
+  Santa Fé #194 → `2fbe6e4` (`dpl_CoyvfJAXgF86GxtLUbbYuAPi3Mfk` READY). Sem migração de banco.
   - Prospecta: `server/obra-acesso.ts` (vínculo por obra no `adminProcedure`), `empreiteiro.minhasObras` com os
     campos da lista do admin + indicadores, `client/src/components/obra/ListaObras.tsx` (lista compartilhada),
     `EmpreiteiroPortal.tsx` (abas + gráficos), `AdminEditarObra` com `modo="empreiteiro"`, `ObraDetalhes empreiteiro`,
