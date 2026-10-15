@@ -144,7 +144,7 @@ describe("movimentos", () => {
 });
 
 describe("Lote 3 — comissão da obra pelo CRM (item 32)", () => {
-  const corretor = (percentual: string | null) => ({ comissaoPercentual: null, leadVinculado: { corretor: { id: "c1", nome: "Corretor", regraComissao: percentual ? { percentual } : null } } });
+  const corretor = (percentual: string | null) => ({ comissaoPercentual: null, leadId: "l1", leadVinculado: { valorAprovado: "230000.00", corretor: { id: "c1", nome: "Corretor", regraComissao: percentual ? { percentual } : null } } });
   const entrada = { ...valoresBase, vgv: "230000.00", comissao: "1" };
   beforeEach(() => { vi.clearAllMocks(); auth.mockResolvedValue(admin); });
 
@@ -170,6 +170,13 @@ describe("Lote 3 — comissão da obra pelo CRM (item 32)", () => {
     const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
     await salvarValoresObra({ ...entrada, comissaoPercentual: null });
     expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: null, comissaoPercentual: null });
+  });
+
+  it("obra com lead: VGV gravado é o Valor Aprovado do CRM, nunca o digitado (pedido 15/10)", async () => {
+    prisma.obra.findUnique.mockResolvedValue({ ...corretor("4"), leadVinculado: { valorAprovado: "195000.00", corretor: { id: "c1", nome: "Corretor", regraComissao: { percentual: "4" } } } });
+    const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
+    await salvarValoresObra({ ...entrada, vgv: "999999.00", comissaoPercentual: "" });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ vgv: "195000.00", comissaoValor: "7800.00" });
   });
 
   it("obra sem corretor: comissão é o valor informado", async () => {

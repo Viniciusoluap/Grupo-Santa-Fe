@@ -20,14 +20,15 @@ export interface ComissaoDeObra {
   alertas: string[];
 }
 
-export async function listarComissoesDeObras(): Promise<ComissaoDeObra[]> {
+/** `somenteCorretorId`: pedido de 15/10 — o corretor vê as comissões das obras dos leads dele. */
+export async function listarComissoesDeObras(somenteCorretorId?: string): Promise<ComissaoDeObra[]> {
   const [obras, manuais] = await Promise.all([
     prisma.obra.findMany({
-      where: { leadVinculado: { corretorId: { not: null } } },
+      where: { leadVinculado: { corretorId: somenteCorretorId ?? { not: null } } },
       orderBy: { nome: "asc" },
       select: {
         id: true, nome: true, clienteNome: true, vgv: true, comissaoPercentual: true,
-        leadVinculado: { select: { nome: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
+        leadVinculado: { select: { nome: true, valorAprovado: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
         movimentos: { where: { status: "confirmado", natureza: "pagamento", categoria: "comissao" }, select: { valor: true } },
       },
     }),
@@ -40,9 +41,11 @@ export async function listarComissoesDeObras(): Promise<ComissaoDeObra[]> {
     .filter((o) => o.leadVinculado?.corretor)
     .map((o) => {
       const c = o.leadVinculado!.corretor!;
+      // Pedido de 15/10: VGV da obra com lead = Valor Aprovado do CRM.
+      const vgv = o.leadVinculado!.valorAprovado?.toString() ?? null;
       const calculo = calcularComissaoObra({
         corretor: { id: c.id, nome: c.nome, percentualPadrao: c.regraComissao?.percentual.toString() ?? null },
-        vgvCentavos: centavosDe(o.vgv?.toString() ?? null),
+        vgvCentavos: centavosDe(vgv),
         percentualObra: o.comissaoPercentual?.toString() ?? null,
         pagoCentavos: o.movimentos.reduce((acc, m) => acc + centavosDe(m.valor.toString())!, 0),
       });
@@ -57,7 +60,7 @@ export async function listarComissoesDeObras(): Promise<ComissaoDeObra[]> {
       }
       return {
         obraId: o.id, obra: o.nome, cliente: o.leadVinculado!.nome || o.clienteNome, corretorId: c.id, corretor: c.nome,
-        vgv: o.vgv?.toString() ?? null, calculo, registrosManuais, alertas,
+        vgv, calculo, registrosManuais, alertas,
       };
     });
 }

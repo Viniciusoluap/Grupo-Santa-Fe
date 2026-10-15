@@ -29,9 +29,10 @@ export default async function ComissoesPage() {
     }),
     prisma.imovel.findMany({ select: { id: true, titulo: true, status: true, preco: true }, orderBy: { titulo: "asc" } }),
     prisma.financiamento.findMany({ select: { id: true, clienteNome: true, imovel: true, valorImovel: true }, orderBy: { clienteNome: "asc" } }),
-    prisma.obra.findMany({ select: { id: true, nome: true, clienteNome: true, vgv: true }, orderBy: { nome: "asc" } }),
+    prisma.obra.findMany({ select: { id: true, nome: true, clienteNome: true, vgv: true, leadId: true, leadVinculado: { select: { valorAprovado: true } } }, orderBy: { nome: "asc" } }),
   ]);
-  const comissoesDeObras = isAdmin ? await listarComissoesDeObras() : [];
+  // Pedido de 15/10: o corretor também vê as comissões das obras dos leads dele.
+  const comissoesDeObras = isAdmin ? await listarComissoesDeObras() : isCorretor && corretorId ? await listarComissoesDeObras(corretorId) : [];
 
   // Negócios pré-cadastrados por tipo de comissão (EPIC-008): o "Imóvel/negócio"
   // é sempre um registro real; `valorBase` alimenta o cálculo automático.
@@ -48,14 +49,14 @@ export default async function ComissoesPage() {
       valorBase: f.valorImovel,
     })),
     // Base da comissão de obra é o VGV (item 32), não o valor total legado.
-    obra: obras.map((o) => ({ id: o.id, label: `${o.nome} — ${o.clienteNome}`, valorBase: o.vgv == null ? null : Number(o.vgv) })),
+    obra: obras.map((o) => ({ id: o.id, label: `${o.nome} — ${o.clienteNome}`, valorBase: (() => { const v = o.leadId ? o.leadVinculado?.valorAprovado : o.vgv; return v == null ? null : Number(v); })() })),
     extra: [],
   };
 
   return (
     <div className="space-y-5">
       <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} isAdmin={isAdmin} />
-      {isAdmin && <ComissoesDeObras linhas={comissoesDeObras} />}
+      {(isAdmin || isCorretor) && <ComissoesDeObras linhas={comissoesDeObras} somenteLeitura={!isAdmin} />}
     </div>
   );
 }

@@ -92,17 +92,24 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
   }
   const atual = await prisma.obra.findUnique({
     where: { id: input.obraId },
-    select: { comissaoPercentual: true, leadVinculado: { select: { corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
+    select: { comissaoPercentual: true, leadId: true, leadVinculado: { select: { valorAprovado: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
   });
   if (!atual) return { ok: false, erro: "Obra não encontrada." };
   if (input.comissaoPercentual === undefined) pctComissao = atual.comissaoPercentual?.toString() ?? null;
   const c = atual.leadVinculado?.corretor;
+  // Pedido de 15/10: obra com lead tem VGV = Valor Aprovado do CRM; o digitado é ignorado.
+  let vgv: string | null;
+  try {
+    vgv = atual.leadId ? (atual.leadVinculado?.valorAprovado?.toString() ?? null) : dinheiro(input.vgv, "VGV");
+  } catch (err) {
+    return { ok: false, erro: err instanceof Error ? err.message : "Valores inválidos." };
+  }
   // Com corretor + regra + VGV, o valor da comissão é sempre o calculado.
   let calculada: number | null = null;
   try {
     calculada = calcularComissaoObra({
       corretor: c ? { id: c.id, nome: c.nome, percentualPadrao: c.regraComissao?.percentual.toString() ?? null } : null,
-      vgvCentavos: centavosDe(dinheiro(input.vgv, "VGV")),
+      vgvCentavos: centavosDe(vgv),
       percentualObra: pctComissao,
       pagoCentavos: 0,
     }).valorCentavos;
@@ -113,7 +120,7 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
     await prisma.obra.update({
       where: { id: input.obraId },
       data: {
-        vgv: dinheiro(input.vgv, "VGV"),
+        vgv,
         financiamentoCef: dinheiro(input.financiamento, "Financiamento CEF"),
         fgts: dinheiro(input.fgts, "FGTS"),
         subsidio: dinheiro(input.subsidio, "Subsídio"),
