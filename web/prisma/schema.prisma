@@ -1006,7 +1006,10 @@ model Arquivo {
   nome      String
   mime      String   @default("application/octet-stream")
   tamanho   Int      @default(0)
-  dados     Bytes
+  /// Bytes no banco. Vazio quando o arquivo está no Google Drive (driveFileId).
+  dados     Bytes?
+  /// Arquivo gravado no Google Drive (contratos do Jurídico/Portal); servido pela mesma rota.
+  driveFileId String? @unique
   criadoEm  DateTime @default(now())
   obraFoto  ObraFoto?
   documentoRegistro EstudoDocumentoRegistro?

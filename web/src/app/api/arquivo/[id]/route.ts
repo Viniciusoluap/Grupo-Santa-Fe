@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { lerDocumentoRegistro } from "@/lib/incorporacao/registro-drive";
 
 export const runtime = "nodejs";
 
@@ -19,8 +20,14 @@ export async function GET(
   const arquivo = await prisma.arquivo.findUnique({ where: { id } });
   if (!arquivo) return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
 
-  // Prisma Bytes → Uint8Array/Buffer
-  const body = new Uint8Array(arquivo.dados as unknown as Buffer);
+  // Contratos gravados no Google Drive são lidos de lá; os demais, do banco.
+  let body: Uint8Array<ArrayBuffer>;
+  try {
+    body = arquivo.driveFileId ? new Uint8Array(await lerDocumentoRegistro(arquivo.driveFileId))
+      : arquivo.dados ? new Uint8Array(arquivo.dados) : new Uint8Array();
+  } catch {
+    return NextResponse.json({ error: "Arquivo indisponível no Google Drive no momento." }, { status: 502 });
+  }
   return new NextResponse(body, {
     status: 200,
     headers: {

@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { criptografarSegredo, descriptografarSegredo } from "@/lib/segredo";
 import { ErroDrive, lerCorpoErroGoogle } from "@/lib/drive-erro";
+import { CHAVE_RAIZ, PROPRIEDADE_PASTA } from "@/lib/drive-estrutura";
 import { CAMINHO_CALLBACK, lerCredencialOAuth, uriRetornoCadastrada } from "@/lib/google-drive-oauth";
 
 // Google Drive com a conta Google do dono (OAuth). Mesma regra de
@@ -61,7 +62,30 @@ async function tokenEndpoint(corpo: Record<string, string>) {
   return json ?? {};
 }
 
-/** Troca o código do Google pelo token, descobre o e-mail e cria a pasta raiz no Drive do dono. */
+/**
+ * Pasta raiz do sistema no Drive do dono. Reconectar reaproveita a que já
+ * existe (etiqueta interna; ou, de versões antigas, pelo nome na raiz do Drive)
+ * em vez de criar outra.
+ */
+async function pastaRaiz(auth: { Authorization: string }): Promise<string> {
+  const buscar = async (q: string) => {
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q, fields: "files(id)", orderBy: "createdTime", pageSize: "1" })}`, { headers: auth, cache: "no-store" });
+    if (!r.ok) { const { motivo, detalhe } = lerCorpoErroGoogle(await r.json().catch(() => null)); throw new ErroDrive("pasta_raiz", r.status, motivo, detalhe); }
+    return ((await r.json()) as { files?: { id: string }[] }).files?.[0]?.id ?? null;
+  };
+  const pasta = "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+  const existente = await buscar(`appProperties has { key='${PROPRIEDADE_PASTA}' and value='${CHAVE_RAIZ}' } and ${pasta}`)
+    ?? await buscar(`name = '${PASTA_RAIZ_OAUTH.replace(/'/g, "\\'")}' and 'root' in parents and ${pasta}`);
+  if (existente) return existente;
+  const criada = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
+    method: "POST", headers: { ...auth, "Content-Type": "application/json" }, cache: "no-store",
+    body: JSON.stringify({ name: PASTA_RAIZ_OAUTH, mimeType: "application/vnd.google-apps.folder" }),
+  });
+  if (!criada.ok) { const { motivo, detalhe } = lerCorpoErroGoogle(await criada.json().catch(() => null)); throw new ErroDrive("pasta_raiz", criada.status, motivo, detalhe); }
+  return ((await criada.json()) as { id: string }).id;
+}
+
+/** Troca o código do Google pelo token, descobre o e-mail e prepara a pasta raiz no Drive do dono. */
 export async function concluirConexao(codigo: string, origem: string, usuarioId: string) {
   const { clientId, clientSecret } = await clienteOAuth();
   const t = await tokenEndpoint({ code: codigo, client_id: clientId, client_secret: clientSecret, redirect_uri: `${origem}${CAMINHO_CALLBACK}`, grant_type: "authorization_code" });
@@ -72,12 +96,7 @@ export async function concluirConexao(codigo: string, origem: string, usuarioId:
   if (!escopos.includes("drive.file")) throw new Error("A permissão do Google Drive não foi concedida. Conecte de novo e marque a opção do Drive.");
   const auth = { Authorization: `Bearer ${acesso}` };
   const info = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: auth, cache: "no-store" }).then((r) => r.json()).catch(() => ({})) as { email?: string };
-  const pasta = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
-    method: "POST", headers: { ...auth, "Content-Type": "application/json" }, cache: "no-store",
-    body: JSON.stringify({ name: PASTA_RAIZ_OAUTH, mimeType: "application/vnd.google-apps.folder" }),
-  });
-  if (!pasta.ok) { const { motivo, detalhe } = lerCorpoErroGoogle(await pasta.json().catch(() => null)); throw new ErroDrive("pasta_raiz", pasta.status, motivo, detalhe); }
-  const { id } = await pasta.json() as { id: string };
+  const id = await pastaRaiz(auth);
   await prisma.googleDriveOauth.update({ where: { id: 1 }, data: {
     refreshTokenEncrypted: criptografarSegredo(refresh), accountEmail: info.email?.slice(0, 320) ?? null, rootFolderId: id,
     connectedAt: new Date(), updatedByUsuarioId: usuarioId,

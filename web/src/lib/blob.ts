@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { tentarUploadDrive, uploadDocumentoCliente } from "@/lib/incorporacao/registro-drive";
 
 // Armazenamento de arquivos NO PRÓPRIO BANCO (tabela "arquivos").
 //
@@ -70,4 +71,22 @@ export async function uploadPublico(
     const raw = e instanceof Error ? e.message : String(e);
     return { url: null, erro: `Falha ao salvar arquivo: ${raw}` };
   }
+}
+
+/**
+ * Contrato do cliente (Jurídico/Portal): vai para o Google Drive, na pasta
+ * Clientes/<Nome>/Jurídico, como na Prospecta. Sem cliente vinculado, sem Drive
+ * ou com o Drive recusando, fica no banco — o envio nunca se perde.
+ */
+export async function salvarContratoCliente(c: { leadId: string | null; rotulo: string; nome: string; bytes: Buffer | File }): Promise<UploadResult> {
+  const bytes = await paraBuffer(c.bytes);
+  if (c.leadId) {
+    const leadId = c.leadId;
+    const { fileId } = await tentarUploadDrive(() => uploadDocumentoCliente({ leadId, area: "juridico", rotulo: c.rotulo, nomeOriginal: c.nome, mime: "application/pdf", bytes }));
+    if (fileId) {
+      const arquivo = await prisma.arquivo.create({ data: { nome: c.nome, mime: "application/pdf", tamanho: bytes.length, driveFileId: fileId }, select: { id: true } });
+      return { url: `/api/arquivo/${arquivo.id}` };
+    }
+  }
+  return uploadPublico(`contratos/${c.nome}`, bytes, "application/pdf");
 }

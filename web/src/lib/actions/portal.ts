@@ -1,7 +1,7 @@
 "use server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { uploadPublico } from "@/lib/blob";
+import { salvarContratoCliente } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 
 // Upload do contrato assinado feito pelo PRÓPRIO CLIENTE no portal.
@@ -24,7 +24,7 @@ export async function enviarContratoAssinadoPortal(contratoId: string, formData:
   if (arquivo.type !== "application/pdf") throw new Error("Apenas PDF é aceito");
   if (arquivo.size > 10 * 1024 * 1024) throw new Error("Arquivo deve ter menos de 10MB");
 
-  const blob = await uploadPublico(`contratos/assinados/${contrato.numero}-${Date.now()}.pdf`, arquivo, "application/pdf");
+  const blob = await salvarContratoCliente({ leadId: contrato.leadId, rotulo: `Contrato ${contrato.numero} assinado`, nome: `${contrato.numero}-assinado-${Date.now()}.pdf`, bytes: arquivo });
   if (!blob.url) return { error: blob.erro };
 
   await prisma.$transaction([

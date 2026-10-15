@@ -1,0 +1,133 @@
+// Estrutura de pastas do Google Drive: nomes legíveis em português, iguais na
+// Prospecta e no Grupo Santa Fé (gêmeo em Prospecta/shared/drive-estrutura.ts).
+//
+//   <raiz do sistema>/
+//     Clientes/<Nome do cliente (nº id)>/<Atendimento|Financiamento|Jurídico|…>/<Tipo — dd-mm-aaaa.ext>
+//     Incorporação/<Nome do estudo (nº id)>/<Etapa>/<Documento — dd-mm-aaaa.ext>
+//
+// Cada pasta criada pelo sistema leva uma etiqueta interna do Drive
+// (appProperties[PROPRIEDADE_PASTA] = chave). A pasta é achada pela etiqueta,
+// nunca pelo nome: renomear o cliente renomeia a pasta, sem duplicar.
+
+export const PROPRIEDADE_PASTA = "pastaSistema";
+export const CHAVE_RAIZ = "raiz";
+export const CHAVE_CLIENTES = "clientes";
+export const CHAVE_INCORPORACAO = "incorporacao";
+export const PASTA_CLIENTES = "Clientes";
+export const PASTA_INCORPORACAO = "Incorporação";
+
+export type AreaCliente =
+  | "atendimento" | "financiamento" | "juridico" | "regularizacao"
+  | "obras" | "projetos" | "avaliacao" | "outros";
+
+export const NOME_AREA: Record<AreaCliente, string> = {
+  atendimento: "Atendimento",
+  financiamento: "Financiamento",
+  juridico: "Jurídico",
+  regularizacao: "Regularização",
+  obras: "Obras",
+  projetos: "Projetos",
+  avaliacao: "Avaliação",
+  outros: "Outros serviços",
+};
+
+const AREA_DO_SERVICO: Record<string, AreaCliente> = {
+  financiamento_habitacional: "financiamento",
+  consorcio: "financiamento",
+  regularizacao: "regularizacao",
+  despachante: "regularizacao",
+  juridico: "juridico",
+  obra_cliente: "obras",
+  vistoria_medicao: "obras",
+  projeto_tecnico: "projetos",
+  avaliacao: "avaliacao",
+};
+
+/** Documento sem serviço vinculado fica em "Atendimento". */
+export function areaDoServico(tipoServico: string | null | undefined): AreaCliente {
+  if (!tipoServico) return "atendimento";
+  return AREA_DO_SERVICO[tipoServico] ?? "outros";
+}
+
+/** Rótulos dos tipos de documento do cliente usados no nome do arquivo. */
+export const ROTULO_DOCUMENTO: Record<string, string> = {
+  rg: "RG",
+  cnh: "CNH",
+  address_proof: "Comprovante de endereço",
+  income_proof_formal: "Comprovante de renda",
+  income_proof_irpf: "Declaração de IR",
+  fgts: "Extrato do FGTS",
+  spouse_docs: "Documentos do cônjuge",
+  pis: "PIS",
+  other: "Outro documento",
+};
+
+/** Tira barras e caracteres de controle e limita o tamanho (nome de pasta/arquivo). */
+export function limparNome(texto: string | null | undefined, maximo = 120): string {
+  return (texto ?? "")
+    .replace(/[\\/\x00-\x1f\x7f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maximo)
+    .trim();
+}
+
+export function nomeComNumero(nome: string | null | undefined, numero: string | number): string {
+  return `${limparNome(nome) || "Sem nome"} (nº ${numero})`;
+}
+
+/** dd-mm-aaaa no horário de Brasília. */
+export function dataArquivo(data: Date): string {
+  const partes = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" })
+    .formatToParts(data);
+  const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "";
+  return `${parte("day")}-${parte("month")}-${parte("year")}`;
+}
+
+const EXTENSAO_DO_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "text/csv": ".csv",
+  "text/plain": ".txt",
+};
+
+export function extensaoArquivo(nomeOriginal: string | null | undefined, mime: string): string {
+  const m = /\.([a-z0-9]{1,5})$/i.exec(nomeOriginal ?? "");
+  if (m) return `.${m[1].toLowerCase()}`;
+  return EXTENSAO_DO_MIME[mime] ?? "";
+}
+
+/** "RG — 15-10-2026.jpg" */
+export function nomeArquivo(rotulo: string, data: Date, nomeOriginal: string | null | undefined, mime: string): string {
+  return `${limparNome(rotulo, 150) || "Documento"} — ${dataArquivo(data)}${extensaoArquivo(nomeOriginal, mime)}`;
+}
+
+export const chaveCliente = (id: string | number) => `cliente:${id}`;
+export const chaveArea = (id: string | number, area: AreaCliente) => `cliente:${id}:${area}`;
+export const chaveEstudo = (id: string | number) => `incorporacao:${id}`;
+export const chaveEtapaEstudo = (id: string | number, etapa: string) => `incorporacao:${id}:${etapa}`;
+
+/** Um nível da árvore: a etiqueta interna e o nome exibido. */
+export interface PastaAlvo { chave: string; nome: string }
+
+export function caminhoCliente(cliente: { id: string | number; numero: string | number; nome: string | null }, area: AreaCliente): PastaAlvo[] {
+  return [
+    { chave: CHAVE_CLIENTES, nome: PASTA_CLIENTES },
+    { chave: chaveCliente(cliente.id), nome: nomeComNumero(cliente.nome, cliente.numero) },
+    { chave: chaveArea(cliente.id, area), nome: NOME_AREA[area] },
+  ];
+}
+
+export function caminhoEstudo(estudo: { id: string | number; numero: string | number; nome: string | null }, etapa: { chave: string; nome: string }): PastaAlvo[] {
+  return [
+    { chave: CHAVE_INCORPORACAO, nome: PASTA_INCORPORACAO },
+    { chave: chaveEstudo(estudo.id), nome: nomeComNumero(estudo.nome, estudo.numero) },
+    { chave: chaveEtapaEstudo(estudo.id, etapa.chave), nome: limparNome(etapa.nome) || "Documentos" },
+  ];
+}
+
+/** Pasta antiga (antes desta estrutura): criada pelo sistema, sem etiqueta. */
+export function pastaLegada(appProperties: Record<string, string> | null | undefined): boolean {
+  return !appProperties?.[PROPRIEDADE_PASTA];
+}
