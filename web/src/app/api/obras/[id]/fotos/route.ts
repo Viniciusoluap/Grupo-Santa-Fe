@@ -15,9 +15,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const user = await usuarioAtual();
     if (!user?.ativo) return NextResponse.json({ error: "Sessão expirada. Entre novamente." }, { status: 401 });
-    if (!podeGerenciarFotos({ id: user.id, papel: user.perfil ?? "", acessoObras: podeAcessarModulo(user, "obras") }))
-      return NextResponse.json({ error: "Sem permissão para enviar fotos desta obra." }, { status: 403 });
     const { id: obraId } = await params;
+    // Pedido de 15/10: o empreiteiro vinculado também envia fotos da própria obra.
+    const dona = await prisma.obra.findUnique({ where: { id: obraId }, select: { empreiteiroId: true } });
+    if (!podeGerenciarFotos({ id: user.id, papel: user.perfil ?? "", acessoObras: podeAcessarModulo(user, "obras") }, { empreiteiroId: dona?.empreiteiroId ?? null }))
+      return NextResponse.json({ error: "Sem permissão para enviar fotos desta obra." }, { status: 403 });
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const base64 = lerDataUrl(body?.image);
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     });
     revalidatePath(`/admin/obras/${obraId}/editar`);
+    revalidatePath(`/empreiteiro/obras/${obraId}/editar`);
     return NextResponse.json({ ...foto, url: `/api/obras/fotos/${foto.id}` });
   } catch (error) {
     console.error("[obra-fotos] envio:", error);

@@ -10,7 +10,7 @@ const prisma = {
   obra: { update: vi.fn(), findUnique: vi.fn() },
   investidor: { count: vi.fn() },
   obraInvestidor: { deleteMany: vi.fn(), createMany: vi.fn() },
-  obraMovimento: { create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+  obraMovimento: { create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), findUnique: vi.fn() },
   $transaction: vi.fn(),
 };
 
@@ -28,8 +28,9 @@ const valoresBase = {
 describe("obra-financeiro — permissões", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // Item 06: colaborador só com o módulo Obras liberado; empreiteiro e corretor nunca.
-  it.each([null, { user: { id: "c", role: "colaborador", permissoes: ["leads"] } }, { user: { id: "e", role: "empreiteiro" } }, { user: { id: "k", role: "corretor" } }])(
+  // Item 06: colaborador só com o módulo Obras liberado; corretor nunca. O empreiteiro
+  // (15/10) só lança/exclui pagamentos da obra dele — ver portal-empreiteiro.test.ts.
+  it.each([null, { user: { id: "c", role: "colaborador", permissoes: ["leads"] } }, { user: { id: "k", role: "corretor" } }])(
     "bloqueia quem não tem o módulo Obras (%o)",
     async (sessao) => {
       auth.mockResolvedValue(sessao);

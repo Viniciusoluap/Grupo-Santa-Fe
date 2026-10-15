@@ -237,7 +237,7 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
   );
 }
 
-function NovoMovimento({ obraId, natureza, rotulo }: { obraId: string; natureza: Natureza; rotulo: string }) {
+function NovoMovimento({ obraId, natureza, rotulo, permitirBpo = true }: { obraId: string; natureza: Natureza; rotulo: string; permitirBpo?: boolean }) {
   const router = useRouter();
   const hoje = new Date().toISOString().slice(0, 10);
   const [aberto, setAberto] = useState(false);
@@ -262,12 +262,12 @@ function NovoMovimento({ obraId, natureza, rotulo }: { obraId: string; natureza:
         <Plus size={14} /> {rotulo}
       </button>
       <Modal titulo={rotulo} aberto={aberto} onFechar={() => setAberto(false)}>
-        <label className={labelCls}>Origem
+        {permitirBpo && <label className={labelCls}>Origem
           <select value={origem} onChange={(e) => setOrigem(e.target.value as "manual" | "bpo")} className={`${inputCls} mt-1 normal-case font-normal`}>
             <option value="manual">Lançamento manual</option>
             <option value="bpo">Vincular lançamento do BPO Financeiro</option>
           </select>
-        </label>
+        </label>}
         {natureza === "pagamento" && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className={`${labelCls} min-w-0`}>Categoria
@@ -470,15 +470,19 @@ export function ValoresOperacao({ resumo, form, setForm, calculo, empreiteiroNom
   );
 }
 
-export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor }: {
+export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor, modoEmpreiteiro = false }: {
   resumo: ResumoObra; form: FormFinanceiro; setForm: (f: FormFinanceiro) => void; calculo: ResultadoObra;
   empreiteiros: { id: string; nome: string }[]; corretor: string | null;
+  /** Portal do Empreiteiro (15/10): Custos previstos só leitura; Pagamentos liberados, sem vincular o BPO da empresa. */
+  modoEmpreiteiro?: boolean;
 }) {
   const set = (k: keyof FormFinanceiro) => (v: string | null) => setForm({ ...form, [k]: v });
   const legado = resumo.obra.valorTotalLegado;
   return (
     <div className="space-y-4">
+      <fieldset disabled={modoEmpreiteiro} className="contents">
       <Secao titulo="Custos previstos">
+        {modoEmpreiteiro && <p className="text-[11px] text-gray-400">Somente leitura: definidos pela empresa.</p>}
         {legado != null && (
           <p className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             Valor total do cadastro anterior: <strong>{brl(Math.round(legado * 100))}</strong>. Ele foi preservado e não entra nos cálculos —
@@ -508,8 +512,9 @@ export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor 
           <Leitura label="Corretor vinculado" valor={corretor ?? "Sem corretor no lead"} ajuda="Vem do lead no CRM." />
         </div>
       </Secao>
+      </fieldset>
       <Secao titulo="Pagamentos" formula="Total Gasto = soma dos pagamentos efetivamente realizados · Saldo Restante = VGV − Total Gasto (não é lucro nem saldo bancário)">
-        <NovoMovimento obraId={resumo.obra.id} natureza="pagamento" rotulo="Adicionar Pagamento" />
+        <NovoMovimento obraId={resumo.obra.id} natureza="pagamento" rotulo="Adicionar Pagamento" permitirBpo={!modoEmpreiteiro} />
         <Historico titulo="Histórico de pagamentos" movimentos={porNatureza(resumo, "pagamento")} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Calculado label="Total Gasto na Obra" indicador={calculo.totalGasto} destaque />

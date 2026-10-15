@@ -54,20 +54,28 @@ export interface ObraFotoDona {
   /** Cliente dono da obra (cadastro antigo) — quando houver. */
   usuarioId?: number | string | null;
   leadId?: number | string | null;
+  /** Empreiteiro vinculado à obra (pedido de 15/10: ele cuida das fotos da própria obra). */
+  empreiteiroId?: number | string | null;
 }
+
+const ehEmpreiteiroDaObra = (u: UsuarioFoto, obra: ObraFotoDona | undefined) =>
+  u.papel === "empreiteiro" && obra?.empreiteiroId != null && String(obra.empreiteiroId) === String(u.id);
 
 /**
  * Quem pode VER as fotos: admin, equipe com o módulo Obras e o cliente da obra (portal).
  * Enviar/editar/excluir: admin e equipe com o módulo Obras.
+ * O empreiteiro vinculado vê e gerencia as fotos da própria obra.
  */
 export function podeVerFotosDaObra(u: UsuarioFoto | null, obra: ObraFotoDona): boolean {
   if (!u) return false;
   if (u.papel === "admin" || u.acessoObras === true) return true;
+  if (ehEmpreiteiroDaObra(u, obra)) return true;
   if (obra.usuarioId != null && String(obra.usuarioId) === String(u.id)) return true;
   const cliente = u.papel === "cliente" || u.papel === "user";
   return cliente && u.leadId != null && obra.leadId != null && String(u.leadId) === String(obra.leadId);
 }
 
-export function podeGerenciarFotos(u: UsuarioFoto | null): boolean {
-  return u?.papel === "admin" || u?.acessoObras === true;
+export function podeGerenciarFotos(u: UsuarioFoto | null, obra?: ObraFotoDona): boolean {
+  if (!u) return false;
+  return u.papel === "admin" || u.acessoObras === true || ehEmpreiteiroDaObra(u, obra);
 }
