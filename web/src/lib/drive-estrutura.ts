@@ -127,7 +127,13 @@ export function caminhoEstudo(estudo: { id: string | number; numero: string | nu
   ];
 }
 
-/** Pasta antiga (antes desta estrutura): criada pelo sistema, sem etiqueta. */
-export function pastaLegada(appProperties: Record<string, string> | null | undefined): boolean {
-  return !appProperties?.[PROPRIEDADE_PASTA];
+/** Nomes que o sistema dava às pastas antes desta estrutura (cliente-19, incorporacao-3/-ckx…). */
+const NOME_LEGADO = /^(cliente-\d+|incorporacao-[A-Za-z0-9]+)$/;
+
+/**
+ * Pasta antiga criada pelo sistema: sem etiqueta E com nome do formato antigo.
+ * Pasta criada pelo dono (sem etiqueta, outro nome) nunca entra na limpeza.
+ */
+export function pastaLegada(pasta: { name?: string; appProperties?: Record<string, string> | null }): boolean {
+  return !pasta.appProperties?.[PROPRIEDADE_PASTA] && NOME_LEGADO.test(pasta.name ?? "");
 }
