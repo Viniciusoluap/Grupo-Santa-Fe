@@ -43,3 +43,28 @@ describe("agenda do corretor", () => {
     expect(mocks.criar).toHaveBeenCalled();
   });
 });
+
+describe("cliente sem lead (pedido de 15/10, igual à Prospecta)", () => {
+  const semLead = (nome: string, tel = "") => {
+    const f = new FormData();
+    f.set("leadId", "");
+    f.set("clienteNome", nome);
+    f.set("clienteTel", tel);
+    f.set("agendadaPara", "2026-10-20T10:00");
+    return f;
+  };
+
+  it("grava a visita com o nome e o telefone digitados", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "u1", role: "corretor", corretorId: "c1" } });
+    await criarVisita(semLead("  Maria Avulsa ", "94 99999-0000"));
+    expect(mocks.criar).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ leadId: null, clienteNome: "Maria Avulsa", clienteTel: "94 99999-0000", corretorId: "c1" }),
+    }));
+  });
+
+  it("sem lead e sem nome é recusado", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "u2", role: "colaborador" } });
+    await expect(criarVisita(semLead("   "))).rejects.toThrow("nome do cliente sem lead");
+    expect(mocks.criar).not.toHaveBeenCalled();
+  });
+});

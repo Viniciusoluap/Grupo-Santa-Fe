@@ -11,7 +11,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 const reais = (c: number | null) => (c === null ? "—" : formatCurrency(c / 100));
 
-export function ComissoesDeObras({ linhas }: { linhas: ComissaoDeObra[] }) {
+/** `somenteLeitura`: visão do corretor (pedido de 15/10) — sem link da obra nem alertas internos. */
+export function ComissoesDeObras({ linhas, somenteLeitura = false }: { linhas: ComissaoDeObra[]; somenteLeitura?: boolean }) {
   const incompletas = linhas.filter((l) => l.calculo.status === "dados_incompletos").length;
   return (
     <section className="bg-white border border-gray-100 p-5 space-y-3">
@@ -24,7 +25,7 @@ export function ComissoesDeObras({ linhas }: { linhas: ComissaoDeObra[] }) {
         </p>
       </div>
       {linhas.length === 0 ? (
-        <p className="text-sm text-gray-400">Nenhuma obra com corretor vinculado no CRM.</p>
+        <p className="text-sm text-gray-400">{somenteLeitura ? "Nenhuma obra dos seus clientes no momento." : "Nenhuma obra com corretor vinculado no CRM."}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -38,7 +39,7 @@ export function ComissoesDeObras({ linhas }: { linhas: ComissaoDeObra[] }) {
               {linhas.map((l) => (
                 <tr key={l.obraId} className="border-b border-gray-50 align-top">
                   <td className="py-2 pr-3">{l.corretor}<br /><span className="text-xs text-gray-400">{l.cliente}</span></td>
-                  <td className="py-2 pr-3"><Link className="underline" href={`/admin/obras/${l.obraId}/editar`}>{l.obra}</Link></td>
+                  <td className="py-2 pr-3">{somenteLeitura ? l.obra : <Link className="underline" href={`/admin/obras/${l.obraId}/editar`}>{l.obra}</Link>}</td>
                   <td className="py-2 pr-3">
                     {l.vgv ? formatCurrency(Number(l.vgv)) : "VGV não informado"}<br />
                     <span className="text-xs text-gray-500">{l.calculo.percentual ? `${Number(l.calculo.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}% (${l.calculo.fontePercentual === "obra" ? "da obra" : "padrão do corretor"})` : "sem percentual"}</span>
@@ -47,8 +48,8 @@ export function ComissoesDeObras({ linhas }: { linhas: ComissaoDeObra[] }) {
                   <td className="py-2 pr-3">{reais(l.calculo.pagoCentavos)}<br /><span className="text-xs text-gray-500">saldo {reais(l.calculo.saldoCentavos)}</span></td>
                   <td className="py-2">
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${STATUS[l.calculo.status].cls}`}>{STATUS[l.calculo.status].label}</span>
-                    {[...l.calculo.pendencias, ...l.alertas].map((t) => <p key={t} className="text-[11px] text-amber-700 mt-1">{t}</p>)}
-                    {l.registrosManuais.map((m) => (
+                    {(somenteLeitura ? l.calculo.pendencias : [...l.calculo.pendencias, ...l.alertas]).map((t) => <p key={t} className="text-[11px] text-amber-700 mt-1">{t}</p>)}
+                    {!somenteLeitura && l.registrosManuais.map((m) => (
                       <p key={m.id} className="text-[11px] text-gray-500 mt-1">
                         Comissão manual vinculada: {formatCurrency(m.valor)} · {m.percentual.toLocaleString("pt-BR")}% · {m.status}
                       </p>

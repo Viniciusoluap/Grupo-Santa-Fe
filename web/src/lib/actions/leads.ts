@@ -20,6 +20,7 @@ import {
 } from "@/lib/crm/vinculo-lead";
 import { SERVICOS_LEAD, parseServicosLead } from "@/lib/crm/servicos-lead";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
+import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
 
 function validarServicos(raw: FormDataEntryValue[], legados: string[] = []) {
   const servicos = [...new Set(raw.map(String))];
@@ -39,6 +40,15 @@ function orcamentoDoFormulario(formData: FormData) {
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) throw new Error("Orçamento inválido.");
   return n;
+}
+
+/** Pedido de 15/10: Valor Aprovado (R$) — vazio limpa; o VGV das obras acompanha. */
+function valorAprovadoDoFormulario(formData: FormData): string | null {
+  const raw = texto(formData, "valorAprovado", 40);
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 9_999_999_999_999) throw new Error("Valor Aprovado inválido.");
+  return n.toFixed(2);
 }
 
 /** Item 04: recusa (em vez de ignorar) responsável que não seja admin/colaborador ativo. */
@@ -175,6 +185,7 @@ export async function editarLead(formData: FormData) {
       temperatura: temperaturaDoFormulario(formData.get("temperatura"), atual.temperatura as LeadTemperatura),
       origem: (formData.get("origem") as string) || "site",
       orcamento: orcamentoDoFormulario(formData),
+      ...(formData.has("valorAprovado") ? { valorAprovado: valorAprovadoDoFormulario(formData) } : {}),
       notas: (formData.get("notas") as string) || "",
       // "Sem corretor" precisa desvincular de verdade (antes `undefined` mantinha o antigo).
       corretorId: ator.papel === "corretor" ? ator.corretorId : (formData.get("corretorId") as string) || null,
@@ -189,6 +200,7 @@ export async function editarLead(formData: FormData) {
   // vinculados e cria os registros dos serviços recém-marcados.
     await propagarDadosClienteDoLead(lead, tx);
     await sincronizarServicosDoLead(lead.id, tx);
+    await sincronizarVgvDoLead(lead.id, tx);
   });
 
   revalidarModulosVinculados();

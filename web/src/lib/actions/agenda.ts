@@ -16,11 +16,10 @@ async function dadosDoCliente(formData: FormData, u: UsuarioDaSessao): Promise<{
       throw new Error("Lead não encontrado na sua carteira.");
     if (lead) return { leadId, clienteNome: lead.nome, clienteTel: lead.telefone };
   }
-  return {
-    leadId: null,
-    clienteNome: (formData.get("clienteNome") as string) || "",
-    clienteTel: (formData.get("clienteTel") as string) || "",
-  };
+  // Pedido de 15/10 (paridade com a Prospecta): cliente sem lead, com nome obrigatório.
+  const clienteNome = String(formData.get("clienteNome") ?? "").trim().slice(0, 255);
+  if (!clienteNome) throw new Error("Selecione um lead ou informe o nome do cliente sem lead.");
+  return { leadId: null, clienteNome, clienteTel: String(formData.get("clienteTel") ?? "").trim().slice(0, 40) };
 }
 
 /** Item 06: corretor só mexe nas próprias visitas; o vínculo vem do servidor. */
@@ -35,7 +34,8 @@ export async function criarVisita(formData: FormData) {
   const u = await exigirModuloAcao(["agenda", "leads"]);
   const corretorId = u.perfil === "corretor" ? (u.corretorId ?? undefined) : ((formData.get("corretorId") as string) || undefined);
   if (u.perfil === "corretor" && !corretorId) throw new Error("Corretor sem vínculo ativo.");
-  const colaboradorNome = (formData.get("colaboradorNome") as string) || undefined;
+  // Pedido de 15/10: para o corretor, acompanhante vem só da sessão.
+  const colaboradorNome = u.perfil === "corretor" ? undefined : (formData.get("colaboradorNome") as string) || undefined;
   const imovelId = (formData.get("imovelId") as string) || undefined;
   const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData, u);
 
@@ -61,7 +61,7 @@ export async function editarVisita(formData: FormData) {
   const id = formData.get("id") as string;
   await visitaDoUsuario(u, id);
   const corretorId = u.perfil === "corretor" ? u.corretorId : ((formData.get("corretorId") as string) || null);
-  const colaboradorNome = (formData.get("colaboradorNome") as string) || null;
+  const colaboradorNome = u.perfil === "corretor" ? null : (formData.get("colaboradorNome") as string) || null;
   const imovelId = (formData.get("imovelId") as string) || null;
   const { leadId, clienteNome, clienteTel } = await dadosDoCliente(formData, u);
 

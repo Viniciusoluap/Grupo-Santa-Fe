@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { formatCurrency } from "@/lib/utils";
 
 export interface MapPin {
   id: string;
@@ -71,7 +72,7 @@ export function PropertyMap({
         const marker = L.marker([pin.lat, pin.lng], { icon: yellowIcon }).addTo(map);
 
         const priceText = pin.price
-          ? `<strong style="color:#1A1A1A">R$ ${pin.price.toLocaleString("pt-BR")}</strong>`
+          ? `<strong style="color:#1A1A1A">${formatCurrency(pin.price)}</strong>`
           : "";
 
         const typeText = pin.type

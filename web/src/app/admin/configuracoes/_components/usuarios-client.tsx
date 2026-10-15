@@ -316,7 +316,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
       {/* Modal novo usuário */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md p-6 space-y-4">
+          <div className="bg-white w-full max-w-md p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Novo Usuário</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>

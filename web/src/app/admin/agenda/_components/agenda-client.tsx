@@ -35,6 +35,8 @@ interface Props {
   corretores: Corretor[];
   imoveis: ImovelItem[];
   leads: LeadItem[];
+  /** Pedido de 15/10: o corretor não escolhe corretor/colaborador (vem da sessão). */
+  ehCorretor?: boolean;
 }
 
 const TIPO_VISITA_OPTIONS = [
@@ -315,9 +317,10 @@ function LeadSearch({
 
 /* ────────── Modal de formulário ────────── */
 function VisitaModal({
-  onClose, visita, corretores, imoveis, leads,
+  onClose, visita, corretores, imoveis, leads, ehCorretor = false,
 }: {
   onClose: () => void;
+  ehCorretor?: boolean;
   visita?: VisitaData;
   corretores: Corretor[];
   imoveis: ImovelItem[];
@@ -333,8 +336,10 @@ function VisitaModal({
   });
   const [erroLead, setErroLead] = useState(false);
 
+  const [semLead, setSemLead] = useState(() => !!visita && !visita.leadId);
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    if (!lead) {
+    const nomeLivre = String(new FormData(e.currentTarget).get("clienteNome") ?? "").trim();
+    if (semLead ? !nomeLivre : !lead) {
       e.preventDefault();
       setErroLead(true);
     }
@@ -354,7 +359,7 @@ function VisitaModal({
 
         <form action={isEdit ? editarVisita : criarVisita} onSubmit={handleSubmit} className="p-6 space-y-4">
           {isEdit && <input type="hidden" name="id" value={visita.id} />}
-          <input type="hidden" name="leadId" value={lead?.id ?? ""} />
+          <input type="hidden" name="leadId" value={semLead ? "" : lead?.id ?? ""} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Tipo */}
@@ -368,15 +373,34 @@ function VisitaModal({
               </select>
             </div>
 
-            {/* Cliente — obrigatoriamente um lead cadastrado */}
+            {/* Cliente: lead cadastrado ou, sem lead, nome e telefone (pedido de 15/10, igual à Prospecta) */}
             <div className="sm:col-span-2">
-              <LeadSearch
-                leads={leads}
-                selecionado={lead}
-                onChange={(l) => { setLead(l); if (l) setErroLead(false); }}
-              />
+              <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                <input type="checkbox" checked={semLead} onChange={(e) => { setSemLead(e.target.checked); setErroLead(false); }} />
+                Cliente sem lead
+              </label>
+              {semLead ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do cliente sem lead *</label>
+                    <input type="text" name="clienteNome" defaultValue={visita && !visita.leadId ? visita.clienteNome : ""} maxLength={255}
+                      className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
+                    <input type="tel" name="clienteTel" defaultValue={visita && !visita.leadId ? visita.clienteTel : ""} maxLength={40}
+                      className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  </div>
+                </div>
+              ) : (
+                <LeadSearch
+                  leads={leads}
+                  selecionado={lead}
+                  onChange={(l) => { setLead(l); if (l) setErroLead(false); }}
+                />
+              )}
               {erroLead && (
-                <p className="text-xs text-red-500 mt-1">Selecione um lead cadastrado antes de agendar.</p>
+                <p className="text-xs text-red-500 mt-1">{semLead ? "Informe o nome do cliente sem lead." : "Selecione um lead cadastrado antes de agendar."}</p>
               )}
             </div>
 
@@ -402,7 +426,8 @@ function VisitaModal({
               </div>
             )}
 
-            {/* Acompanhante */}
+            {/* Acompanhante — o corretor não escolhe: o vínculo vem da sessão. */}
+            {!ehCorretor && (
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Acompanhante</label>
               <div className="grid grid-cols-3 gap-2 mb-3">
@@ -432,6 +457,7 @@ function VisitaModal({
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               )}
             </div>
+            )}
 
             {/* Notas */}
             <div className="sm:col-span-2">
@@ -460,7 +486,7 @@ function VisitaModal({
 }
 
 /* ────────── Componente principal ────────── */
-export function AgendaClient({ visitas, corretores, imoveis, leads }: Props) {
+export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor = false }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -631,6 +657,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads }: Props) {
 
       {showForm && (
         <VisitaModal
+          ehCorretor={ehCorretor}
           onClose={() => { setShowForm(false); setEditando(null); }}
           visita={editando ?? undefined}
           corretores={corretores}

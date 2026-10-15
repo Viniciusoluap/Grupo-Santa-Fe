@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { formatCurrency } from "@/lib/utils";
 
 export async function GET() {
   const session = await auth();
@@ -46,7 +47,7 @@ export async function GET() {
           id: `cobranca-${c.id}`,
           tipo: "cobranca_vencendo",
           titulo: "Cobrança vencendo",
-          mensagem: `${c.cliente?.razaoSocial ?? c.clienteNomeLivre ?? "Cliente"} — R$ ${c.valor.toFixed(2)} vence em ${new Date(c.vencimento).toLocaleDateString("pt-BR")}`,
+          mensagem: `${c.cliente?.razaoSocial ?? c.clienteNomeLivre ?? "Cliente"} — ${formatCurrency(c.valor)} vence em ${new Date(c.vencimento).toLocaleDateString("pt-BR")}`,
           link: "/admin/bpo",
           lida: false,
           criadoEm: new Date().toISOString(),

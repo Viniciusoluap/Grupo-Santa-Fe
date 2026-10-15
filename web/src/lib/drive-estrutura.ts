@@ -4,6 +4,8 @@
 //   <raiz do sistema>/
 //     Clientes/<Nome do cliente (nº id)>/<Atendimento|Financiamento|Jurídico|…>/<Tipo — dd-mm-aaaa.ext>
 //     Incorporação/<Nome do estudo (nº id)>/<Etapa>/<Documento — dd-mm-aaaa.ext>
+//     Imóveis/<Título do imóvel (nº id)>/01 - Fotos/<Foto 01 — dd-mm-aaaa.jpg>
+//                                     /02 - Documentos do imóvel, 03 - Plantas e projetos, 04 - Propostas e contratos
 //
 // Cada pasta criada pelo sistema leva uma etiqueta interna do Drive
 // (appProperties[PROPRIEDADE_PASTA] = chave). A pasta é achada pela etiqueta,
@@ -15,6 +17,21 @@ export const CHAVE_CLIENTES = "clientes";
 export const CHAVE_INCORPORACAO = "incorporacao";
 export const PASTA_CLIENTES = "Clientes";
 export const PASTA_INCORPORACAO = "Incorporação";
+export const CHAVE_IMOVEIS = "imoveis";
+export const PASTA_IMOVEIS = "Imóveis";
+
+/**
+ * Pedido de 15/10: checklist fixo de pastas de cada imóvel, numeradas para
+ * aparecerem sempre na mesma ordem no Drive. O sistema grava as fotos em
+ * "01 - Fotos"; as demais ficam prontas para uso manual.
+ */
+export const PASTAS_IMOVEL = [
+  { chave: "fotos", nome: "01 - Fotos" },
+  { chave: "documentos", nome: "02 - Documentos do imóvel" },
+  { chave: "plantas", nome: "03 - Plantas e projetos" },
+  { chave: "negociacao", nome: "04 - Propostas e contratos" },
+] as const;
+export type PastaImovel = (typeof PASTAS_IMOVEL)[number]["chave"];
 
 export type AreaCliente =
   | "atendimento" | "financiamento" | "juridico" | "regularizacao"
@@ -88,6 +105,7 @@ const EXTENSAO_DO_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
   "image/jpeg": ".jpg",
   "image/png": ".png",
+  "image/webp": ".webp",
   "text/csv": ".csv",
   "text/plain": ".txt",
 };
@@ -107,6 +125,8 @@ export const chaveCliente = (id: string | number) => `cliente:${id}`;
 export const chaveArea = (id: string | number, area: AreaCliente) => `cliente:${id}:${area}`;
 export const chaveEstudo = (id: string | number) => `incorporacao:${id}`;
 export const chaveEtapaEstudo = (id: string | number, etapa: string) => `incorporacao:${id}:${etapa}`;
+export const chaveImovel = (id: string | number) => `imovel:${id}`;
+export const chavePastaImovel = (id: string | number, pasta: PastaImovel) => `imovel:${id}:${pasta}`;
 
 /** Um nível da árvore: a etiqueta interna e o nome exibido. */
 export interface PastaAlvo { chave: string; nome: string }
@@ -125,6 +145,20 @@ export function caminhoEstudo(estudo: { id: string | number; numero: string | nu
     { chave: chaveEstudo(estudo.id), nome: nomeComNumero(estudo.nome, estudo.numero) },
     { chave: chaveEtapaEstudo(estudo.id, etapa.chave), nome: limparNome(etapa.nome) || "Documentos" },
   ];
+}
+
+export function caminhoImovel(imovel: { id: string | number; numero: string | number; nome: string | null }, pasta: PastaImovel): PastaAlvo[] {
+  const sub = PASTAS_IMOVEL.find((p) => p.chave === pasta)!;
+  return [
+    { chave: CHAVE_IMOVEIS, nome: PASTA_IMOVEIS },
+    { chave: chaveImovel(imovel.id), nome: nomeComNumero(imovel.nome, imovel.numero) },
+    { chave: chavePastaImovel(imovel.id, pasta), nome: sub.nome },
+  ];
+}
+
+/** "Foto 01 — 15-10-2026.jpg": numeradas na ordem em que aparecem no anúncio. */
+export function nomeFotoImovel(ordem: number, data: Date, mime: string): string {
+  return `Foto ${String(ordem).padStart(2, "0")} — ${dataArquivo(data)}${extensaoArquivo(null, mime)}`;
 }
 
 /** Nomes que o sistema dava às pastas antes desta estrutura (cliente-19, incorporacao-3/-ckx…). */

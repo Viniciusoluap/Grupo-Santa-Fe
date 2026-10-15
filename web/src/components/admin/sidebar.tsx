@@ -28,6 +28,11 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   {
+    label: "Meus clientes",
+    href: "/admin/meus-clientes",
+    icon: UserCheck,
+  },
+  {
     label: "Imóveis",
     href: "/admin/imoveis",
     icon: Building2,

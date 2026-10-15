@@ -1,4 +1,4 @@
-export type PropertyType = "casa" | "apartamento" | "lote" | "terreno" | "comercial" | "chacara";
+export type PropertyType = "casa" | "apartamento" | "lote" | "terreno" | "comercial" | "sala_comercial" | "galpao" | "chacara";
 export type PropertyStatus = "venda" | "locacao" | "lancamento";
 
 export interface Property {

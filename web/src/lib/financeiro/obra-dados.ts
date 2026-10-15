@@ -25,7 +25,7 @@ export type MovimentoResumo = {
 };
 
 export type ResumoObra = {
-  obra: { id: string; nome: string; valorTotalLegado: number | null; valorPagoLegado: number };
+  obra: { id: string; nome: string; valorTotalLegado: number | null; valorPagoLegado: number; vgvAutomatico: boolean };
   valores: {
     vgv: string | null;
     financiamento: string | null;
@@ -55,7 +55,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     where: { id: obraId },
     include: {
       empreiteiro: { select: { id: true, nome: true } },
-      leadVinculado: { select: { corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
+      leadVinculado: { select: { valorAprovado: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
       investidores: { include: { investidor: { select: { nome: true } } }, orderBy: { investidor: { nome: "asc" } } },
       movimentos: {
         orderBy: [{ data: "asc" }, { criadoEm: "asc" }],
@@ -64,6 +64,9 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     },
   });
   if (!obra) return null;
+  // Pedido de 15/10: obra com cliente no CRM tem VGV = Valor Aprovado do lead.
+  const vgvAutomatico = Boolean(obra.leadId);
+  const vgv = vgvAutomatico ? txt(obra.leadVinculado?.valorAprovado ?? null) : txt(obra.vgv);
 
   const c = obra.leadVinculado?.corretor;
   const corretor = c ? { id: c.id, nome: c.nome, percentualPadrao: txt(c.regraComissao?.percentual) } : null;
@@ -73,10 +76,10 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
   // Item 32: obra com corretor no CRM → comissão só pelo cálculo VGV × % (fonte
   // única; sem regra fica indisponível, nunca reaproveita valor antigo). Obra sem
   // corretor → valor informado manualmente.
-  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(txt(obra.vgv)), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
+  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(vgv), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
 
   const entradas: EntradasObra = {
-    vgv: centavosDe(txt(obra.vgv)),
+    vgv: centavosDe(vgv),
     financiamento: centavosDe(txt(obra.financiamentoCef)),
     fgts: centavosDe(txt(obra.fgts)),
     subsidio: centavosDe(txt(obra.subsidio)),
@@ -101,9 +104,9 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     .map((m) => `O lançamento do BPO vinculado a "${m.descricao}" deixou de estar pago. Revise o movimento.`);
 
   return {
-    obra: { id: obra.id, nome: obra.nome, valorTotalLegado: obra.valorTotal, valorPagoLegado: obra.valorPago },
+    obra: { id: obra.id, nome: obra.nome, valorTotalLegado: obra.valorTotal, valorPagoLegado: obra.valorPago, vgvAutomatico },
     valores: {
-      vgv: txt(obra.vgv),
+      vgv,
       financiamento: txt(obra.financiamentoCef),
       fgts: txt(obra.fgts),
       subsidio: txt(obra.subsidio),

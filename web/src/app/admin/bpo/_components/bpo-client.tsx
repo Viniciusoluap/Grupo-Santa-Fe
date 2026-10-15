@@ -1115,7 +1115,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
       {/* ─── MODAL: Adicionar Conta Bancária ─── */}
       {showAddConta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md mx-4 shadow-2xl">
+          <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Adicionar Conta Bancária</h2>
               <button onClick={() => setShowAddConta(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
@@ -1273,7 +1273,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
 
       {showSetupPluggy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-lg mx-4 shadow-2xl">
+          <div className="bg-white w-full max-w-lg mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Configurar Open Finance</h2>
               <button onClick={() => setShowSetupPluggy(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, X } from "lucide-react";
-import { formatCurrency, maskCurrency, currencyToFloat } from "@/lib/utils";
+import { formatCurrency, maskCurrency, mascararDinheiro } from "@/lib/utils";
 import { atualizarStatusAvaliacao } from "@/lib/actions/avaliacoes";
 
 interface Props {
@@ -14,10 +14,6 @@ interface Props {
 
 function toDisplayBR(v: number): string {
   return v ? maskCurrency(String(Math.round(v * 100))) : "";
-}
-
-function parseDisplayBR(s: string): number {
-  return parseFloat(currencyToFloat(s)) || 0;
 }
 
 export function ValorEstimadoCard({ avaliacaoId, valorEstimado, status, dataEntrega }: Props) {
@@ -59,8 +55,9 @@ export function ValorEstimadoCard({ avaliacaoId, valorEstimado, status, dataEntr
               inputMode="numeric"
               value={display}
               onChange={(e) => {
-                setDisplay(e.target.value);
-                setRaw(parseDisplayBR(e.target.value));
+                const m = mascararDinheiro(e.target.value);
+                setDisplay(m.texto);
+                setRaw(m.numero);
               }}
               placeholder="300.000,00"
               className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
