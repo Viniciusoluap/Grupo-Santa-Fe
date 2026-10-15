@@ -9,6 +9,8 @@ import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { ObraDiarioClient } from "./_components/obra-diario-client";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import type { Indicador } from "@/lib/financeiro/obra";
+import { carregarProgressoObra, calculoDoProgresso } from "@/lib/obras/progresso-dados";
+import { montarDetalheObra } from "@/lib/financeiro/detalhe-obra";
 
 const exibir = (i: Indicador) => (i.ok ? formatCurrency(i.centavos / 100) : "Não calculado");
 
@@ -21,9 +23,9 @@ export default async function ObraDetailPage({ params }: PageProps) {
   const o = await prisma.obra.findUnique({
     where: { id },
     include: {
-      etapas: { orderBy: { ordem: "asc" } },
       diario: { orderBy: { data: "desc" }, take: 20 },
       servicoLead: { select: { servico: true } },
+      _count: { select: { fotos: true } },
     },
   });
   if (!o) notFound();
@@ -38,7 +40,11 @@ export default async function ObraDetailPage({ params }: PageProps) {
   // EPIC-020 Lote 2: os indicadores saem do motor único (Valores da Operação +
   // Custos). `valorTotal`/`valorPago` antigos ficam só como referência legada.
   const resumo = await carregarResumoObra(o.id);
-  const c = resumo!.calculo;
+  // Etapas, Resumo Financeiro e Estatísticas espelham o editor da obra
+  // (Acompanhar Progresso + Valores da Operação/Custos) — igual à Prospecta.
+  const dadosProgresso = await carregarProgressoObra(o.id);
+  const detalhe = montarDetalheObra(calculoDoProgresso(dadosProgresso!), resumo!.calculo, o._count.fotos);
+  const f = detalhe.financeiro;
   const progresso = progressoDaObra(o.progressoMedido?.toString(), o.progresso);
 
   return (
@@ -68,36 +74,35 @@ export default async function ObraDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Etapas */}
+          {/* Etapas — serviços do acompanhamento de progresso */}
           <div className="bg-white border border-gray-100 p-5">
             <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">
-              Etapas da Obra ({o.etapas.filter((e) => e.status === "concluida").length}/{o.etapas.length})
+              Etapas da Obra ({detalhe.estatisticas.etapasConcluidas}/{detalhe.estatisticas.totalEtapas})
             </h2>
-            {o.etapas.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">Nenhuma etapa cadastrada.</p>
+            {detalhe.etapas.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">Nenhuma etapa com incidência no acompanhamento do progresso.</p>
             ) : (
               <div className="space-y-3">
-                {o.etapas.map((e) => {
-                  const statusColor = e.status === "concluida" ? "bg-green-500" : e.status === "em_andamento" ? "bg-[var(--brand-yellow)]" : "bg-gray-200";
-                  const labelColor = e.status === "concluida" ? "text-green-600" : e.status === "em_andamento" ? "text-[var(--brand-dark)]" : "text-gray-400";
+                {detalhe.etapas.map((e, i) => {
+                  const statusColor = e.situacao === "concluida" ? "bg-green-500" : e.situacao === "em_andamento" ? "bg-[var(--brand-yellow)]" : "bg-gray-200";
+                  const labelColor = e.situacao === "concluida" ? "text-green-600" : e.situacao === "em_andamento" ? "text-[var(--brand-dark)]" : "text-gray-400";
                   return (
-                    <div key={e.id} className={`p-3 border ${e.status === "em_andamento" ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)]/5" : "border-gray-100"}`}>
+                    <div key={e.chave} className={`p-3 border ${e.situacao === "em_andamento" ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)]/5" : "border-gray-100"}`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <span className={`w-5 h-5 flex items-center justify-center text-xs font-black rounded-full text-white ${e.status === "concluida" ? "bg-green-500" : e.status === "em_andamento" ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-200 text-gray-400"}`}>
-                            {e.status === "concluida" ? "✓" : e.ordem}
+                          <span className={`w-5 h-5 flex items-center justify-center text-xs font-black rounded-full text-white ${e.situacao === "concluida" ? "bg-green-500" : e.situacao === "em_andamento" ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-200 text-gray-400"}`}>
+                            {e.situacao === "concluida" ? "✓" : i + 1}
                           </span>
-                          <span className={`text-sm font-bold ${labelColor}`}>{e.nome}</span>
-                          {e.status === "em_andamento" && (
-                            <span className="text-[9px] font-bold bg-[var(--brand-yellow)] text-[var(--brand-dark)] px-2 py-0.5 uppercase">Em andamento</span>
-                          )}
+                          <div>
+                            <span className={`text-sm font-bold ${labelColor}`}>{e.nome}</span>
+                            <p className="text-[10px] text-gray-400">Incidência {formatarPercentual(e.incidencia)} · {formatarPercentual(e.execucaoObra)} da obra</p>
+                          </div>
                         </div>
-                        <span className="text-xs font-bold text-[var(--brand-dark)]">{e.percentual}%</span>
+                        <span className="text-xs font-bold text-[var(--brand-dark)]">{formatarPercentual(e.execucao)}</span>
                       </div>
                       <div className="h-1.5 bg-gray-100 overflow-hidden">
-                        <div className={`h-full ${statusColor}`} style={{ width: `${e.percentual}%` }} />
+                        <div className={`h-full ${statusColor}`} style={{ width: `${Math.min(100, e.execucao)}%` }} />
                       </div>
-                      {e.descricao && <p className="text-xs text-gray-400 mt-1">{e.descricao}</p>}
                     </div>
                   );
                 })}
@@ -143,21 +148,34 @@ export default async function ObraDetailPage({ params }: PageProps) {
             ))}
           </div>
 
-          {/* Financial */}
+          {/* Resumo Financeiro — mesmos campos do editor da obra */}
           <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Financeiro</p>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Resumo Financeiro</p>
             {[
-              { label: "VGV", value: resumo!.valores.vgv == null ? "Não informado" : formatCurrency(Number(resumo!.valores.vgv)), color: "text-[var(--brand-dark)]" },
-              { label: "Entrada paga", value: exibir(c.entradaPaga), color: "text-green-600" },
-              { label: "Recebido da CEF", value: exibir(c.recebidoCef), color: "text-green-600" },
-              { label: "A receber do banco", value: exibir(c.receberBanco), color: c.receberBanco.ok && c.receberBanco.centavos > 0 ? "text-orange-500" : "text-gray-400" },
-              { label: "Total gasto", value: exibir(c.totalGasto), color: "text-[var(--brand-dark)]" },
-              { label: "Lucro estimado", value: exibir(c.lucroEstimado), color: c.lucroEstimado.ok && c.lucroEstimado.centavos < 0 ? "text-red-600" : "text-[var(--brand-dark)]" },
-              ...(o.valorTotal != null ? [{ label: "Valor total (legado)", value: formatCurrency(o.valorTotal), color: "text-gray-400" }] : []),
+              { label: "Orçamento Previsto", value: exibir(f.orcamentoPrevisto), color: "text-[var(--brand-dark)]" },
+              { label: "Valor a Receber do Banco", value: exibir(f.receberBanco), color: f.receberBanco.ok && f.receberBanco.centavos > 0 ? "text-orange-500" : "text-[var(--brand-dark)]" },
+              { label: "PLS Real (%)", value: f.plsReal.ok ? formatarPercentual(f.plsReal.percentual) : "Não calculado", color: "text-[var(--brand-dark)]" },
+              { label: "Gasto Obra Realizado", value: exibir(f.gastoObraRealizado), color: "text-[var(--brand-dark)]" },
+              { label: "Saldo Restante", value: exibir(f.saldoRestante), color: f.saldoRestante.ok && f.saldoRestante.centavos < 0 ? "text-red-600" : "text-green-600" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>
                 <span className={`text-xs font-bold ${color}`}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Estatísticas */}
+          <div className="bg-white border border-gray-100 p-5">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Estatísticas</p>
+            {[
+              { label: "Total de Etapas", value: detalhe.estatisticas.totalEtapas },
+              { label: "Etapas Concluídas", value: detalhe.estatisticas.etapasConcluidas },
+              { label: "Total de Fotos", value: detalhe.estatisticas.totalFotos },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                <span className="text-xs text-gray-500">{label}</span>
+                <span className="text-xs font-bold text-[var(--brand-dark)]">{value}</span>
               </div>
             ))}
           </div>
