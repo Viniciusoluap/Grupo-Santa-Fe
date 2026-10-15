@@ -28,6 +28,7 @@ interface Obra {
   valorTotal: number | null;
   valorPago: number;
   vgv: number | null;
+  orcamentoPrevisto: number | null;
   progresso: number;
   engenheiroResp: string | null;
   dataInicio: Date | null;
@@ -161,6 +162,8 @@ export function ObrasClient({ obras }: Props) {
                 <div className="text-right shrink-0">
                   <p className="font-black text-[var(--brand-dark)] text-lg">{o.vgv == null ? "VGV não informado" : formatCurrency(o.vgv)}</p>
                   {o.vgv == null && o.valorTotal != null && <p className="text-xs text-gray-400">Valor total (legado): {formatCurrency(o.valorTotal)}</p>}
+                  {/* Mesmo campo "Orçamento Previsto" do editor da obra (Valores da Operação/Custos). */}
+                  <p className="text-xs text-gray-500">{o.orcamentoPrevisto == null ? "Orçamento não informado" : `Orçamento ${formatCurrency(o.orcamentoPrevisto)}`}</p>
                 </div>
               </div>
 
