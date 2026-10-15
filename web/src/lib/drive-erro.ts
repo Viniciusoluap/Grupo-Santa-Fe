@@ -34,7 +34,7 @@ export function lerCorpoErroGoogle(corpo: unknown): { motivo?: string; detalhe?:
 export function descreverErroDrive(erro: unknown): string {
   if (!(erro instanceof ErroDrive)) {
     const texto = erro instanceof Error ? erro.message : String(erro);
-    if (/não configurado/i.test(texto)) return "Google Drive não configurado: faltam as variáveis da conta de serviço.";
+    if (/não configurado|não conectado/i.test(texto)) return "Google Drive não conectado. Em Configurações → Google Drive, envie o JSON do cliente OAuth e clique em \"Conectar Google Drive\".";
     if (/public|público/i.test(texto)) return "A pasta do Google Drive está com acesso público. Remova o compartilhamento \"Qualquer pessoa com o link\".";
     if (/duplicada/i.test(texto)) return "Existem duas pastas com o mesmo nome no Google Drive. Apague ou renomeie a duplicada.";
     if (/PEM|private key|DECODER|asn1/i.test(texto)) return "A chave privada da conta de serviço está em formato inválido (copie o campo private_key inteiro do JSON).";
@@ -43,10 +43,18 @@ export function descreverErroDrive(erro: unknown): string {
   const { etapa, status, motivo } = erro;
   const m = motivo ?? "";
   let frase: string;
-  if (etapa === "autenticacao") {
+  if (etapa === "autenticacao" && m.startsWith("oauth")) {
+    frase = m === "oauth_invalid_grant"
+      ? "A autorização da conta Google foi revogada ou expirou. Em Configurações → Google Drive, clique em \"Conectar Google Drive\" de novo."
+      : m === "oauth_invalid_client"
+        ? "O Google recusou o cliente OAuth (JSON). Envie de novo o JSON do cliente \"Aplicativo da Web\" em Configurações → Google Drive."
+        : "O Google recusou a autorização da conta conectada. Em Configurações → Google Drive, conecte de novo.";
+  } else if (etapa === "autenticacao") {
     frase = m === "invalid_grant"
       ? "O Google recusou a conta de serviço: a chave foi revogada/excluída ou o e-mail da conta não corresponde à chave."
       : "O Google recusou a autenticação da conta de serviço. Confira o e-mail da conta e a chave privada.";
+  } else if (m === "storageQuotaExceeded" && /user's drive storage quota|storage quota has been exceeded/i.test(erro.detalhe ?? "")) {
+    frase = "O Google Drive da conta conectada está sem espaço livre. Libere espaço ou amplie o armazenamento; enquanto isso, os arquivos ficam guardados no banco do sistema.";
   } else if (m === "storageQuotaExceeded") {
     frase = "Contas de serviço não têm espaço próprio no \"Meu Drive\" de uma conta pessoal. Use uma pasta dentro de um Drive compartilhado (Google Workspace) com a conta de serviço como \"Gerente de conteúdo\". Enquanto isso, os arquivos ficam guardados com segurança no banco do sistema.";
   } else if (m === "accessNotConfigured" || m === "SERVICE_DISABLED" || /has not been used|is disabled/i.test(erro.detalhe ?? "")) {

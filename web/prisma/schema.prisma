@@ -1130,3 +1130,19 @@ model ObraMovimentoHistorico {
 
   @@map("obra_movimentos_historico")
 }
+
+/// Google Drive com a conta Google do dono (OAuth, escopo drive.file). Linha única (id = 1);
+/// client_secret e token de atualização criptografados (AES-GCM). Paridade com a Prospecta.
+model GoogleDriveOauth {
+  id                    Int       @id @default(1)
+  clientId              String    @map("client_id")
+  clientSecretEncrypted String    @map("client_secret_encrypted")
+  refreshTokenEncrypted String?   @map("refresh_token_encrypted")
+  accountEmail          String?   @map("account_email") @db.VarChar(320)
+  rootFolderId          String?   @map("root_folder_id")
+  connectedAt           DateTime? @map("connected_at")
+  updatedByUsuarioId    String?   @map("updated_by_usuario_id")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("google_drive_oauth")
+}
