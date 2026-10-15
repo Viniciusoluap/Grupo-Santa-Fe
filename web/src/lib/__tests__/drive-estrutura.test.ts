@@ -41,8 +41,11 @@ describe("estrutura de pastas do Drive", () => {
     expect(nomeComNumero("   ", 7)).toBe("Sem nome (nº 7)");
   });
 
-  it("pasta antiga é a que não tem etiqueta do sistema", () => {
-    expect(pastaLegada(undefined)).toBe(true);
-    expect(pastaLegada({ pastaSistema: "cliente:1" })).toBe(false);
+  it("pasta antiga: sem etiqueta e com nome do formato antigo; pasta do dono nunca", () => {
+    expect(pastaLegada({ name: "cliente-19" })).toBe(true);
+    expect(pastaLegada({ name: "incorporacao-3" })).toBe(true);
+    expect(pastaLegada({ name: "incorporacao-ckx9a1b2c3" })).toBe(true);
+    expect(pastaLegada({ name: "Minha pasta" })).toBe(false);
+    expect(pastaLegada({ name: "cliente-19", appProperties: { pastaSistema: "cliente:19" } })).toBe(false);
   });
 });
