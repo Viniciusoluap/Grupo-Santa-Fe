@@ -27,6 +27,29 @@ export async function excluirRegularizacao(id: string) {
   });
 }
 
+/**
+ * Pedido de 16/10 ("Dados do processo" só com o que vem do lead): a tela edita
+ * apenas cliente e telefone, e só quando não há lead vinculado. Os demais campos
+ * do processo ficam como estão. Gêmeo do `regularizacao.update` parcial da Prospecta.
+ */
+export async function editarClienteRegularizacao(formData: FormData) {
+  await exigirModuloAcao("regularizacao");
+  const id = formData.get("id") as string;
+  await transacaoCRM(async (tx) => {
+    const atual = await tx.regularizacao.findUnique({ where: { id }, select: { leadId: true } });
+    if (!atual) throw new Error("Registro não encontrado.");
+    if (atual.leadId) return; // com lead, cliente e telefone vêm do CRM
+    const nome = ((formData.get("clienteNome") as string) ?? "").trim();
+    if (nome.length < 2) throw new Error("Informe o nome do cliente.");
+    await tx.regularizacao.update({
+      where: { id },
+      data: { clienteNome: nome, clienteTel: ((formData.get("clienteTel") as string) ?? "").trim() },
+    });
+  });
+  revalidatePath("/admin/regularizacao");
+  redirect(`/admin/regularizacao/${id}`);
+}
+
 export async function editarRegularizacao(formData: FormData) {
   await exigirModuloAcao("regularizacao");
   const id = formData.get("id") as string;

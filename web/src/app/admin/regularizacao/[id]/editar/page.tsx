@@ -4,12 +4,9 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
-import { REG_STATUS_CONFIG, REG_TIPO_CONFIG } from "@/lib/types/regularizacao";
-import { STATUS_PROCESSO, ehStatusProcesso } from "@/lib/financeiro/regularizacao";
-import { editarRegularizacao } from "@/lib/actions/regularizacoes";
+import { editarClienteRegularizacao } from "@/lib/actions/regularizacoes";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -19,61 +16,34 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
   const { id } = await params;
   const r = await prisma.regularizacao.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
   if (!r) notFound();
-  let tiposSelecionados: string[] = [];
-  try { tiposSelecionados = r.tipo ? JSON.parse(r.tipo) : []; } catch { tiposSelecionados = r.tipo ? [r.tipo] : []; }
-  if (!Array.isArray(tiposSelecionados)) tiposSelecionados = r.tipo ? [r.tipo] : [];
-
-  const previsaoValue = r.previsaoFim ? new Date(r.previsaoFim).toISOString().split("T")[0] : "";
-
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
         <Link href={`/admin/regularizacao/${id}`} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Regularização
         </Link>
-        <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Regularização</h1>
+        <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Dados do processo</h1>
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form action={editarRegularizacao} className="space-y-5">
-          <input type="hidden" name="id" value={id} />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome do Processo *</label>
-              <input name="nome" type="text" required defaultValue={r.nome}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo</label>
-              <fieldset className="space-y-2">
-                <legend className="sr-only">Tipos de regularização</legend>
-                {Object.entries(REG_TIPO_CONFIG).map(([k, v]) => (
-                  <label key={k} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="tipos" value={k} defaultChecked={tiposSelecionados.includes(k)} />
-                    {v.icon} {v.label}
-                  </label>
-                ))}
-              </fieldset>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status do processo</label>
-              <select name="status" defaultValue={r.status}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                <option value="" disabled>Selecione</option>
-                {/* Lote 6: só as 3 situações; a atual aparece mesmo se for da fila do CRM. */}
-                {[...new Set<string>([...(ehStatusProcesso(r.status) ? [] : [r.status]), ...STATUS_PROCESSO])].map((k) => (
-                  <option key={k} value={k}>{REG_STATUS_CONFIG[k as keyof typeof REG_STATUS_CONFIG]?.label ?? k}</option>
-                ))}
-              </select>
-            </div>
-            {r.leadVinculado ? (
-              <ClienteVinculadoInfo lead={r.leadVinculado} className="sm:col-span-2" />
-            ) : (
-              <>
+        {/* Pedido de 16/10: só os dados que vêm do lead (cliente e telefone). Os demais
+            campos saíram da tela; os valores já gravados ficam preservados. */}
+        {r.leadVinculado ? (
+          <div className="space-y-3">
+            <ClienteVinculadoInfo lead={r.leadVinculado} />
+            <p className="text-xs text-gray-400">Dados do cadastro do lead no CRM. Para alterar, edite o lead.</p>
+            <Link href={`/admin/regularizacao/${id}`}
+              className="inline-block border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
+              Voltar
+            </Link>
+          </div>
+        ) : (
+          <form action={editarClienteRegularizacao} className="space-y-5">
+            <input type="hidden" name="id" value={id} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
-                <input name="clienteNome" type="text" required defaultValue={r.clienteNome}
+                <input name="clienteNome" type="text" required minLength={2} defaultValue={r.clienteNome}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
@@ -81,53 +51,21 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
                 <PhoneInput name="clienteTel" defaultValue={r.clienteTel ?? ""}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
-              </>
-            )}
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço / Imóvel *</label>
-              <input name="endereco" type="text" required defaultValue={r.endereco ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Matrícula</label>
-              <input name="matricula" type="text" defaultValue={r.matricula ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <SubmitButton
+                pendingText="Salvando..."
+                className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Salvar Alterações
+              </SubmitButton>
+              <Link href={`/admin/regularizacao/${id}`}
+                className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
+                Cancelar
+              </Link>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável *</label>
-              <input name="responsavel" type="text" required defaultValue={r.responsavel ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Serviço *</label>
-              <CurrencyInput name="valorServico" required defaultValue={r.valorServico}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Previsão de Conclusão</label>
-              <input name="previsaoFim" type="date" defaultValue={previsaoValue}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>
-              <textarea name="descricao" rows={3} defaultValue={r.descricao}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none" />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <SubmitButton
-              pendingText="Salvando..."
-              className="bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              Salvar Alterações
-            </SubmitButton>
-            <Link href={`/admin/regularizacao/${id}`}
-              className="border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
-              Cancelar
-            </Link>
-          </div>
-        </form>
+          </form>
+        )}
       </div>
     </div>
   );
