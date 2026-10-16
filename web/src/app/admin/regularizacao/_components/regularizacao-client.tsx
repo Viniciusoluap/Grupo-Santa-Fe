@@ -163,7 +163,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
 
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-xs text-gray-400">
-                  <span>Resp.: {r.responsavel}</span>
+                  {r.responsavel && <span>Resp.: {r.responsavel}</span>}
                   {r.previsaoFim && <span>Previsão: {new Date(r.previsaoFim).toLocaleDateString("pt-BR")}</span>}
                 </div>
                 <div className="flex items-center gap-2">

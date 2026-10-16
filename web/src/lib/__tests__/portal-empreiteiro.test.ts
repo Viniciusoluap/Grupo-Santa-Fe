@@ -33,7 +33,7 @@ import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
 import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 
 const empreiteiro = (id = "e1") => mocks.auth.mockResolvedValue({ user: { id, role: "empreiteiro" } });
-const pagamento = { obraId: "o1", natureza: "pagamento" as const, categoria: "material", descricao: "Cimento", valor: "100.00", data: "2026-10-15" };
+const pagamento = { obraId: "o1", natureza: "pagamento" as const, categoria: "material" as const, descricao: "Cimento", valor: "100.00", data: "2026-10-15" };
 
 beforeEach(() => {
   vi.clearAllMocks();
