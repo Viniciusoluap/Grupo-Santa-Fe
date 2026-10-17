@@ -4,10 +4,9 @@ import { useState, useTransition } from "react";
 import { CheckSquare, Square, Trash2, Plus, Paperclip, X } from "lucide-react";
 import {
   salvarChecklistProjeto,
-  salvarArquivosProjeto,
   alterarStatusProjetoFromDetail,
 } from "@/lib/actions/projetos";
-import { comEnvio } from "@/lib/envio-progresso";
+import { enviarComProgresso } from "@/lib/envio-progresso";
 
 interface ChecklistItem {
   id: string;
@@ -128,7 +127,7 @@ export default function ProjetoDetailClient({
       ];
       setArquivos(updated);
       startTransition(async () => {
-        await comEnvio("arquivo", () => salvarArquivosProjeto(projetoId, JSON.stringify(updated)));
+        await enviarComProgresso("projetos.arquivos", { projetoId, arquivos: JSON.stringify(updated) }, { item: "arquivo" });
         showSaved();
       });
     };
@@ -141,7 +140,7 @@ export default function ProjetoDetailClient({
     const updated = arquivos.filter((_, i) => i !== index);
     setArquivos(updated);
     startTransition(async () => {
-      await comEnvio("arquivo", () => salvarArquivosProjeto(projetoId, JSON.stringify(updated)));
+      await enviarComProgresso("projetos.arquivos", { projetoId, arquivos: JSON.stringify(updated) }, { item: "arquivo" });
       showSaved();
     });
   }

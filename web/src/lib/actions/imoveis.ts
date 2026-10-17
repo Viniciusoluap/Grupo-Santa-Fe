@@ -1,8 +1,8 @@
 "use server";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
-import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { criarImovelCore, editarImovelCore } from "@/lib/imoveis/salvar";
+import { criarImovelCore, editarImovelCore, imovelDoCorretor } from "@/lib/imoveis/salvar";
+import { excluirImovelDefinitivo } from "@/lib/imoveis/excluir";
 import { redirect } from "next/navigation";
 
 export async function criarImovel(formData: FormData) {
@@ -17,16 +17,17 @@ export async function editarImovel(formData: FormData) {
 
 /**
  * Exclusão definitiva: admin ou colaborador com o módulo (pedido de 17/10/2026);
- * o corretor exclui só o imóvel que é dele (pedido de 18/10, item 3).
+ * o corretor exclui só o imóvel que ele cadastrou (pedido de 18/10, item 3).
+ * Recusado excluído pela equipe deixa o aviso "Recusado" para o corretor (item 8).
  */
 export async function excluirImovel(id: string) {
   const u = await exigirModuloAcao("imoveis");
   if (u.perfil === "corretor") {
-    const atual = await prisma.imovel.findUnique({ where: { id }, select: { corretorId: true } });
-    if (!atual || !u.corretorId || atual.corretorId !== u.corretorId) throw new Error("Imóvel não encontrado ou acesso não autorizado.");
+    await imovelDoCorretor(id, u.id);
   } else if (u.perfil !== "admin" && u.perfil !== "colaborador") {
     throw new Error("Acesso não autorizado.");
   }
-  await prisma.imovel.delete({ where: { id } });
+  await excluirImovelDefinitivo(id, { avisarCorretor: u.perfil !== "corretor" });
   revalidatePath("/admin/imoveis");
+  revalidatePath("/corretor/imoveis");
 }

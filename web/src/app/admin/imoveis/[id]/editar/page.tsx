@@ -1,6 +1,6 @@
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { ROTULO_TIPO_IMOVEL, tiposDoCadastro } from "@/lib/portal-corretor";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
@@ -22,6 +22,8 @@ interface PageProps {
 
 export default async function EditarImovelPage({ params }: PageProps) {
   const usuario = await exigirModuloPagina("imoveis");
+  // O corretor cadastra e edita pelo Portal do Corretor (igual à Prospecta).
+  if (usuario.perfil === "corretor") redirect("/corretor/imoveis");
   // Pedido de 15/10: o corretor marca só Casa, Apartamento, Lote, Sala comercial ou Galpão.
   const tipos = tiposDoCadastro(usuario.perfil);
   const { id } = await params;
@@ -143,6 +145,22 @@ export default async function EditarImovelPage({ params }: PageProps) {
           {/* Publicação */}
           <div>
             <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Publicação</p>
+            {/* Itens 3 e 8 (18/10): cadastro do corretor passa pela revisão da equipe. */}
+            {imovel.cadastradoPorId && (
+              <p className="mb-3 border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Imóvel enviado por corretor. Revise os dados e defina a situação antes de publicar.
+              </p>
+            )}
+            <div className="mb-4">
+              <div className="max-w-xs">
+                <label htmlFor="revisaoStatus" className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Situação da revisão</label>
+                <select id="revisaoStatus" name="revisaoStatus" defaultValue={imovel.revisaoStatus} className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                  <option value="pendente">Pendente</option>
+                  <option value="aprovado">Aprovado</option>
+                  <option value="recusado">Recusado</option>
+                </select>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-5">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" name="destaque" defaultChecked={imovel.destaque} className="accent-[var(--brand-yellow)]" />

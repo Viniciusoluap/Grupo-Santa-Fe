@@ -104,3 +104,20 @@ export async function comEnvio<T>(item: string, executar: () => Promise<T>, posi
     publicarEnvio(null);
   }
 }
+
+/**
+ * Envio de arquivo pela rota /api/envio, que chama a mesma ação do servidor de
+ * antes — assim a barra mostra o percentual real. Devolve o resultado da ação.
+ */
+export async function enviarComProgresso<T = unknown>(
+  acao: string,
+  campos: Record<string, string | Blob> | FormData,
+  opcoes: OpcoesEnvio = {},
+): Promise<T> {
+  const dados = new FormData();
+  const pares = campos instanceof FormData ? Array.from(campos.entries()) : Object.entries(campos);
+  for (const [chave, valor] of pares) dados.append(chave, valor);
+  dados.set("acao", acao);
+  const resposta = await enviarFormComProgresso<{ resultado: T }>("/api/envio", dados, opcoes);
+  return resposta.resultado;
+}

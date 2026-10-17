@@ -47,9 +47,8 @@ export function destinoDoUsuario(u: UsuarioAcesso | null): string {
   if (area === "portal") return "/portal";
   if (area === "empreiteiro") return "/empreiteiro";
   if (area !== "painel" && area !== "corretor") return "/login";
-  // Pedido de 15/10: o corretor entra no acompanhamento dos clientes (como o
-  // "Início" do Portal do Corretor da Prospecta).
-  if (area === "corretor") return "/admin/meus-clientes";
+  // Pedido de 18/10: o corretor entra no Portal do Corretor (igual à Prospecta).
+  if (area === "corretor") return "/corretor";
   const modulo = primeiroModulo(u, IDS_MODULOS_PAINEL);
   return MODULOS_PAINEL.find((m) => m.id === modulo)?.rota ?? "/admin/sem-acesso";
 }

@@ -5,6 +5,7 @@ import { areaDoPerfil, type AreaPerfil } from "@/lib/perfis-acesso";
 function rotaDaArea(area: AreaPerfil | null): string {
   if (area === "portal") return "/portal";
   if (area === "empreiteiro") return "/empreiteiro";
+  if (area === "corretor") return "/corretor";
   return area ? "/admin" : "/";
 }
 

@@ -1,6 +1,7 @@
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { tiposDoCadastro } from "@/lib/portal-corretor";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { FormComEnvio } from "@/components/ui/form-com-envio";
@@ -16,6 +17,8 @@ const bairros = [
 
 export default async function NovoImovelPage() {
   const usuario = await exigirModuloPagina("imoveis");
+  // O corretor cadastra pelo Portal do Corretor (igual à Prospecta).
+  if (usuario.perfil === "corretor") redirect("/corretor/imoveis");
   // Pedido de 15/10: o corretor marca só Casa, Apartamento, Lote, Sala comercial ou Galpão.
   const tipos = tiposDoCadastro(usuario.perfil);
   const corretores = await prisma.corretor.findMany({
@@ -182,6 +185,19 @@ export default async function NovoImovelPage() {
               Localização Exata
             </p>
             <LocalizacaoPicker nameLat="latitude" nameLng="longitude" />
+          </div>
+
+          {/* Itens 3 e 8 (18/10): situação da revisão (a equipe já cadastra aprovado). */}
+          <div>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Publicação</p>
+              <div className="max-w-xs">
+                <label htmlFor="revisaoStatus" className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Situação da revisão</label>
+                <select id="revisaoStatus" name="revisaoStatus" defaultValue={"aprovado"} className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                  <option value="pendente">Pendente</option>
+                  <option value="aprovado">Aprovado</option>
+                  <option value="recusado">Recusado</option>
+                </select>
+              </div>
           </div>
 
           {/* Responsável */}

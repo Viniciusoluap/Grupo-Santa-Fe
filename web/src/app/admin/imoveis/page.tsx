@@ -4,7 +4,7 @@ import { Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { ImovelAcoes } from "./_components/imovel-acoes";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 const typeLabel: Record<string, string> = {
   casa: "Casa",
@@ -25,17 +25,12 @@ const statusColor: Record<string, string> = {
   locado: "bg-gray-100 text-gray-500",
 };
 
-type SessionUser = { role?: string; corretorId?: string };
-
 export default async function AdminImoveisPage() {
-  await exigirModuloPagina("imoveis");
-  const session = await auth();
-  const user = session?.user as SessionUser | undefined;
-  const isCorretor = user?.role === "corretor";
-  const corretorId = user?.corretorId;
+  const usuario = await exigirModuloPagina("imoveis");
+  // O corretor usa a lista do Portal do Corretor (igual à Prospecta).
+  if (usuario.perfil === "corretor") redirect("/corretor/imoveis");
 
   const imoveis = await prisma.imovel.findMany({
-    where: isCorretor && corretorId ? { corretorId } : {},
     orderBy: { criadoEm: "desc" },
     include: { corretor: true },
   });
@@ -126,6 +121,12 @@ export default async function AdminImoveisPage() {
                     <p className="font-medium text-[var(--brand-dark)] leading-tight">
                       {imovel.titulo}
                     </p>
+                    {imovel.revisaoStatus === "pendente" && (
+                      <span className="mr-1 text-[10px] bg-amber-400 text-[var(--brand-dark)] font-black px-1.5 py-0.5 uppercase">Aguardando revisão</span>
+                    )}
+                    {imovel.revisaoStatus === "recusado" && (
+                      <span className="mr-1 text-[10px] bg-red-600 text-white font-black px-1.5 py-0.5 uppercase">Recusado</span>
+                    )}
                     {imovel.badge && (
                       <span className="text-[10px] bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold px-1.5 py-0.5 uppercase">
                         {imovel.badge}

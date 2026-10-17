@@ -51,11 +51,34 @@ model Imovel {
   visitas         Visita[]
   financiamentos  Financiamento[] @relation("FinanciamentoImovel")
   estudosIncorp   EstudoIncorporacao[]
+  /// Pedido de 18/10 (itens 3 e 8, paridade com a Prospecta): cadastro feito pelo
+  /// corretor entra "pendente" e só vai ao site depois da revisão da equipe.
+  revisaoStatus   String   @default("aprovado") // pendente | aprovado | recusado
+  /// Quando a revisão foi decidida — o corretor vê "Recusado" por 3 dias.
+  revisadoEm      DateTime?
+  /// Corretor que cadastrou o imóvel (edita e exclui só o próprio cadastro).
+  cadastradoPorId String?
+  cadastradoPor   Usuario? @relation("ImovelCadastradoPor", fields: [cadastradoPorId], references: [id], onDelete: SetNull)
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
 
+  @@index([cadastradoPorId])
   @@map("imoveis")
   fotos           ImovelFoto[]
+}
+
+/// Pedido de 18/10 (item 8): imóvel recusado e excluído pela equipe continua
+/// aparecendo como "Recusado" para o corretor que o cadastrou, até 3 dias após a recusa.
+model ImovelRecusadoAviso {
+  id         String   @id @default(cuid())
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  titulo     String
+  recusadoEm DateTime
+  criadoEm   DateTime @default(now())
+
+  @@index([usuarioId])
+  @@map("imovel_recusado_avisos")
 }
 
 // ─── LEADS / CRM ─────────────────────────────────────────────────────────────
@@ -700,6 +723,8 @@ model Usuario {
   leadCliente                Lead?            @relation("UsuarioCliente", fields: [leadId], references: [id], onDelete: SetNull)
   atualizadoEm               DateTime         @updatedAt
   eventosUnidadesIncorporacao EstudoUnidadeEvento[]
+  imoveisCadastrados         Imovel[]         @relation("ImovelCadastradoPor")
+  avisosImovelRecusado       ImovelRecusadoAviso[]
 
   @@map("usuarios")
 }

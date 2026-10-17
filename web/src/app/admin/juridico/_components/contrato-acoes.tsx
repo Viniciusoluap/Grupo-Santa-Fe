@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { comEnvio } from "@/lib/envio-progresso";
+import { enviarComProgresso } from "@/lib/envio-progresso";
 import { FileText, Upload, Loader2, ExternalLink, Send } from "lucide-react";
-import { gerarPdfContrato, uploadContratoAssinado, marcarAssinaturaStatus } from "@/lib/actions/juridico";
+import { gerarPdfContrato, marcarAssinaturaStatus } from "@/lib/actions/juridico";
 
 interface Props {
   contratoId: string;
@@ -46,9 +46,7 @@ export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus }: Props) {
     if (!file) return;
     setLoading("upload");
     try {
-      const fd = new FormData();
-      fd.append("arquivo", file);
-      await comEnvio("PDF", () => uploadContratoAssinado(contratoId, fd));
+      await enviarComProgresso("juridico.contratoAssinado", { contratoId, arquivo: file }, { item: "PDF" });
       setStatus("assinado");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erro ao fazer upload");

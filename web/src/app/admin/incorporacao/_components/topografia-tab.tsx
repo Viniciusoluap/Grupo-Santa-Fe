@@ -3,14 +3,14 @@
 import { useMemo, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Mountain, Upload, Loader2 } from "lucide-react";
-import { salvarElevacao, uploadLevantamento } from "@/lib/actions/incorporacao";
+import { salvarElevacao } from "@/lib/actions/incorporacao";
 import {
   declividadeGrade, declividadeMedia, distribuicaoDeclividade, celulaEmMetros,
 } from "@/lib/geo/relevo";
 import type { ModoRelevo } from "./viewer-3d";
 import type { EstudoData } from "./incorporacao-detail";
 import type { Feature, Polygon } from "geojson";
-import { comEnvio } from "@/lib/envio-progresso";
+import { enviarComProgresso } from "@/lib/envio-progresso";
 
 const Viewer3D = dynamic(() => import("./viewer-3d").then((m) => m.Viewer3D), {
   ssr: false,
@@ -83,8 +83,13 @@ export function TopografiaTab({ estudo }: { estudo: EstudoData }) {
 
   async function enviarLevantamento(formData: FormData) {
     setBusy(true);
-    try { await comEnvio("levantamento", () => uploadLevantamento(estudo.id, formData)); window.location.reload(); }
-    finally { setBusy(false); }
+    try {
+      formData.set("estudoId", estudo.id);
+      await enviarComProgresso("incorporacao.levantamento", formData, { item: "levantamento" });
+      window.location.reload();
+    } finally {
+      setBusy(false);
+    }
   }
 
   const amplitude = grid ? Math.round(grid.max - grid.min) : 0;

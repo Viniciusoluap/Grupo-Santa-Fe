@@ -1,6 +1,7 @@
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { ComissoesClient } from "./_components/comissoes-client";
 import type { NegocioItem } from "@/lib/comissoes/calculo";
 import { listarComissoesDeObras } from "@/lib/comissoes/obras";
@@ -9,7 +10,9 @@ import { ComissoesDeObras } from "./_components/comissoes-de-obras";
 type SessionUser = { role?: string; corretorId?: string };
 
 export default async function ComissoesPage() {
-  await exigirModuloPagina("comissoes");
+  const usuario = await exigirModuloPagina("comissoes");
+  // O corretor vê as comissões no Portal do Corretor (igual à Prospecta).
+  if (usuario.perfil === "corretor") redirect("/corretor/comissoes");
   const session = await auth();
   const user = session?.user as SessionUser | undefined;
   // Pedido de 17/10/2026: o colaborador com Comissões faz o mesmo que o admin.
