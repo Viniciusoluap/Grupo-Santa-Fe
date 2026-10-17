@@ -44,3 +44,21 @@ describe("colaborador — mesmos poderes do admin nos módulos liberados", () =>
     expect(podeAcessarModulo({ ...u, ativo: false }, "leads")).toBe(false);
   });
 });
+
+describe("revisão do Codex (Santa Fé #198): serviço antigo sem registro", () => {
+  it("a sincronização não cria registro em módulo não liberado, mesmo para serviço já gravado no lead", async () => {
+    const { sincronizarServicosDoLead } = await import("@/lib/crm/vinculo-lead");
+    const criarObra = vi.fn();
+    const vazio = { findMany: vi.fn(async () => []) };
+    const tx = {
+      $queryRaw: vi.fn(async () => [{ id: "L1" }]),
+      lead: { findUniqueOrThrow: vi.fn(async () => ({ id: "L1", nome: "Ana", telefone: "1", email: null, servico: JSON.stringify(["Obra e reforma"]) })) },
+      financiamento: vazio, projeto: vazio, regularizacao: vazio, avaliacao: vazio,
+      obra: { findMany: vi.fn(async () => []), create: criarObra },
+      servicoLead: { findFirst: vi.fn(async () => ({ id: "S1", obra: null })), create: vi.fn() },
+    };
+    mocks.sessao.user.permissoes = ["leads"];
+    await expect(sincronizarServicosDoLead("L1", tx as never)).rejects.toThrow(/permissão/);
+    expect(criarObra).not.toHaveBeenCalled();
+  });
+});

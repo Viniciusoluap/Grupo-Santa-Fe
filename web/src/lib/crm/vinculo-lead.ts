@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import type { Prisma, Financiamento } from "@/generated/prisma/client";
 import { randomUUID } from "node:crypto";
 import { dadosClienteDoLead, moduloDoServico, parseServicosLead, servicoDoModulo, type ModuloServico, type ServicoOperacional } from "./servicos-lead";
@@ -120,7 +121,12 @@ export async function sincronizarServicosDoLead(leadId: string, tx?: TransacaoCR
     // Um serviço selecionado reutiliza a demanda existente; novas operações são explícitas.
     let demanda = await tx.servicoLead.findFirst({ where: { leadId, servico }, include: demandaInclude, orderBy: { criadoEm: "asc" } });
     if (!demanda) demanda = await tx.servicoLead.create({ data: { leadId, modulo: op.modulo, servico, requestKey: `selecao:${leadId}:${servico}` }, include: demandaInclude });
-    if (!demanda[op.modulo]) { await criarRegistro(tx, lead, op, demanda.id); criados++; }
+    if (!demanda[op.modulo]) {
+      // Inclusive serviço antigo ainda sem registro: o colaborador precisa do módulo.
+      await exigirModuloDoServico(op.modulo, servico);
+      await criarRegistro(tx, lead, op, demanda.id);
+      criados++;
+    }
   }
   await garantirChecklistDosFinanciamentos(leadId, tx);
   return { criados, falhas: [] };
