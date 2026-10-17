@@ -12,7 +12,8 @@ export default async function ComissoesPage() {
   await exigirModuloPagina("comissoes");
   const session = await auth();
   const user = session?.user as SessionUser | undefined;
-  const isAdmin = user?.role === "admin";
+  // Pedido de 17/10/2026: o colaborador com Comissões faz o mesmo que o admin.
+  const isAdmin = user?.role === "admin" || user?.role === "colaborador";
   const isCorretor = user?.role === "corretor";
   const corretorId = user?.corretorId;
 

@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { validarNovoCorretor } from "@/lib/corretores/validacao";
@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
 
 export async function excluirCorretor(id: string) {
-  await exigirAdminAtivo();
+  await exigirModuloAcao("corretores", { somenteEquipe: true });
   const corretor = await prisma.corretor.findUnique({ where: { id }, select: { usuarioId: true } });
   await prisma.$transaction([
     prisma.lead.updateMany({ where: { corretorId: id }, data: { corretorId: null } }),

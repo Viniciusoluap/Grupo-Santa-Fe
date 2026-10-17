@@ -8,7 +8,8 @@
 //  - cliente: só o portal com os próprios serviços.
 //  - empreiteiro: só a área do empreiteiro com as próprias obras.
 // Usuário inativo não acessa nada. Administração de segurança (usuários,
-// perfis, permissões) e exclusão definitiva são exclusivas do admin.
+// perfis, permissões) é exclusiva do admin; excluir registros é do admin e do
+// colaborador com o módulo liberado (pedido de 17/10/2026).
 
 export const PERFIS = ["admin", "colaborador", "corretor", "cliente", "empreiteiro"] as const;
 export type Perfil = (typeof PERFIS)[number];
@@ -72,7 +73,7 @@ export function podeAcessarAlgum(u: UsuarioAcesso, modulos: readonly string[]): 
   return modulos.some((m) => podeAcessarModulo(u, m));
 }
 
-/** Gerenciar usuários, perfis, permissões e exclusões definitivas: só admin ativo. */
+/** Gerenciar usuários, perfis e permissões: só admin ativo. */
 export function podeAdministrarSeguranca(u: Pick<UsuarioAcesso, "perfil" | "ativo">): boolean {
   return u.ativo && u.perfil === "admin";
 }

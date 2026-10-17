@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
 import { TIPO_CONFIG, BANCO_CONFIG, STATUS_CONFIG } from "@/lib/types/financiamento";
 import { textoObrigatorio, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
@@ -26,7 +26,7 @@ export async function criarFinanciamento(_formData: FormData): Promise<never> {
 /** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirFinanciamento(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("financiamentos", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("financiamento", id);
     revalidatePath("/admin/financiamentos");
     revalidatePath("/admin/leads");

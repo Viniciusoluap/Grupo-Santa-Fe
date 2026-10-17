@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
 
 import { capturarErroAcao } from "@/lib/acao-resultado";
@@ -99,7 +99,7 @@ export async function editarAvaliacao(formData: FormData) {
 /** Exclusão definitiva (item 03): remove também o vínculo de serviço do CRM que só existia para ela. */
 export async function excluirAvaliacao(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("avaliacao", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("avaliacao", id);
     revalidatePath("/admin/avaliacoes");
     revalidatePath("/admin/leads");

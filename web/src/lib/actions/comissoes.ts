@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 
 import { prisma } from "@/lib/db";
 import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
@@ -80,7 +80,7 @@ export async function editarComissao(formData: FormData) {
 /** Exclusão definitiva (item 03 + pedido A6), inclusive comissão paga. */
 export async function excluirComissao(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("comissoes", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("comissao", id);
     revalidatePath("/admin/comissoes");
     return r;
