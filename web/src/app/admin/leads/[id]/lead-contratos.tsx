@@ -9,6 +9,7 @@ import { marcarAssinaturaStatus } from "@/lib/actions/juridico";
 import { enviarFormComProgresso } from "@/lib/envio-progresso";
 import { TIPOS_CONTRATO } from "@/lib/juridico/tipos-contrato";
 import { rotulo } from "@/lib/rotulos";
+import { parseNumeroBR } from "@/lib/utils";
 
 type Contrato = {
   id: string;
@@ -33,10 +34,13 @@ export function LeadContratos({ leadId, contratos, podeJuridico }: { leadId: str
   const [pendente, start] = useTransition();
   const [anexando, setAnexando] = useState<string | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
+  // Contrato escolhido para o anexo; só vira "anexando" durante o envio —
+  // cancelar o seletor de arquivo não deixa os botões travados.
+  const contratoDoAnexo = useRef<string | null>(null);
 
   function criar() {
     start(async () => {
-      const r = await criarContratoDoLead(leadId, tipo, Number(valor.replace(/\./g, "").replace(",", ".")) || 0);
+      const r = await criarContratoDoLead(leadId, tipo, parseNumeroBR(valor));
       setMsg(r.ok ? { ok: true, texto: `Contrato ${r.numero} criado no Jurídico.` } : { ok: false, texto: r.erro });
       if (r.ok) { setValor(""); router.refresh(); }
     });
@@ -44,8 +48,10 @@ export function LeadContratos({ leadId, contratos, podeJuridico }: { leadId: str
 
   async function anexar(file?: File) {
     if (arquivo.current) arquivo.current.value = "";
-    const id = anexando;
+    const id = contratoDoAnexo.current;
+    contratoDoAnexo.current = null;
     if (!file || !id) return;
+    setAnexando(id);
     const dados = new FormData();
     dados.set("arquivo", file);
     try {
@@ -85,8 +91,8 @@ export function LeadContratos({ leadId, contratos, podeJuridico }: { leadId: str
                 {c.assinaturaStatus === "solicitado" ? "Assinatura solicitada" : "Solicitar assinatura"}
               </button>
               {podeJuridico && (
-                <button type="button" className={botao} disabled={anexando !== null} onClick={() => { setAnexando(c.id); arquivo.current?.click(); }}>
-                  <Paperclip size={11} /> Anexar PDF
+                <button type="button" className={botao} disabled={anexando !== null} onClick={() => { contratoDoAnexo.current = c.id; arquivo.current?.click(); }}>
+                  <Paperclip size={11} /> {anexando === c.id ? "Enviando…" : "Anexar PDF"}
                 </button>
               )}
             </div>
