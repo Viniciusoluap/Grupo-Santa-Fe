@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { usuarioAtual } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
-import { tentarUploadDrive, uploadDocumentoCliente } from "@/lib/incorporacao/registro-drive";
+import { enviarParaLixeira, tentarUploadDrive, uploadDocumentoCliente } from "@/lib/incorporacao/registro-drive";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+// A Vercel recusa corpos acima de 4,5 MB antes de chegar aqui: o limite fica abaixo.
+const LIMITE = 4 * 1024 * 1024;
 
 const TIPOS: Record<string, (b: Buffer) => boolean> = {
   "application/pdf": (b) => b.subarray(0, 4).toString() === "%PDF",
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const arquivo = dados.get("arquivo");
   if (!(arquivo instanceof File) || arquivo.size === 0) return NextResponse.json({ error: "Escolha o arquivo." }, { status: 400 });
   const confere = TIPOS[arquivo.type];
-  if (!confere || arquivo.size > 10 * 1024 * 1024) return NextResponse.json({ error: "Envie PDF, JPG ou PNG de até 10 MB." }, { status: 400 });
+  if (!confere || arquivo.size > LIMITE) return NextResponse.json({ error: "Envie PDF, JPG ou PNG de até 4 MB." }, { status: 400 });
   const bytes = Buffer.from(await arquivo.arrayBuffer());
   if (!confere(bytes)) return NextResponse.json({ error: "O arquivo não corresponde ao tipo informado." }, { status: 400 });
 
@@ -43,15 +45,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { fileId } = await tentarUploadDrive(() =>
     uploadDocumentoCliente({ leadId, area: "financiamento", rotulo: item.item, nomeOriginal: nome, mime: arquivo.type, bytes })
   );
-  await prisma.$transaction(async (tx) => {
+  // A troca só vale se o item continua sem aprovação e com o mesmo arquivo de
+  // quando o envio começou (a equipe pode ter aprovado durante o upload).
+  const trocou = await prisma.$transaction(async (tx) => {
     const novo = await tx.arquivo.create({
       data: { nome, mime: arquivo.type, tamanho: bytes.length, ...(fileId ? { driveFileId: fileId } : { dados: bytes }) },
       select: { id: true },
     });
-    await tx.checklistItem.update({ where: { id: item.id }, data: { arquivoId: novo.id, enviadoEm: new Date() } });
+    const { count } = await tx.checklistItem.updateMany({
+      where: { id: item.id, concluido: false, arquivoId: item.arquivoId },
+      data: { arquivoId: novo.id, enviadoEm: new Date() },
+    });
+    if (count === 0) {
+      await tx.arquivo.delete({ where: { id: novo.id } });
+      return false;
+    }
     // Substituição: o arquivo anterior deixa de existir no sistema.
     if (item.arquivoId) await tx.arquivo.delete({ where: { id: item.arquivoId } }).catch(() => undefined);
+    return true;
   });
+  if (!trocou) {
+    if (fileId) await enviarParaLixeira(fileId).catch(() => undefined);
+    return NextResponse.json({ error: "Este documento foi aprovado ou alterado pela equipe durante o envio. Atualize a página." }, { status: 409 });
+  }
   revalidatePath("/portal/financiamento");
   revalidatePath("/admin/financiamentos");
   return NextResponse.json({ ok: true });

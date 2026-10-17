@@ -21,8 +21,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const dados = await req.formData();
   const arquivo = dados.get("arquivo");
   if (!(arquivo instanceof File) || arquivo.size === 0) return NextResponse.json({ error: "Escolha o PDF." }, { status: 400 });
-  if (arquivo.type !== "application/pdf" || arquivo.size > 10 * 1024 * 1024)
-    return NextResponse.json({ error: "Envie um PDF de até 10 MB." }, { status: 400 });
+  // A Vercel recusa corpos acima de 4,5 MB antes de chegar aqui: o limite fica abaixo.
+  if (arquivo.type !== "application/pdf" || arquivo.size > 4 * 1024 * 1024)
+    return NextResponse.json({ error: "Envie um PDF de até 4 MB." }, { status: 400 });
   const bytes = Buffer.from(await arquivo.arrayBuffer());
   if (bytes.subarray(0, 4).toString() !== "%PDF") return NextResponse.json({ error: "O arquivo não é um PDF válido." }, { status: 400 });
   const salvo = await salvarContratoCliente({ leadId: contrato.leadId, rotulo: `Contrato ${contrato.numero}`, nome: `${contrato.numero}-${Date.now()}.pdf`, bytes });

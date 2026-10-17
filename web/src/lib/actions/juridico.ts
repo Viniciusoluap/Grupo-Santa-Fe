@@ -1,6 +1,7 @@
 "use server";
 import { auth } from "@/auth";
 import { requireActionRole } from "@/lib/auth/rbac";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { salvarContratoCliente } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
@@ -146,8 +147,9 @@ export async function gerarPdfContrato(contratoId: string) {
 }
 
 export async function uploadContratoAssinado(contratoId: string, formData: FormData) {
-  const session = await auth();
-  requireActionRole(session, "admin", "corretor", "colaborador");
+  // Revisão do Codex (PR #199): ações do Jurídico exigem o módulo Jurídico, inclusive
+  // quando disparadas pela tela do lead.
+  await exigirModuloAcao("juridico");
 
   const arquivo = formData.get("arquivo") as File | null;
   if (!arquivo || arquivo.size === 0) throw new Error("Nenhum arquivo enviado");
@@ -180,8 +182,9 @@ export async function uploadContratoAssinado(contratoId: string, formData: FormD
 }
 
 export async function marcarAssinaturaStatus(contratoId: string, status: string) {
-  const session = await auth();
-  requireActionRole(session, "admin", "corretor", "colaborador");
+  // Revisão do Codex (PR #199): ações do Jurídico exigem o módulo Jurídico, inclusive
+  // quando disparadas pela tela do lead.
+  await exigirModuloAcao("juridico");
 
   const allowed = ["pendente", "solicitado", "assinado", "rejeitado"];
   if (!allowed.includes(status)) throw new Error("Status inválido");

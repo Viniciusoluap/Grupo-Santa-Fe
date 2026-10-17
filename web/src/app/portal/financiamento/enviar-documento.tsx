@@ -15,6 +15,11 @@ export function EnviarDocumento({ itemId, temArquivo }: { itemId: string; temArq
   async function enviar(file?: File) {
     if (entrada.current) entrada.current.value = "";
     if (!file) return;
+    // A Vercel recusa corpos acima de 4,5 MB: avisa antes de enviar.
+    if (file.size > 4 * 1024 * 1024) {
+      setErro("Envie PDF, JPG ou PNG de até 4 MB.");
+      return;
+    }
     setErro(null);
     setEnviando(true);
     const dados = new FormData();

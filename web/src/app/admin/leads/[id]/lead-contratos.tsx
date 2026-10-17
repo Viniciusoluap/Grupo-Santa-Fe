@@ -51,6 +51,10 @@ export function LeadContratos({ leadId, contratos, podeJuridico }: { leadId: str
     const id = contratoDoAnexo.current;
     contratoDoAnexo.current = null;
     if (!file || !id) return;
+    if (file.type !== "application/pdf" || file.size > 4 * 1024 * 1024) {
+      setMsg({ ok: false, texto: "Envie um PDF de até 4 MB." });
+      return;
+    }
     setAnexando(id);
     const dados = new FormData();
     dados.set("arquivo", file);
@@ -78,8 +82,8 @@ export function LeadContratos({ leadId, contratos, podeJuridico }: { leadId: str
               <p className="text-[11px] text-gray-700">Situação: {rotulo(c.status)} · Assinatura: {rotulo(c.assinaturaStatus)}</p>
             </div>
             <div className="flex flex-wrap gap-1">
-              <Link href={`/admin/juridico?contrato=${c.id}#contrato-${c.id}`} className={botao}><ExternalLink size={11} /> Abrir no Jurídico</Link>
-              <button
+              {podeJuridico && <Link href={`/admin/juridico?contrato=${c.id}#contrato-${c.id}`} className={botao}><ExternalLink size={11} /> Abrir no Jurídico</Link>}
+              {podeJuridico && <button
                 type="button"
                 className={botao}
                 disabled={pendente || c.assinaturaStatus === "assinado" || c.assinaturaStatus === "solicitado"}
@@ -89,7 +93,7 @@ export function LeadContratos({ leadId, contratos, podeJuridico }: { leadId: str
                 })}
               >
                 {c.assinaturaStatus === "solicitado" ? "Assinatura solicitada" : "Solicitar assinatura"}
-              </button>
+              </button>}
               {podeJuridico && (
                 <button type="button" className={botao} disabled={anexando !== null} onClick={() => { contratoDoAnexo.current = c.id; arquivo.current?.click(); }}>
                   <Paperclip size={11} /> {anexando === c.id ? "Enviando…" : "Anexar PDF"}
