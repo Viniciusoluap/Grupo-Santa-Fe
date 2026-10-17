@@ -105,6 +105,18 @@ describe.skipIf(!url)("revisão de imóveis do corretor (banco real)", () => {
     expect((await portal.imoveisDoPortal(corretor.id, depois)).some((x) => x.excluido)).toBe(false);
   });
 
+  it("equipe: imóvel não aprovado nunca fica publicado no site", async () => {
+    sessao.u = admin;
+    await salvar.criarImovelCore(form({ titulo: "Equipe Pendente", status: "venda", revisaoStatus: "pendente", publicadoSite: "on" }));
+    const i = await prisma.imovel.findFirstOrThrow({ where: { titulo: "Equipe Pendente" }, orderBy: { criadoEm: "desc" } });
+    expect(i).toMatchObject({ revisaoStatus: "pendente", publicadoSite: false });
+    await salvar.editarImovelCore(form({ id: i.id, titulo: "Equipe Pendente", status: "venda", revisaoStatus: "recusado", publicadoSite: "on" }));
+    expect(await prisma.imovel.findUniqueOrThrow({ where: { id: i.id } })).toMatchObject({ publicadoSite: false });
+    await salvar.editarImovelCore(form({ id: i.id, titulo: "Equipe Pendente", status: "venda", revisaoStatus: "aprovado", publicadoSite: "on" }));
+    expect(await prisma.imovel.findUniqueOrThrow({ where: { id: i.id } })).toMatchObject({ publicadoSite: true });
+    await prisma.imovel.delete({ where: { id: i.id } });
+  });
+
   it("excluído sem recusa some na hora; o corretor que exclui o próprio não gera aviso", async () => {
     sessao.u = corretor;
     await salvar.criarImovelCore(form({ titulo: "Lote Some" }));
