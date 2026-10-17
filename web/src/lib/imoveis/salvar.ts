@@ -98,7 +98,8 @@ export async function criarImovelCore(formData: FormData) {
       corretorId: corretorId || undefined,
       revisaoStatus: revisao,
       revisadoEm: ehCorretor ? null : new Date(),
-      ...(ehCorretor ? { cadastradoPorId: u.id, publicadoSite: false } : {}),
+      // Só imóvel aprovado fica publicado no site (revisão do Codex, 18/10).
+      ...(ehCorretor ? { cadastradoPorId: u.id, publicadoSite: false } : revisao !== "aprovado" ? { publicadoSite: false } : {}),
     },
   });
   // Pedido de 15/10: fotos vão para o Google Drive (Imóveis/<Título (nº)>/01 - Fotos).
@@ -163,7 +164,7 @@ export async function editarImovelCore(formData: FormData) {
       revisaoStatus: revisao,
       ...(ehCorretor
         ? { revisadoEm: null, publicadoSite: false }
-        : { destaque, publicadoSite, ...(revisao !== atual.revisaoStatus ? { revisadoEm: new Date() } : {}) }),
+        : { destaque, publicadoSite: publicadoSite && revisao === "aprovado", ...(revisao !== atual.revisaoStatus ? { revisadoEm: new Date() } : {}) }),
     },
   });
   await aplicarFotosImovel(id, lerFotos(imagens), u.id);

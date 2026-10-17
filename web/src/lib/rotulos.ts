@@ -25,7 +25,8 @@ const GENERICOS: Record<string, string> = {
   approved: "Aprovado",
   rejected: "Recusado",
   pendente: "Pendente",
-  solicitado: "Assinatura solicitada",
+  // Genérico (projetos, solicitações); a assinatura usa rotuloAssinatura().
+  solicitado: "Solicitado",
   assinado: "Assinado",
   em_assinatura: "Em assinatura",
   aguardando_assinatura: "Aguardando assinatura",
@@ -115,4 +116,9 @@ export function rotulo(codigo: string | null | undefined): string {
   if (conhecido) return conhecido;
   const texto = codigo.replaceAll("_", " ").trim();
   return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/** Situação da assinatura do contrato (revisão do Codex: "solicitado" de projeto ≠ assinatura). */
+export function rotuloAssinatura(codigo: string | null | undefined): string {
+  return codigo === "solicitado" ? "Assinatura solicitada" : rotulo(codigo);
 }

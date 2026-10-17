@@ -51,8 +51,22 @@ export function estadoPorTamanhos(item: string, tamanhos: number[], fracaoTotal:
 
 export type OpcoesEnvio = { item?: string; atual?: number; total?: number; tamanhos?: number[] };
 
+/**
+ * A Vercel recusa corpos acima de 4,5 MB antes de chegar ao servidor (revisão do
+ * Codex, 18/10): o envio é barrado antes, com uma orientação clara.
+ */
+export const LIMITE_ENVIO_BYTES = 4_200_000;
+export const MENSAGEM_LIMITE_ENVIO = "O envio passa do limite de 4 MB por vez. Envie menos fotos ou arquivos agora e acrescente os outros depois, pela edição.";
+
+export function tamanhoDoEnvio(dados: FormData): number {
+  let total = 0;
+  for (const [, valor] of dados.entries()) total += typeof valor === "string" ? valor.length : valor.size;
+  return total;
+}
+
 /** POST de FormData com progresso real; devolve o JSON da resposta ou lança o erro em português. */
 export function enviarFormComProgresso<T = unknown>(url: string, dados: FormData, opcoes: OpcoesEnvio = {}): Promise<T> {
+  if (tamanhoDoEnvio(dados) > LIMITE_ENVIO_BYTES) return Promise.reject(new Error(MENSAGEM_LIMITE_ENVIO));
   const item = opcoes.item ?? "arquivo";
   const estado = (fracao: number): NonNullable<EstadoEnvio> =>
     opcoes.tamanhos?.length ? estadoPorTamanhos(item, opcoes.tamanhos, fracao) : { item, atual: opcoes.atual ?? 1, total: opcoes.total ?? 1, fracao };
