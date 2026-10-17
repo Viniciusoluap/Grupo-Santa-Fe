@@ -201,27 +201,11 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       {activeTab === "conexao" && (
         <div className="space-y-5">
 
-          {/* Colaborador: read-only */}
-          {role === "colaborador" && (
-            <div className="bg-white border border-gray-100 p-5">
-              <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">WhatsApp Business (Admin)</h2>
-              {minhaConexao ? (
-                <div className="space-y-2">
-                  <StatusConexao status={minhaConexao.status} />
-                  {minhaConexao.numero && <p className="text-xs text-gray-500">{minhaConexao.numero}</p>}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">Nenhuma conexão configurada pelo administrador.</p>
-              )}
-              <p className="text-xs text-gray-400 mt-3">Como colaborador, você usa a conexão do administrador. Contate o admin para gerenciar.</p>
-            </div>
-          )}
-
-          {/* Admin / Corretor: manage own connection */}
-          {(role === "admin" || role === "corretor") && (
+          {/* Admin e colaborador (conexão da empresa) / Corretor: a própria conexão */}
+          {(role === "admin" || role === "colaborador" || role === "corretor") && (
             <div className="bg-white border border-gray-100 p-5">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
-                {role === "admin" ? "Minha Conexão WhatsApp Business" : "Minha Conexão WhatsApp"}
+                {role === "corretor" ? "Minha Conexão WhatsApp" : "Conexão WhatsApp Business da empresa"}
               </h2>
 
               {/* Connected */}
@@ -282,8 +266,8 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
             </div>
           )}
 
-          {/* Admin: corretores' connections */}
-          {role === "admin" && (
+          {/* Admin e colaborador: conexões dos corretores */}
+          {(role === "admin" || role === "colaborador") && (
             <div className="bg-white border border-gray-100 p-5">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
                 Conexões dos Corretores {conexoesCorretores.length > 0 && `(${conexoesCorretores.length})`}
@@ -318,9 +302,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
             <div className="flex items-center gap-3 border border-yellow-200 bg-yellow-50 p-4">
               <AlertCircle size={18} className="text-yellow-600 shrink-0" />
               <p className="text-sm text-yellow-800">
-                {role === "colaborador"
-                  ? "A conexão WhatsApp do administrador não está ativa. Contate o admin."
-                  : "Configure sua conexão WhatsApp Business na aba Conexão."}
+                Configure sua conexão WhatsApp Business na aba Conexão.
               </p>
             </div>
           )}

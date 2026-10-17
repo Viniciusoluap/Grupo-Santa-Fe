@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
@@ -21,7 +21,7 @@ export async function criarContaBancaria(formData: FormData) {
 }
 
 export async function excluirContaBancaria(id: string) {
-  await exigirAdminAtivo();
+  await exigirModuloAcao("bpo", { somenteEquipe: true });
   await prisma.contaBancaria.delete({ where: { id } });
   revalidatePath("/admin/bpo");
 }

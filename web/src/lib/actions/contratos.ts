@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -52,7 +52,7 @@ export async function editarContrato(formData: FormData) {
 }
 
 export async function excluirContrato(id: string) {
-  await exigirAdminAtivo();
+  await exigirModuloAcao("juridico", { somenteEquipe: true });
   await prisma.contrato.delete({ where: { id } });
   revalidatePath("/admin/juridico");
 }

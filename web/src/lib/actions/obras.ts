@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { OBRA_STATUS_CONFIG, validarMudancaStatusObra } from "@/lib/types/obra";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
@@ -26,7 +26,7 @@ export async function criarDiarioObra(obraId: string, formData: FormData) {
 /** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirObra(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("obras", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("obra", id);
     revalidatePath("/admin/obras");
     revalidatePath("/admin/leads");

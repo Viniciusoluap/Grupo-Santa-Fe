@@ -4,6 +4,7 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
 import { WhatsAppClient } from "./_components/whatsapp-client";
 
 type SessionUser = { id?: string; role?: string; corretorId?: string };
@@ -33,8 +34,11 @@ export default async function WhatsAppPage() {
   let minhaConexao: ConexaoRow | null = null;
   let conexoesCorretores: Array<{ id: string; usuarioId: string; usuarioNome: string; provedor: string; numero: string | null; status: string }> = [];
 
-  if (role === "admin") {
-    const conn = await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId } });
+  // Pedido de 17/10/2026: o colaborador com WhatsApp faz o mesmo que o admin,
+  // sobre a conexão da empresa (a do admin).
+  if (role === "admin" || role === "colaborador") {
+    const dono = await donoDaConexaoWhatsApp(usuarioId, role);
+    const conn = dono ? await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId: dono } }) : null;
     if (conn) {
       minhaConexao = { id: conn.id, usuarioId: conn.usuarioId, provedor: conn.provedor, instancia: conn.instancia, numero: conn.numero, status: conn.status, qrCode: conn.qrCode };
     }
@@ -51,14 +55,6 @@ export default async function WhatsAppPage() {
       numero: c.conexaoWhatsApp?.numero ?? null,
       status: c.conexaoWhatsApp?.status ?? "desconectado",
     }));
-  } else if (role === "colaborador") {
-    const adminU = await prisma.usuario.findFirst({ where: { papel: "admin" }, select: { id: true } });
-    if (adminU) {
-      const conn = await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId: adminU.id } });
-      if (conn) {
-        minhaConexao = { id: conn.id, usuarioId: conn.usuarioId, provedor: conn.provedor, instancia: null, numero: conn.numero, status: conn.status, qrCode: null };
-      }
-    }
   } else if (role === "corretor") {
     const conn = await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId } });
     if (conn) {
@@ -67,7 +63,7 @@ export default async function WhatsAppPage() {
   }
 
   const historicoRaw = await prisma.mensagemWhatsapp.findMany({
-    where: role === "admin" ? {} : minhaConexao ? { conexaoId: minhaConexao.id } : { id: "none" },
+    where: role === "admin" || role === "colaborador" ? {} : minhaConexao ? { conexaoId: minhaConexao.id } : { id: "none" },
     orderBy: { enviadaEm: "desc" },
     take: 100,
   });

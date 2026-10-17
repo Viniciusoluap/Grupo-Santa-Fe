@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { uploadPublico } from "@/lib/blob";
 import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
@@ -99,7 +99,7 @@ export async function editarEstudo(formData: FormData) {
 /** Exclusão definitiva (item 03); bloqueada se houver unidade vendida ou reservada. */
 export async function excluirEstudo(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("incorporacao", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("estudo", id);
     revalidatePath("/admin/incorporacao");
     return r;

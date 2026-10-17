@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto";
 import { exigirConfiguracaoParaStatus, textoObrigatorio, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
@@ -42,7 +42,7 @@ export async function alterarStatusProjetoFromDetail(id: string, status: string)
 /** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirProjeto(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("projetos", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("projeto", id);
     revalidatePath("/admin/projetos");
     revalidatePath("/admin/leads");

@@ -1,5 +1,5 @@
 "use server";
-import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { REG_TIPO_CONFIG, REG_STATUS_CONFIG } from "@/lib/types/regularizacao";
 import { ehStatusProcesso } from "@/lib/financeiro/regularizacao";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
@@ -19,7 +19,7 @@ function statusEditado(status: string, atual: string): string {
 /** Exclusão definitiva (item 03 + pedido A6): some das listas, pesquisas e totais, junto com os lançamentos. */
 export async function excluirRegularizacao(id: string) {
   return capturarErroAcao(async () => {
-    await exigirAdminAtivo();
+    await exigirModuloAcao("regularizacao", { somenteEquipe: true });
     const r = await excluirServicoDefinitivo("regularizacao", id);
     revalidatePath("/admin/regularizacao");
     revalidatePath("/admin/leads");

@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   let conexao = null;
 
   if (role === "admin" || role === "colaborador") {
-    const adminUsuario = await prisma.usuario.findFirst({ where: { papel: "admin" }, select: { id: true } });
+    const adminUsuario = await prisma.usuario.findFirst({ where: { papel: "admin" }, select: { id: true }, orderBy: { criadoEm: "asc" } });
     if (adminUsuario) {
       conexao = await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId: adminUsuario.id } });
     }

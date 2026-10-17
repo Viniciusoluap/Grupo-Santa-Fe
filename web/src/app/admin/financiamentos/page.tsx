@@ -13,5 +13,5 @@ export default async function FinanciamentosPage() {
     include: { corretor: true, checklist: true },
   });
 
-  return <FinanciamentosClient financiamentos={financiamentos} podeArquivar={ator.papel === "admin"} />;
+  return <FinanciamentosClient financiamentos={financiamentos} podeArquivar={ator.papel === "admin" || ator.papel === "colaborador"} />;
 }

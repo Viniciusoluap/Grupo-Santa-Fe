@@ -1,5 +1,5 @@
 "use server";
-import { exigirAdminAtivo, exigirModuloAcao } from "@/lib/auth/modulos";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
@@ -123,9 +123,9 @@ export async function editarImovel(formData: FormData) {
   redirect("/admin/imoveis");
 }
 
-/** Exclusão definitiva: só admin (item 06 — ação destrutiva). */
+/** Exclusão definitiva: admin ou colaborador com o módulo (pedido de 17/10/2026). */
 export async function excluirImovel(id: string) {
-  await exigirAdminAtivo();
+  await exigirModuloAcao("imoveis", { somenteEquipe: true });
   await prisma.imovel.delete({ where: { id } });
   revalidatePath("/admin/imoveis");
 }
