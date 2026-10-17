@@ -157,77 +157,77 @@ export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
       <div className="bg-white border border-gray-100 p-4">
         <div className="space-y-3">
           {dados.propostas.length === 0 && (
-            <p className="text-xs text-gray-400">Nenhuma proposta registrada ainda.</p>
+            <p className="text-xs text-gray-600">Nenhuma proposta registrada ainda.</p>
           )}
           {dados.propostas.map((p) => (
             <div key={p.id} className="border border-gray-100 p-3 space-y-2">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Data</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Data</label>
                   <input type="date" value={p.data} onChange={(e) => updProposta(p.id, "data", e.target.value)} className={inputCls} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Autor</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Autor</label>
                   <select value={p.autor} onChange={(e) => updProposta(p.id, "autor", e.target.value as Proposta["autor"])} className={inputCls}>
                     <option value="grupo_santa_fe">Grupo Santa Fé</option>
                     <option value="proprietario">Proprietário</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tipo</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Tipo</label>
                   <select value={p.tipo} onChange={(e) => updProposta(p.id, "tipo", e.target.value as TipoProposta)} className={inputCls}>
                     {TIPOS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Status</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Status</label>
                   <select value={p.status} onChange={(e) => updProposta(p.id, "status", e.target.value as StatusProposta)} className={inputCls}>
                     {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
                 <div className="flex items-end justify-end">
-                  <button type="button" onClick={() => removerProposta(p.id)} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={16} /></button>
+                  <button type="button" onClick={() => removerProposta(p.id)} className="text-gray-500 hover:text-red-500 p-2"><Trash2 size={16} /></button>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {(p.tipo === "compra_avista" || p.tipo === "compra_parcelada" || p.tipo === "permuta_fisica" || p.tipo === "misto") && (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Valor (R$)</label>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Valor (R$)</label>
                     <NumeroBRField value={p.valorTotal ?? 0} onValueChange={(v) => updProposta(p.id, "valorTotal", v)} className={inputCls} />
                   </div>
                 )}
                 {p.tipo === "compra_parcelada" && (
                   <>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Entrada (%)</label>
+                      <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Entrada (%)</label>
                       <PercentInput value={p.entradaPct ?? 0} onValueChange={(v) => updProposta(p.id, "entradaPct", v)} className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Prazo (meses)</label>
+                      <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Prazo (meses)</label>
                       <input type="number" value={p.prazoParcelamentoMeses ?? ""} onChange={(e) => updProposta(p.id, "prazoParcelamentoMeses", parseFloat(e.target.value) || 0)} className={inputCls} />
                     </div>
                   </>
                 )}
                 {(p.tipo === "permuta_financeira" || p.tipo === "misto") && (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Permuta (% do VGV)</label>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Permuta (% do VGV)</label>
                     <PercentInput value={p.permutaPctVgv ?? 0} onValueChange={(v) => updProposta(p.id, "permutaPctVgv", v)} className={inputCls} />
                   </div>
                 )}
                 {(p.tipo === "permuta_fisica" || p.tipo === "misto") && (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Unidades entregues</label>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Unidades entregues</label>
                     <input type="number" value={p.unidadesPermuta ?? ""} onChange={(e) => updProposta(p.id, "unidadesPermuta", parseFloat(e.target.value) || 0)} className={inputCls} />
                   </div>
                 )}
                 <div className="col-span-2 md:col-span-4">
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Condições / observações</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Condições / observações</label>
                   <input value={p.condicoes ?? ""} onChange={(e) => updProposta(p.id, "condicoes", e.target.value)} className={inputCls} placeholder="Ex.: prazo de escritura, cláusulas específicas..." />
                 </div>
               </div>
 
-              <p className="text-[11px] text-right text-gray-400">
+              <p className="text-[11px] text-right text-gray-600">
                 Valor estimado: <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(valorEstimadoProposta(p, vgvGross))}</span>
               </p>
             </div>

@@ -5,6 +5,7 @@ import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { useRouter } from "next/navigation";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import { listarUnidades, criarUnidade, mudarEstadoUnidade, conciliarVendaLegada } from "@/lib/actions/unidades-incorporacao";
+import { rotulo } from "@/lib/rotulos";
 
 type Snapshot = Exclude<Awaited<ReturnType<typeof listarUnidades>>, ErroAcao>;
 const input = "min-w-0 w-full border border-gray-300 px-2 py-2 text-sm";
@@ -35,7 +36,7 @@ export function UnidadesTab({ estudoId }: { estudoId: string }) {
     <div className="flex flex-wrap gap-2 items-end"><label className="min-w-36 flex-1 text-sm">Código da unidade<input value={code} maxLength={120} onChange={(e) => setCode(e.target.value)} className={input} /></label><label className="w-40 text-sm">Tipo<input value={kind} maxLength={40} onChange={(e) => setKind(e.target.value)} className={input} /></label><button type="button" className={action} disabled={pending || !code.trim() || !kind.trim()} onClick={() => run(async () => { await criarUnidade(estudoId, code, kind); setCode(""); })}>Adicionar unidade</button></div>
     {!data && <p>Carregando inventário...</p>}
     <div className="grid gap-3">{data?.unidades.map((unit) => <article key={unit.id} className="border border-gray-200 bg-white p-3 space-y-2">
-      <div className="flex flex-wrap justify-between gap-2"><strong>{unit.codigo} · {unit.tipo}</strong><span>{unit.status}</span></div>
+      <div className="flex flex-wrap justify-between gap-2"><strong>{unit.codigo} · {rotulo(unit.tipo)}</strong><span>{rotulo(unit.status)}</span></div>
       {unit.status === "vendida" ? <p className="text-sm">{unit.comprador} · {Number(unit.valorVenda).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p> : <div className="flex flex-wrap gap-2 items-end">
         <label className="min-w-40 flex-1 text-sm">Comprador<input value={buyers[unit.id] ?? ""} onChange={({ target: { value } }) => setBuyers((v) => ({ ...v, [unit.id]: value }))} className={input} /></label>
         <label className="w-40 text-sm">Valor da venda<NumeroBRField value={prices[unit.id] ?? 0} onValueChange={(v) => setPrices((old) => ({ ...old, [unit.id]: v }))} className={input} /></label>

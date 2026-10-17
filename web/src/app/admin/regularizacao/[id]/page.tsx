@@ -51,7 +51,7 @@ export default async function RegDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/regularizacao" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/regularizacao" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Regularização
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase flex-1">{r.nome}</h1>
@@ -72,7 +72,7 @@ export default async function RegDetailPage({ params }: PageProps) {
               <form key={status} action={alterarStatusRegularizacao.bind(null, r.id, status)}>
                 <button
                   type="submit"
-                  className={`text-[10px] font-bold px-3 py-1.5 uppercase transition-colors border ${isActive ? `${sc.bgColor} ${sc.color} border-transparent cursor-default` : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}
+                  className={`text-[10px] font-bold px-3 py-1.5 uppercase transition-colors border ${isActive ? `${sc.bgColor} ${sc.color} border-transparent cursor-default` : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
                   disabled={isActive}
                   aria-pressed={isActive}
                 >
@@ -137,7 +137,7 @@ export default async function RegDetailPage({ params }: PageProps) {
               { label: "Valor do serviço", value: formatCurrency(r.valorServico), color: "text-[var(--brand-dark)]" },
               { label: "Previsto (tabela)", value: formatCurrency(processo.financeiro.geral.previsto / 100), color: "text-[var(--brand-dark)]" },
               { label: "Recebido", value: formatCurrency(processo.financeiro.geral.recebido / 100), color: "text-green-600" },
-              { label: "Saldo", value: formatCurrency(processo.financeiro.geral.saldo / 100), color: processo.financeiro.geral.saldo > 0 ? "text-orange-500" : processo.financeiro.geral.saldo < 0 ? "text-red-600" : "text-gray-400" },
+              { label: "Saldo", value: formatCurrency(processo.financeiro.geral.saldo / 100), color: processo.financeiro.geral.saldo > 0 ? "text-orange-500" : processo.financeiro.geral.saldo < 0 ? "text-red-600" : "text-gray-600" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>

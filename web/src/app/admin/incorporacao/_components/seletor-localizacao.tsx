@@ -167,11 +167,11 @@ export function SeletorLocalizacao({
             : "Clique no mapa para marcar o terreno"}
         </span>
         {buscando && (
-          <span className="flex items-center gap-1 text-gray-400">
+          <span className="flex items-center gap-1 text-gray-600">
             <Loader2 size={12} className="animate-spin" /> buscando endereço…
           </span>
         )}
-        {endereco && !buscando && <span className="truncate max-w-full text-gray-400">{endereco}</span>}
+        {endereco && !buscando && <span className="truncate max-w-full text-gray-600">{endereco}</span>}
       </div>
     </div>
   );

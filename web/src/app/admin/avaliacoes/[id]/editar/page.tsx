@@ -27,7 +27,7 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
   return (
     <div className="max-w-2xl space-y-5">
       <div>
-        <Link href={`/admin/avaliacoes/${id}`} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)] mb-2">
+        <Link href={`/admin/avaliacoes/${id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)] mb-2">
           <ArrowLeft size={14} /> {a.numero}
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase">Editar Avaliação</h1>
@@ -183,7 +183,7 @@ export default async function EditarAvaliacaoPage({ params }: PageProps) {
             <CurrencyInput name="valorServico" placeholder="1500,00"
               defaultValue={a.valorServico}
               className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-            <p className="text-[10px] text-gray-400 mt-1">Ao marcar como entregue, uma cobrança será criada automaticamente no BPO Financeiro.</p>
+            <p className="text-[10px] text-gray-600 mt-1">Ao marcar como entregue, uma cobrança será criada automaticamente no BPO Financeiro.</p>
           </div>
         </div>
 

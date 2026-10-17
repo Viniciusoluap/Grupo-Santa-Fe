@@ -11,6 +11,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
+import { rotulo } from "@/lib/rotulos";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -24,7 +25,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href={`/admin/financiamentos/${id}`} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href={`/admin/financiamentos/${id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Financiamento
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Financiamento</h1>
@@ -36,7 +37,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
 
           {/* Dados do Cliente */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Dados do Cliente</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Dados do Cliente</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {f.leadVinculado ? (
                 <ClienteVinculadoInfo lead={f.leadVinculado} className="sm:col-span-2" />
@@ -69,7 +70,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
 
           {/* Imóvel */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Imóvel</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Imóvel</p>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome / Endereço do Imóvel *</label>
               <input name="imovel" type="text" required defaultValue={f.imovel ?? ""}
@@ -79,13 +80,13 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
 
           {/* Tipo e Banco */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Tipo e Banco</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Tipo e Banco</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Financiamento *</label>
                 <select name="tipo" required defaultValue={f.tipo}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                  {!Object.hasOwn(TIPO_CONFIG, f.tipo) && <option value={f.tipo}>{f.tipo}</option>}
+                  {!Object.hasOwn(TIPO_CONFIG, f.tipo) && <option value={f.tipo}>{rotulo(f.tipo)}</option>}
                 {Object.entries(TIPO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
@@ -103,7 +104,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
 
           {/* Valores */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Valores</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Valores</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Imóvel *</label>

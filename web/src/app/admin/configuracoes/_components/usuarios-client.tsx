@@ -171,7 +171,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors border-b-2 -mb-px ${
               aba === p
                 ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                : "border-transparent text-gray-400 hover:text-gray-600"
+                : "border-transparent text-gray-600 hover:text-gray-600"
             }`}
           >
             {p === "todos" ? "Todos" : PAPEIS.find((x) => x.value === p)?.label}
@@ -185,7 +185,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
       {/* Lista */}
       <div className="space-y-2">
         {filtrados.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-6">Nenhum usuário nesta categoria.</p>
+          <p className="text-sm text-gray-600 text-center py-6">Nenhum usuário nesta categoria.</p>
         )}
         {filtrados.map((u) => (
           <div key={u.id} className={`border px-4 py-3 flex items-center gap-3 flex-wrap ${u.ativo ? "border-gray-100" : "border-gray-100 bg-gray-50 opacity-60"}`}>
@@ -195,7 +195,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <Badge papel={u.papel} />
                 {!u.ativo && <span className="text-[10px] text-red-500 font-bold uppercase">Inativo</span>}
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">{u.email}</p>
+              <p className="text-xs text-gray-600 mt-0.5">{u.email}</p>
               {u.papel === "corretor" && u.creci && <p className="text-xs text-gray-600">CRECI: {u.creci}</p>}
               {u.papel === "cliente" && <p className="text-xs text-gray-600">Cliente do CRM: {u.leadNome ? `${u.leadNome}${u.leadTelefone ? ` · ${u.leadTelefone}` : ""}` : "sem vínculo (vincule em Perfil)"}</p>}
             </div>
@@ -204,14 +204,14 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 onClick={() => handleToggle(u.id, u.ativo)}
                 disabled={isPending}
                 title={u.ativo ? "Desativar" : "Ativar"}
-                className="text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
+                className="text-gray-600 hover:text-[var(--brand-dark)] transition-colors"
               >
                 {u.ativo ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
               </button>
               <button
                 onClick={() => setPerfilId(perfilId === u.id ? null : u.id)}
                 title="Alterar perfil"
-                className="text-gray-400 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
+                className="text-gray-600 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
               >
                 Perfil
               </button>
@@ -219,14 +219,14 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 onClick={() => setPermissoesId(permissoesId === u.id ? null : u.id)}
                 title="Módulos liberados (só colaborador)"
                 disabled={u.papel !== "colaborador"}
-                className="text-gray-400 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-gray-600 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Shield size={15} />
               </button>
               <button
                 onClick={() => setResetId(u.id)}
                 title="Redefinir senha"
-                className="text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
+                className="text-gray-600 hover:text-[var(--brand-dark)] transition-colors"
               >
                 <KeyRound size={15} />
               </button>
@@ -234,7 +234,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 onClick={() => handleExcluir(u.id, u.nome)}
                 disabled={isPending || u.papel === "admin"}
                 title="Excluir"
-                className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-gray-500 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Trash2 size={15} />
               </button>
@@ -286,7 +286,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <button
                   type="button"
                   onClick={() => setPermissoesId(null)}
-                  className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+                  className="mt-2 text-xs text-gray-600 hover:text-gray-600"
                 >
                   Fechar
                 </button>

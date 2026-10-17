@@ -35,7 +35,7 @@ export function ValorEstimadoCard({ avaliacaoId, valorEstimado, status, dataEntr
           type="button"
           onClick={handleEdit}
           title={editing ? "Cancelar edição" : "Editar valor"}
-          className="text-gray-300 hover:text-[var(--brand-dark)] transition-colors"
+          className="text-gray-500 hover:text-[var(--brand-dark)] transition-colors"
         >
           {editing ? <X size={16} /> : <Pencil size={15} />}
         </button>

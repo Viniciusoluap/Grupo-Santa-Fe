@@ -77,7 +77,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
         <Settings size={22} className="text-[var(--brand-dark)]" />
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Configurações</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Dados da empresa e preferências do sistema</p>
+          <p className="text-gray-600 text-sm mt-0.5">Dados da empresa e preferências do sistema</p>
         </div>
       </div>
 

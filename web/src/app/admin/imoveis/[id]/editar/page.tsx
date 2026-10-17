@@ -47,7 +47,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
 
           {/* Dados básicos */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Dados Básicos</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Dados Básicos</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título do Anúncio *</label>
@@ -90,7 +90,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
 
           {/* Valores */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Valores</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Valores</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Preço *</label>
@@ -106,7 +106,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
 
           {/* Características */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Características</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Características</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {([
                 { label: "Quartos", name: "quartos", val: imovel.quartos },
@@ -125,13 +125,13 @@ export default async function EditarImovelPage({ params }: PageProps) {
 
           {/* Fotos */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Fotos</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Fotos</p>
             <FotoUpload name="imagens" defaultValue={imovel.imagens} />
           </div>
 
           {/* Localização Exata */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Localização Exata</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Localização Exata</p>
             <LocalizacaoPicker
               nameLat="latitude"
               nameLng="longitude"
@@ -142,7 +142,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
 
           {/* Publicação */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Publicação</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Publicação</p>
             <div className="flex flex-wrap gap-5">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" name="destaque" defaultChecked={imovel.destaque} className="accent-[var(--brand-yellow)]" />
@@ -157,7 +157,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
 
           {/* Responsável */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Responsável</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Responsável</p>
             <select name="corretorId" defaultValue={imovel.corretorId ?? ""}
               className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
               <option value="">Nenhum</option>

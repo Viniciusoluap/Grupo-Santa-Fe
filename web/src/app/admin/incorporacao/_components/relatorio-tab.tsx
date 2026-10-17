@@ -113,7 +113,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
     <div className="space-y-4">
       <div className="bg-white border border-gray-100 p-6">
         <div className="text-center mb-5">
-          <FileText size={28} className="text-gray-300 mx-auto mb-3" />
+          <FileText size={28} className="text-gray-500 mx-auto mb-3" />
           <p className="font-bold text-[var(--brand-dark)]">Relatório executivo de incorporação</p>
           <p className="text-gray-600 text-sm mt-1">
             Consolida terreno, mercado, massa, quadro de áreas, mix, custos/VGV, indicadores financeiros,

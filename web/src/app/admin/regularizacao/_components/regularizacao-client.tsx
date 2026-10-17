@@ -85,7 +85,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Regularização Imobiliária</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{regularizacoes.length} processos cadastrados</p>
+          <p className="text-gray-600 text-sm mt-0.5">{regularizacoes.length} processos cadastrados</p>
         </div>
         <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
       </div>
@@ -99,7 +99,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{label}</span>
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</span>
               <FileCheck size={15} className="text-[var(--brand-yellow)]" />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl">{value}</p>
@@ -110,7 +110,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
           <input
             type="text"
             placeholder="Buscar por nome, cliente ou endereço..."
@@ -152,8 +152,8 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
                       <StatusSelectReg id={r.id} status={r.status} />
                     </div>
                     <p className="text-gray-500 text-sm">{r.clienteNome}</p>
-                    <p className="text-gray-400 text-xs mt-0.5">{r.endereco}</p>
-                    {r.matricula && <p className="text-gray-400 text-xs">{r.matricula}</p>}
+                    <p className="text-gray-600 text-xs mt-0.5">{r.endereco}</p>
+                    {r.matricula && <p className="text-gray-600 text-xs">{r.matricula}</p>}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -162,7 +162,7 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
               </div>
 
               <div className="mt-3 flex items-center justify-between">
-                <div className="flex items-center gap-4 text-xs text-gray-400">
+                <div className="flex items-center gap-4 text-xs text-gray-600">
                   {r.responsavel && <span>Resp.: {r.responsavel}</span>}
                   {r.previsaoFim && <span>Previsão: {new Date(r.previsaoFim).toLocaleDateString("pt-BR")}</span>}
                 </div>

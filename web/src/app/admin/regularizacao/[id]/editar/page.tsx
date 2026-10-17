@@ -19,7 +19,7 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href={`/admin/regularizacao/${id}`} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href={`/admin/regularizacao/${id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Regularização
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Dados do processo</h1>
@@ -31,7 +31,7 @@ export default async function EditarRegularizacaoPage({ params }: PageProps) {
         {r.leadVinculado ? (
           <div className="space-y-3">
             <ClienteVinculadoInfo lead={r.leadVinculado} />
-            <p className="text-xs text-gray-400">Dados do cadastro do lead no CRM. Para alterar, edite o lead.</p>
+            <p className="text-xs text-gray-600">Dados do cadastro do lead no CRM. Para alterar, edite o lead.</p>
             <Link href={`/admin/regularizacao/${id}`}
               className="inline-block border border-gray-200 hover:border-gray-300 text-gray-500 font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors">
               Voltar

@@ -80,7 +80,7 @@ function ExcluirComissaoBtn({ id }: { id: string }) {
 
   return (
     <button onClick={handleClick} disabled={isPending} title="Excluir comissão"
-      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
+      className="p-1.5 text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 rounded">
       <Trash2 size={14} />
     </button>
   );
@@ -105,7 +105,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Comissões</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{comissoes.length} registros no total</p>
+          <p className="text-gray-600 text-sm mt-0.5">{comissoes.length} registros no total</p>
         </div>
         {isAdmin && (
           <button
@@ -131,7 +131,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
               <Icon size={16} className={color} />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{value}</p>
-            <p className="text-gray-400 text-xs mt-1">{label}</p>
+            <p className="text-gray-600 text-xs mt-1">{label}</p>
           </div>
         ))}
       </div>
@@ -174,12 +174,12 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
                   <td className="px-4 py-3">
                     {cm.beneficiario === "empresa" ? (
                       <span className="flex items-center gap-1.5">
-                        <Building2 size={14} className="text-gray-400" />
+                        <Building2 size={14} className="text-gray-600" />
                         <span className="font-medium text-[var(--brand-dark)]">Empresa</span>
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5">
-                        <UserCheck size={14} className="text-gray-400" />
+                        <UserCheck size={14} className="text-gray-600" />
                         <span className="font-medium text-[var(--brand-dark)]">{cm.corretor?.nome ?? "—"}</span>
                       </span>
                     )}
@@ -187,7 +187,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-gray-500 text-xs">{TIPO_NEGOCIO_LABELS[cm.tipoNegocio] ?? cm.tipoNegocio}</p>
                     <p className="text-[var(--brand-dark)] text-sm">{cm.imovel}</p>
-                    {cm.contrato && <p className="text-gray-400 text-xs">Contrato {cm.contrato.numero}</p>}
+                    {cm.contrato && <p className="text-gray-600 text-xs">Contrato {cm.contrato.numero}</p>}
                   </td>
                   <td className="px-4 py-3 text-center text-gray-500 text-xs hidden md:table-cell">{cm.percentual}%</td>
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">{formatCurrency(cm.valor)}</td>
@@ -205,7 +205,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
                       })()
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center text-xs text-gray-400 hidden lg:table-cell">
+                  <td className="px-4 py-3 text-center text-xs text-gray-600 hidden lg:table-cell">
                     {new Date(cm.vencimento).toLocaleDateString("pt-BR")}
                     {cm.pagamentoEm && <span className="block text-green-600">Pago {new Date(cm.pagamentoEm).toLocaleDateString("pt-BR")}</span>}
                   </td>
@@ -213,20 +213,20 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
                     {isAdmin ? (
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => { setEditando(cm); setShowForm(true); }} title="Editar comissão"
-                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded">
+                          className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded">
                           <Pencil size={14} />
                         </button>
                         <ExcluirComissaoBtn id={cm.id} />
                       </div>
                     ) : (
-                      <span className="text-gray-300 text-xs">—</span>
+                      <span className="text-gray-500 text-xs">—</span>
                     )}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">Nenhuma comissão encontrada.</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-600 text-sm">Nenhuma comissão encontrada.</td>
                 </tr>
               )}
             </tbody>

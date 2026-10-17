@@ -103,7 +103,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Corretores</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-gray-600 text-sm mt-0.5">
             {corretores.filter((c) => c.ativo).length} ativos · {corretores.length} cadastrados
           </p>
         </div>
@@ -125,11 +125,11 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
         ].map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-400 font-bold uppercase tracking-wide">{label}</span>
+              <span className="text-xs text-gray-600 font-bold uppercase tracking-wide">{label}</span>
               <Icon size={16} className={color} />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl leading-none">{value}</p>
-            <p className="text-gray-400 text-xs mt-1">{sub}</p>
+            <p className="text-gray-600 text-xs mt-1">{sub}</p>
           </div>
         ))}
       </div>
@@ -137,7 +137,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
           <input
             type="text"
             placeholder="Buscar por nome ou CRECI..."
@@ -180,7 +180,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
                   </div>
                   <div>
                     <h3 className="font-bold text-[var(--brand-dark)] leading-tight">{c.nome}</h3>
-                    <p className="text-gray-400 text-xs">{c.creci}</p>
+                    <p className="text-gray-600 text-xs">{c.creci}</p>
                   </div>
                 </div>
                 <span
@@ -217,7 +217,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
                   <p className="font-black text-[var(--brand-dark)] text-lg leading-none">
                     {c.comissoes.filter((cm) => cm.status === "paga").length}
                   </p>
-                  <p className="text-gray-400 text-[10px] mt-0.5">Vendas</p>
+                  <p className="text-gray-600 text-[10px] mt-0.5">Vendas</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50">
                   <p className="font-black text-[var(--brand-dark)] text-lg leading-none">
@@ -226,18 +226,18 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
                       : "0"}
                     %
                   </p>
-                  <p className="text-gray-400 text-[10px] mt-0.5">Conversão</p>
+                  <p className="text-gray-600 text-[10px] mt-0.5">Conversão</p>
                 </div>
               </div>
 
               <div className="space-y-1.5 mb-4 pb-4 border-b border-gray-100">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">Total comissão</span>
+                  <span className="text-gray-600">Total comissão</span>
                   <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(totalComissao)}</span>
                 </div>
                 {pendente > 0 && (
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">A receber</span>
+                    <span className="text-gray-600">A receber</span>
                     <span className="font-bold text-orange-500">{formatCurrency(pendente)}</span>
                   </div>
                 )}
@@ -284,10 +284,10 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Corretor</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Imóvel</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Valor</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Corretor</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase hidden md:table-cell">Imóvel</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Valor</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">

@@ -17,7 +17,7 @@ import type { EstudoData } from "./incorporacao-detail";
 // entre disciplinas antes do projeto seguir para aprovação (3.2).
 
 const STATUS: { value: StatusProjetista; label: string; cor: string }[] = [
-  { value: "nao_contratado", label: "Não contratado", cor: "text-gray-400" },
+  { value: "nao_contratado", label: "Não contratado", cor: "text-gray-600" },
   { value: "contratado", label: "Contratado", cor: "text-blue-600" },
   { value: "em_desenvolvimento", label: "Em desenvolvimento", cor: "text-amber-600" },
   { value: "entregue", label: "Entregue", cor: "text-green-600" },
@@ -121,11 +121,11 @@ export function ProjetistasTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[720px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-40">Disciplina</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-44">Empresa/Profissional</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Contato</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Prazo de entrega</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-40">Status</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Disciplina</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-44">Empresa/Profissional</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Contato</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Prazo de entrega</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Status</th>
                 <th />
               </tr>
             </thead>
@@ -146,7 +146,7 @@ export function ProjetistasTab({ estudo }: { estudo: EstudoData }) {
                     </select>
                   </td>
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerProjetista(p.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerProjetista(p.id)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}

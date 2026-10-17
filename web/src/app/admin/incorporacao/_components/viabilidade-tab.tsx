@@ -61,7 +61,7 @@ function Num({
   return (
     <div>
       <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-        {label}{sufixo ? <span className="text-gray-300 normal-case font-normal"> ({sufixo})</span> : null}
+        {label}{sufixo ? <span className="text-gray-500 normal-case font-normal"> ({sufixo})</span> : null}
       </label>
       <input
         type="number"
@@ -198,7 +198,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         <p className="text-[11px] text-gray-400 mb-3">
           Aqui você define o que vai ser vendido: só lotes, lotes + casas, área de prédio para apartamentos, comercial — qualquer combinação. Cada linha é um produto do mix (VGV = quantidade × área × preço/m²).
         </p>
-        <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide px-0.5">
+        <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-600 uppercase tracking-wide px-0.5">
           <span className="col-span-5">Produto</span>
           <span className="col-span-2">Quantidade</span>
           <span className="col-span-2">Área/unid. (m²)</span>
@@ -217,7 +217,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
                 <NumeroBRField value={p.precoM2} onValueChange={(v) => updProduto(i, "precoM2", v)}
                   className="col-span-2 text-sm border border-gray-200 px-2 py-1.5" placeholder="R$/m²" />
                 <button type="button" onClick={() => removerProduto(i)}
-                  className="col-span-1 text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                  className="col-span-1 text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
               </div>
               <p className="text-xs text-right text-gray-500">
                 VGV do produto: <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(p.quantidade * p.areaUnidadeM2 * p.precoM2)}</span>
@@ -228,7 +228,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         <button type="button" onClick={addProduto} className="mt-3 flex items-center gap-1 text-xs font-bold text-[var(--brand-dark)]">
           <Plus size={12} /> Adicionar produto
         </button>
-        <p className="text-[11px] text-gray-400 mt-2">
+        <p className="text-[11px] text-gray-600 mt-2">
           Capacidade estimada do terreno com o tamanho médio atual do mix: <b>{urb.capacidadeEstimadaUnidades.toLocaleString("pt-BR")} unidades</b>
           {" "}({fmtM2(urb.areaVendavelM2)} vendável ÷ {r.mix.totalUnidades > 0 ? Math.round(r.mix.areaVendidaM2 / r.mix.totalUnidades) : 0} m² médios por unidade).
         </p>
@@ -341,7 +341,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
                 <p className="font-black text-[var(--brand-dark)] text-lg leading-none">
                   VGV {formatCurrency(c.vgvGross)}
                 </p>
-                <p className="text-xs text-gray-400 mt-1.5">
+                <p className="text-xs text-gray-600 mt-1.5">
                   VPL: <span className={c.vpl >= 0 ? "text-green-600 font-bold" : "text-red-500 font-bold"}>{formatCurrency(c.vpl)}</span>
                 </p>
               </button>
@@ -419,7 +419,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-[10px] text-gray-400 mt-2">
+        <p className="text-[10px] text-gray-600 mt-2">
           Valores calculados por fórmulas determinísticas (VPL a {form.taxaDescontoAnual}% a.a., parcelas indexadas, inadimplência, correção INCC da obra e permuta considerados). Estudo preliminar — não substitui projeto executivo nem análise contratual. Financiamento bancário/fundo de investidores ainda não modelado nesta versão.
         </p>
       </div>
@@ -469,7 +469,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Recebimentos por ano</p>
-          <p className="text-[10px] text-gray-400 mb-3">Valores brutos projetados e a divisão entre incorporador e terreneiro (cenário {CENARIO_META.find((c) => c.id === cenarioAtivo)?.label}).</p>
+          <p className="text-[10px] text-gray-600 mb-3">Valores brutos projetados e a divisão entre incorporador e terreneiro (cenário {CENARIO_META.find((c) => c.id === cenarioAtivo)?.label}).</p>
           <table className="w-full text-xs min-w-[420px]">
             <thead>
               <tr className="bg-[var(--brand-dark)]">
@@ -499,7 +499,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
 
         <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Custos futuros por ano</p>
-          <p className="text-[10px] text-gray-400 mb-3">Estimativa de custos totais futuros — valores nominais (obra já com correção INCC mês a mês).</p>
+          <p className="text-[10px] text-gray-600 mb-3">Estimativa de custos totais futuros — valores nominais (obra já com correção INCC mês a mês).</p>
           <table className="w-full text-xs min-w-[420px]">
             <thead>
               <tr className="bg-[var(--brand-dark)]">
@@ -530,7 +530,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
       {/* ── Relatórios PDF ── */}
       <div className="bg-white border border-gray-100 p-4">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Relatórios</p>
-        <p className="text-[10px] text-gray-400 mb-3">Gerados na hora, no seu navegador, a partir das premissas atuais — sem custo.</p>
+        <p className="text-[10px] text-gray-600 mb-3">Gerados na hora, no seu navegador, a partir das premissas atuais — sem custo.</p>
         <div className="flex flex-wrap gap-2">
           {[
             { label: "Relatório Executivo", acao: () => gerarRelatorioExecutivo(metaRelatorio, cenarios) },
@@ -555,7 +555,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
               onClick={acao}
               className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-gray-200 text-[var(--brand-dark)] hover:border-[var(--brand-yellow)] transition-colors"
             >
-              <FileText size={13} /> {label} <Download size={11} className="text-gray-400" />
+              <FileText size={13} /> {label} <Download size={11} className="text-gray-600" />
             </button>
           ))}
         </div>
@@ -585,7 +585,7 @@ function Linha({ label, valor, sub, forte }: { label: string; valor: string; sub
     <div className="flex items-start justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
       <div className="min-w-0">
         <span className="text-xs text-gray-500">{label}</span>
-        {sub && <p className="text-[10px] text-gray-300">{sub}</p>}
+        {sub && <p className="text-[10px] text-gray-500">{sub}</p>}
       </div>
       <span className={`text-xs shrink-0 ${forte ? "font-black text-[var(--brand-dark)]" : "font-bold text-gray-700"}`}>{valor}</span>
     </div>

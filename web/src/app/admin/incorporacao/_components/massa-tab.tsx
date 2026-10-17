@@ -201,14 +201,14 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
                     <p className="text-xs font-black text-[var(--brand-dark)] uppercase flex items-center gap-1">
                       {i === 0 && <Trophy size={12} className="text-[var(--brand-yellow)]" />} Cenário {i + 1}
                     </p>
-                    <span className="text-[10px] text-gray-400">malha {c.anguloVia}°</span>
+                    <span className="text-[10px] text-gray-600">malha {c.anguloVia}°</span>
                   </div>
                   <p className="font-black text-[var(--brand-dark)] text-xl leading-none mb-1">{c.kpis.lotesVendaveis} lotes</p>
                   <p className="text-[11px] text-gray-500">
                     {c.kpis.areaVendavelM2.toLocaleString("pt-BR")} m² vendáveis · {(c.kpis.aproveitamento * 100).toFixed(0)}% aproveitamento
                   </p>
                   <p className="text-sm font-bold text-green-600 mt-1">VGV {formatCurrency(c.kpis.vgv)}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-gray-600 mt-1">
                     lote {c.testadaLoteM}×{c.profundidadeLoteM}m · via {c.larguraViaM}m
                   </p>
                 </button>
@@ -220,7 +220,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
           {cenarioAtivo && estudo.geojson && (
             <div className="bg-white border border-gray-100 p-2">
               <MapaMassa geojson={estudo.geojson} lotes={cenarioAtivo.lotes} />
-              <p className="text-[10px] text-gray-400 p-2">
+              <p className="text-[10px] text-gray-600 p-2">
                 Amarelo = lotes vendáveis · Verde = doação (institucional/área verde). Estudo de aproveitamento — não substitui projeto urbanístico aprovado.
               </p>
             </div>
@@ -243,7 +243,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
         <div className="bg-white border border-gray-100 p-10 text-center">
           <Grid3x3 size={28} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Nenhum cenário gerado</p>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 text-sm mt-1">
             O motor testa dezenas de malhas viárias e dimensões de lote e devolve as 3 melhores por VGV.
           </p>
         </div>

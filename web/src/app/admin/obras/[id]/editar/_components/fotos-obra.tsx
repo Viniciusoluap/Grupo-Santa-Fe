@@ -122,7 +122,7 @@ export function FotosObra({ obraId, fotos }: { obraId: string; fotos: FotoObra[]
       </div>
       {erro && <p role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
       {fotos.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">Nenhuma foto enviada ainda.</p>
+        <p className="text-sm text-gray-600 text-center py-6">Nenhuma foto enviada ainda.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {fotos.map((foto) => (
@@ -138,7 +138,7 @@ export function FotosObra({ obraId, fotos }: { obraId: string; fotos: FotoObra[]
                     <button type="button" onClick={() => salvarFoto(foto, { legenda: editando.texto.trim() || null })} disabled={pendente} className="bg-[var(--brand-yellow)] px-3 text-xs font-bold">OK</button>
                   </div>
                 ) : (
-                  <p className="text-[var(--brand-dark)]">{foto.legenda || <span className="text-gray-400">Sem legenda</span>}</p>
+                  <p className="text-[var(--brand-dark)]">{foto.legenda || <span className="text-gray-600">Sem legenda</span>}</p>
                 )}
                 <p className="text-xs text-gray-500">{new Date(foto.tiradaEm).toLocaleDateString("pt-BR")}</p>
                 <div className="flex flex-wrap items-center gap-3">

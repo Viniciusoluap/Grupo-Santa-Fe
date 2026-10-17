@@ -21,7 +21,7 @@ export function ObrasClient({ obras }: Props) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Obras e Reformas</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{obras.length} projetos cadastrados</p>
+          <p className="text-gray-600 text-sm mt-0.5">{obras.length} projetos cadastrados</p>
         </div>
         <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
       </div>
@@ -36,11 +36,11 @@ export function ObrasClient({ obras }: Props) {
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{label}</span>
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</span>
               <HardHat size={15} className="text-[var(--brand-yellow)]" />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl leading-none">{value}</p>
-            <p className="text-gray-400 text-xs mt-1">{sub}</p>
+            <p className="text-gray-600 text-xs mt-1">{sub}</p>
           </div>
         ))}
       </div>

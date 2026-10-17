@@ -89,7 +89,7 @@ export default async function PortalDashboard() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400">Valor financiado</p>
+              <p className="text-xs text-gray-600">Valor financiado</p>
               <p className="font-black text-[var(--brand-dark)] text-lg">{formatCurrency(financiamento.valorFinanciado)}</p>
             </div>
           </div>
@@ -113,7 +113,7 @@ export default async function PortalDashboard() {
           >
             <Icon size={20} className="text-[var(--brand-yellow)] mb-2" />
             <p className="font-bold text-[var(--brand-dark)] text-sm">{label}</p>
-            <p className="text-gray-400 text-xs mt-0.5">{desc}</p>
+            <p className="text-gray-600 text-xs mt-0.5">{desc}</p>
           </Link>
         ))}
       </div>
@@ -125,7 +125,7 @@ export default async function PortalDashboard() {
             <Clock size={11} /> Última Atualização
           </p>
           <p className="text-[var(--brand-dark)] text-sm font-medium">{ultimaInteracao.descricao}</p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className="text-gray-600 text-xs mt-1">
             {new Date(ultimaInteracao.criadoEm).toLocaleDateString("pt-BR", {
               day: "2-digit", month: "long", year: "numeric",
             })}

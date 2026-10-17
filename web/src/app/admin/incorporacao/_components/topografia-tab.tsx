@@ -165,13 +165,13 @@ export function TopografiaTab({ estudo }: { estudo: EstudoData }) {
             </div>
           </div>
 
-          <p className="text-[10px] text-gray-400">Fonte: {grid.fonte}. Superfície recortada no polígono do terreno, suavizada e com curvas de nível cotadas; exagero vertical contido para leitura. Declividade por diferenças centrais sobre o DEM.</p>
+          <p className="text-[10px] text-gray-600">Fonte: {grid.fonte}. Superfície recortada no polígono do terreno, suavizada e com curvas de nível cotadas; exagero vertical contido para leitura. Declividade por diferenças centrais sobre o DEM.</p>
         </>
       ) : (
         <div className="bg-white border border-gray-100 p-10 text-center">
           <Mountain size={28} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Topografia ainda não gerada</p>
-          <p className="text-gray-400 text-sm mt-1">Gere o relevo 3D real a partir do terreno ou envie seu levantamento.</p>
+          <p className="text-gray-600 text-sm mt-1">Gere o relevo 3D real a partir do terreno ou envie seu levantamento.</p>
         </div>
       )}
 
@@ -188,7 +188,7 @@ export function TopografiaTab({ estudo }: { estudo: EstudoData }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white border border-gray-100 p-4">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">{label}</p>
       <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{value}</p>
     </div>
   );

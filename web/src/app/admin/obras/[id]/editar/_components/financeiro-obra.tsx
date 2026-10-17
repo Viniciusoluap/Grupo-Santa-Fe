@@ -88,7 +88,7 @@ export function CampoDecimal({ valor, onChange, casas = 2, prefixo, sufixo, plac
   const [focado, setFocado] = useState(false);
   return (
     <div className="relative">
-      {prefixo && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{prefixo}</span>}
+      {prefixo && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">{prefixo}</span>}
       <input
         aria-label={ariaLabel}
         inputMode="decimal"
@@ -106,7 +106,7 @@ export function CampoDecimal({ valor, onChange, casas = 2, prefixo, sufixo, plac
         }}
         className={`${inputCls} ${prefixo ? "pl-10" : ""} ${sufixo ? "pr-8" : ""}`}
       />
-      {sufixo && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{sufixo}</span>}
+      {sufixo && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">{sufixo}</span>}
     </div>
   );
 }
@@ -115,12 +115,12 @@ function Calculado({ label, indicador, destaque, ajuda }: { label: string; indic
   const negativo = indicador.ok && indicador.centavos < 0;
   return (
     <div>
-      <p className={labelCls}>{label} <span className="normal-case font-normal text-[10px] text-gray-400">· automático</span></p>
+      <p className={labelCls}>{label} <span className="normal-case font-normal text-[10px] text-gray-600">· automático</span></p>
       <div className={`${leituraCls} ${destaque ? "font-black text-[var(--brand-dark)]" : ""} ${negativo ? "!text-red-600 border-red-200" : ""}`} aria-readonly="true">
         {indicador.ok ? brl(indicador.centavos) : <span className="text-amber-700 text-xs">{indicador.motivo}</span>}
       </div>
       {negativo && <p className="text-[11px] text-red-600 mt-1">Valor negativo — verifique os lançamentos.</p>}
-      {ajuda && <p className="text-[11px] text-gray-400 mt-1">{ajuda}</p>}
+      {ajuda && <p className="text-[11px] text-gray-600 mt-1">{ajuda}</p>}
     </div>
   );
 }
@@ -130,7 +130,7 @@ function Leitura({ label, valor, ajuda }: { label: string; valor: string; ajuda?
     <div>
       <p className={labelCls}>{label}</p>
       <div className={leituraCls} aria-readonly="true">{valor}</div>
-      {ajuda && <p className="text-[11px] text-gray-400 mt-1">{ajuda}</p>}
+      {ajuda && <p className="text-[11px] text-gray-600 mt-1">{ajuda}</p>}
     </div>
   );
 }
@@ -140,7 +140,7 @@ function Secao({ titulo, formula, children }: { titulo: string; formula?: string
     <section className="bg-white border border-gray-100 p-5 space-y-4">
       <div>
         <h3 className="font-black text-[var(--brand-dark)] uppercase tracking-wide text-sm">{titulo}</h3>
-        {formula && <p className="text-[11px] text-gray-400 mt-0.5">{formula}</p>}
+        {formula && <p className="text-[11px] text-gray-600 mt-0.5">{formula}</p>}
       </div>
       {children}
     </section>
@@ -196,7 +196,7 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
     <div className="space-y-2">
       <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{titulo}</p>
       {erro && <p role="alert" className="text-xs text-red-600">{erro}</p>}
-      {movimentos.length === 0 ? <p className="text-xs text-gray-400">Nenhum lançamento.</p> : (
+      {movimentos.length === 0 ? <p className="text-xs text-gray-600">Nenhum lançamento.</p> : (
         <div className="overflow-x-auto border border-gray-100">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-[10px] uppercase text-gray-500">
@@ -208,10 +208,10 @@ function Historico({ titulo, movimentos }: { titulo: string; movimentos: Movimen
                   <td className="p-2 whitespace-nowrap">{dataBr(m.data)}</td>
                   <td className="p-2">
                     {m.descricao}
-                    {m.categoria && <span className="ml-2 text-[10px] uppercase text-gray-400">{CATEGORIA[m.categoria]}</span>}
-                    {m.etapa && <span className="ml-2 text-[10px] uppercase text-gray-400">· {ETAPA[m.etapa] ?? m.etapa}</span>}
-                    {m.observacao && <span className="block text-xs text-gray-400">{m.observacao}</span>}
-                    {m.bpo && <span className="block text-xs text-gray-400">BPO: {m.bpo.descricao}{!m.bpo.pago ? " — não está mais pago!" : ""}</span>}
+                    {m.categoria && <span className="ml-2 text-[10px] uppercase text-gray-600">{CATEGORIA[m.categoria]}</span>}
+                    {m.etapa && <span className="ml-2 text-[10px] uppercase text-gray-600">· {ETAPA[m.etapa] ?? m.etapa}</span>}
+                    {m.observacao && <span className="block text-xs text-gray-600">{m.observacao}</span>}
+                    {m.bpo && <span className="block text-xs text-gray-600">BPO: {m.bpo.descricao}{!m.bpo.pago ? " — não está mais pago!" : ""}</span>}
                   </td>
                   <td className="p-2">{ORIGEM[m.origem]}</td>
                   <td className="p-2 text-right whitespace-nowrap">{brlTexto(m.valor)}</td>
@@ -293,7 +293,7 @@ function NovoMovimento({ obraId, natureza, rotulo, permitirBpo = true }: { obraI
               <option value="">{bpo === null ? "Carregando..." : "Selecione"}</option>
               {(bpo ?? []).map((b) => <option key={b.id} value={b.id}>{b.descricao} · disponível {brl(b.disponivelCentavos)}</option>)}
             </select>
-            {bpo?.length === 0 && <span className="block text-[11px] text-gray-400 normal-case font-normal mt-1">Nenhum lançamento pago com saldo disponível no BPO.</span>}
+            {bpo?.length === 0 && <span className="block text-[11px] text-gray-600 normal-case font-normal mt-1">Nenhum lançamento pago com saldo disponível no BPO.</span>}
           </label>
         )}
         <label className={labelCls}>Descrição<input value={descricao} onChange={(e) => setDescricao(e.target.value)} className={`${inputCls} mt-1 normal-case font-normal`} /></label>
@@ -348,7 +348,7 @@ function Investidores({ form, setForm, calculo }: { form: FormFinanceiro; setFor
           <button type="button" className="border border-gray-200 px-3" onClick={() => setNovoAberto(true)} aria-label="Cadastrar investidor"><UserPlus size={15} /></button>
         </div>
       </div>
-      {form.investidores.length === 0 && <p className="text-xs text-gray-400">Nenhum investidor nesta obra.</p>}
+      {form.investidores.length === 0 && <p className="text-xs text-gray-600">Nenhum investidor nesta obra.</p>}
       {form.investidores.map((inv, idx) => (
         <div key={inv.investidorId} className="grid grid-cols-1 md:grid-cols-[1fr_160px_1fr_auto] gap-3 items-end">
           <Leitura label="Investidor" valor={inv.nome} />
@@ -482,7 +482,7 @@ export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor,
     <div className="space-y-4">
       <fieldset disabled={modoEmpreiteiro} className="contents">
       <Secao titulo="Custos previstos">
-        {modoEmpreiteiro && <p className="text-[11px] text-gray-400">Somente leitura: definidos pela empresa.</p>}
+        {modoEmpreiteiro && <p className="text-[11px] text-gray-600">Somente leitura: definidos pela empresa.</p>}
         {legado != null && (
           <p className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             Valor total do cadastro anterior: <strong>{brl(Math.round(legado * 100))}</strong>. Ele foi preservado e não entra nos cálculos —
@@ -493,7 +493,7 @@ export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor,
           <div>
             <p className={labelCls}>Orçamento Previsto</p>
             <CampoDecimal valor={form.orcamentoPrevisto} onChange={set("orcamentoPrevisto")} prefixo="R$" ariaLabel="Orçamento Previsto" />
-            <p className="text-[11px] text-gray-400 mt-1">Orçamento da construção. Não inclui terreno nem comissão.</p>
+            <p className="text-[11px] text-gray-600 mt-1">Orçamento da construção. Não inclui terreno nem comissão.</p>
           </div>
           <label className={labelCls}>Empreiteiro
             <select value={form.empreiteiroId ?? ""} className={`${inputCls} mt-1 normal-case font-normal`}
@@ -501,12 +501,12 @@ export function Custos({ resumo, form, setForm, calculo, empreiteiros, corretor,
               <option value="">Nenhum</option>
               {empreiteiros.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
             </select>
-            <span className="block text-[11px] text-gray-400 normal-case font-normal mt-1">Usuários com papel Empreiteiro (Configurações → Usuários).</span>
+            <span className="block text-[11px] text-gray-600 normal-case font-normal mt-1">Usuários com papel Empreiteiro (Configurações → Usuários).</span>
           </label>
           <div>
             <p className={labelCls}>Custo do Terreno</p>
             <CampoDecimal valor={form.custoTerreno} onChange={set("custoTerreno")} prefixo="R$" ariaLabel="Custo do Terreno" />
-            <p className="text-[11px] text-gray-400 mt-1">Valor contratual previsto; pagamentos do terreno entram no histórico.</p>
+            <p className="text-[11px] text-gray-600 mt-1">Valor contratual previsto; pagamentos do terreno entram no histórico.</p>
           </div>
           <ComissaoCampos resumo={resumo} form={form} setForm={setForm} />
           <Leitura label="Corretor vinculado" valor={corretor ?? "Sem corretor no lead"} ajuda="Vem do lead no CRM." />
@@ -537,7 +537,7 @@ function ComissaoCampos({ resumo, form, setForm }: { resumo: ResumoObra; form: F
           <p className={labelCls}>Percentual de Comissão</p>
           <CampoDecimal valor={form.comissaoPercentual} onChange={(v) => setForm({ ...form, comissaoPercentual: v })} casas={4} sufixo="%" ariaLabel="Percentual de Comissão"
             placeholder={padrao ? `Padrão do corretor: ${Number(padrao).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%` : "Sem regra cadastrada"} />
-          <p className="text-[11px] text-gray-400 mt-1">Vazio usa o percentual padrão do corretor (Corretores). Nunca é presumido.</p>
+          <p className="text-[11px] text-gray-600 mt-1">Vazio usa o percentual padrão do corretor (Corretores). Nunca é presumido.</p>
         </div>
       )}
       {c.valorCentavos !== null ? (

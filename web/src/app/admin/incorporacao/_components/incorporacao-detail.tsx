@@ -346,7 +346,7 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
       {/* Progresso — auto-computado, sem checklist manual */}
       <div className="bg-white border border-gray-100 p-3 mb-3">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Progresso do estudo</p>
+          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Progresso do estudo</p>
           <p className="text-xs font-black text-[var(--brand-dark)]">{progresso.geral}% concluído</p>
         </div>
         <div className="flex gap-1.5">
@@ -357,7 +357,7 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
                 <div className="h-1.5 bg-gray-100 overflow-hidden">
                   <div className="h-full bg-[var(--brand-yellow)] transition-all" style={{ width: `${pf.pct}%` }} />
                 </div>
-                <p className="text-[9px] text-gray-400 mt-1 truncate">{f.numero}. {f.titulo} ({pf.concluidas}/{pf.total})</p>
+                <p className="text-[9px] text-gray-600 mt-1 truncate">{f.numero}. {f.titulo} ({pf.concluidas}/{pf.total})</p>
               </div>
             );
           })}

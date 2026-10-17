@@ -34,7 +34,7 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
           <Mountain size={22} className="text-[var(--brand-dark)]" />
           <div>
             <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Incorporação</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Estudos de viabilidade, massa, topografia 3D e urbanístico</p>
+            <p className="text-gray-600 text-sm mt-0.5">Estudos de viabilidade, massa, topografia 3D e urbanístico</p>
           </div>
         </div>
         <Link
@@ -96,11 +96,11 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
                   </p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <p className="text-gray-400">Área</p>
+                      <p className="text-gray-600">Área</p>
                       <p className="font-black text-[var(--brand-dark)]">{e.areaM2 > 0 ? hectares(e.areaM2) : "—"}</p>
                     </div>
                     <div>
-                      <p className="text-gray-400">VGV</p>
+                      <p className="text-gray-600">VGV</p>
                       <p className="font-black text-[var(--brand-dark)]">{vgv > 0 ? formatCurrency(vgv) : "—"}</p>
                     </div>
                   </div>

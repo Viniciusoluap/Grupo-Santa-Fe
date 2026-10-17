@@ -247,7 +247,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600">{MODULO_CONFIG[sv.modulo].label}</p>
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{sv.titulo}</p>
-                      <p className="text-[11px] text-gray-600 capitalize">{sv.status.replace(/_/g, " ")}</p>
+                      <p className="text-[11px] text-gray-600">{rotulo(sv.status)}</p>
                     </div>
                     <Link
                       href={`${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
@@ -332,7 +332,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               </a>
               <a
                 href={`mailto:${lead.email}`}
-                className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors"
+                className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-500 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors"
               >
                 <Mail size={14} /> E-mail
               </a>

@@ -183,7 +183,7 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
           </button>
         </p>
       ) : (
-        <p className="text-xs text-gray-400 mb-2">Clique no mapa para marcar ou cole o link acima</p>
+        <p className="text-xs text-gray-600 mb-2">Clique no mapa para marcar ou cole o link acima</p>
       )}
 
       <div ref={mapRef} style={{ height: "280px", width: "100%" }} className="z-0 border border-gray-200" />

@@ -36,7 +36,7 @@ export default async function NovoImovelPage() {
         <FormComEnvio acao="/api/imoveis/salvar" destino="/admin/imoveis" campoFotos="imagens" className="space-y-6">
           {/* Dados básicos */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
               Dados Básicos
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -117,7 +117,7 @@ export default async function NovoImovelPage() {
 
           {/* Valores */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
               Valores
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -142,7 +142,7 @@ export default async function NovoImovelPage() {
 
           {/* Características */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
               Características
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -170,7 +170,7 @@ export default async function NovoImovelPage() {
 
           {/* Fotos */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
               Fotos
             </p>
             <FotoUpload name="imagens" />
@@ -178,7 +178,7 @@ export default async function NovoImovelPage() {
 
           {/* Localização Exata */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
               Localização Exata
             </p>
             <LocalizacaoPicker nameLat="latitude" nameLng="longitude" />
@@ -186,7 +186,7 @@ export default async function NovoImovelPage() {
 
           {/* Responsável */}
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">
               Responsável
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

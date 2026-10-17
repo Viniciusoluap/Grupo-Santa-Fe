@@ -326,7 +326,7 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
           </span>
         ))}
         <label className="flex items-center gap-1.5">
-          <span className="text-gray-400">Faixa de APP:</span>
+          <span className="text-gray-600">Faixa de APP:</span>
           <select
             value={appModo}
             onChange={(e) => setAppModo(e.target.value as AppModo)}
@@ -340,9 +340,9 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
             <option value="500">500 m (ex.: lei municipal de Imperatriz)</option>
           </select>
         </label>
-        {carregandoCamadas && <span className="text-gray-400">carregando camadas…</span>}
+        {carregandoCamadas && <span className="text-gray-600">carregando camadas…</span>}
         {resumo && !carregandoCamadas && (
-          <span className="text-gray-400">
+          <span className="text-gray-600">
             {resumo.agua} cursos d&apos;água · {resumo.nascentes} nascentes · {resumo.rodovias} vias · {resumo.transmissao} linhas AT
           </span>
         )}
@@ -353,7 +353,7 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
           {appCalculada.larguraM != null && ` (faixa de ${appCalculada.larguraM} m)`} — já enviada para a aba Viabilidade.
         </p>
       )}
-      <p className="text-[10px] text-gray-400">
+      <p className="text-[10px] text-gray-600">
         Largura automática conforme o Código Florestal (Lei 12.651/2012, Art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m — estimada pela geometria do rio. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Confirme sempre com o órgão ambiental competente. A área de APP dentro do terreno é sempre recalculada e salva automaticamente.
       </p>
     </div>
