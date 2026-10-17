@@ -13,6 +13,7 @@ import { salvarRegistroIncorporacao } from "@/lib/actions/incorporacao";
 import { desvincularDocumentoRegistro, enviarDocumentoRegistro, listarDocumentosRegistro } from "@/lib/actions/documentos-registro";
 import { DriveDiagnostico } from "./drive-diagnostico";
 import type { EstudoData } from "./incorporacao-detail";
+import { comEnvio } from "@/lib/envio-progresso";
 
 // Registro da Incorporação (3.4 Incorporação e Produto) — checklist dos
 // documentos exigidos pelo art. 32 da Lei 4.591/64, pré-preenchido
@@ -72,7 +73,7 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
     setArquivoPendente(itemId);
     setErroArquivo(null);
     try {
-      const resultado = exigirResultado(await enviarDocumentoRegistro(estudo.id, itemId, arquivo));
+      const resultado = exigirResultado(await comEnvio("documento", () => enviarDocumentoRegistro(estudo.id, itemId, arquivo)));
       setArquivos(resultado.documentos);
       setAvisoArquivo("notaArmazenamento" in resultado && resultado.notaArmazenamento
         ? `Documento salvo no sistema. Google Drive indisponível: ${resultado.notaArmazenamento}` : null);

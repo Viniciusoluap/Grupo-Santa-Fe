@@ -19,7 +19,11 @@ export function BarraEnvioGlobal() {
           <span className="min-w-0 break-words">{textoEnvio(estado)}</span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded bg-white/20" aria-hidden>
-          <div className="h-full bg-[var(--brand-yellow)] transition-[width] duration-200" style={{ width: `${estado.total > 1 ? geral : pct}%` }} />
+          {estado.fracao < 0 ? (
+            <div className="h-full w-1/3 animate-pulse bg-[var(--brand-yellow)]" />
+          ) : (
+            <div className="h-full bg-[var(--brand-yellow)] transition-[width] duration-200" style={{ width: `${estado.total > 1 ? geral : pct}%` }} />
+          )}
         </div>
       </div>
     </div>

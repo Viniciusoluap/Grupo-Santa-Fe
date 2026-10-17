@@ -7,6 +7,8 @@ import { ContratoAcoes } from "./_components/contrato-acoes";
 import { ContratoEditarExcluir } from "./_components/contrato-editar-excluir";
 import { ContratoDocumentos } from "./_components/contrato-documentos";
 import { ChatAdmin } from "./_components/chat-admin";
+import { ROTULO_TIPO_CONTRATO } from "@/lib/juridico/tipos-contrato";
+import { rotulo } from "@/lib/rotulos";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   rascunho:  { bg: "bg-gray-100",   text: "text-gray-600" },
@@ -28,7 +30,7 @@ type Tab = "contratos" | "chat";
 export default async function JuridicoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; contrato?: string }>;
 }) {
   await exigirModuloPagina("juridico");
 
@@ -147,9 +149,9 @@ export default async function JuridicoPage({
                       const assBadge = ASSINATURA_BADGE[c.assinaturaStatus] ?? ASSINATURA_BADGE.pendente;
                       const pdfDoc = c.documentos.find((d) => d.tipo === "contrato_gerado");
                       return (
-                        <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={c.id} id={`contrato-${c.id}`} className={`hover:bg-gray-50 transition-colors scroll-mt-24 ${sp.contrato === c.id ? "bg-yellow-50 ring-2 ring-inset ring-[var(--brand-yellow)]" : ""}`}>
                           <td className="px-3 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{c.numero}</td>
-                          <td className="px-3 py-3 text-gray-700 capitalize text-xs whitespace-nowrap">{c.tipo.replace(/_/g, " ")}</td>
+                          <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{ROTULO_TIPO_CONTRATO[c.tipo] ?? rotulo(c.tipo)}</td>
                           <td className="px-3 py-3 font-medium text-[var(--brand-dark)] max-w-[120px] truncate text-xs">{c.parteA}</td>
                           <td className="px-3 py-3 text-gray-600 max-w-[120px] truncate text-xs">{c.parteB}</td>
                           <td className="px-3 py-3 font-bold text-[var(--brand-dark)] text-xs whitespace-nowrap">{formatCurrency(c.valor)}</td>

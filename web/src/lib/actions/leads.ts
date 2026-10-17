@@ -341,7 +341,21 @@ export async function agendarVisitaDoLead(formData: FormData) {
   campos.set("leadId", leadId);
   campos.set("agendadaPara", data);
   campos.set("notas", texto(formData, "notas", 10000));
+  campos.set("tipoVisita", texto(formData, "tipoVisita", 40) || "imovel");
+  // Item 10 (18/10): "Agendamento de visita" escolhe responsável e corretor; o
+  // registro é o mesmo da Agenda (o que muda lá aparece no lead e vice-versa).
   if (ator.corretorId) campos.set("corretorId", ator.corretorId);
-  else campos.set("colaboradorNome", ator.nome);
+  else {
+    const corretorId = texto(formData, "corretorId", 100);
+    if (corretorId) {
+      const corretor = await prisma.corretor.findUnique({ where: { id: corretorId }, select: { id: true } });
+      if (!corretor) throw new Error("Corretor não encontrado.");
+      campos.set("corretorId", corretorId);
+    }
+    const responsavelId = texto(formData, "responsavelId", 100);
+    const responsavel = responsavelId ? await prisma.usuario.findFirst({ where: { id: responsavelId, ativo: true }, select: { nome: true } }) : null;
+    if (responsavelId && !responsavel) throw new Error("Responsável não encontrado.");
+    campos.set("colaboradorNome", responsavel?.nome ?? ator.nome);
+  }
   await criarVisita(campos);
 }

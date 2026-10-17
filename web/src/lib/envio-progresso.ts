@@ -26,6 +26,9 @@ export function publicarEnvio(estado: EstadoEnvio) {
 }
 
 export function textoEnvio(estado: NonNullable<EstadoEnvio>): string {
+  const qualSemPct = estado.total > 1 ? `${estado.item} ${estado.atual} de ${estado.total}` : estado.item;
+  // Envio por ação do servidor: o navegador não informa os bytes; mostra o andamento sem %.
+  if (estado.fracao < 0) return `Enviando ${qualSemPct}…`;
   const pct = Math.round(Math.min(1, Math.max(0, estado.fracao)) * 100);
   const qual = estado.total > 1 ? `${estado.item} ${estado.atual} de ${estado.total}` : estado.item;
   return pct >= 100 ? `Processando ${qual}…` : `Enviando ${qual} — ${pct}%`;
@@ -87,4 +90,17 @@ export function enviarFormComProgresso<T = unknown>(url: string, dados: FormData
     };
     xhr.send(dados);
   });
+}
+
+/**
+ * Envio feito por ação do servidor (sem acesso aos bytes enviados): a barra fixa
+ * mostra "Enviando PDF…" com animação até terminar — a tela nunca parece travada.
+ */
+export async function comEnvio<T>(item: string, executar: () => Promise<T>, posicao: { atual?: number; total?: number } = {}): Promise<T> {
+  publicarEnvio({ item, atual: posicao.atual ?? 1, total: posicao.total ?? 1, fracao: -1 });
+  try {
+    return await executar();
+  } finally {
+    publicarEnvio(null);
+  }
 }

@@ -5,6 +5,7 @@ import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { salvarDueDiligence } from "@/lib/actions/due-diligence";
 import { desvincularDocumentoRegistro, enviarDocumentoRegistro, listarDocumentosRegistro } from "@/lib/actions/documentos-registro";
 import { lerDueDiligence, progressoDueDiligence, type DueDiligence } from "@/lib/incorporacao/due-diligence";
+import { comEnvio } from "@/lib/envio-progresso";
 
 type Etapa = DueDiligence["etapas"][number];
 const novaEtapa = (): Etapa => ({ id: crypto.randomUUID(), nome: "Nova etapa", procedimentos: "", observacoes: "", tarefas: [], documentos: [] });
@@ -42,7 +43,7 @@ export function DueDiligenceTab({ estudoId, json }: { estudoId: string; json: st
     if (arquivos.some((d) => d.itemId === itemId) && !window.confirm("Substituir o arquivo? O histórico permanece.")) return;
     setBusyItem(itemId); setErro("");
     try {
-      const result = exigirResultado(await enviarDocumentoRegistro(estudoId, itemId, file));
+      const result = exigirResultado(await comEnvio("documento", () => enviarDocumentoRegistro(estudoId, itemId, file)));
       setArquivos(result.documentos);
       if ("notaArmazenamento" in result && result.notaArmazenamento) setErro(`Documento salvo no sistema. Google Drive indisponível: ${result.notaArmazenamento}`);
     }

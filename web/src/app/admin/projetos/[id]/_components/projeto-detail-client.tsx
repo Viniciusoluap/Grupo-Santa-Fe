@@ -7,6 +7,7 @@ import {
   salvarArquivosProjeto,
   alterarStatusProjetoFromDetail,
 } from "@/lib/actions/projetos";
+import { comEnvio } from "@/lib/envio-progresso";
 
 interface ChecklistItem {
   id: string;
@@ -127,7 +128,7 @@ export default function ProjetoDetailClient({
       ];
       setArquivos(updated);
       startTransition(async () => {
-        await salvarArquivosProjeto(projetoId, JSON.stringify(updated));
+        await comEnvio("arquivo", () => salvarArquivosProjeto(projetoId, JSON.stringify(updated)));
         showSaved();
       });
     };
@@ -140,7 +141,7 @@ export default function ProjetoDetailClient({
     const updated = arquivos.filter((_, i) => i !== index);
     setArquivos(updated);
     startTransition(async () => {
-      await salvarArquivosProjeto(projetoId, JSON.stringify(updated));
+      await comEnvio("arquivo", () => salvarArquivosProjeto(projetoId, JSON.stringify(updated)));
       showSaved();
     });
   }

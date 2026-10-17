@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { comEnvio } from "@/lib/envio-progresso";
 import { Download, ExternalLink, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { enviarContratoAssinadoPortal } from "@/lib/actions/portal";
 
@@ -24,7 +25,7 @@ export function AssinaturaGovBr({ contratoId, numero, pdfUrl }: Props) {
     try {
       const fd = new FormData();
       fd.append("arquivo", file);
-      await enviarContratoAssinadoPortal(contratoId, fd);
+      await comEnvio("PDF", () => enviarContratoAssinadoPortal(contratoId, fd));
       setEnviado(true);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao enviar arquivo");

@@ -10,6 +10,7 @@ import {
 import type { ModoRelevo } from "./viewer-3d";
 import type { EstudoData } from "./incorporacao-detail";
 import type { Feature, Polygon } from "geojson";
+import { comEnvio } from "@/lib/envio-progresso";
 
 const Viewer3D = dynamic(() => import("./viewer-3d").then((m) => m.Viewer3D), {
   ssr: false,
@@ -82,7 +83,7 @@ export function TopografiaTab({ estudo }: { estudo: EstudoData }) {
 
   async function enviarLevantamento(formData: FormData) {
     setBusy(true);
-    try { await uploadLevantamento(estudo.id, formData); window.location.reload(); }
+    try { await comEnvio("levantamento", () => uploadLevantamento(estudo.id, formData)); window.location.reload(); }
     finally { setBusy(false); }
   }
 

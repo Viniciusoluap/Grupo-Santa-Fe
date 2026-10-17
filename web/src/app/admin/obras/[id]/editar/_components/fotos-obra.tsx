@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ExternalLink, Loader2, Pencil, Trash2, Upload, XCircle } from "lucide-react";
+import { publicarEnvio } from "@/lib/envio-progresso";
 import { comprimirImagem, enviarJsonComProgresso, mensagemErroEnvio, pareceImagem } from "@/lib/obras/comprimir-imagem";
 import { LIMITE_LEGENDA } from "@/lib/obras/fotos";
 import { atualizarFotoObra, excluirFotoObra } from "@/lib/actions/obra-progresso";
@@ -43,7 +44,10 @@ export function FotosObra({ obraId, fotos }: { obraId: string; fotos: FotoObra[]
           const { status, dados } = await enviarJsonComProgresso(
             `/api/obras/${obraId}/fotos`,
             { image: dataUrl, caption: legenda.trim() || null, takenAt: new Date(f.lastModified || Date.now()).toISOString(), includeInReport: true },
-            (fracao) => marcar(i, { fracao })
+            (fracao) => {
+              marcar(i, { fracao });
+              publicarEnvio({ item: "foto", atual: i + 1, total: arquivos.length, fracao });
+            }
           );
           if (status < 200 || status >= 300) throw new Error(mensagemErroEnvio(status, dados));
           marcar(i, { estado: "ok", fracao: 1 });
@@ -53,6 +57,7 @@ export function FotosObra({ obraId, fotos }: { obraId: string; fotos: FotoObra[]
         }
       }
     } finally {
+      publicarEnvio(null);
       setOcupado(false);
       if (entrada.current) entrada.current.value = "";
       if (enviados) {

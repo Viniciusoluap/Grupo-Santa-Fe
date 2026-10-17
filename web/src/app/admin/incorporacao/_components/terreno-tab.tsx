@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Upload, MapPinned, Ruler } from "lucide-react";
 import { uploadKml } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
+import { comEnvio } from "@/lib/envio-progresso";
 
 const MapaTerreno = dynamic(() => import("./mapa-terreno").then((m) => m.MapaTerreno), {
   ssr: false,
@@ -24,7 +25,7 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
     setBusy(true);
     setErro(null);
     try {
-      const res = await uploadKml(estudo.id, formData);
+      const res = await comEnvio("arquivo", () => uploadKml(estudo.id, formData));
       if (res?.error) setErro(res.error);
       else window.location.reload();
     } finally {
