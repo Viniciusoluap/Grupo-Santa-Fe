@@ -159,7 +159,7 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
       {dados.entrevistados.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="border border-gray-100 p-3">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Tipologia de interesse</p>
+            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-2">Tipologia de interesse</p>
             <div className="space-y-1.5">
               {resumo.distribuicaoTipoImovel.map((d) => (
                 <div key={d.tipo} className="flex items-center gap-2 text-xs">
@@ -171,7 +171,7 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
             </div>
           </div>
           <div className="border border-gray-100 p-3">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Itens mais valorizados (pagam mais por isso)</p>
+            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-2">Itens mais valorizados (pagam mais por isso)</p>
             <div className="space-y-1.5">
               {resumo.rankingItens.slice(0, 5).map((r) => (
                 <div key={r.item} className="flex items-center gap-2 text-xs">
@@ -210,17 +210,17 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
                   <input type="checkbox" checked={e.interesseComprar12Meses} onChange={(ev) => upd(e.id, "interesseComprar12Meses", ev.target.checked)} /> Interesse em comprar (12m)
                 </label>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tamanho ideal (m²)</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Tamanho ideal (m²)</label>
                   <NumeroBRField value={e.tamanhoIdealM2} onValueChange={(v) => upd(e.id, "tamanhoIdealM2", v)} className={numCls} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Quartos necessários</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Quartos necessários</label>
                   <input type="number" value={e.quartosNecessarios || ""} onChange={(ev) => upd(e.id, "quartosNecessarios", parseFloat(ev.target.value) || 0)} className={numCls} />
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tipos de imóvel de interesse</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Tipos de imóvel de interesse</p>
                 <div className="flex flex-wrap gap-3">
                   {TIPOS.map((t) => (
                     <label key={t.value} className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -232,21 +232,21 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Nota apartamento (0-5)</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Nota apartamento (0-5)</label>
                   <input type="number" min={0} max={5} value={e.notaApartamento || ""} onChange={(ev) => upd(e.id, "notaApartamento", parseFloat(ev.target.value) || 0)} className={numCls} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Nota casa em condomínio (0-5)</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Nota casa em condomínio (0-5)</label>
                   <input type="number" min={0} max={5} value={e.notaCasaCondominio || ""} onChange={(ev) => upd(e.id, "notaCasaCondominio", parseFloat(ev.target.value) || 0)} className={numCls} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Nota casa em rua aberta (0-5)</label>
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Nota casa em rua aberta (0-5)</label>
                   <input type="number" min={0} max={5} value={e.notaCasaRuaAberta || ""} onChange={(ev) => upd(e.id, "notaCasaRuaAberta", parseFloat(ev.target.value) || 0)} className={numCls} />
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Importância dos itens de condomínio</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Importância dos itens de condomínio</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   {ITENS_CONDOMINIO.map((item) => (
                     <div key={item} className="flex items-center gap-2">
@@ -261,7 +261,7 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
               </div>
 
               <div className="flex justify-end">
-                <button type="button" onClick={() => removerEntrevistado(e.id)} className="flex items-center gap-1 text-xs text-gray-300 hover:text-red-500">
+                <button type="button" onClick={() => removerEntrevistado(e.id)} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500">
                   <Trash2 size={13} /> Remover entrevistado
                 </button>
               </div>

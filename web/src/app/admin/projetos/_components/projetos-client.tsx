@@ -31,12 +31,12 @@ function parseTipos(raw: string | null): string[] {
 
 function TiposResumo({ raw }: { raw: string | null }) {
   const tipos = parseTipos(raw);
-  if (tipos.length === 0) return <span className="text-gray-400 text-xs">—</span>;
+  if (tipos.length === 0) return <span className="text-gray-600 text-xs">—</span>;
   const first = PROJETO_TIPO_CONFIG[tipos[0] as keyof typeof PROJETO_TIPO_CONFIG];
   const label = first ? `${first.icon} ${first.label}` : tipos[0];
   return (
     <span className="text-xs text-gray-500">
-      {label}{tipos.length > 1 && <span className="text-gray-400 ml-1">+{tipos.length - 1}</span>}
+      {label}{tipos.length > 1 && <span className="text-gray-600 ml-1">+{tipos.length - 1}</span>}
     </span>
   );
 }
@@ -79,7 +79,7 @@ export function ProjetosClient({ projetos }: Props) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Projetos e Orçamentos</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{projetos.length} projetos cadastrados</p>
+          <p className="text-gray-600 text-sm mt-0.5">{projetos.length} projetos cadastrados</p>
         </div>
         <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
       </div>
@@ -94,7 +94,7 @@ export function ProjetosClient({ projetos }: Props) {
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{label}</span>
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</span>
               <Ruler size={15} className="text-[var(--brand-yellow)]" />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl">{value}</p>
@@ -105,7 +105,7 @@ export function ProjetosClient({ projetos }: Props) {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
           <input
             type="text"
             placeholder="Buscar por nome, cliente ou engenheiro..."
@@ -166,7 +166,7 @@ export function ProjetosClient({ projetos }: Props) {
                         <p className="text-xs text-orange-400">A receber: {formatCurrency((p.valorProjeto ?? 0) - p.valorPago)}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center text-xs text-gray-400 hidden md:table-cell">
+                    <td className="px-4 py-3 text-center text-xs text-gray-600 hidden md:table-cell">
                       {p.prazoEntrega ? new Date(p.prazoEntrega).toLocaleDateString("pt-BR") : "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -174,10 +174,10 @@ export function ProjetosClient({ projetos }: Props) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Link href={`/admin/projetos/${p.id}`} className="p-1.5 text-gray-400 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
+                        <Link href={`/admin/projetos/${p.id}`} className="p-1.5 text-gray-600 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
                           <Ruler size={14} />
                         </Link>
-                        <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
+                        <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
                         <AcoesExcluir id={p.id} rotulo={p.nome} excluir={excluirProjeto} compacto />

@@ -1,7 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FileText, CalendarDays, MessageSquare, CheckCircle2, Clock, AlertCircle, HardHat } from "lucide-react";
+import { FileText, CalendarDays, MessageSquare, CheckCircle2, Clock, AlertCircle, HardHat, Landmark } from "lucide-react";
+import { rotulo } from "@/lib/rotulos";
 import { getPortalDashboard } from "@/lib/data/portal-real";
 import { formatCurrency } from "@/lib/utils";
 
@@ -80,15 +81,15 @@ export default async function PortalDashboard() {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Processo Ativo</p>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="font-bold text-[var(--brand-dark)] capitalize">
-                {financiamento.tipo.replace(/_/g, " ")} — {financiamento.banco}
+              <p className="font-bold text-[var(--brand-dark)]">
+                {rotulo(financiamento.tipo)} — {financiamento.banco ? rotulo(financiamento.banco) : "Banco em definição"}
               </p>
-              <p className={`text-sm font-medium mt-0.5 ${STATUS_FINANCIAMENTO[financiamento.status]?.color ?? "text-gray-600"}`}>
-                {STATUS_FINANCIAMENTO[financiamento.status]?.label ?? financiamento.status}
+              <p className={`text-sm font-medium mt-0.5 ${STATUS_FINANCIAMENTO[financiamento.status]?.color ?? "text-[var(--brand-dark)]"}`}>
+                {rotulo(financiamento.status)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400">Valor financiado</p>
+              <p className="text-xs text-gray-600">Valor financiado</p>
               <p className="font-black text-[var(--brand-dark)] text-lg">{formatCurrency(financiamento.valorFinanciado)}</p>
             </div>
           </div>
@@ -99,7 +100,8 @@ export default async function PortalDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { href: "/portal/documentos", label: "Documentos", icon: FileText, desc: "Envie e acompanhe" },
-          { href: "/portal/obras", label: "Minhas obras", icon: HardHat, desc: "Progresso e fotos" },
+          { href: "/portal/obras", label: "Minhas obras", icon: HardHat, desc: "Etapas, medições e fotos" },
+          { href: "/portal/financiamento", label: "Financiamento", icon: Landmark, desc: "Etapas e documentos" },
           { href: "/portal/visitas", label: "Visitas", icon: CalendarDays, desc: "Seu histórico" },
           { href: "/portal/acompanhamento", label: "Acompanhamento", icon: CheckCircle2, desc: "Atualizações" },
           { href: "/portal/chat", label: "Chat", icon: MessageSquare, desc: "Fale com corretor" },
@@ -111,7 +113,7 @@ export default async function PortalDashboard() {
           >
             <Icon size={20} className="text-[var(--brand-yellow)] mb-2" />
             <p className="font-bold text-[var(--brand-dark)] text-sm">{label}</p>
-            <p className="text-gray-400 text-xs mt-0.5">{desc}</p>
+            <p className="text-gray-600 text-xs mt-0.5">{desc}</p>
           </Link>
         ))}
       </div>
@@ -123,7 +125,7 @@ export default async function PortalDashboard() {
             <Clock size={11} /> Última Atualização
           </p>
           <p className="text-[var(--brand-dark)] text-sm font-medium">{ultimaInteracao.descricao}</p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className="text-gray-600 text-xs mt-1">
             {new Date(ultimaInteracao.criadoEm).toLocaleDateString("pt-BR", {
               day: "2-digit", month: "long", year: "numeric",
             })}

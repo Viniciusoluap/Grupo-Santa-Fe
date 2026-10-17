@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Upload, MapPinned, Ruler } from "lucide-react";
 import { uploadKml } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
+import { comEnvio } from "@/lib/envio-progresso";
 
 const MapaTerreno = dynamic(() => import("./mapa-terreno").then((m) => m.MapaTerreno), {
   ssr: false,
@@ -24,7 +25,7 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
     setBusy(true);
     setErro(null);
     try {
-      const res = await uploadKml(estudo.id, formData);
+      const res = await comEnvio("arquivo", () => uploadKml(estudo.id, formData));
       if (res?.error) setErro(res.error);
       else window.location.reload();
     } finally {
@@ -69,7 +70,7 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
         <div className="bg-white border border-gray-100 p-10 text-center">
           <MapPinned size={28} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Nenhum terreno carregado</p>
-          <p className="text-gray-400 text-sm mt-1">Envie o KML para desenhar o polígono e calcular área e perímetro.</p>
+          <p className="text-gray-600 text-sm mt-1">Envie o KML para desenhar o polígono e calcular área e perímetro.</p>
         </div>
       )}
     </div>
@@ -80,11 +81,11 @@ function Metric({ label, value, sub, icon: Icon }: { label: string; value: strin
   return (
     <div className="bg-white border border-gray-100 p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
-        <Icon size={14} className="text-gray-300" />
+        <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{label}</p>
+        <Icon size={14} className="text-gray-500" />
       </div>
       <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{value}</p>
-      {sub && <p className="text-[10px] text-gray-400 mt-1">{sub}</p>}
+      {sub && <p className="text-[10px] text-gray-600 mt-1">{sub}</p>}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { ContratoAcoes } from "./_components/contrato-acoes";
 import { ContratoEditarExcluir } from "./_components/contrato-editar-excluir";
 import { ContratoDocumentos } from "./_components/contrato-documentos";
 import { ChatAdmin } from "./_components/chat-admin";
+import { ROTULO_TIPO_CONTRATO } from "@/lib/juridico/tipos-contrato";
+import { rotulo } from "@/lib/rotulos";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   rascunho:  { bg: "bg-gray-100",   text: "text-gray-600" },
@@ -28,7 +30,7 @@ type Tab = "contratos" | "chat";
 export default async function JuridicoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; contrato?: string }>;
 }) {
   await exigirModuloPagina("juridico");
 
@@ -70,7 +72,7 @@ export default async function JuridicoPage({
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide flex items-center gap-2">
             <Scale size={20} /> Jurídico
           </h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-gray-600 text-sm mt-0.5">
             {contratos.length} contrato{contratos.length !== 1 ? "s" : ""} · Contratos, documentos e atendimento
           </p>
         </div>
@@ -86,7 +88,7 @@ export default async function JuridicoPage({
         ].map(({ label, value, color, bg }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <p className={`font-black text-xl leading-none ${color}`}>{value}</p>
-            <p className="text-gray-400 text-xs mt-1 uppercase tracking-wide">{label}</p>
+            <p className="text-gray-600 text-xs mt-1 uppercase tracking-wide">{label}</p>
           </div>
         ))}
       </div>
@@ -105,7 +107,7 @@ export default async function JuridicoPage({
             className={`flex items-center gap-1.5 px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
               activeTab === key
                 ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                : "border-transparent text-gray-400 hover:text-gray-600"
+                : "border-transparent text-gray-600 hover:text-gray-600"
             }`}
           >
             <Icon size={14} /> {label}
@@ -126,9 +128,9 @@ export default async function JuridicoPage({
           {/* Contracts list */}
           {contratos.length === 0 ? (
             <div className="bg-gray-50 border border-dashed border-gray-200 p-12 text-center">
-              <FileText size={32} className="text-gray-300 mx-auto mb-3" />
+              <FileText size={32} className="text-gray-500 mx-auto mb-3" />
               <p className="text-gray-500 font-medium">Nenhum contrato cadastrado</p>
-              <p className="text-gray-400 text-sm mt-1">Use o formulário acima para criar o primeiro contrato.</p>
+              <p className="text-gray-600 text-sm mt-1">Use o formulário acima para criar o primeiro contrato.</p>
             </div>
           ) : (
             <div className="bg-white border border-gray-100 overflow-hidden">
@@ -147,9 +149,9 @@ export default async function JuridicoPage({
                       const assBadge = ASSINATURA_BADGE[c.assinaturaStatus] ?? ASSINATURA_BADGE.pendente;
                       const pdfDoc = c.documentos.find((d) => d.tipo === "contrato_gerado");
                       return (
-                        <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={c.id} id={`contrato-${c.id}`} className={`hover:bg-gray-50 transition-colors scroll-mt-24 ${sp.contrato === c.id ? "bg-yellow-50 ring-2 ring-inset ring-[var(--brand-yellow)]" : ""}`}>
                           <td className="px-3 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{c.numero}</td>
-                          <td className="px-3 py-3 text-gray-700 capitalize text-xs whitespace-nowrap">{c.tipo.replace(/_/g, " ")}</td>
+                          <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{ROTULO_TIPO_CONTRATO[c.tipo] ?? rotulo(c.tipo)}</td>
                           <td className="px-3 py-3 font-medium text-[var(--brand-dark)] max-w-[120px] truncate text-xs">{c.parteA}</td>
                           <td className="px-3 py-3 text-gray-600 max-w-[120px] truncate text-xs">{c.parteB}</td>
                           <td className="px-3 py-3 font-bold text-[var(--brand-dark)] text-xs whitespace-nowrap">{formatCurrency(c.valor)}</td>

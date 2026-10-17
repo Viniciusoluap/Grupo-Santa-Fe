@@ -41,7 +41,7 @@ export default async function NovoCorretorPage({
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Comissão padrão (%)</label>
               <input type="text" name="percentualComissaoPadrao" inputMode="decimal" pattern="\d{1,3}([.,]\d{1,4})?" placeholder="Sem regra cadastrada"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              <p className="text-[11px] text-gray-400 mt-1">Usada nas obras sem percentual próprio. Vazio = sem regra (a comissão fica com dados incompletos).</p>
+              <p className="text-[11px] text-gray-600 mt-1">Usada nas obras sem percentual próprio. Vazio = sem regra (a comissão fica com dados incompletos).</p>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone / WhatsApp *</label>

@@ -115,10 +115,10 @@ export function LancamentoImobiliarioTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[600px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Unidade</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-44">Comprador</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Valor (R$)</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Data</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Unidade</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-44">Comprador</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Valor (R$)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Data</th>
                 <th />
               </tr>
             </thead>
@@ -130,7 +130,7 @@ export function LancamentoImobiliarioTab({ estudo }: { estudo: EstudoData }) {
                   <td className="px-1 py-1"><NumeroBRField value={v.valorVenda} onValueChange={(val) => upd(v.id, "valorVenda", val)} className={numCls} /></td>
                   <td className="px-1 py-1"><input type="date" value={v.data ?? ""} onChange={(e) => upd(v.id, "data", e.target.value)} className={inputCls} /></td>
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerVenda(v.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerVenda(v.id)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}

@@ -48,7 +48,7 @@ export default async function AdminImoveisPage() {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">
             Imóveis
           </h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-gray-600 text-sm mt-0.5">
             {imoveis.length} imóveis cadastrados
           </p>
         </div>
@@ -66,7 +66,7 @@ export default async function AdminImoveisPage() {
       {/* Search bar */}
       <div className="bg-white border border-gray-100 p-4 flex gap-3">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
           <input
             type="text"
             placeholder="Buscar por título, bairro ou tipo..."
@@ -105,13 +105,13 @@ export default async function AdminImoveisPage() {
                 <th className="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wide hidden lg:table-cell">
                   Localização
                 </th>
-                <th className="px-4 py-3 text-right font-bold text-gray-400 uppercase tracking-wide">
+                <th className="px-4 py-3 text-right font-bold text-gray-600 uppercase tracking-wide">
                   Preço
                 </th>
-                <th className="px-4 py-3 text-center font-bold text-gray-400 uppercase tracking-wide hidden md:table-cell">
+                <th className="px-4 py-3 text-center font-bold text-gray-600 uppercase tracking-wide hidden md:table-cell">
                   Situação
                 </th>
-                <th className="px-4 py-3 text-center font-bold text-gray-400 uppercase tracking-wide">
+                <th className="px-4 py-3 text-center font-bold text-gray-600 uppercase tracking-wide">
                   Ações
                 </th>
               </tr>
@@ -119,7 +119,7 @@ export default async function AdminImoveisPage() {
             <tbody className="divide-y divide-gray-50">
               {imoveis.map((imovel) => (
                 <tr key={imovel.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-400">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">
                     GSF-{imovel.id.slice(-4).toUpperCase()}
                   </td>
                   <td className="px-4 py-3">

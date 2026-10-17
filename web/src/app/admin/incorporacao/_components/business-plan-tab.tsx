@@ -112,12 +112,12 @@ export function BusinessPlanTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[680px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-40">Fonte</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-28">Capital (R$)</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-24">Remuneração (%)</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-24">Período</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-24">Resgate (meses)</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-28">Valor no resgate</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Fonte</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">Capital (R$)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-24">Remuneração (%)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-24">Período</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-24">Resgate (meses)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">Valor no resgate</th>
                 <th />
               </tr>
             </thead>
@@ -138,7 +138,7 @@ export function BusinessPlanTab({ estudo }: { estudo: EstudoData }) {
                     <td className="px-1 py-1"><input type="number" value={f.prazoResgateMeses} onChange={(e) => updFonte(f.id, "prazoResgateMeses", parseFloat(e.target.value) || 0)} className={numCls} /></td>
                     <td className="px-1 py-1 text-right font-bold text-[var(--brand-dark)]">{r ? formatCurrency(r.valorResgate) : "—"}</td>
                     <td className="px-1 py-1">
-                      <button type="button" onClick={() => removerFonte(f.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                      <button type="button" onClick={() => removerFonte(f.id)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 );

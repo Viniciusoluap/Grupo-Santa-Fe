@@ -82,7 +82,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
       <PesquisaPrimaria estudo={estudo} />
 
       {(fontesPersistidas?.confiabilidade || fontesPersistidas?.fontes?.length) && (
-        <p className="text-[11px] text-gray-400">Confiabilidade: <b>{fontesPersistidas.confiabilidade || "não informada"}</b>{fontesPersistidas.fontes?.filter(Boolean).length ? ` · Fontes: ${fontesPersistidas.fontes.filter(Boolean).join("; ")}` : ""}</p>
+        <p className="text-[11px] text-gray-600">Confiabilidade: <b>{fontesPersistidas.confiabilidade || "não informada"}</b>{fontesPersistidas.fontes?.filter(Boolean).length ? ` · Fontes: ${fontesPersistidas.fontes.filter(Boolean).join("; ")}` : ""}</p>
       )}
 
       {cidade && (
@@ -123,7 +123,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
                       d.demanda === "media" ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-500"
                     }`}>{d.demanda}</span>
                     <span className="font-bold text-[var(--brand-dark)]">{d.produto}</span>
-                    <span className="text-gray-400 text-xs">{d.publico}</span>
+                    <span className="text-gray-600 text-xs">{d.publico}</span>
                   </div>
                 ))}
               </div>
@@ -138,7 +138,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
                   {mercado.concorrentes.map((c, i) => (
                     <div key={i}>
                       <p className="font-bold text-[var(--brand-dark)]">{c.nome}</p>
-                      <p className="text-xs text-gray-400">{c.produto} · {c.faixaPreco}</p>
+                      <p className="text-xs text-gray-600">{c.produto} · {c.faixaPreco}</p>
                     </div>
                   ))}
                 </div>
@@ -184,7 +184,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
         <div className="bg-white border border-gray-100 p-10 text-center">
           <TrendingUp size={28} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Pesquisa ainda não realizada</p>
-          <p className="text-gray-400 text-sm mt-1">A IA busca dados reais da cidade e do mercado imobiliário local.</p>
+          <p className="text-gray-600 text-sm mt-1">A IA busca dados reais da cidade e do mercado imobiliário local.</p>
         </div>
       )}
     </div>
@@ -194,7 +194,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
 function Dado({ label, valor }: { label: string; valor: string }) {
   return (
     <div>
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
+      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{label}</p>
       <p className="font-black text-[var(--brand-dark)]">{valor}</p>
     </div>
   );
@@ -203,7 +203,7 @@ function Dado({ label, valor }: { label: string; valor: string }) {
 function KPI({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white border border-gray-100 p-4">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">{label}</p>
       <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{value}</p>
     </div>
   );

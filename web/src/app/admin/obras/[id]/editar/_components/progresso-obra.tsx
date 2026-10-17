@@ -141,7 +141,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
       <section className="bg-white border border-gray-100 p-5">
         <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest flex items-center gap-2 mb-3"><History size={14} />Histórico de medições</h2>
         {dados.historico.length === 0 ? (
-          <p className="text-sm text-gray-400">Nenhuma medição salva ainda.</p>
+          <p className="text-sm text-gray-600">Nenhuma medição salva ainda.</p>
         ) : (
           <ul className="divide-y divide-gray-100 text-sm">
             {dados.historico.map((h) => (

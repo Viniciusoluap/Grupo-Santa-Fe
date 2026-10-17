@@ -161,7 +161,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
 
       <div>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Central WhatsApp</h1>
-        <p className="text-gray-400 text-sm mt-0.5">{totalLeads} leads disponíveis para envio</p>
+        <p className="text-gray-600 text-sm mt-0.5">{totalLeads} leads disponíveis para envio</p>
       </div>
 
       {/* KPIs */}
@@ -174,7 +174,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{label}</span>
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</span>
               <Icon size={15} className={color} />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl">{value}</p>
@@ -191,7 +191,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
           { key: "historico" as const, label: "Histórico", icon: Clock },
         ]).map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wide border-b-2 transition-colors whitespace-nowrap ${activeTab === key ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "border-transparent text-gray-400 hover:text-[var(--brand-dark)]"}`}>
+            className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wide border-b-2 transition-colors whitespace-nowrap ${activeTab === key ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "border-transparent text-gray-600 hover:text-[var(--brand-dark)]"}`}>
             <Icon size={14} /> {label}
           </button>
         ))}
@@ -273,7 +273,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 Conexões dos Corretores {conexoesCorretores.length > 0 && `(${conexoesCorretores.length})`}
               </h2>
               {conexoesCorretores.length === 0 ? (
-                <p className="text-sm text-gray-400">Nenhum corretor cadastrado.</p>
+                <p className="text-sm text-gray-600">Nenhum corretor cadastrado.</p>
               ) : (
                 <div className="divide-y divide-gray-50">
                   {conexoesCorretores.map((c) => (
@@ -319,7 +319,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 )}
               </div>
               <div className="relative mb-3">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
                 <input type="text" placeholder="Buscar lead..." value={searchLead}
                   onChange={(e) => setSearchLead(e.target.value)}
                   className="w-full pl-8 pr-3 py-2 border border-gray-200 text-xs focus:outline-none focus:border-[var(--brand-yellow)]" />
@@ -334,16 +334,16 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                         className="accent-[var(--brand-yellow)]" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{l.nome}</p>
-                        <p className="text-xs text-gray-400">{l.telefone} · {l.servico}</p>
+                        <p className="text-xs text-gray-600">{l.telefone} · {l.servico}</p>
                       </div>
                     </label>
                   );
                 })}
-                {filteredLeads.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Nenhum lead encontrado.</p>}
+                {filteredLeads.length === 0 && <p className="text-xs text-gray-600 text-center py-4">Nenhum lead encontrado.</p>}
               </div>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button onClick={() => setSelectedLeads(leads.map((l) => l.id))}
-                  className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-[var(--brand-dark)] transition-colors">
+                  className="flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-[var(--brand-dark)] transition-colors">
                   <Users size={12} /> Selecionar todos ({leads.length})
                 </button>
               </div>
@@ -366,14 +366,14 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 <textarea rows={5} value={mensagem} onChange={(e) => setMensagem(e.target.value)}
                   placeholder="Digite a mensagem ou selecione um template..."
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none font-mono" />
-                <p className="text-xs text-gray-400 mt-1">{mensagem.length} caracteres</p>
+                <p className="text-xs text-gray-600 mt-1">{mensagem.length} caracteres</p>
               </div>
               {mensagem && (
                 <div className="bg-[#ECE5DD] p-4">
                   <p className="text-[10px] font-bold text-gray-500 mb-2 uppercase">Prévia</p>
                   <div className="bg-white p-3 shadow-sm max-w-xs">
                     <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{mensagem}</p>
-                    <p className="text-[10px] text-gray-400 text-right mt-2">agora ✓✓</p>
+                    <p className="text-[10px] text-gray-600 text-right mt-2">agora ✓✓</p>
                   </div>
                 </div>
               )}
@@ -405,9 +405,9 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
             </div>
           ))}
           <div className="bg-gray-50 border border-dashed border-gray-200 p-5 flex flex-col items-center justify-center gap-2 text-center">
-            <Plus size={24} className="text-gray-300" />
-            <p className="text-sm font-bold text-gray-400">Novo Template</p>
-            <p className="text-xs text-gray-400">Em breve</p>
+            <Plus size={24} className="text-gray-500" />
+            <p className="text-sm font-bold text-gray-600">Novo Template</p>
+            <p className="text-xs text-gray-600">Em breve</p>
           </div>
         </div>
       )}
@@ -417,12 +417,12 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
         <div className="bg-white border border-gray-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">Mensagens Enviadas</h2>
-            <span className="text-xs text-gray-400">{historico.length} registros</span>
+            <span className="text-xs text-gray-600">{historico.length} registros</span>
           </div>
           {historico.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <MessageCircle size={32} className="text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Nenhuma mensagem enviada ainda.</p>
+              <p className="text-sm text-gray-600">Nenhuma mensagem enviada ainda.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -442,7 +442,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                       <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
                           <p className="font-medium text-[var(--brand-dark)]">{m.nomeDestinatario ?? m.destinatario}</p>
-                          <p className="text-xs text-gray-400">{m.destinatario}</p>
+                          <p className="text-xs text-gray-600">{m.destinatario}</p>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell max-w-xs">
                           <p className="text-xs text-gray-600 truncate">{m.mensagem}</p>
@@ -451,7 +451,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                           <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold ${badge.bg} ${badge.text}`}>{badge.label}</span>
                           {m.erroMsg && <p className="text-xs text-red-400 mt-0.5">{m.erroMsg}</p>}
                         </td>
-                        <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-400">
+                        <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-600">
                           {new Date(m.enviadaEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                         </td>
                       </tr>

@@ -13,6 +13,7 @@ import { salvarRegistroIncorporacao } from "@/lib/actions/incorporacao";
 import { desvincularDocumentoRegistro, enviarDocumentoRegistro, listarDocumentosRegistro } from "@/lib/actions/documentos-registro";
 import { DriveDiagnostico } from "./drive-diagnostico";
 import type { EstudoData } from "./incorporacao-detail";
+import { comEnvio } from "@/lib/envio-progresso";
 
 // Registro da Incorporação (3.4 Incorporação e Produto) — checklist dos
 // documentos exigidos pelo art. 32 da Lei 4.591/64, pré-preenchido
@@ -72,7 +73,7 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
     setArquivoPendente(itemId);
     setErroArquivo(null);
     try {
-      const resultado = exigirResultado(await enviarDocumentoRegistro(estudo.id, itemId, arquivo));
+      const resultado = exigirResultado(await comEnvio("documento", () => enviarDocumentoRegistro(estudo.id, itemId, arquivo)));
       setArquivos(resultado.documentos);
       setAvisoArquivo("notaArmazenamento" in resultado && resultado.notaArmazenamento
         ? `Documento salvo no sistema. Google Drive indisponível: ${resultado.notaArmazenamento}` : null);
@@ -142,11 +143,11 @@ export function RegistroIncorporacaoTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[760px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-72">Documento</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Status</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Data de obtenção</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-52">Observações</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-64">Arquivo privado (opcional)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-72">Documento</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Status</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Data de obtenção</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-52">Observações</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-64">Arquivo privado (opcional)</th>
               </tr>
             </thead>
             <tbody>

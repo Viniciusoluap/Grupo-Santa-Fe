@@ -7,6 +7,7 @@ import {
   salvarArquivosProjeto,
   alterarStatusProjetoFromDetail,
 } from "@/lib/actions/projetos";
+import { comEnvio } from "@/lib/envio-progresso";
 
 interface ChecklistItem {
   id: string;
@@ -127,7 +128,7 @@ export default function ProjetoDetailClient({
       ];
       setArquivos(updated);
       startTransition(async () => {
-        await salvarArquivosProjeto(projetoId, JSON.stringify(updated));
+        await comEnvio("arquivo", () => salvarArquivosProjeto(projetoId, JSON.stringify(updated)));
         showSaved();
       });
     };
@@ -140,7 +141,7 @@ export default function ProjetoDetailClient({
     const updated = arquivos.filter((_, i) => i !== index);
     setArquivos(updated);
     startTransition(async () => {
-      await salvarArquivosProjeto(projetoId, JSON.stringify(updated));
+      await comEnvio("arquivo", () => salvarArquivosProjeto(projetoId, JSON.stringify(updated)));
       showSaved();
     });
   }
@@ -184,7 +185,7 @@ export default function ProjetoDetailClient({
                 className={`text-[10px] font-bold px-3 py-1.5 uppercase transition-colors border ${
                   isActive
                     ? `${cfg.bgColor} ${cfg.color} border-transparent cursor-default`
-                    : "border-gray-200 text-gray-400 hover:bg-gray-50 cursor-pointer"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50 cursor-pointer"
                 }`}
               >
                 {cfg.label}
@@ -201,14 +202,14 @@ export default function ProjetoDetailClient({
             Checklist
           </h2>
           {checklist.length > 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-600">
               {feitos}/{checklist.length} concluídos
             </span>
           )}
         </div>
 
         {checklist.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-3">
+          <p className="text-sm text-gray-600 text-center py-3">
             Nenhum item no checklist.
           </p>
         ) : (
@@ -221,7 +222,7 @@ export default function ProjetoDetailClient({
                 <button
                   onClick={() => toggleItem(i)}
                   disabled={isPending}
-                  className="shrink-0 text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
+                  className="shrink-0 text-gray-600 hover:text-[var(--brand-dark)] transition-colors"
                 >
                   {item.feito ? (
                     <CheckSquare size={16} className="text-green-600" />
@@ -231,7 +232,7 @@ export default function ProjetoDetailClient({
                 </button>
                 <span
                   className={`flex-1 text-sm ${
-                    item.feito ? "line-through text-gray-400" : "text-[var(--brand-dark)]"
+                    item.feito ? "line-through text-gray-600" : "text-[var(--brand-dark)]"
                   }`}
                 >
                   {item.texto}
@@ -239,7 +240,7 @@ export default function ProjetoDetailClient({
                 <button
                   onClick={() => removerItem(i)}
                   disabled={isPending}
-                  className="shrink-0 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  className="shrink-0 text-gray-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -294,7 +295,7 @@ export default function ProjetoDetailClient({
                 key={i}
                 className="flex items-center gap-2 p-2.5 bg-gray-50 group"
               >
-                <Paperclip size={13} className="text-gray-400 shrink-0" />
+                <Paperclip size={13} className="text-gray-600 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <a
                     href={arq.url}
@@ -303,12 +304,12 @@ export default function ProjetoDetailClient({
                   >
                     {arq.nome}
                   </a>
-                  <span className="text-xs text-gray-400">{arq.data}</span>
+                  <span className="text-xs text-gray-600">{arq.data}</span>
                 </div>
                 <button
                   onClick={() => removerArquivo(i)}
                   disabled={isPending}
-                  className="shrink-0 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  className="shrink-0 text-gray-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                 >
                   <X size={13} />
                 </button>

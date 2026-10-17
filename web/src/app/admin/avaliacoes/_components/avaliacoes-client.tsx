@@ -64,9 +64,9 @@ export function AvaliacoesClient({ avaliacoes }: { avaliacoes: AvaliacaoRow[] })
   if (avaliacoes.length === 0) {
     return (
       <div className="bg-gray-50 border border-dashed border-gray-200 p-12 text-center">
-        <ClipboardList size={32} className="text-gray-300 mx-auto mb-3" />
+        <ClipboardList size={32} className="text-gray-500 mx-auto mb-3" />
         <p className="text-gray-500 font-medium">Nenhuma avaliação cadastrada</p>
-        <p className="text-gray-400 text-sm mt-1">
+        <p className="text-gray-600 text-sm mt-1">
           <Link href="/admin/avaliacoes/nova" className="text-[var(--brand-yellow)] hover:underline">
             Solicitar primeira avaliação
           </Link>
@@ -79,7 +79,7 @@ export function AvaliacoesClient({ avaliacoes }: { avaliacoes: AvaliacaoRow[] })
     <div className="space-y-3">
       {/* Batch action bar */}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-600">
           {selected.size > 0
             ? `${selected.size} avaliação${selected.size > 1 ? "ões" : ""} selecionada${selected.size > 1 ? "s" : ""}`
             : "Selecione avaliações para baixar laudos em lote"}
@@ -111,12 +111,12 @@ export function AvaliacoesClient({ avaliacoes }: { avaliacoes: AvaliacaoRow[] })
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase">Número</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase">Cliente / Endereço</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase hidden md:table-cell">Tipo</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase hidden lg:table-cell">Avaliador</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase hidden lg:table-cell">Valor Estimado</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase">Status</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase">Ações</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-600 uppercase">Cliente / Endereço</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-600 uppercase hidden md:table-cell">Tipo</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-600 uppercase hidden lg:table-cell">Avaliador</th>
+                <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-600 uppercase hidden lg:table-cell">Valor Estimado</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-600 uppercase">Status</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-600 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -145,7 +145,7 @@ export function AvaliacoesClient({ avaliacoes }: { avaliacoes: AvaliacaoRow[] })
                       >
                         {a.clienteNome}
                       </Link>
-                      <p className="text-xs text-gray-400">{a.endereco}, {a.bairro}</p>
+                      <p className="text-xs text-gray-600">{a.endereco}, {a.bairro}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-600">
                       {TIPO_LABELS[a.tipo] ?? a.tipo}

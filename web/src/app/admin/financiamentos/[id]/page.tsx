@@ -19,7 +19,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
   const f = await prisma.financiamento.findUnique({
     where: { id },
     include: {
-      checklist: { orderBy: { grupo: "asc" } },
+      checklist: { orderBy: { grupo: "asc" }, include: { arquivo: { select: { id: true, nome: true } } } },
       corretor: true,
       leadVinculado: { select: { id: true, nome: true } },
     },
@@ -42,7 +42,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/financiamentos" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/financiamentos" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Financiamentos
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{f.clienteNome}</h1>
@@ -63,7 +63,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
               <div key={stage} className="flex items-center">
                 <div className={`flex flex-col items-center px-2 py-1 ${isActive ? "opacity-100" : "opacity-50"}`}>
                   <div className={`w-3 h-3 rounded-full border-2 ${isActive ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)]" : isPast ? "border-green-500 bg-green-500" : "border-gray-300 bg-white"}`} />
-                  <span className={`text-[10px] font-bold mt-1 uppercase text-center ${isActive ? "text-[var(--brand-dark)]" : "text-gray-400"}`}>{sc.label}</span>
+                  <span className={`text-[10px] font-bold mt-1 uppercase text-center ${isActive ? "text-[var(--brand-dark)]" : "text-gray-600"}`}>{sc.label}</span>
                 </div>
                 {i < arr.length - 1 && <div className={`h-0.5 w-6 ${isPast || isActive ? "bg-[var(--brand-yellow)]" : "bg-gray-200"}`} />}
               </div>
@@ -140,7 +140,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
                 Originado do CRM — lead “{f.leadVinculado.nome}”
               </Link>
             ) : (
-              <p className="mt-3 text-[11px] text-gray-400">
+              <p className="mt-3 text-[11px] text-gray-600">
                 Financiamento legado (sem vínculo com lead no CRM).
               </p>
             )}

@@ -24,14 +24,14 @@ export function ImovelAcoes({ id, titulo }: Props) {
         href={`/imoveis/${id}`}
         target="_blank"
         title="Ver no site"
-        className="p-1.5 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-100 transition-colors"
+        className="p-1.5 text-gray-600 hover:text-[var(--brand-dark)] hover:bg-gray-100 transition-colors"
       >
         <Eye size={14} />
       </Link>
       <Link
         href={`/admin/imoveis/${id}/editar`}
         title="Editar"
-        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+        className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors"
       >
         <Pencil size={14} />
       </Link>
@@ -39,7 +39,7 @@ export function ImovelAcoes({ id, titulo }: Props) {
         onClick={handleExcluir}
         disabled={isPending}
         title="Excluir"
-        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30"
+        className="p-1.5 text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30"
       >
         <Trash2 size={14} />
       </button>

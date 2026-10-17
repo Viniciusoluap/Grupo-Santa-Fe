@@ -18,9 +18,10 @@ interface Usuario {
   permissoes: string | null;  // JSON string
   leadId: string | null;
   leadNome: string | null;
+  leadTelefone: string | null;
 }
 
-interface LeadOpcao { id: string; nome: string; email: string | null }
+interface LeadOpcao { id: string; nome: string; email: string | null; telefone: string | null }
 
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
   { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
@@ -50,6 +51,9 @@ interface Props {
 export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
   const [papelNovo, setPapelNovo] = useState<Papel>("colaborador");
   const [buscaLead, setBuscaLead] = useState("");
+  // Item 12 (18/10): conta de cliente com nome e telefone do cadastro no CRM.
+  const [nomeNovo, setNomeNovo] = useState("");
+  const [foneNovo, setFoneNovo] = useState("");
   const [linkGerado, setLinkGerado] = useState<{ link: string; emailEnviado: boolean } | null>(null);
   const [perfilId, setPerfilId] = useState<string | null>(null);
   const [aba, setAba] = useState<Papel | "todos">("todos");
@@ -167,7 +171,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors border-b-2 -mb-px ${
               aba === p
                 ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]"
-                : "border-transparent text-gray-400 hover:text-gray-600"
+                : "border-transparent text-gray-600 hover:text-gray-600"
             }`}
           >
             {p === "todos" ? "Todos" : PAPEIS.find((x) => x.value === p)?.label}
@@ -181,7 +185,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
       {/* Lista */}
       <div className="space-y-2">
         {filtrados.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-6">Nenhum usuário nesta categoria.</p>
+          <p className="text-sm text-gray-600 text-center py-6">Nenhum usuário nesta categoria.</p>
         )}
         {filtrados.map((u) => (
           <div key={u.id} className={`border px-4 py-3 flex items-center gap-3 flex-wrap ${u.ativo ? "border-gray-100" : "border-gray-100 bg-gray-50 opacity-60"}`}>
@@ -191,23 +195,23 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <Badge papel={u.papel} />
                 {!u.ativo && <span className="text-[10px] text-red-500 font-bold uppercase">Inativo</span>}
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">{u.email}</p>
-              {u.creci && <p className="text-xs text-gray-400">CRECI: {u.creci}</p>}
-              {u.papel === "cliente" && <p className="text-xs text-gray-400">Cliente do CRM: {u.leadNome ?? "sem vínculo (vincule em Perfil)"}</p>}
+              <p className="text-xs text-gray-600 mt-0.5">{u.email}</p>
+              {u.papel === "corretor" && u.creci && <p className="text-xs text-gray-600">CRECI: {u.creci}</p>}
+              {u.papel === "cliente" && <p className="text-xs text-gray-600">Cliente do CRM: {u.leadNome ? `${u.leadNome}${u.leadTelefone ? ` · ${u.leadTelefone}` : ""}` : "sem vínculo (vincule em Perfil)"}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => handleToggle(u.id, u.ativo)}
                 disabled={isPending}
                 title={u.ativo ? "Desativar" : "Ativar"}
-                className="text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
+                className="text-gray-600 hover:text-[var(--brand-dark)] transition-colors"
               >
                 {u.ativo ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
               </button>
               <button
                 onClick={() => setPerfilId(perfilId === u.id ? null : u.id)}
                 title="Alterar perfil"
-                className="text-gray-400 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
+                className="text-gray-600 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
               >
                 Perfil
               </button>
@@ -215,14 +219,14 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 onClick={() => setPermissoesId(permissoesId === u.id ? null : u.id)}
                 title="Módulos liberados (só colaborador)"
                 disabled={u.papel !== "colaborador"}
-                className="text-gray-400 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-gray-600 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Shield size={15} />
               </button>
               <button
                 onClick={() => setResetId(u.id)}
                 title="Redefinir senha"
-                className="text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
+                className="text-gray-600 hover:text-[var(--brand-dark)] transition-colors"
               >
                 <KeyRound size={15} />
               </button>
@@ -230,7 +234,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 onClick={() => handleExcluir(u.id, u.nome)}
                 disabled={isPending || u.papel === "admin"}
                 title="Excluir"
-                className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-gray-500 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Trash2 size={15} />
               </button>
@@ -247,8 +251,8 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <label className="text-xs font-bold text-gray-500 uppercase">Cliente do CRM (se cliente)
                   <select name="leadId" defaultValue={u.leadId ?? ""} className="block mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case max-w-[16rem]">
                     <option value="">—</option>
-                    {u.leadId && <option value={u.leadId}>{u.leadNome ?? u.leadId}</option>}
-                    {leadsSemConta.map((l) => <option key={l.id} value={l.id}>{l.nome}{l.email ? ` · ${l.email}` : ""}</option>)}
+                    {u.leadId && <option value={u.leadId}>Atual: {u.leadNome ?? "cliente sem nome"}{u.leadTelefone ? ` · ${u.leadTelefone}` : ""}</option>}
+                    {leadsSemConta.map((l) => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ""}{l.email ? ` · ${l.email}` : ""}</option>)}
                   </select>
                 </label>
                 <button type="submit" disabled={isPending} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold px-3 py-1.5">Salvar perfil</button>
@@ -282,7 +286,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <button
                   type="button"
                   onClick={() => setPermissoesId(null)}
-                  className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+                  className="mt-2 text-xs text-gray-600 hover:text-gray-600"
                 >
                   Fechar
                 </button>
@@ -325,7 +329,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             <form onSubmit={handleCriar} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome completo *</label>
-                <input name="nome" type="text" required placeholder="Nome do usuário" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                <input name="nome" type="text" required value={nomeNovo} onChange={(e) => setNomeNovo(e.target.value)} placeholder="Nome do usuário" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail *</label>
@@ -345,7 +349,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone{papelNovo === "corretor" ? " *" : ""}</label>
-                <input name="telefone" type="tel" required={papelNovo === "corretor"} placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                <input name="telefone" type="tel" required={papelNovo === "corretor"} value={foneNovo} onChange={(e) => setFoneNovo(e.target.value)} placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
               {papelNovo === "corretor" && (
                 <div>
@@ -357,10 +361,19 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente do CRM *</label>
                   <input type="search" value={buscaLead} onChange={(e) => setBuscaLead(e.target.value)} placeholder="Pesquisar cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
-                  <select name="leadId" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] mt-1 bg-white">
+                  <select
+                    name="leadId"
+                    required
+                    aria-label="Cliente do CRM"
+                    onChange={(e) => {
+                      const lead = leadsSemConta.find((l) => l.id === e.target.value);
+                      if (lead) { setNomeNovo(lead.nome); setFoneNovo(lead.telefone ?? ""); }
+                    }}
+                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] mt-1 bg-white"
+                  >
                     <option value="">Selecione</option>
                     {leadsSemConta.filter((l) => !buscaLead.trim() || `${l.nome} ${l.email ?? ""}`.toLowerCase().includes(buscaLead.trim().toLowerCase())).slice(0, 200)
-                      .map((l) => <option key={l.id} value={l.id}>{l.nome}{l.email ? ` · ${l.email}` : ""}</option>)}
+                      .map((l) => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ""}{l.email ? ` · ${l.email}` : ""}</option>)}
                   </select>
                 </div>
               )}

@@ -408,7 +408,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-400">{verifiedCount} de {TOTAL_ITEMS} itens verificados</span>
+              <span className="text-xs text-gray-600">{verifiedCount} de {TOTAL_ITEMS} itens verificados</span>
               <span className="text-xs font-bold text-[var(--brand-dark)]">{progressPct}%</span>
             </div>
             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -463,9 +463,9 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
               >
                 <div className="flex items-center gap-2">
                   {isOpen ? (
-                    <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                    <ChevronDown size={14} className="text-gray-600 shrink-0" />
                   ) : (
-                    <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                    <ChevronRight size={14} className="text-gray-600 shrink-0" />
                   )}
                   <span className="text-xs font-bold text-[var(--brand-dark)] uppercase tracking-widest">
                     {group.label}
@@ -477,7 +477,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                       {groupNonConformes} NC
                     </span>
                   )}
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-gray-600">
                     {groupVerified}/{group.items.length}
                   </span>
                 </div>
@@ -517,7 +517,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                           )}
                           <span
                             className={`flex-1 text-sm ${
-                              state.ok === true ? "text-gray-600" : state.ok === false ? "text-red-500" : "text-gray-400"
+                              state.ok === true ? "text-gray-600" : state.ok === false ? "text-red-500" : "text-gray-600"
                             }`}
                           >
                             {item.label}
@@ -526,7 +526,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
                             type="button"
                             title={noteOpen ? "Fechar nota" : "Adicionar nota"}
                             onClick={() => toggleNote(item.key)}
-                            className="shrink-0 text-gray-300 hover:text-[var(--brand-dark)] transition-colors"
+                            className="shrink-0 text-gray-500 hover:text-[var(--brand-dark)] transition-colors"
                           >
                             <Plus size={14} />
                           </button>
@@ -555,7 +555,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
       {/* Fotos */}
       <div className="px-5 py-5 border-t border-gray-100">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Fotos da Vistoria</p>
-        <p className="text-[10px] text-gray-400 mb-3">
+        <p className="text-[10px] text-gray-600 mb-3">
           Max. 15 fotos · cada foto reduzida automaticamente para max 800px / JPEG 60%
         </p>
         {data.fotos.length < 15 && (

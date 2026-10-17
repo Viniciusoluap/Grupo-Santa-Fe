@@ -47,11 +47,11 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/avaliacoes" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/avaliacoes" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Avaliações
         </Link>
         <div>
-          <span className="text-xs font-mono text-gray-400">{a.numero}</span>
+          <span className="text-xs font-mono text-gray-600">{a.numero}</span>
           <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase leading-tight">
             {TIPO_LABELS[a.tipo] ?? a.tipo}
           </h1>
@@ -93,29 +93,29 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5 space-y-2">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Imóvel Avaliado</p>
             <div className="flex items-start gap-2">
-              <MapPin size={13} className="text-gray-400 mt-0.5 shrink-0" />
+              <MapPin size={13} className="text-gray-600 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm text-[var(--brand-dark)]">{a.endereco}</p>
-                <p className="text-xs text-gray-400">{a.bairro} · {a.cidade}/{a.estado}</p>
+                <p className="text-xs text-gray-600">{a.bairro} · {a.cidade}/{a.estado}</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 pt-2">
               {a.areaConstruida != null && (
                 <div className="bg-gray-50 p-2 text-center">
                   <p className="font-black text-[var(--brand-dark)] text-sm">{a.areaConstruida}m²</p>
-                  <p className="text-[9px] text-gray-400">Construído</p>
+                  <p className="text-[9px] text-gray-600">Construído</p>
                 </div>
               )}
               {a.areaTerreno != null && (
                 <div className="bg-gray-50 p-2 text-center">
                   <p className="font-black text-[var(--brand-dark)] text-sm">{a.areaTerreno}m²</p>
-                  <p className="text-[9px] text-gray-400">Terreno</p>
+                  <p className="text-[9px] text-gray-600">Terreno</p>
                 </div>
               )}
               {a.quartos != null && (
                 <div className="bg-gray-50 p-2 text-center">
                   <p className="font-black text-[var(--brand-dark)] text-sm">{a.quartos}</p>
-                  <p className="text-[9px] text-gray-400">Quartos</p>
+                  <p className="text-[9px] text-gray-600">Quartos</p>
                 </div>
               )}
             </div>
@@ -124,19 +124,19 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
           {/* Avaliação info */}
           <div className="bg-white border border-gray-100 p-5 space-y-2">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Avaliação</p>
-            <p className="text-sm text-gray-600"><span className="text-gray-400">Tipo:</span> {TIPO_LABELS[a.tipo] ?? a.tipo}</p>
-            <p className="text-sm text-gray-600"><span className="text-gray-400">Finalidade:</span> {FINALIDADE_LABELS[a.finalidade] ?? a.finalidade}</p>
-            <p className="text-sm text-gray-600"><span className="text-gray-400">Metodologia:</span> {a.metodologia}</p>
-            <p className="text-sm text-gray-600"><span className="text-gray-400">Avaliador:</span> {a.avaliador}</p>
+            <p className="text-sm text-gray-600"><span className="text-gray-600">Tipo:</span> {TIPO_LABELS[a.tipo] ?? a.tipo}</p>
+            <p className="text-sm text-gray-600"><span className="text-gray-600">Finalidade:</span> {FINALIDADE_LABELS[a.finalidade] ?? a.finalidade}</p>
+            <p className="text-sm text-gray-600"><span className="text-gray-600">Metodologia:</span> {a.metodologia}</p>
+            <p className="text-sm text-gray-600"><span className="text-gray-600">Avaliador:</span> {a.avaliador}</p>
             {a.dataVistoria && (
               <p className="text-sm text-gray-600 flex items-center gap-1">
-                <Calendar size={12} className="text-gray-400" />
+                <Calendar size={12} className="text-gray-600" />
                 Vistoria: {new Date(a.dataVistoria).toLocaleDateString("pt-BR")}
               </p>
             )}
             {a.prazoEntrega && (
               <p className="text-sm text-gray-600 flex items-center gap-1">
-                <Calendar size={12} className="text-gray-400" />
+                <Calendar size={12} className="text-gray-600" />
                 Prazo: {new Date(a.prazoEntrega).toLocaleDateString("pt-BR")}
               </p>
             )}

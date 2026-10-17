@@ -19,7 +19,7 @@ export default async function EditarCorretorPage({ params, searchParams }: PageP
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/admin/corretores" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/corretores" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Corretores
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Corretor</h1>
@@ -46,7 +46,7 @@ export default async function EditarCorretorPage({ params, searchParams }: PageP
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Comissão padrão (%)</label>
               <input type="text" name="percentualComissaoPadrao" inputMode="decimal" pattern="\d{1,3}([.,]\d{1,4})?" defaultValue={c.regraComissao ? String(Number(c.regraComissao.percentual)).replace(".", ",") : ""} placeholder="Sem regra cadastrada"
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              <p className="text-[11px] text-gray-400 mt-1">Usada nas obras sem percentual próprio. Vazio = sem regra (a comissão fica com dados incompletos).</p>
+              <p className="text-[11px] text-gray-600 mt-1">Usada nas obras sem percentual próprio. Vazio = sem regra (a comissão fica com dados incompletos).</p>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone / WhatsApp *</label>

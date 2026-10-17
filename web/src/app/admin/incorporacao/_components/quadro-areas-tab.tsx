@@ -146,9 +146,9 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[720px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-40">Pavimento</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Pavimento</th>
                 {COLS.map((c) => (
-                  <th key={c.campo} className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-24">{c.label}</th>
+                  <th key={c.campo} className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-24">{c.label}</th>
                 ))}
                 <th />
               </tr>
@@ -163,7 +163,7 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
                     </td>
                   ))}
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerItem(i)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerItem(i)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}

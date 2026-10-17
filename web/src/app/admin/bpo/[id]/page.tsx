@@ -48,7 +48,7 @@ export default async function BpoClientePage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/bpo" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/bpo" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> BPO Financeiro
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase">{cliente.razaoSocial}</h1>
@@ -60,9 +60,9 @@ export default async function BpoClientePage({ params }: PageProps) {
         <div className="space-y-4">
           <div className="bg-white border border-gray-100 p-5 space-y-3">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Dados do Cliente</p>
-            {cliente.cnpj && <p className="text-sm text-gray-600"><span className="text-gray-400">CNPJ:</span> {cliente.cnpj}</p>}
-            {cliente.cpf && <p className="text-sm text-gray-600"><span className="text-gray-400">CPF:</span> {cliente.cpf}</p>}
-            <p className="text-sm text-gray-600"><span className="text-gray-400">Responsável:</span> {cliente.responsavel}</p>
+            {cliente.cnpj && <p className="text-sm text-gray-600"><span className="text-gray-600">CNPJ:</span> {cliente.cnpj}</p>}
+            {cliente.cpf && <p className="text-sm text-gray-600"><span className="text-gray-600">CPF:</span> {cliente.cpf}</p>}
+            <p className="text-sm text-gray-600"><span className="text-gray-600">Responsável:</span> {cliente.responsavel}</p>
             <a href={`tel:${cliente.telefone}`} className="flex items-center gap-2 text-sm text-[var(--brand-dark)] hover:text-[var(--brand-yellow)]">
               <Phone size={13} /> {formatTelefone(cliente.telefone)}
             </a>
@@ -72,8 +72,8 @@ export default async function BpoClientePage({ params }: PageProps) {
               </a>
             )}
             <div className="pt-2 border-t border-gray-100">
-              <p className="text-sm text-gray-600"><span className="text-gray-400">Início:</span> {new Date(cliente.dataInicio).toLocaleDateString("pt-BR")}</p>
-              <p className="text-sm text-gray-600 mt-1"><span className="text-gray-400">Vencimento:</span> dia {cliente.diaVencimento}</p>
+              <p className="text-sm text-gray-600"><span className="text-gray-600">Início:</span> {new Date(cliente.dataInicio).toLocaleDateString("pt-BR")}</p>
+              <p className="text-sm text-gray-600 mt-1"><span className="text-gray-600">Vencimento:</span> dia {cliente.diaVencimento}</p>
               <p className="text-sm font-bold text-[var(--brand-dark)] mt-1">{formatCurrency(cliente.honorarios)}/mês</p>
             </div>
             {cliente.observacoes && (
@@ -102,7 +102,7 @@ export default async function BpoClientePage({ params }: PageProps) {
             </div>
             <div className="bg-white border border-gray-100 p-4 text-center">
               <p className="font-black text-green-600 text-lg">{formatCurrency(totalPago)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Pago</p>
+              <p className="text-xs text-gray-600 mt-0.5">Pago</p>
             </div>
           </div>
 
@@ -172,14 +172,14 @@ export default async function BpoClientePage({ params }: PageProps) {
               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Lançamentos ({cliente.lancamentos.length})</p>
             </div>
             {cliente.lancamentos.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">Nenhum lançamento registrado.</p>
+              <p className="text-sm text-gray-600 text-center py-8">Nenhum lançamento registrado.</p>
             ) : (
               <div className="divide-y divide-gray-50">
                 {cliente.lancamentos.map((l) => (
                   <div key={l.id} className="px-5 py-3 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{l.descricao}</p>
-                      <p className="text-xs text-gray-400">{l.competencia} · Venc. {new Date(l.vencimento).toLocaleDateString("pt-BR")}</p>
+                      <p className="text-xs text-gray-600">{l.competencia} · Venc. {new Date(l.vencimento).toLocaleDateString("pt-BR")}</p>
                     </div>
                     <p className="font-bold text-[var(--brand-dark)] shrink-0">{formatCurrency(l.valor)}</p>
                     {l.pago ? (

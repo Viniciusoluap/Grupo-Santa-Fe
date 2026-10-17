@@ -59,7 +59,7 @@ export function ObraDiarioClient({ obraId, diario, weatherConfig, somenteLeitura
       </div>
 
       {diario.length === 0 ? (
-        <p className="text-gray-400 text-sm text-center py-6">Nenhum registro no diário ainda.</p>
+        <p className="text-gray-600 text-sm text-center py-6">Nenhum registro no diário ainda.</p>
       ) : (
         <div className="space-y-4">
           {diario.map((entry) => {
@@ -77,13 +77,13 @@ export function ObraDiarioClient({ obraId, diario, weatherConfig, somenteLeitura
                         {new Date(entry.data).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">por {entry.responsavel}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">por {entry.responsavel}</p>
                   </div>
                   {weather && (
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-center">
                         <span className="text-xl">{weather.icon}</span>
-                        <p className="text-[9px] text-gray-400">{weather.label}</p>
+                        <p className="text-[9px] text-gray-600">{weather.label}</p>
                       </div>
                     </div>
                   )}
@@ -94,7 +94,7 @@ export function ObraDiarioClient({ obraId, diario, weatherConfig, somenteLeitura
                     <p className="text-sm text-gray-700">{entry.descricao}</p>
                   </div>
                   {fotos.length > 0 && (
-                    <p className="text-xs text-gray-400">{fotos.length} foto(s) anexada(s)</p>
+                    <p className="text-xs text-gray-600">{fotos.length} foto(s) anexada(s)</p>
                   )}
                 </div>
               </div>

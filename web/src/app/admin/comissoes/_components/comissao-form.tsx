@@ -226,7 +226,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
                     ))}
                   </select>
                 ) : (
-                  <p className="text-xs text-gray-400 italic py-2">
+                  <p className="text-xs text-gray-600 italic py-2">
                     Nenhum registro cadastrado para este tipo. Cadastre primeiro no módulo correspondente.
                   </p>
                 )}
@@ -243,7 +243,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor da Comissão *</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">R$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm pointer-events-none">R$</span>
                 <input type="text" inputMode="numeric" required placeholder="0,00"
                   value={valorDisplay} onChange={(e) => setValorDisplay(mascararDinheiro(e.target.value).texto)}
                   className="w-full border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />

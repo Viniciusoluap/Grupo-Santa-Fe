@@ -103,10 +103,10 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[520px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-48">Pavimento</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-28">Área (m²)</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Coef. equivalência</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-28">Área equivalente</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-48">Pavimento</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">Área (m²)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Coef. equivalência</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">Área equivalente</th>
                 <th />
               </tr>
             </thead>
@@ -116,9 +116,9 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
                   <td className="px-1 py-1"><input value={it.pavimento} onChange={(e) => updItem(i, "pavimento", e.target.value)} className={inputCls} placeholder="Ex.: Torre A" /></td>
                   <td className="px-1 py-1"><NumeroBRField value={it.areaM2} onValueChange={(v) => updItem(i, "areaM2", v)} className={numCls} /></td>
                   <td className="px-1 py-1"><NumeroBRField value={it.coeficienteEquivalencia} onValueChange={(v) => updItem(i, "coeficienteEquivalencia", v)} decimals={4} className={numCls} /></td>
-                  <td className="px-1 py-1 text-right text-gray-400">{Math.round(it.areaM2 * it.coeficienteEquivalencia).toLocaleString("pt-BR")} m²</td>
+                  <td className="px-1 py-1 text-right text-gray-600">{Math.round(it.areaM2 * it.coeficienteEquivalencia).toLocaleString("pt-BR")} m²</td>
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerItem(i)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerItem(i)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}
@@ -157,7 +157,7 @@ function Num({ label, value, onChange, sufixo, step = 1 }: { label: string; valu
   return (
     <div>
       <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-        {label}{sufixo ? <span className="text-gray-300 normal-case font-normal"> ({sufixo})</span> : null}
+        {label}{sufixo ? <span className="text-gray-500 normal-case font-normal"> ({sufixo})</span> : null}
       </label>
       <input type="number" value={Number.isFinite(value) ? value : ""} step={step} onChange={(e) => onChange(e.target.value)} className={inputCls} />
     </div>

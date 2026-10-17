@@ -54,7 +54,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/projetos" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/projetos" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Projetos
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase flex-1">{p.nome}</h1>
@@ -114,7 +114,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             {[
               { label: "Valor contratado", value: formatCurrency(p.valorProjeto), color: "text-[var(--brand-dark)]" },
               { label: "Pago", value: formatCurrency(p.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(p.valorProjeto == null ? null : p.valorProjeto - p.valorPago), color: (p.valorProjeto ?? 0) - p.valorPago > 0 ? "text-orange-500" : "text-gray-400" },
+              { label: "A receber", value: formatCurrency(p.valorProjeto == null ? null : p.valorProjeto - p.valorPago), color: (p.valorProjeto ?? 0) - p.valorPago > 0 ? "text-orange-500" : "text-gray-600" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">{label}</span>

@@ -25,13 +25,13 @@ export function PortalEmpreiteiroClient({ obras, indicadores }: { obras: ObraDaL
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide flex items-center gap-2">
           <HardHat className="text-[var(--brand-yellow)]" /> Acesso do Empreiteiro
         </h1>
-        <p className="text-gray-400 text-sm mt-0.5">Obras em que você é o empreiteiro vinculado ao Grupo Santa Fé.</p>
+        <p className="text-gray-600 text-sm mt-0.5">Obras em que você é o empreiteiro vinculado ao Grupo Santa Fé.</p>
       </div>
 
       <div role="tablist" className="flex flex-wrap gap-1 border-b border-gray-200">
         {([["obras", "Minhas Obras", Building2], ["relatorios", "Relatórios", BarChart3]] as const).map(([id, rotulo, Icone]) => (
           <button key={id} type="button" role="tab" aria-selected={aba === id} onClick={() => setAba(id)}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider ${aba === id ? "border-b-2 border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "text-gray-400"}`}>
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider ${aba === id ? "border-b-2 border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "text-gray-600"}`}>
             <Icone size={14} aria-hidden /> {rotulo}
           </button>
         ))}
@@ -60,7 +60,7 @@ export function PortalEmpreiteiroClient({ obras, indicadores }: { obras: ObraDaL
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
               <section className="bg-white border border-gray-100 p-5 xl:col-span-3">
                 <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Por obra</h2>
-                <p className="text-xs text-gray-400 mb-3">VGV, valor a receber do banco e o seu lucro previsto em cada obra.</p>
+                <p className="text-xs text-gray-600 mb-3">VGV, valor a receber do banco e o seu lucro previsto em cada obra.</p>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={totais.porObra} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
@@ -78,7 +78,7 @@ export function PortalEmpreiteiroClient({ obras, indicadores }: { obras: ObraDaL
               </section>
               <section className="bg-white border border-gray-100 p-5 xl:col-span-2">
                 <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Seu lucro por obra</h2>
-                <p className="text-xs text-gray-400 mb-3">Participação de cada obra no seu lucro previsto.</p>
+                <p className="text-xs text-gray-600 mb-3">Participação de cada obra no seu lucro previsto.</p>
                 <div className="h-80">
                   {comLucro.length ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -91,13 +91,13 @@ export function PortalEmpreiteiroClient({ obras, indicadores }: { obras: ObraDaL
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="text-sm text-gray-400">Ainda não há lucro previsto calculado nas suas obras.</p>
+                    <p className="text-sm text-gray-600">Ainda não há lucro previsto calculado nas suas obras.</p>
                   )}
                 </div>
               </section>
             </div>
           )}
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-600">
             Lucro previsto: estimativa sobre o lucro da operação após a participação dos investidores, com o seu percentual
             definido pela empresa. A receber do banco: base contratual da CEF menos o que já foi recebido.
           </p>
@@ -113,11 +113,11 @@ function Indicador({ Icone, titulo, valor, nota, destaque = false }: {
   return (
     <div className={`bg-white border p-4 ${destaque ? "border-[var(--brand-yellow)]" : "border-gray-100"}`}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{titulo}</span>
+        <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{titulo}</span>
         <Icone size={15} className="text-[var(--brand-yellow)]" aria-hidden />
       </div>
       <p className="font-black text-[var(--brand-dark)] text-xl leading-none">{valor}</p>
-      <p className="text-gray-400 text-xs mt-1">{nota}</p>
+      <p className="text-gray-600 text-xs mt-1">{nota}</p>
     </div>
   );
 }

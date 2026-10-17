@@ -28,7 +28,7 @@ function formatSize(bytes: number) {
 
 function fileIcon(tipo: string) {
   if (tipo.startsWith("image/")) return <FileImage size={14} className="text-blue-400 shrink-0" />;
-  return <FileText size={14} className="text-gray-400 shrink-0" />;
+  return <FileText size={14} className="text-gray-600 shrink-0" />;
 }
 
 function parseDocumentos(raw: string): Documento[] {
@@ -260,7 +260,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             Documentos ({docs.length}/{MAX_FILES})
           </p>
           {docs.length > 0 && (
-            <p className="text-[10px] text-gray-400 mt-0.5">{totalMB} MB / 50 MB usados</p>
+            <p className="text-[10px] text-gray-600 mt-0.5">{totalMB} MB / 50 MB usados</p>
           )}
         </div>
         {uploading ? (
@@ -313,9 +313,9 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
           className={`border-2 border-dashed p-6 text-center transition-colors ${canUpload ? "cursor-pointer border-gray-200 hover:border-[var(--brand-yellow)]" : "border-gray-100 cursor-default"}`}
           onClick={() => canUpload && inputRef.current?.click()}
         >
-          <Paperclip size={20} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-xs text-gray-400">Clique para anexar documentos</p>
-          <p className="text-[10px] text-gray-300 mt-1">PDF, Word, Excel, imagens · até 50 MB no total · até 5 arquivos</p>
+          <Paperclip size={20} className="text-gray-500 mx-auto mb-2" />
+          <p className="text-xs text-gray-600">Clique para anexar documentos</p>
+          <p className="text-[10px] text-gray-500 mt-1">PDF, Word, Excel, imagens · até 50 MB no total · até 5 arquivos</p>
         </div>
       )}
 
@@ -325,8 +325,8 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
             <Loader2 size={12} className="animate-spin text-[var(--brand-yellow)] shrink-0" />
             <span className="truncate flex-1">
               {uploadProgress === 0
-                ? <><span className="text-gray-400">Conectando…</span> <strong>{uploadingName}</strong></>
-                : <>Enviando <strong>{uploadingName}</strong> <span className="text-[var(--brand-dark)] font-bold ml-1">{uploadProgress}%</span>{uploadProgress >= 100 && <span className="text-gray-400 ml-1 text-[10px]">· finalizando…</span>}</>
+                ? <><span className="text-gray-600">Conectando…</span> <strong>{uploadingName}</strong></>
+                : <>Enviando <strong>{uploadingName}</strong> <span className="text-[var(--brand-dark)] font-bold ml-1">{uploadProgress}%</span>{uploadProgress >= 100 && <span className="text-gray-600 ml-1 text-[10px]">· finalizando…</span>}</>
               }
             </span>
             <button
@@ -359,7 +359,7 @@ export function DocumentosAvaliacao({ avaliacaoId, initialData }: Props) {
               >
                 {doc.nome}
               </a>
-              <span className="text-[10px] text-gray-400 shrink-0">{formatSize(doc.tamanho)}</span>
+              <span className="text-[10px] text-gray-600 shrink-0">{formatSize(doc.tamanho)}</span>
               <button
                 type="button"
                 onClick={() => handleRemover(doc.id)}

@@ -89,7 +89,7 @@ export default function PortalChatPage() {
       <div className="bg-white border border-gray-100 p-12 text-center">
         <MessageSquare size={32} className="text-gray-200 mx-auto mb-3" />
         <p className="text-gray-500 font-medium">Chat não disponível</p>
-        <p className="text-gray-400 text-sm mt-1">
+        <p className="text-gray-600 text-sm mt-1">
           Seu perfil ainda não está vinculado a um processo. Entre em contato pelo WhatsApp.
         </p>
       </div>
@@ -100,17 +100,17 @@ export default function PortalChatPage() {
     <div className="space-y-4">
       <div>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Chat</h1>
-        <p className="text-gray-400 text-sm mt-0.5">Fale diretamente com seu corretor</p>
+        <p className="text-gray-600 text-sm mt-0.5">Fale diretamente com seu corretor</p>
       </div>
 
       <div className="bg-white border border-gray-100 overflow-hidden flex flex-col" style={{ height: 480 }}>
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {!loaded && (
-            <p className="text-xs text-gray-300 text-center py-8">Carregando...</p>
+            <p className="text-xs text-gray-500 text-center py-8">Carregando...</p>
           )}
           {loaded && mensagens.length === 0 && (
-            <p className="text-xs text-gray-300 text-center py-8">
+            <p className="text-xs text-gray-500 text-center py-8">
               Nenhuma mensagem ainda. Envie sua primeira mensagem!
             </p>
           )}
