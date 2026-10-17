@@ -5,6 +5,7 @@ import { ArrowLeft, Phone, Mail, Calendar } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { COMMISSION_STATUS_CONFIG } from "@/lib/types/corretor";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
+import { rotulo } from "@/lib/rotulos";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -31,7 +32,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/corretores" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href="/admin/corretores" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Corretores
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase">{c.nome}</h1>
@@ -54,7 +55,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-gray-50 p-3 text-center">
                   <p className={`font-black text-xl ${color}`}>{value}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{label}</p>
+                  <p className="text-gray-600 text-xs mt-0.5">{label}</p>
                 </div>
               ))}
             </div>
@@ -66,16 +67,16 @@ export default async function CorretorDetailPage({ params }: PageProps) {
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Comissões ({c.comissoes.length})</h2>
             </div>
             {c.comissoes.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">Nenhuma comissão cadastrada.</p>
+              <p className="text-sm text-gray-600 text-center py-8">Nenhuma comissão cadastrada.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Imóvel</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase hidden md:table-cell">%</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase">Valor</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Imóvel</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase hidden md:table-cell">%</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Valor</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -89,7 +90,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
                         <tr key={cm.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
                             <p className="font-medium text-[var(--brand-dark)]">{cm.imovel}</p>
-                            <p className="text-xs text-gray-400">Vence: {new Date(cm.vencimento).toLocaleDateString("pt-BR")}</p>
+                            <p className="text-xs text-gray-600">Vence: {new Date(cm.vencimento).toLocaleDateString("pt-BR")}</p>
                           </td>
                           <td className="px-4 py-3 text-right text-gray-500 hidden md:table-cell">{cm.percentual}%</td>
                           <td className="px-4 py-3 text-right font-bold">{formatCurrency(cm.valor)}</td>
@@ -115,9 +116,9 @@ export default async function CorretorDetailPage({ params }: PageProps) {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase">Nome</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase hidden md:table-cell">Serviço</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Nome</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase hidden md:table-cell">Serviço</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -125,13 +126,13 @@ export default async function CorretorDetailPage({ params }: PageProps) {
                       <tr key={lead.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <p className="font-medium text-[var(--brand-dark)]">{lead.nome}</p>
-                          <p className="text-xs text-gray-400">{formatTelefone(lead.telefone ?? "")}</p>
+                          <p className="text-xs text-gray-600">{formatTelefone(lead.telefone ?? "")}</p>
                         </td>
                         <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                           {(() => { try { return (JSON.parse(lead.servico) as string[]).join(", "); } catch { return lead.servico; } })()}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-600">{lead.status}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-gray-100 text-gray-700">{rotulo(lead.status)}</span>
                         </td>
                       </tr>
                     ))}
@@ -181,7 +182,7 @@ export default async function CorretorDetailPage({ params }: PageProps) {
             <div className="flex items-start gap-2">
               <Calendar size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
               <div>
-                <p className="text-xs text-gray-400">Cadastrado em</p>
+                <p className="text-xs text-gray-600">Cadastrado em</p>
                 <p className="text-sm font-medium">{new Date(c.criadoEm).toLocaleDateString("pt-BR")}</p>
               </div>
             </div>

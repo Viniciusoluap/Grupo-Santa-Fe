@@ -24,7 +24,7 @@ export default async function EditarEstudoPage({
       <div>
         <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar estudo</h1>
-        <p className="text-gray-400 text-sm mt-0.5">Atualize a identificação e a localização do empreendimento.</p>
+        <p className="text-gray-600 text-sm mt-0.5">Atualize a identificação e a localização do empreendimento.</p>
       </div>
 
       <form action={editarEstudo} className="bg-white border border-gray-100 p-5 space-y-4">
@@ -55,7 +55,7 @@ export default async function EditarEstudoPage({
         </div>
         <div>
           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Localização do terreno</label>
-          <p className="text-[10px] text-gray-400 mb-2">
+          <p className="text-[10px] text-gray-600 mb-2">
             Clique no mapa para marcar/ajustar o ponto — coordenadas e endereço são preenchidos automaticamente.
           </p>
           <SeletorLocalizacao

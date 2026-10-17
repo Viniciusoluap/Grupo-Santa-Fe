@@ -25,12 +25,12 @@ export function ComissoesDeObras({ linhas, somenteLeitura = false }: { linhas: C
         </p>
       </div>
       {linhas.length === 0 ? (
-        <p className="text-sm text-gray-400">{somenteLeitura ? "Nenhuma obra dos seus clientes no momento." : "Nenhuma obra com corretor vinculado no CRM."}</p>
+        <p className="text-sm text-gray-600">{somenteLeitura ? "Nenhuma obra dos seus clientes no momento." : "Nenhuma obra com corretor vinculado no CRM."}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-gray-400 border-b border-gray-100">
+              <tr className="text-left text-[11px] uppercase tracking-wide text-gray-600 border-b border-gray-100">
                 <th className="py-2 pr-3">Corretor / cliente</th><th className="py-2 pr-3">Obra</th><th className="py-2 pr-3">VGV · %</th>
                 <th className="py-2 pr-3">Comissão</th><th className="py-2 pr-3">Pago · saldo</th><th className="py-2">Situação</th>
               </tr>
@@ -38,7 +38,7 @@ export function ComissoesDeObras({ linhas, somenteLeitura = false }: { linhas: C
             <tbody>
               {linhas.map((l) => (
                 <tr key={l.obraId} className="border-b border-gray-50 align-top">
-                  <td className="py-2 pr-3">{l.corretor}<br /><span className="text-xs text-gray-400">{l.cliente}</span></td>
+                  <td className="py-2 pr-3">{l.corretor}<br /><span className="text-xs text-gray-600">{l.cliente}</span></td>
                   <td className="py-2 pr-3">{somenteLeitura ? l.obra : <Link className="underline" href={`/admin/obras/${l.obraId}/editar`}>{l.obra}</Link>}</td>
                   <td className="py-2 pr-3">
                     {l.vgv ? formatCurrency(Number(l.vgv)) : "VGV não informado"}<br />

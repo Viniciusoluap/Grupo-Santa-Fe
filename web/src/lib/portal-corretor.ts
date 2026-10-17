@@ -48,3 +48,11 @@ export function etapaParaCorretor(lead: LeadPipelineSnapshot): { nome: string; i
   const indice = etapa ? LEAD_STAGES.indexOf(etapa) : -1;
   return { nome: indice >= 0 ? ETAPAS_ACOMPANHAMENTO[indice].nome : "Em classificação", indice };
 }
+
+/** Item 8 (18/10): o corretor vê o cadastro recusado por 3 dias; depois ele some da lista dele. */
+export const DIAS_AVISO_RECUSA = 3;
+
+export function recusaAindaVisivel(recusadoEm: Date | string, agora: Date = new Date()): boolean {
+  const quando = new Date(recusadoEm).getTime();
+  return Number.isFinite(quando) && agora.getTime() - quando < DIAS_AVISO_RECUSA * 24 * 60 * 60 * 1000;
+}

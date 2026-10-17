@@ -88,7 +88,7 @@ export default async function EstudoDetailPage({
       <div>
         <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">{estudo.nome}</h1>
-        <p className="text-gray-400 text-sm mt-0.5">{estudo.municipio}/{estudo.estado}</p>
+        <p className="text-gray-600 text-sm mt-0.5">{estudo.municipio}/{estudo.estado}</p>
       </div>
       <IncorporacaoDetail estudo={data} />
       <VersoesEstudo estudoId={id} versoes={versoes.map((v) => ({ numero: v.numero, criadoEm: v.criadoEm.toISOString() }))} />

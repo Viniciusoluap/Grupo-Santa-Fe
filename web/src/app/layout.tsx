@@ -4,6 +4,7 @@ import { AdminSessionProvider } from "@/components/admin/session-provider";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
+import { BarraEnvioGlobal } from "@/components/ui/barra-envio";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -54,6 +55,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
           <AdminSessionProvider>{children}</AdminSessionProvider>
+          <BarraEnvioGlobal />
           <PwaRegister />
         </body>
     </html>

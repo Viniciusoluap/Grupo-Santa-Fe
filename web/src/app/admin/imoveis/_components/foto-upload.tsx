@@ -66,9 +66,9 @@ export function FotoUpload({ name, defaultValue }: FotoUploadProps) {
           fotos.length >= MAX_FOTOS ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
         } ${drag ? "border-[var(--brand-yellow)] bg-yellow-50" : "border-gray-200 bg-gray-50 hover:border-gray-300"}`}
       >
-        <ImagePlus size={28} className="text-gray-400" />
+        <ImagePlus size={28} className="text-gray-600" />
         <p className="text-sm text-gray-500 font-medium">Clique ou arraste as fotos aqui</p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-600">
           {fotos.length}/{MAX_FOTOS} fotos · mín. {MIN_FOTOS} · máx. {MAX_FOTOS}
         </p>
         <input

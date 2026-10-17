@@ -4,7 +4,7 @@ import { Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { ImovelAcoes } from "./_components/imovel-acoes";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 const typeLabel: Record<string, string> = {
   casa: "Casa",
@@ -25,17 +25,12 @@ const statusColor: Record<string, string> = {
   locado: "bg-gray-100 text-gray-500",
 };
 
-type SessionUser = { role?: string; corretorId?: string };
-
 export default async function AdminImoveisPage() {
-  await exigirModuloPagina("imoveis");
-  const session = await auth();
-  const user = session?.user as SessionUser | undefined;
-  const isCorretor = user?.role === "corretor";
-  const corretorId = user?.corretorId;
+  const usuario = await exigirModuloPagina("imoveis");
+  // O corretor usa a lista do Portal do Corretor (igual à Prospecta).
+  if (usuario.perfil === "corretor") redirect("/corretor/imoveis");
 
   const imoveis = await prisma.imovel.findMany({
-    where: isCorretor && corretorId ? { corretorId } : {},
     orderBy: { criadoEm: "desc" },
     include: { corretor: true },
   });
@@ -48,7 +43,7 @@ export default async function AdminImoveisPage() {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">
             Imóveis
           </h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-gray-600 text-sm mt-0.5">
             {imoveis.length} imóveis cadastrados
           </p>
         </div>
@@ -66,7 +61,7 @@ export default async function AdminImoveisPage() {
       {/* Search bar */}
       <div className="bg-white border border-gray-100 p-4 flex gap-3">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
           <input
             type="text"
             placeholder="Buscar por título, bairro ou tipo..."
@@ -105,13 +100,13 @@ export default async function AdminImoveisPage() {
                 <th className="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wide hidden lg:table-cell">
                   Localização
                 </th>
-                <th className="px-4 py-3 text-right font-bold text-gray-400 uppercase tracking-wide">
+                <th className="px-4 py-3 text-right font-bold text-gray-600 uppercase tracking-wide">
                   Preço
                 </th>
-                <th className="px-4 py-3 text-center font-bold text-gray-400 uppercase tracking-wide hidden md:table-cell">
+                <th className="px-4 py-3 text-center font-bold text-gray-600 uppercase tracking-wide hidden md:table-cell">
                   Situação
                 </th>
-                <th className="px-4 py-3 text-center font-bold text-gray-400 uppercase tracking-wide">
+                <th className="px-4 py-3 text-center font-bold text-gray-600 uppercase tracking-wide">
                   Ações
                 </th>
               </tr>
@@ -119,13 +114,19 @@ export default async function AdminImoveisPage() {
             <tbody className="divide-y divide-gray-50">
               {imoveis.map((imovel) => (
                 <tr key={imovel.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-400">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">
                     GSF-{imovel.id.slice(-4).toUpperCase()}
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-[var(--brand-dark)] leading-tight">
                       {imovel.titulo}
                     </p>
+                    {imovel.revisaoStatus === "pendente" && (
+                      <span className="mr-1 text-[10px] bg-amber-400 text-[var(--brand-dark)] font-black px-1.5 py-0.5 uppercase">Aguardando revisão</span>
+                    )}
+                    {imovel.revisaoStatus === "recusado" && (
+                      <span className="mr-1 text-[10px] bg-red-600 text-white font-black px-1.5 py-0.5 uppercase">Recusado</span>
+                    )}
                     {imovel.badge && (
                       <span className="text-[10px] bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold px-1.5 py-0.5 uppercase">
                         {imovel.badge}

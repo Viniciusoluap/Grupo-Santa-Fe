@@ -15,6 +15,9 @@ interface ChecklistItemData {
   concluido: boolean;
   concluidoEm: Date | string | null;
   notas: string;
+  /** Item 15 (18/10): documento enviado pelo cliente no Portal. */
+  arquivo?: { id: string; nome: string } | null;
+  enviadoEm?: Date | string | null;
 }
 
 interface Props {
@@ -113,7 +116,7 @@ export default function FinanciamentoChecklistClient({
         </div>
 
         {totalChecklist === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">
+          <p className="text-sm text-gray-600 text-center py-4">
             Nenhum item no checklist.
           </p>
         ) : (
@@ -146,10 +149,16 @@ export default function FinanciamentoChecklistClient({
                           {item.item}
                         </p>
                         {item.concluidoEm && (
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-600">
                             Concluído em{" "}
                             {new Date(item.concluidoEm).toLocaleDateString("pt-BR")}
                           </p>
+                        )}
+                        {item.arquivo && (
+                          <a href={`/api/arquivo/${item.arquivo.id}`} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-blue-800 underline">
+                            Documento do cliente: {item.arquivo.nome}
+                            {item.enviadoEm ? ` (${new Date(item.enviadoEm).toLocaleDateString("pt-BR")})` : ""}
+                          </a>
                         )}
                         {item.notas && (
                           <p className="text-xs text-orange-500">{item.notas}</p>

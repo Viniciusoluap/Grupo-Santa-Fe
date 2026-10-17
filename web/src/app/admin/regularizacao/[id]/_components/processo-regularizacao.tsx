@@ -242,7 +242,7 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
 
       <div className="space-y-2">
         <p className={labelCls}>Histórico de recebimentos</p>
-        {!recebimentos.length ? <p className="text-xs text-gray-400">Nenhum recebimento registrado.</p> : (
+        {!recebimentos.length ? <p className="text-xs text-gray-600">Nenhum recebimento registrado.</p> : (
           <div className="overflow-x-auto border border-gray-100">
             <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500">
@@ -254,8 +254,8 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
                     <td className="p-2 whitespace-nowrap">{dataBr(r.data)}</td>
                     <td className="p-2">
                       <span>{r.item}</span>
-                      {r.observacao && <span className="block text-xs text-gray-400">{r.observacao}</span>}
-                      {r.bpoDescricao && <span className="block text-xs text-gray-400">BPO: {r.bpoDescricao}</span>}
+                      {r.observacao && <span className="block text-xs text-gray-600">{r.observacao}</span>}
+                      {r.bpoDescricao && <span className="block text-xs text-gray-600">BPO: {r.bpoDescricao}</span>}
                     </td>
                     <td className="p-2 text-gray-500">{ORIGEM_LABEL[r.origem] ?? r.origem}</td>
                     <td className="p-2 text-right whitespace-nowrap">{brl(centavosDe(r.valor) ?? 0)}</td>
@@ -341,8 +341,8 @@ function NovoRecebimento({ regularizacaoId, itens, onFechar }: { regularizacaoId
             <option value="">{bpo === null ? "Carregando..." : "Selecione"}</option>
             {(bpo ?? []).map((b) => <option key={b.id} value={b.id}>{b.descricao} · disponível {brl(b.disponivelCentavos)}</option>)}
           </select>
-          {bpo?.length === 0 && <span className="block text-[11px] text-gray-400 normal-case font-normal mt-1">Nenhuma receita recebida com saldo disponível no BPO.</span>}
-          <span className="block text-[11px] text-gray-400 normal-case font-normal mt-1">Pode usar parte do valor; o restante continua disponível. A mesma receita nunca é usada duas vezes (obras e regularizações somadas).</span>
+          {bpo?.length === 0 && <span className="block text-[11px] text-gray-600 normal-case font-normal mt-1">Nenhuma receita recebida com saldo disponível no BPO.</span>}
+          <span className="block text-[11px] text-gray-600 normal-case font-normal mt-1">Pode usar parte do valor; o restante continua disponível. A mesma receita nunca é usada duas vezes (obras e regularizações somadas).</span>
         </label>
       )}
       <div className="grid grid-cols-2 gap-3">

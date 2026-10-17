@@ -118,7 +118,7 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
                   <p className="text-sm font-bold text-[var(--brand-dark)] uppercase tracking-wide">
                     Buscando no ZAP Imóveis...
                   </p>
-                  <p className="text-xs text-gray-400 text-center">
+                  <p className="text-xs text-gray-600 text-center">
                     Pesquisando em {props.bairro}, {props.cidade}
                   </p>
                 </div>
@@ -153,23 +153,23 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
                       <p className="font-black text-[var(--brand-dark)]">
                         {formatCurrency(result.precoPorM2Medio)}
                       </p>
-                      <p className="text-[10px] text-gray-400 uppercase">R$/m² médio</p>
+                      <p className="text-[10px] text-gray-600 uppercase">R$/m² médio</p>
                     </div>
                     <div className="bg-gray-50 p-3 text-center">
                       <p className="font-black text-[var(--brand-dark)]">{result.comparaveis.length}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">Comparáveis</p>
+                      <p className="text-[10px] text-gray-600 uppercase">Comparáveis</p>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2">
                       Imóveis Encontrados
                     </p>
                     <div className="space-y-2">
                       {result.comparaveis.map((c, i) => (
                         <div key={i} className="bg-gray-50 p-2.5 text-xs">
                           <p className="font-medium text-[var(--brand-dark)]">{c.descricao}</p>
-                          <div className="flex gap-3 mt-1 text-gray-400">
+                          <div className="flex gap-3 mt-1 text-gray-600">
                             <span>{c.area} m²</span>
                             <span className="font-bold text-[var(--brand-dark)]">
                               {formatCurrency(c.preco)}
@@ -199,7 +199,7 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
                     </button>
                     <button
                       onClick={() => setOpen(false)}
-                      className="px-4 border border-gray-200 text-xs font-bold text-gray-400 hover:bg-gray-50 transition-colors"
+                      className="px-4 border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
                     >
                       Fechar
                     </button>

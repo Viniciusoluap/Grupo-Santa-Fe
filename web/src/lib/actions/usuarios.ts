@@ -55,14 +55,19 @@ export async function criarUsuario(formData: FormData) {
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Item 12 (18/10): conta de cliente usa nome e telefone do cadastro no CRM.
+      let nomeConta = nome;
+      let telefoneConta = telefone;
       if (papel === "cliente") {
-        const lead = await tx.lead.findUnique({ where: { id: leadId! }, select: { excluidoEm: true, contaCliente: { select: { id: true } } } });
+        const lead = await tx.lead.findUnique({ where: { id: leadId! }, select: { nome: true, telefone: true, excluidoEm: true, contaCliente: { select: { id: true } } } });
         if (!lead || lead.excluidoEm) throw new Error("Cliente do CRM não encontrado.");
         if (lead.contaCliente) throw new Error("Este cliente do CRM já tem uma conta de acesso.");
+        nomeConta = lead.nome || nome;
+        telefoneConta = lead.telefone || telefone;
       }
       const usuario = await tx.usuario.create({
         data: {
-          nome, email, senha: hash, papel, creci, telefone,
+          nome: nomeConta, email, senha: hash, papel, creci: papel === "corretor" ? creci : null, telefone: telefoneConta,
           permissoes: JSON.stringify(permissoes),
           leadId: papel === "cliente" ? leadId : null,
           tokenPrimeiroAcesso: token,
@@ -105,16 +110,20 @@ export async function alterarPerfilUsuario(id: string, papel: string, leadId: st
     if (bloqueado) return bloqueado;
   }
   if (papel === "corretor" && !alvo.corretor) return { error: "Para virar corretor, cadastre em Corretores (CRECI) ou crie a conta como corretor." };
+  let dadosDoLead: { nome: string; telefone: string } | null = null;
   if (papel === "cliente") {
     if (!leadId) return { error: "Escolha o cliente do CRM a que esta conta pertence." };
-    const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { excluidoEm: true, contaCliente: { select: { id: true } } } });
+    const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { nome: true, telefone: true, excluidoEm: true, contaCliente: { select: { id: true } } } });
     if (!lead || lead.excluidoEm) return { error: "Cliente do CRM não encontrado." };
     if (lead.contaCliente && lead.contaCliente.id !== id) return { error: "Este cliente do CRM já tem uma conta de acesso." };
+    dadosDoLead = { nome: lead.nome, telefone: lead.telefone };
   }
   await prisma.usuario.update({
     where: { id },
     data: {
       papel,
+      // Item 12 (18/10): nome e telefone acompanham o cliente do CRM.
+      ...(dadosDoLead ? { nome: dadosDoLead.nome || undefined, telefone: dadosDoLead.telefone || null } : {}),
       leadId: papel === "cliente" ? leadId : null,
       permissoes: papel === "colaborador" ? alvo.permissoes : "[]",
       sessionVersion: { increment: 1 },

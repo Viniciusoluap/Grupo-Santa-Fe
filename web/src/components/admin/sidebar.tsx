@@ -28,8 +28,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   {
-    label: "Meus clientes",
-    href: "/admin/meus-clientes",
+    label: "Portal do Corretor",
+    href: "/corretor",
     icon: UserCheck,
   },
   {

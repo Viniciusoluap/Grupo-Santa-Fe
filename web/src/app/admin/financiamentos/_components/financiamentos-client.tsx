@@ -70,7 +70,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Financiamentos</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{financiamentos.length} processos cadastrados</p>
+          <p className="text-gray-600 text-sm mt-0.5">{financiamentos.length} processos cadastrados</p>
         </div>
         {/* Lote 3: sem criação avulsa — um financiamento só nasce ao vincular
             o serviço "Financiamento MCMV"/"Financiamento Convencional" a um
@@ -89,9 +89,9 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
           { label: "Taxa média", value: taxasInformadas.length ? `${taxaMedia} a.a.` : taxaMedia, sub: "taxa de juros" },
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{label}</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">{label}</p>
             <p className="font-black text-[var(--brand-dark)] text-xl leading-none">{value}</p>
-            <p className="text-gray-400 text-xs mt-1">{sub}</p>
+            <p className="text-gray-600 text-xs mt-1">{sub}</p>
           </div>
         ))}
       </div>
@@ -117,7 +117,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
 
       {/* Search */}
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
         <input
           type="text"
           placeholder="Buscar por cliente, imóvel, corretor ou protocolo..."
@@ -155,15 +155,15 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                   <tr key={f.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-[var(--brand-dark)]">{f.clienteNome}</p>
-                      <p className="text-xs text-gray-400">{f.corretor?.nome ?? "—"}</p>
+                      <p className="text-xs text-gray-600">{f.corretor?.nome ?? "—"}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <p className="text-sm text-gray-700 max-w-[200px] truncate">{f.imovel}</p>
-                      {f.protocolo && <p className="text-xs text-gray-400">{f.protocolo}</p>}
+                      {f.protocolo && <p className="text-xs text-gray-600">{f.protocolo}</p>}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <p className="text-xs font-medium text-[var(--brand-dark)]">{TIPO_CONFIG[tipoKey]?.label ?? f.tipo}</p>
-                      <p className="text-xs text-gray-400">{BANCO_CONFIG[bancoKey]?.label ?? f.banco}</p>
+                      <p className="text-xs text-gray-600">{BANCO_CONFIG[bancoKey]?.label ?? f.banco}</p>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <ValoresRapidos key={`${f.valorImovel}-${f.valorFinanciado}`} id={f.id} cliente={f.clienteNome} valorImovel={f.valorImovel} valorFinanciado={f.valorFinanciado} />
@@ -171,7 +171,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                     <td className="px-4 py-3 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <div className="flex items-center gap-1 text-xs">
-                          <FileCheck size={11} className="text-gray-400" />
+                          <FileCheck size={11} className="text-gray-600" />
                           <span className="font-bold">{done}/{total}</span>
                         </div>
                         <div className="w-16 h-1.5 bg-gray-100 overflow-hidden">
@@ -184,10 +184,10 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Link href={`/admin/financiamentos/${f.id}`} className="p-1.5 text-gray-400 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
+                        <Link href={`/admin/financiamentos/${f.id}`} className="p-1.5 text-gray-600 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
                           <FileCheck size={14} />
                         </Link>
-                        <Link href={`/admin/financiamentos/${f.id}/editar`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
+                        <Link href={`/admin/financiamentos/${f.id}/editar`} className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} />
                         </Link>
                         {podeArquivar && <AcoesExcluir id={f.id} rotulo={f.clienteNome} excluir={excluirFinanciamento} compacto />}

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), usuario: vi.fn(), findLead: vi.fn(), updateLead: vi.fn(), updateMany: vi.fn(), interacao: vi.fn(), bloquear: vi.fn(), visita: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), usuario: vi.fn(), findLead: vi.fn(), updateLead: vi.fn(), updateMany: vi.fn(), interacao: vi.fn(), bloquear: vi.fn(), visita: vi.fn(), corretor: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/actions/agenda", () => ({ criarVisita: mocks.visita }));
 vi.mock("@/lib/notificacoes", () => ({ notificarAdmins: vi.fn() }));
-vi.mock("@/lib/db", () => ({ prisma: { usuario: { findUnique: mocks.usuario }, lead: { findUnique: mocks.findLead } } }));
+vi.mock("@/lib/db", () => ({ prisma: { usuario: { findUnique: mocks.usuario, findFirst: vi.fn() }, lead: { findUnique: mocks.findLead }, corretor: { findUnique: mocks.corretor } } }));
 vi.mock("@/lib/crm/vinculo-lead", () => ({
   transacaoCRM: async (fn: (tx: unknown) => Promise<unknown>) => fn({ lead: { findUnique: mocks.findLead, findUniqueOrThrow: mocks.findLead, update: mocks.updateLead, updateMany: mocks.updateMany }, interacao: { create: mocks.interacao, findFirst: vi.fn() } }),
   bloquearLead: mocks.bloquear,
@@ -48,9 +48,15 @@ describe("ações CRM protegidas e auditadas", () => {
     mocks.findLead.mockResolvedValue({ ...lead, arquivadoEm: new Date() });
     await expect(agendarVisitaDoLead(form)).rejects.toThrow("lead ativo");
     expect(mocks.visita).not.toHaveBeenCalled();
-    mocks.findLead.mockResolvedValue(lead); await agendarVisitaDoLead(form);
+    mocks.findLead.mockResolvedValue(lead);
+    // Item 10 (18/10): a equipe escolhe o corretor, mas só um corretor que existe.
+    mocks.corretor.mockResolvedValueOnce(null);
+    await expect(agendarVisitaDoLead(form)).rejects.toThrow("Corretor não encontrado");
+    expect(mocks.visita).not.toHaveBeenCalled();
+    form.set("corretorId", "c9"); mocks.corretor.mockResolvedValueOnce({ id: "c9" });
+    await agendarVisitaDoLead(form);
     const enviado = mocks.visita.mock.calls[0][0] as FormData;
-    expect(enviado.get("leadId")).toBe("L1"); expect(enviado.get("corretorId")).toBeNull(); expect(enviado.get("colaboradorNome")).toBe("Maria"); expect(enviado.has("clienteNome")).toBe(false);
+    expect(enviado.get("leadId")).toBe("L1"); expect(enviado.get("corretorId")).toBe("c9"); expect(enviado.get("colaboradorNome")).toBe("Maria"); expect(enviado.has("clienteNome")).toBe(false);
   });
   it("interação identifica ator no servidor e impede escrita em outro lead", async () => {
     const form = new FormData(); form.set("leadId", "L1"); form.set("tipo", "nota"); form.set("descricao", "Ligação realizada"); form.set("criadoPor", "Admin forjado");

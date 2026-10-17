@@ -19,7 +19,7 @@ export default async function NovoBpoClientePage() {
   return (
     <div className="max-w-2xl space-y-5">
       <div>
-        <Link href="/admin/bpo" className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)] mb-2">
+        <Link href="/admin/bpo" className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)] mb-2">
           <ArrowLeft size={14} /> BPO Financeiro
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase">Novo Cliente BPO</h1>

@@ -108,7 +108,7 @@ export function FotoPerfilClient({ userName }: Props) {
           {saved && (
             <p className="text-xs text-green-600 font-medium">Foto atualizada com sucesso!</p>
           )}
-          <p className="text-xs text-gray-400">A foto será usada no seu perfil e no menu lateral.</p>
+          <p className="text-xs text-gray-600">A foto será usada no seu perfil e no menu lateral.</p>
         </div>
       </div>
     </div>

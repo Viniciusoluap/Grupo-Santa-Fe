@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { criarContrato } from "@/lib/actions/contratos";
+import { TIPOS_CONTRATO } from "@/lib/juridico/tipos-contrato";
 
 interface Lead {
   id: string;
@@ -20,22 +21,7 @@ interface Props {
   empresa: Empresa;
 }
 
-const TIPOS_CONTRATO = [
-  { value: "compra_venda",             label: "Compra e Venda" },
-  { value: "locacao",                  label: "Locação" },
-  { value: "permuta",                  label: "Permuta" },
-  { value: "comodato",                 label: "Comodato" },
-  { value: "assessoria_imobiliaria",   label: "Assessoria Imobiliária" },
-  { value: "administracao_imovel",     label: "Administração de Imóvel" },
-  { value: "avaliacao_imobiliaria",    label: "Avaliação Imobiliária" },
-  { value: "regularizacao_imovel",     label: "Regularização de Imóvel" },
-  { value: "financiamento_imobiliario",label: "Financiamento Imobiliário" },
-  { value: "bpo_financeiro",           label: "BPO Financeiro" },
-  { value: "prestacao_servicos",       label: "Prestação de Serviços" },
-  { value: "consultoria_juridica",     label: "Consultoria Jurídica" },
-  { value: "parceria",                 label: "Parceria" },
-  { value: "outro",                    label: "Outro" },
-];
+
 
 type ParteKey = "A" | "B";
 
@@ -106,7 +92,7 @@ function ParteSearch({
             className="w-full text-left px-3 py-2.5 text-sm hover:bg-[var(--brand-yellow)]/10 border-b border-gray-100 font-medium text-[var(--brand-dark)]"
           >
             🏢 {empresa.razaoSocial} (empresa)
-            {empresa.cnpj && <span className="text-gray-400 ml-2 font-normal text-xs">{empresa.cnpj}</span>}
+            {empresa.cnpj && <span className="text-gray-600 ml-2 font-normal text-xs">{empresa.cnpj}</span>}
           </button>
           {filtrados.map((lead) => (
             <button
@@ -116,11 +102,11 @@ function ParteSearch({
               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
             >
               <span className="font-medium text-gray-800">{lead.nome}</span>
-              {lead.telefone && <span className="text-gray-400 ml-2 text-xs">{lead.telefone}</span>}
+              {lead.telefone && <span className="text-gray-600 ml-2 text-xs">{lead.telefone}</span>}
             </button>
           ))}
           {filtrados.length === 0 && search.length >= 2 && (
-            <p className="px-3 py-2 text-xs text-gray-400">Nenhum lead encontrado — usando nome digitado</p>
+            <p className="px-3 py-2 text-xs text-gray-600">Nenhum lead encontrado — usando nome digitado</p>
           )}
         </div>
       )}
@@ -130,7 +116,7 @@ function ParteSearch({
       {doc ? (
         <>
           <input type="hidden" name={`parte${parteKey}Doc`} value={doc} />
-          <p className="text-xs text-gray-400 mt-1">Doc: {doc}</p>
+          <p className="text-xs text-gray-600 mt-1">Doc: {doc}</p>
         </>
       ) : (
         <input

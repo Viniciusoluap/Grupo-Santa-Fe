@@ -14,13 +14,14 @@ export default async function AdminLayout({
   const usuario = await usuarioAtual();
   if (!usuario || !usuario.ativo) redirect("/login");
   const area = areaDoPerfil(usuario.perfil);
-  // No Santa Fé o corretor usa o próprio painel, limitado aos 4 módulos dele.
+  // O corretor usa o Portal do Corretor; no painel abre só Agenda e WhatsApp
+  // (igual à Prospecta, pedido de 18/10).
   if (area !== "painel" && area !== "corretor") redirect(destinoDoUsuario(usuario));
 
-  const rotasPermitidas = MODULOS_PAINEL.filter((m) => podeAcessarModulo(usuario, m.id)).map((m) => m.rota as string);
+  const rotasPermitidas = usuario.perfil === "corretor"
+    ? ["/corretor", "/admin/agenda", "/admin/whatsapp"]
+    : MODULOS_PAINEL.filter((m) => podeAcessarModulo(usuario, m.id)).map((m) => m.rota as string);
   if (podeAdministrarSeguranca(usuario)) rotasPermitidas.push("/admin/configuracoes");
-  // Pedido de 15/10: acompanhamento dos próprios clientes, só para o corretor.
-  if (usuario.perfil === "corretor") rotasPermitidas.unshift("/admin/meus-clientes");
 
   return <AdminShell rotasPermitidas={rotasPermitidas}>{children}</AdminShell>;
 }

@@ -27,7 +27,7 @@ export function ContratoDocumentos({ contratoNumero, documentos }: Props) {
 
   if (documentos.length === 0) {
     return (
-      <span className="text-xs text-gray-400">—</span>
+      <span className="text-xs text-gray-600">—</span>
     );
   }
 
@@ -58,10 +58,10 @@ export function ContratoDocumentos({ contratoNumero, documentos }: Props) {
                 return (
                   <div key={doc.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-3 min-w-0">
-                      <FileText size={16} className="text-gray-300 shrink-0" />
+                      <FileText size={16} className="text-gray-500 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{doc.nome}</p>
-                        <p className="text-xs text-gray-400">{new Date(doc.criadoEm).toLocaleDateString("pt-BR")}</p>
+                        <p className="text-xs text-gray-600">{new Date(doc.criadoEm).toLocaleDateString("pt-BR")}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-3 shrink-0">
@@ -70,7 +70,7 @@ export function ContratoDocumentos({ contratoNumero, documentos }: Props) {
                         href={doc.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-[var(--brand-dark)] transition-colors"
+                        className="text-gray-600 hover:text-[var(--brand-dark)] transition-colors"
                         title="Abrir"
                       >
                         <ExternalLink size={14} />

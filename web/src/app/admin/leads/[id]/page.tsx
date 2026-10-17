@@ -2,7 +2,7 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, AlertTriangle } from "lucide-react";
+import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, ExternalLink, AlertTriangle } from "lucide-react";
 import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
 import { etapaDoLead, parseServicosLead, leadNoPipelineAtivo } from "@/lib/crm/pipeline";
 import { BackButton } from "@/components/ui/back-button";
@@ -15,6 +15,12 @@ import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
 import { AdicionarOperacaoForm } from "./adicionar-operacao-form";
 import { LeadAgendarVisita } from "./lead-agendar-visita";
+import { LeadContratos } from "./lead-contratos";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
+import { listarResponsaveis } from "@/lib/crm/vinculo-lead";
+import { rotulo } from "@/lib/rotulos";
+
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -34,7 +40,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
     where: { id },
     include: {
       interacoes: { orderBy: { criadoEm: "desc" } },
-      visitas: { orderBy: { agendadaPara: "asc" } },
+      visitas: { orderBy: { agendadaPara: "asc" }, include: { corretor: { select: { nome: true } } } },
       corretor: true,
       responsavel: { select: { nome: true, papel: true } },
       imovelInteresse: true,
@@ -64,6 +70,17 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
     ...lead.avaliacoes.map((a) => ({ modulo: "avaliacao" as const, id: a.id, titulo: `Avaliação ${a.numero}`, status: a.status, criadoEm: a.criadoEm })),
   ].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
 
+  // Item 10 (18/10): opções do agendamento de visita (responsável e corretor).
+  const [usuariosResponsaveis, corretoresAtivos] = interno
+    ? await Promise.all([
+        listarResponsaveis(),
+        prisma.corretor.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+      ])
+    : [[], []];
+  const responsaveisVisita = usuariosResponsaveis.map((u) => ({ id: u.id, label: rotuloResponsavel(u) }));
+
+  const usuarioSessao = await usuarioAtual();
+  const podeJuridico = !!usuarioSessao && podeAcessarModulo(usuarioSessao, "juridico");
   // Documentos vinculados a este lead via Jurídico (contratos gerados/assinados/anexos).
   const contratosComDocumentos = await prisma.contrato.findMany({
     where: { leadId: id },
@@ -230,7 +247,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600">{MODULO_CONFIG[sv.modulo].label}</p>
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{sv.titulo}</p>
-                      <p className="text-[11px] text-gray-600 capitalize">{sv.status.replace(/_/g, " ")}</p>
+                      <p className="text-[11px] text-gray-600">{rotulo(sv.status)}</p>
                     </div>
                     <Link
                       href={`${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
@@ -315,7 +332,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               </a>
               <a
                 href={`mailto:${lead.email}`}
-                className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-300 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors"
+                className="flex items-center gap-2 w-full bg-white/10 hover:bg-[var(--brand-yellow)] hover:text-[var(--brand-dark)] text-gray-500 font-bold text-xs uppercase tracking-wider py-2.5 px-3 transition-colors"
               >
                 <Mail size={14} /> E-mail
               </a>
@@ -328,86 +345,51 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
             <LeadStatusPicker leadId={lead.id} statusAtual={lead.status} etapaOperacional={lead.etapaOperacional} atualizadoEm={lead.atualizadoEm.toISOString()} arquivadoEm={lead.arquivadoEm?.toISOString() ?? null} excluidoEm={lead.excluidoEm?.toISOString() ?? null} interno={interno} />
           </div>
 
-          {/* Visits */}
-          {lead.visitas.length > 0 && (
-            <div className="bg-white border border-gray-100 p-5">
-              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Visitas</p>
-              {lead.visitas.map((visita) => (
-                <div key={visita.id} className="border border-gray-100 p-3">
-                  <div className="flex items-center gap-1 text-xs font-bold mb-1">
-                    <Calendar size={11} className="text-[var(--brand-yellow)]" />
-                    {new Date(visita.agendadaPara).toLocaleString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                  <p className="text-xs text-gray-600">{visita.notas || visita.clienteNome}</p>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 uppercase mt-1 inline-block ${
-                      visita.status === "realizada"
-                        ? "bg-green-100 text-green-800"
-                        : visita.status === "cancelada"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-purple-100 text-purple-700"
-                    }`}
-                  >
-                    {visita.status}
-                  </span>
-                </div>
-              ))}
+          {/* Item 10 (18/10): agendamentos de visita do lead — os mesmos registros da Agenda. */}
+          <div className="bg-white border border-gray-100 p-5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Agendamento de visita</p>
+              <Link href="/admin/agenda" className="text-xs font-bold text-[var(--brand-dark)] underline">Abrir na Agenda</Link>
             </div>
-          )}
-
-          {/* Agendar visita */}
-          <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Agendar Visita</p>
-            {ativo ? <LeadAgendarVisita leadId={lead.id} /> : <p className="text-xs text-gray-600">Agendamento disponível para leads ativos.</p>}
-          </div>
-
-          {/* Documentos */}
-          <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Documentos</p>
-            {contratosComDocumentos.length === 0 || contratosComDocumentos.every((c) => c.documentos.length === 0) ? (
-              <div className="text-center py-4">
-                <FileText size={22} className="text-gray-600 mx-auto mb-2" />
-                <p className="text-xs text-gray-600">
-                  Nenhum documento vinculado a este lead ainda. Documentos gerados ou enviados em contratos do Jurídico aparecem aqui.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {contratosComDocumentos
-                  .filter((c) => c.documentos.length > 0)
-                  .map((c) => (
-                    <div key={c.id} className="border border-gray-100">
-                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50">
-                        <Link href={`/admin/juridico`} className="flex items-center gap-1 text-xs font-bold text-[var(--brand-dark)] hover:underline">
-                          <ExternalLink size={10} /> Contrato {c.numero}
-                        </Link>
-                        <span className="text-[9px] text-gray-600 capitalize">{c.tipo.replace(/_/g, " ")}</span>
-                      </div>
-                      <div className="divide-y divide-gray-50">
-                        {c.documentos.map((doc) => (
-                          <a
-                            key={doc.id}
-                            href={doc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors"
-                          >
-                            <FileText size={12} className="text-gray-600 shrink-0" />
-                            <span className="flex-1 min-w-0 truncate text-gray-600">{doc.nome}</span>
-                            <Download size={11} className="text-gray-600 shrink-0" />
-                          </a>
-                        ))}
-                      </div>
+            {lead.visitas.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {lead.visitas.map((visita) => (
+                  <div key={visita.id} className="border border-gray-100 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex items-center gap-1 text-xs font-bold text-[var(--brand-dark)]">
+                        <Calendar size={11} className="text-[var(--brand-dark)]" />
+                        {new Date(visita.agendadaPara).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        {" · "}{rotulo(visita.tipoVisita)}
+                      </span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 uppercase ${visita.status === "realizada" ? "bg-green-100 text-green-800" : visita.status === "cancelada" ? "bg-red-100 text-red-700" : "bg-purple-100 text-purple-800"}`}>
+                        {rotulo(visita.status)}
+                      </span>
                     </div>
-                  ))}
+                    <p className="mt-1 break-words text-xs text-gray-700">
+                      {[visita.colaboradorNome && `Responsável: ${visita.colaboradorNome}`, visita.corretor?.nome && `Corretor: ${visita.corretor.nome}`, visita.notas].filter(Boolean).join(" · ") || "Sem observações"}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
+            {ativo ? (
+              <LeadAgendarVisita leadId={lead.id} responsaveis={responsaveisVisita} corretores={corretoresAtivos} interno={interno} />
+            ) : (
+              <p className="text-xs text-gray-600">Agendamento disponível para leads ativos.</p>
+            )}
+          </div>
+
+          {/* Item 11 (18/10): contratos do cliente, criados e mantidos no Jurídico. */}
+          <div className="bg-white border border-gray-100 p-5">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Contratos (Jurídico)</p>
+            <LeadContratos
+              leadId={lead.id}
+              podeJuridico={podeJuridico}
+              contratos={contratosComDocumentos.map((c) => ({
+                id: c.id, numero: c.numero, tipo: c.tipo, status: c.status, assinaturaStatus: c.assinaturaStatus,
+                documentos: c.documentos.map((d) => ({ id: d.id, nome: d.nome, url: d.url, tipo: d.tipo })),
+              }))}
+            />
           </div>
         </div>
       </div>

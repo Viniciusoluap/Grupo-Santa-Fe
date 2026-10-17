@@ -198,7 +198,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                   setProfileOpen(false);
                   if (!bellOpen) fetchNotificacoes();
                 }}
-                className="relative text-gray-400 hover:text-[var(--brand-dark)] p-1.5"
+                className="relative text-gray-600 hover:text-[var(--brand-dark)] p-1.5"
               >
                 <Bell size={18} />
                 {unreadCount > 0 && (
@@ -219,14 +219,14 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                       {unreadCount > 0 && (
                         <button
                           onClick={handleMarcarLidas}
-                          className="text-xs text-gray-400 hover:text-[var(--brand-dark)] font-medium"
+                          className="text-xs text-gray-600 hover:text-[var(--brand-dark)] font-medium"
                         >
                           Marcar lidas
                         </button>
                       )}
                       <button
                         onClick={() => setBellOpen(false)}
-                        className="text-gray-300 hover:text-gray-500"
+                        className="text-gray-500 hover:text-gray-500"
                       >
                         <X size={14} />
                       </button>
@@ -237,7 +237,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                     {notificacoes.length === 0 ? (
                       <div className="py-8 text-center">
                         <Bell size={24} className="text-gray-200 mx-auto mb-2" />
-                        <p className="text-xs text-gray-400">Nenhuma notificação</p>
+                        <p className="text-xs text-gray-600">Nenhuma notificação</p>
                       </div>
                     ) : (
                       notificacoes.map((n) => (
@@ -261,12 +261,12 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                             <p className="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">
                               {n.mensagem}
                             </p>
-                            <p className="text-[10px] text-gray-400 mt-1">
+                            <p className="text-[10px] text-gray-600 mt-1">
                               {tempoRelativo(n.criadoEm)}
                             </p>
                           </div>
                           {n.link && (
-                            <ChevronRight size={12} className="text-gray-300 shrink-0 mt-1" />
+                            <ChevronRight size={12} className="text-gray-500 shrink-0 mt-1" />
                           )}
                         </div>
                       ))
@@ -305,7 +305,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                     <p className="font-bold text-[var(--brand-dark)] text-sm">
                       {userName}
                     </p>
-                    <p className="text-xs text-gray-400 capitalize">{userRole}</p>
+                    <p className="text-xs text-gray-600 capitalize">{userRole}</p>
                   </div>
                   <button
                     onClick={() => {
@@ -319,7 +319,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                   <div className="border-t border-gray-100">
                     <button
                       onClick={() => setProfileOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:text-gray-600 hover:bg-gray-50 transition-colors"
                     >
                       <User size={15} /> Meu perfil
                     </button>

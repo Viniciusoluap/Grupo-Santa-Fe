@@ -34,6 +34,10 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
     case "financiamento": {
       const { servicoLeadId } = await tx.financiamento.findUniqueOrThrow({ where: { id }, select: { servicoLeadId: true } });
       await tx.comissao.deleteMany({ where: { tipoNegocio: "financiamento", negocioId: id } });
+      // Documentos enviados pelo cliente no checklist guardam os bytes em `arquivos`.
+      const docs = await tx.checklistItem.findMany({ where: { financiamentoId: id, arquivoId: { not: null } }, select: { arquivoId: true } });
+      const arquivos = docs.map((d) => d.arquivoId).filter((a): a is string => Boolean(a));
+      if (arquivos.length) await tx.arquivo.deleteMany({ where: { id: { in: arquivos } } });
       await tx.financiamento.delete({ where: { id } }); // checklist sai em cascata
       return servicoLeadId;
     }

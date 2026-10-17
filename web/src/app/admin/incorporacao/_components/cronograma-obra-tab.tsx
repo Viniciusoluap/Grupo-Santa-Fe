@@ -151,7 +151,7 @@ export function CronogramaObraTab({ estudo }: { estudo: EstudoData }) {
                     {(estudo.colaboradores ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                   </select></td>
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerMedicao(m.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerMedicao(m.id)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}

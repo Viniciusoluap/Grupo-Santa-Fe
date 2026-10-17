@@ -132,14 +132,14 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-gray-400 mt-1">Últimos 12 meses · {periodoLabel}</p>
+      <p className="text-xs text-gray-600 mt-1">Últimos 12 meses · {periodoLabel}</p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => (
           <div key={k.label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{k.label}</p>
-              <k.icon size={16} className="text-gray-300" />
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">{k.label}</p>
+              <k.icon size={16} className="text-gray-500" />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-2xl leading-none">{k.value}</p>
             <p className="text-xs mt-1 text-green-500">{k.delta}</p>
@@ -185,7 +185,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
         <div className="bg-white border border-gray-100 p-5">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Distribuição por Tipo</p>
           {propertyTypeData.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">Nenhum imóvel cadastrado.</p>
+            <p className="text-gray-600 text-sm text-center py-8">Nenhum imóvel cadastrado.</p>
           ) : (
             <div className="flex items-center gap-6">
               <ResponsiveContainer width={160} height={160}>
@@ -217,12 +217,12 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Funil de Conversão</p>
           <div className="space-y-2">
             {leadFunnelData.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">Nenhum lead cadastrado.</p>
+              <p className="text-gray-600 text-sm text-center py-4">Nenhum lead cadastrado.</p>
             ) : leadFunnelData.map((s) => (
               <div key={s.stage}>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-gray-600">{s.stage}</span>
-                  <span className="font-bold text-[var(--brand-dark)]">{s.count} <span className="text-gray-400 font-normal">({s.pct}%)</span></span>
+                  <span className="font-bold text-[var(--brand-dark)]">{s.count} <span className="text-gray-600 font-normal">({s.pct}%)</span></span>
                 </div>
                 <div className="h-2 bg-gray-100 overflow-hidden">
                   <div className="h-full bg-[var(--brand-yellow)] transition-all" style={{ width: `${s.pct}%` }} />
@@ -236,7 +236,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Ranking de Corretores</p>
           <div className="space-y-3">
             {corretorRanking.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">Nenhuma comissão paga ainda.</p>
+              <p className="text-gray-600 text-sm text-center py-4">Nenhuma comissão paga ainda.</p>
             ) : corretorRanking.map((c, i) => (
               <div key={c.name} className="flex items-center gap-3">
                 <div className={`w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs font-black ${i === 0 ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-500"}`}>
@@ -244,7 +244,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{c.name}</p>
-                  <p className="text-xs text-gray-400">{c.vendas} comissões</p>
+                  <p className="text-xs text-gray-600">{c.vendas} comissões</p>
                 </div>
                 <p className="text-sm font-black text-[var(--brand-dark)] flex-shrink-0">{formatCurrency(c.comissoes)}</p>
               </div>
@@ -464,7 +464,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
             </thead>
             <tbody className="divide-y divide-gray-50">
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">Nenhum lançamento encontrado.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento encontrado.</td></tr>
               ) : items.map((l) => (
                 <tr key={l.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3"><p className="font-medium text-[var(--brand-dark)] text-xs">{l.clienteNome}</p></td>
@@ -479,7 +479,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                         className="text-xs font-bold text-[var(--brand-dark)] bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] px-3 py-1 transition-colors disabled:opacity-50">
                         Pagar
                       </button>
-                    ) : <span className="text-xs text-gray-400">—</span>}
+                    ) : <span className="text-xs text-gray-600">—</span>}
                   </td>
                 </tr>
               ))}
@@ -496,7 +496,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">BPO Financeiro</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Gestão de pagamentos, recebimentos e contas bancárias</p>
+          <p className="text-gray-600 text-sm mt-0.5">Gestão de pagamentos, recebimentos e contas bancárias</p>
         </div>
         <Link href="/admin/bpo" className="text-xs font-bold text-[var(--brand-yellow)] hover:underline mt-1">
           Gerenciar Clientes
@@ -559,36 +559,36 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {aba === "cobracas" ? (<>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Total Esperado</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Total Esperado</p>
               <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(totalEsperado)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Recebido</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Recebido</p>
               <p className="font-black text-green-600 text-lg leading-none">{formatCurrency(recebido)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pendente</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Pendente</p>
               <p className="font-black text-yellow-600 text-lg leading-none">{formatCurrency(pendente)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Vencido</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Vencido</p>
               <p className="font-black text-red-600 text-lg leading-none">{formatCurrency(vencido)}</p>
             </div>
           </>) : (<>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Total</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Total</p>
               <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(despesaTotal)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pagas</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Pagas</p>
               <p className="font-black text-green-600 text-lg leading-none">{formatCurrency(despesaPaga)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pendentes</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Pendentes</p>
               <p className="font-black text-yellow-600 text-lg leading-none">{formatCurrency(despesaPendente)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Vencidas</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Vencidas</p>
               <p className="font-black text-red-600 text-lg leading-none">{formatCurrency(despesaVencida)}</p>
             </div>
           </>)}
@@ -614,7 +614,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[180px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
               <input type="text" placeholder="Buscar cliente ou descrição..." value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
@@ -651,7 +651,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[180px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
               <input type="text" placeholder="Buscar cliente ou descrição..." value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
@@ -725,22 +725,22 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           {/* Bank KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Saldo Total</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Saldo Total</p>
               <p className={`font-black text-lg leading-none ${saldoTotal >= 0 ? "text-[var(--brand-dark)]" : "text-red-600"}`}>{formatCurrency(saldoTotal)}</p>
-              <p className="text-[10px] text-gray-400 mt-1">{contas.filter((c) => c.ativo).length} conta(s) ativas</p>
+              <p className="text-[10px] text-gray-600 mt-1">{contas.filter((c) => c.ativo).length} conta(s) ativas</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Créditos (mês)</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Créditos (mês)</p>
               <p className="font-black text-green-600 text-lg leading-none flex items-center gap-1"><ArrowUpRight size={16} />{formatCurrency(creditosMes)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Débitos (mês)</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Débitos (mês)</p>
               <p className="font-black text-red-600 text-lg leading-none flex items-center gap-1"><ArrowDownRight size={16} />{formatCurrency(debitosMes)}</p>
             </div>
             <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">A Conciliar</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">A Conciliar</p>
               <p className="font-black text-yellow-600 text-lg leading-none">{transacoesPendentes}</p>
-              <p className="text-[10px] text-gray-400 mt-1">transação(ões)</p>
+              <p className="text-[10px] text-gray-600 mt-1">transação(ões)</p>
             </div>
           </div>
 
@@ -769,9 +769,9 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           {/* Account cards */}
           {contas.length === 0 ? (
             <div className="bg-gray-50 border border-dashed border-gray-200 p-12 text-center">
-              <Building2 size={32} className="text-gray-300 mx-auto mb-3" />
+              <Building2 size={32} className="text-gray-500 mx-auto mb-3" />
               <p className="text-gray-500 font-medium">Nenhuma conta bancária cadastrada</p>
-              <p className="text-gray-400 text-sm mt-1">Adicione uma conta para acompanhar extratos e sincronizar transações</p>
+              <p className="text-gray-600 text-sm mt-1">Adicione uma conta para acompanhar extratos e sincronizar transações</p>
               <button onClick={() => setShowAddConta(true)}
                 className="mt-4 inline-flex items-center gap-2 bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase px-4 py-2">
                 <Plus size={12} /> Adicionar Conta
@@ -793,14 +793,14 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                         <p className="font-bold text-[var(--brand-dark)] text-sm">
                           {conta.descricao ?? `${conta.tipo.charAt(0).toUpperCase() + conta.tipo.slice(1)} — Ag. ${conta.agencia ?? "—"} / C. ${conta.conta}`}
                         </p>
-                        <p className="text-xs text-gray-400">{conta.banco} · Ag. {conta.agencia ?? "—"} · {conta.conta} · {conta.tipo}</p>
+                        <p className="text-xs text-gray-600">{conta.banco} · Ag. {conta.agencia ?? "—"} · {conta.conta} · {conta.tipo}</p>
                       </div>
                       <div className="text-right">
                         <p className={`font-black text-lg leading-none ${conta.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-600"}`}>
                           {formatCurrency(conta.saldoAtual)}
                         </p>
                         {conta.ultimaSincronizacao && (
-                          <p className="text-[10px] text-gray-400 mt-0.5 flex items-center justify-end gap-0.5">
+                          <p className="text-[10px] text-gray-600 mt-0.5 flex items-center justify-end gap-0.5">
                             <Wifi size={9} className="text-green-500" /> Sync {new Date(conta.ultimaSincronizacao).toLocaleDateString("pt-BR")}
                           </p>
                         )}
@@ -818,7 +818,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                           {txPendentes.length > 0 && <span className="ml-1 bg-yellow-100 text-yellow-700 px-1 rounded-sm text-[9px]">{txPendentes.length}</span>}
                         </button>
                         <button onClick={() => handleExcluirConta(conta.id, conta.banco)} disabled={isPending}
-                          className="text-gray-300 hover:text-red-500 transition-colors p-1 disabled:opacity-30">
+                          className="text-gray-500 hover:text-red-500 transition-colors p-1 disabled:opacity-30">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -835,18 +835,18 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                     {isExpanded && (
                       <div className="border-t border-gray-100">
                         {conta.transacoes.length === 0 ? (
-                          <p className="text-sm text-gray-400 text-center py-6">Nenhuma transação. Clique em Sincronizar para buscar do banco.</p>
+                          <p className="text-sm text-gray-600 text-center py-6">Nenhuma transação. Clique em Sincronizar para buscar do banco.</p>
                         ) : (
                           <div className="overflow-x-auto">
                             <table className="w-full text-xs">
                               <thead className="bg-gray-50 border-b border-gray-100">
                                 <tr>
-                                  <th className="px-4 py-2 text-left font-bold text-gray-400 uppercase tracking-wide">Data</th>
-                                  <th className="px-4 py-2 text-left font-bold text-gray-400 uppercase tracking-wide">Descrição</th>
-                                  <th className="px-4 py-2 text-left font-bold text-gray-400 uppercase tracking-wide hidden md:table-cell">Categoria</th>
-                                  <th className="px-4 py-2 text-right font-bold text-gray-400 uppercase tracking-wide">Valor</th>
-                                  <th className="px-4 py-2 text-center font-bold text-gray-400 uppercase tracking-wide">Status</th>
-                                  <th className="px-4 py-2 text-center font-bold text-gray-400 uppercase tracking-wide">Ação</th>
+                                  <th className="px-4 py-2 text-left font-bold text-gray-600 uppercase tracking-wide">Data</th>
+                                  <th className="px-4 py-2 text-left font-bold text-gray-600 uppercase tracking-wide">Descrição</th>
+                                  <th className="px-4 py-2 text-left font-bold text-gray-600 uppercase tracking-wide hidden md:table-cell">Categoria</th>
+                                  <th className="px-4 py-2 text-right font-bold text-gray-600 uppercase tracking-wide">Valor</th>
+                                  <th className="px-4 py-2 text-center font-bold text-gray-600 uppercase tracking-wide">Status</th>
+                                  <th className="px-4 py-2 text-center font-bold text-gray-600 uppercase tracking-wide">Ação</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-50">
@@ -854,7 +854,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                                   <tr key={tx.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-2 text-gray-500">{new Date(tx.data).toLocaleDateString("pt-BR")}</td>
                                     <td className="px-4 py-2 text-[var(--brand-dark)] font-medium max-w-xs truncate">{tx.descricao}</td>
-                                    <td className="px-4 py-2 text-gray-400 hidden md:table-cell">{tx.categoria ?? "—"}</td>
+                                    <td className="px-4 py-2 text-gray-600 hidden md:table-cell">{tx.categoria ?? "—"}</td>
                                     <td className={`px-4 py-2 text-right font-bold ${tx.tipo === "credito" ? "text-green-600" : "text-red-600"}`}>
                                       {tx.tipo === "credito" ? "+" : "-"}{formatCurrency(tx.valor)}
                                     </td>
@@ -886,7 +886,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                               </tbody>
                             </table>
                             {conta.transacoes.length > 50 && (
-                              <p className="text-center text-xs text-gray-400 py-3">Mostrando 50 de {conta.transacoes.length} transações</p>
+                              <p className="text-center text-xs text-gray-600 py-3">Mostrando 50 de {conta.transacoes.length} transações</p>
                             )}
                           </div>
                         )}
@@ -920,13 +920,13 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                     className="border-2 border-gray-100 hover:border-[var(--brand-yellow)] p-6 text-center transition-all group">
                     <ArrowUpRight size={28} className="text-green-500 mx-auto mb-3" />
                     <p className="font-black text-[var(--brand-dark)] uppercase text-sm">Cobrança</p>
-                    <p className="text-xs text-gray-400 mt-1">Honorários, reembolsos e recebimentos</p>
+                    <p className="text-xs text-gray-600 mt-1">Honorários, reembolsos e recebimentos</p>
                   </button>
                   <button onClick={() => setModalTipo("despesa")}
                     className="border-2 border-gray-100 hover:border-[var(--brand-yellow)] p-6 text-center transition-all group">
                     <ArrowDownRight size={28} className="text-red-500 mx-auto mb-3" />
                     <p className="font-black text-[var(--brand-dark)] uppercase text-sm">Despesa</p>
-                    <p className="text-xs text-gray-400 mt-1">Gastos, fornecedores e custos</p>
+                    <p className="text-xs text-gray-600 mt-1">Gastos, fornecedores e custos</p>
                   </button>
                 </div>
               </div>
@@ -941,7 +941,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente *</label>
                   <div className="relative">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
                     <input
                       type="text"
                       placeholder="Buscar cliente BPO ou lead..."
@@ -956,7 +956,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                             onClick={() => { setLeadSelectedId(c.id); setLeadSelectedNome(c.razaoSocial); setLeadSearch(c.razaoSocial); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{c.razaoSocial}</span>
-                            <span className="text-gray-400 text-xs ml-2">BPO</span>
+                            <span className="text-gray-600 text-xs ml-2">BPO</span>
                           </button>
                         ))}
                         {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
@@ -964,7 +964,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                             onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{l.nome}</span>
-                            <span className="text-gray-400 text-xs ml-2">Lead</span>
+                            <span className="text-gray-600 text-xs ml-2">Lead</span>
                           </button>
                         ))}
                       </div>
@@ -1027,7 +1027,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente / Referência *</label>
                   <div className="relative">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
                     <input
                       type="text"
                       placeholder="Buscar cliente BPO ou lead..."
@@ -1042,7 +1042,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                             onClick={() => { setLeadSelectedId(c.id); setLeadSelectedNome(c.razaoSocial); setLeadSearch(c.razaoSocial); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{c.razaoSocial}</span>
-                            <span className="text-gray-400 text-xs ml-2">BPO</span>
+                            <span className="text-gray-600 text-xs ml-2">BPO</span>
                           </button>
                         ))}
                         {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
@@ -1050,7 +1050,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                             onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{l.nome}</span>
-                            <span className="text-gray-400 text-xs ml-2">Lead</span>
+                            <span className="text-gray-600 text-xs ml-2">Lead</span>
                           </button>
                         ))}
                       </div>
@@ -1161,19 +1161,19 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               </div>
 
               <div className="border-t border-gray-100 pt-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Integração / Open Finance (opcional)</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3">Integração / Open Finance (opcional)</p>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">ID da Conta na API (Pluggy Account ID)</label>
                     <input name="pluggyAccountId" type="text" placeholder="Ex: a1b2c3d4-e5f6-..."
                       className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 font-mono text-xs" />
-                    <p className="text-[10px] text-gray-400 mt-1">ID retornado pelo Pluggy após conectar o banco. Habilita sincronização automática.</p>
+                    <p className="text-[10px] text-gray-600 mt-1">ID retornado pelo Pluggy após conectar o banco. Habilita sincronização automática.</p>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">URL do Webhook</label>
                     <input name="webhookUrl" type="url" placeholder="https://seusite.com/api/banco/webhook"
                       className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 font-mono text-xs" />
-                    <p className="text-[10px] text-gray-400 mt-1">URL que receberá notificações do banco em tempo real. Registre no painel do Pluggy.</p>
+                    <p className="text-[10px] text-gray-600 mt-1">URL que receberá notificações do banco em tempo real. Registre no painel do Pluggy.</p>
                   </div>
                 </div>
               </div>
@@ -1200,7 +1200,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
       {/* ─── CONTABILIDADE ─── */}
       {aba === "contabilidade" && (
         <div className="space-y-6">
-          <p className="text-xs text-gray-400">Dados fiscais e controle de impostos · Grupo Santa Fé</p>
+          <p className="text-xs text-gray-600">Dados fiscais e controle de impostos · Grupo Santa Fé</p>
 
           {/* Nota Fiscal */}
           <div className="bg-white border border-gray-100 p-6">
@@ -1252,7 +1252,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                 <div key={imposto.nome} className="flex items-center justify-between gap-4 py-3 border-b border-gray-50 last:border-0">
                   <div className="flex-1">
                     <p className="font-medium text-sm text-[var(--brand-dark)]">{imposto.nome}</p>
-                    <p className="text-xs text-gray-400">Venc. {imposto.vencimento}</p>
+                    <p className="text-xs text-gray-600">Venc. {imposto.vencimento}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-sm text-[var(--brand-dark)]">{imposto.valor > 0 ? formatCurrency(imposto.valor) : "—"}</p>
@@ -1265,7 +1265,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               ))}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-400">⚠️ Os valores dos impostos devem ser inseridos manualmente ou importados do contador. Vencimentos são estimativas — verifique com seu contador.</p>
+              <p className="text-xs text-gray-600">⚠️ Os valores dos impostos devem ser inseridos manualmente ou importados do contador. Vencimentos são estimativas — verifique com seu contador.</p>
             </div>
           </div>
         </div>
@@ -1290,7 +1290,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                   <li>Faça um novo deploy e volte aqui para sincronizar</li>
                 </ol>
               </div>
-              <p className="text-xs text-gray-400">Suporta Itaú, Bradesco, Nubank, Caixa, Banco do Brasil, Santander e +200 instituições financeiras brasileiras.</p>
+              <p className="text-xs text-gray-600">Suporta Itaú, Bradesco, Nubank, Caixa, Banco do Brasil, Santander e +200 instituições financeiras brasileiras.</p>
               <button onClick={() => setShowSetupPluggy(false)}
                 className="w-full bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-[var(--brand-yellow-dark)] transition-colors">
                 Entendi

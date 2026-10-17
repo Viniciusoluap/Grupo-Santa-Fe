@@ -31,14 +31,18 @@ export interface DetalheObra {
   estatisticas: { totalEtapas: number; etapasConcluidas: number; totalFotos: number };
 }
 
-/** Etapas = serviços com incidência na obra; concluída = 100% executada. */
-export function montarDetalheObra(progresso: ResultadoProgresso, financeiro: ResultadoObra, totalFotos: number): DetalheObra {
-  const etapas = progresso.itens
+/** Etapas com incidência e a situação de cada uma (também no Portal do Cliente, só leitura). */
+export function etapasDoProgresso(progresso: ResultadoProgresso): EtapaDetalhe[] {
+  return progresso.itens
     .filter((i) => i.incidencia > 0)
     .map((i): EtapaDetalhe => ({
       chave: i.chave, nome: i.nome, incidencia: i.incidencia, execucao: i.execucao, execucaoObra: i.execucaoObra,
       situacao: i.execucao >= 100 ? "concluida" : i.execucao > 0 ? "em_andamento" : "pendente",
     }));
+}
+
+export function montarDetalheObra(progresso: ResultadoProgresso, financeiro: ResultadoObra, totalFotos: number): DetalheObra {
+  const etapas = etapasDoProgresso(progresso);
   return {
     etapas,
     financeiro: {

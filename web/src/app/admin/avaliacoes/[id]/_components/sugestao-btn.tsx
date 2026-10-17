@@ -150,7 +150,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[10px] text-gray-400">
+                    <div className="flex justify-between text-[10px] text-gray-600">
                       <span>Buscando em {props.cidade}/{props.estado}...</span>
                       <span className="font-bold text-[var(--brand-dark)]">{progress}%</span>
                     </div>
@@ -187,32 +187,32 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
                     <div className="bg-gray-50 p-3 text-center">
                       <TrendingUp size={14} className="text-[var(--brand-yellow)] mx-auto mb-1" />
                       <p className="font-black text-[var(--brand-dark)]">{formatCurrency(result.precoPorM2)}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">por m²</p>
+                      <p className="text-[10px] text-gray-600 uppercase">por m²</p>
                     </div>
                     <div className={`p-3 text-center ${cfg.bg}`}>
                       <CfgIcon size={14} className={`${cfg.color} mx-auto mb-1`} />
                       <p className={`font-black ${cfg.color}`}>{cfg.label}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">Confiabilidade</p>
+                      <p className="text-[10px] text-gray-600 uppercase">Confiabilidade</p>
                     </div>
                   </div>
 
                   {/* Metodologia */}
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Metodologia</p>
+                    <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Metodologia</p>
                     <p className="text-xs text-gray-600">{result.metodologia}</p>
                   </div>
 
                   {/* Comparáveis */}
                   {result.comparaveis.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2">
                         Imóveis Comparáveis ({result.comparaveis.length})
                       </p>
                       <div className="space-y-2">
                         {result.comparaveis.map((c, i) => (
                           <div key={i} className="bg-gray-50 p-2.5 text-xs">
                             <p className="font-medium text-[var(--brand-dark)]">{c.descricao}</p>
-                            <div className="flex gap-3 mt-1 text-gray-400">
+                            <div className="flex gap-3 mt-1 text-gray-600">
                               <span>{c.area} m²</span>
                               <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(c.preco)}</span>
                               <span>{formatCurrency(c.precoPorM2)}/m²</span>
@@ -233,7 +233,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
 
                   {/* Fontes */}
                   {result.fontes.length > 0 && (
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-[10px] text-gray-600">
                       Fontes: {result.fontes.join(" · ")}
                     </p>
                   )}
@@ -248,7 +248,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
                     </button>
                     <button
                       onClick={() => setOpen(false)}
-                      className="px-4 border border-gray-200 text-xs font-bold text-gray-400 hover:bg-gray-50 transition-colors"
+                      className="px-4 border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
                     >
                       Fechar
                     </button>

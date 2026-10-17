@@ -120,9 +120,9 @@ export function OrcamentoPreliminarTab({ estudo }: { estudo: EstudoData }) {
           <table className="text-xs min-w-[600px] w-full">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-52">Categoria</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-32">Valor orçado (R$)</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-52">Observações</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-52">Categoria</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Valor orçado (R$)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-52">Observações</th>
                 <th />
               </tr>
             </thead>
@@ -137,7 +137,7 @@ export function OrcamentoPreliminarTab({ estudo }: { estudo: EstudoData }) {
                   <td className="px-1 py-1"><NumeroBRField value={item.valorOrcado} onValueChange={(v) => upd(item.id, "valorOrcado", v)} className={numCls} /></td>
                   <td className="px-1 py-1"><input value={item.observacoes ?? ""} onChange={(e) => upd(item.id, "observacoes", e.target.value)} className={inputCls} placeholder="Observações" /></td>
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerItem(item.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerItem(item.id)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}

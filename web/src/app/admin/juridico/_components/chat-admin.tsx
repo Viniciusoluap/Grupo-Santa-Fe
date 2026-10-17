@@ -105,7 +105,7 @@ export function ChatAdmin({ leads }: Props) {
         </div>
         <div className="overflow-y-auto flex-1">
           {leads.length === 0 && (
-            <p className="px-4 py-8 text-xs text-gray-400 text-center">Nenhum lead</p>
+            <p className="px-4 py-8 text-xs text-gray-600 text-center">Nenhum lead</p>
           )}
           {leads.map((lead) => (
             <button
@@ -116,7 +116,7 @@ export function ChatAdmin({ leads }: Props) {
               }`}
             >
               <p className="text-xs font-bold text-[var(--brand-dark)] truncate">{lead.nome}</p>
-              <p className="text-[10px] text-gray-400 truncate mt-0.5">{lead.telefone ?? lead.email ?? "—"}</p>
+              <p className="text-[10px] text-gray-600 truncate mt-0.5">{lead.telefone ?? lead.email ?? "—"}</p>
             </button>
           ))}
         </div>
@@ -126,24 +126,24 @@ export function ChatAdmin({ leads }: Props) {
       {!selectedLead ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
           <MessageSquare size={32} className="text-gray-200 mb-3" />
-          <p className="text-gray-400 font-medium text-sm">Selecione um cliente</p>
-          <p className="text-gray-300 text-xs mt-1">para iniciar ou ver o chat</p>
+          <p className="text-gray-600 font-medium text-sm">Selecione um cliente</p>
+          <p className="text-gray-500 text-xs mt-1">para iniciar ou ver o chat</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-            <User size={14} className="text-gray-400" />
+            <User size={14} className="text-gray-600" />
             <div>
               <p className="text-xs font-bold text-[var(--brand-dark)]">{selectedLead.nome}</p>
-              <p className="text-[10px] text-gray-400">{selectedLead.email ?? selectedLead.telefone}</p>
+              <p className="text-[10px] text-gray-600">{selectedLead.email ?? selectedLead.telefone}</p>
             </div>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {mensagens.length === 0 && (
-              <p className="text-xs text-gray-300 text-center py-8">Nenhuma mensagem ainda</p>
+              <p className="text-xs text-gray-500 text-center py-8">Nenhuma mensagem ainda</p>
             )}
             {mensagens.map((m) => (
               <div

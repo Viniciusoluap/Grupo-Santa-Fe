@@ -67,7 +67,7 @@ export function GoogleDriveCard({ retorno, inicial }: { retorno: Mensagem | null
           <h2 className="font-black text-[var(--brand-dark)] uppercase tracking-wide text-sm">Google Drive</h2>
           <p className="text-xs text-gray-500">Documentos do sistema guardados no Google Drive da sua conta.</p>
         </div></div>
-        {!status ? <Loader2 size={14} className="animate-spin text-gray-400" /> : status.conectado
+        {!status ? <Loader2 size={14} className="animate-spin text-gray-600" /> : status.conectado
           ? <span className="flex items-center gap-1 text-xs font-bold text-emerald-700"><CheckCircle2 size={14} /> Conectado{status.email ? ` como ${status.email}` : ""}</span>
           : <span className="text-xs font-bold text-amber-700">{status.credencial ? "Credencial enviada — falta conectar" : "Não conectado (arquivos ficam no banco)"}</span>}
       </div>

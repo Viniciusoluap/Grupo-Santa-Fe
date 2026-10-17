@@ -29,7 +29,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href={`/admin/projetos/${id}`} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href={`/admin/projetos/${id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Projeto
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Projeto</h1>

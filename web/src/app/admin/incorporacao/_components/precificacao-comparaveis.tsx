@@ -140,7 +140,7 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
             <Scale size={13} /> Precificação por comparáveis ponderados
           </p>
-          <p className="text-[11px] text-gray-400 mt-1 max-w-xl">
+          <p className="text-[11px] text-gray-600 mt-1 max-w-xl">
             Dê um peso (0–3) para o que mais importa na decisão de compra, uma nota (0–3) para o seu empreendimento e para cada concorrente com preço/m² conhecido. O preço sugerido escala o preço médio dos concorrentes pela proporção entre as notas ponderadas.
           </p>
         </div>
@@ -168,7 +168,7 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
               <input type="number" min={0} max={3} step={0.5} value={dados.notasNovo[i] ?? 0}
                 onChange={(e) => updNotaNovo(i, e.target.value)} className={`col-span-3 ${inputCls}`} />
               <button type="button" onClick={() => removerAtributo(i)}
-                className="col-span-1 text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                className="col-span-1 text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -181,16 +181,16 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
       <div>
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Concorrentes</p>
         {dados.comparaveis.length === 0 && (
-          <p className="text-xs text-gray-400 mb-2">Nenhum concorrente cadastrado ainda.</p>
+          <p className="text-xs text-gray-600 mb-2">Nenhum concorrente cadastrado ainda.</p>
         )}
         <div className="overflow-x-auto">
           <table className="text-xs min-w-[480px]">
             <thead>
               <tr>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-40">Nome</th>
-                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-28">R$/m²</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Nome</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">R$/m²</th>
                 {dados.atributos.map((a, i) => (
-                  <th key={i} className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-20">{a.nome || `Atrib. ${i + 1}`}</th>
+                  <th key={i} className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-20">{a.nome || `Atrib. ${i + 1}`}</th>
                 ))}
                 <th />
               </tr>
@@ -207,7 +207,7 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
                     </td>
                   ))}
                   <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerComparavel(i)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    <button type="button" onClick={() => removerComparavel(i)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
                 </tr>
               ))}
@@ -236,17 +236,17 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
           <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{resultado.notaPonderadaMediaComparaveis.toFixed(2)}</p>
         </div>
         <div className="border border-gray-100 p-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Concorrentes válidos</p>
+          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Concorrentes válidos</p>
           <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{resultado.comparaveisValidos}</p>
         </div>
       </div>
       {resultado.comparaveisIncompletos.length > 0 && (
-        <p className="text-[11px] text-gray-400">
+        <p className="text-[11px] text-gray-600">
           Fora do cálculo (preço ou nota faltando): {resultado.comparaveisIncompletos.join(", ")}
         </p>
       )}
       {resultado.comparaveisValidos > 0 && (
-        <p className="text-[11px] text-gray-400">
+        <p className="text-[11px] text-gray-600">
           Esse preço sugerido é usado automaticamente como ponto de partida do mix de produtos na aba Viabilidade, enquanto você não define um preço próprio ali.
         </p>
       )}

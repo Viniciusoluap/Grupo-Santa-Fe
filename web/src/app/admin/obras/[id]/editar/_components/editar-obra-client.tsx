@@ -72,7 +72,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
       <div role="tablist" className="flex flex-wrap gap-1 border-b border-gray-200">
         {ABAS.map((a) => (
           <button key={a.id} type="button" role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
-            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${aba === a.id ? "border-b-2 border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "text-gray-400"}`}>
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${aba === a.id ? "border-b-2 border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "text-gray-600"}`}>
             {a.label}
           </button>
         ))}
@@ -106,7 +106,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
           <div>
             <p className={labelCls}>Nome do Cliente</p>
             <div className="w-full border border-gray-100 px-3 py-2.5 text-sm bg-gray-100 text-gray-700" aria-readonly="true">{clienteNome}</div>
-            <p className="text-[11px] text-gray-400 mt-1">Vem do lead no CRM. Para alterar, edite o lead.</p>
+            <p className="text-[11px] text-gray-600 mt-1">Vem do lead no CRM. Para alterar, edite o lead.</p>
           </div>
           <label className={labelCls}>Escritório CF (Agência CEF)
             <input value={escritorio} onChange={(e) => setEscritorio(e.target.value)} placeholder="Agência CEF" className={`${inputCls} mt-1 normal-case font-normal`} />
@@ -115,7 +115,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
             <div>
               <p className={labelCls}>Nome do Corretor</p>
               <div className="w-full border border-gray-100 px-3 py-2.5 text-sm bg-gray-100 text-gray-700" aria-readonly="true">{corretor}</div>
-              <p className="text-[11px] text-gray-400 mt-1">Corretor vinculado ao lead no CRM.</p>
+              <p className="text-[11px] text-gray-600 mt-1">Corretor vinculado ao lead no CRM.</p>
             </div>
           )}
         </section>

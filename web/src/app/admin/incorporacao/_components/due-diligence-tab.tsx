@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { salvarDueDiligence } from "@/lib/actions/due-diligence";
-import { desvincularDocumentoRegistro, enviarDocumentoRegistro, listarDocumentosRegistro } from "@/lib/actions/documentos-registro";
+import { desvincularDocumentoRegistro, listarDocumentosRegistro, type enviarDocumentoRegistro } from "@/lib/actions/documentos-registro";
 import { lerDueDiligence, progressoDueDiligence, type DueDiligence } from "@/lib/incorporacao/due-diligence";
+import { enviarComProgresso } from "@/lib/envio-progresso";
 
 type Etapa = DueDiligence["etapas"][number];
 const novaEtapa = (): Etapa => ({ id: crypto.randomUUID(), nome: "Nova etapa", procedimentos: "", observacoes: "", tarefas: [], documentos: [] });
@@ -42,7 +43,7 @@ export function DueDiligenceTab({ estudoId, json }: { estudoId: string; json: st
     if (arquivos.some((d) => d.itemId === itemId) && !window.confirm("Substituir o arquivo? O histórico permanece.")) return;
     setBusyItem(itemId); setErro("");
     try {
-      const result = exigirResultado(await enviarDocumentoRegistro(estudoId, itemId, file));
+      const result = exigirResultado(await enviarComProgresso<Awaited<ReturnType<typeof enviarDocumentoRegistro>>>("incorporacao.documento", { estudoId, itemId, arquivo: file }, { item: "documento" }));
       setArquivos(result.documentos);
       if ("notaArmazenamento" in result && result.notaArmazenamento) setErro(`Documento salvo no sistema. Google Drive indisponível: ${result.notaArmazenamento}`);
     }

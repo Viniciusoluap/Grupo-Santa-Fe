@@ -13,13 +13,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const foto = await prisma.imovelFoto.findUnique({
     where: { id },
-    select: { mime: true, driveFileId: true, dados: true, imovel: { select: { publicadoSite: true, corretorId: true } } },
+    select: { mime: true, driveFileId: true, dados: true, imovel: { select: { publicadoSite: true, corretorId: true, cadastradoPorId: true, revisaoStatus: true } } },
   });
   if (!foto) return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
   const publica = foto.imovel.publicadoSite;
   if (!publica) {
     const u = await usuarioAtual();
-    const pode = u?.ativo && (u.perfil === "admin" || u.perfil === "colaborador" || (u.perfil === "corretor" && u.corretorId && u.corretorId === foto.imovel.corretorId));
+    // Corretor: o próprio cadastro, os imóveis em que é o responsável e o
+    // catálogo aprovado que ele consulta no Portal do Corretor (item 3, 18/10).
+    const corretorPode = u?.perfil === "corretor" && (
+      foto.imovel.cadastradoPorId === u.id ||
+      foto.imovel.revisaoStatus === "aprovado" ||
+      (!!u.corretorId && u.corretorId === foto.imovel.corretorId)
+    );
+    const pode = u?.ativo && (u.perfil === "admin" || u.perfil === "colaborador" || corretorPode);
     if (!pode) return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
   }
   let body: Uint8Array<ArrayBuffer>;

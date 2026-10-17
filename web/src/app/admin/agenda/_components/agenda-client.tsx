@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { criarVisita, editarVisita, excluirVisita, atualizarStatusVisita } from "@/lib/actions/agenda";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { rotulo } from "@/lib/rotulos";
 
 type Corretor = { id: string; nome: string };
 type ImovelItem = { id: string; titulo: string };
@@ -88,7 +89,7 @@ function ExcluirVisitaBtn({ id }: { id: string }) {
       }}
       disabled={isPending}
       title="Excluir visita"
-      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors rounded disabled:opacity-40"
+      className="p-1.5 text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors rounded disabled:opacity-40"
     >
       <Trash2 size={14} />
     </button>
@@ -116,20 +117,20 @@ function Calendario({
   return (
     <div className="bg-white border border-gray-100">
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-        <button onClick={onPrev} className="p-1.5 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-100 rounded transition-colors">
+        <button onClick={onPrev} className="p-1.5 text-gray-600 hover:text-[var(--brand-dark)] hover:bg-gray-100 rounded transition-colors">
           <ChevronLeft size={16} />
         </button>
         <p className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-wide">
           {MESES_PT[mes]} {ano}
         </p>
-        <button onClick={onNext} className="p-1.5 text-gray-400 hover:text-[var(--brand-dark)] hover:bg-gray-100 rounded transition-colors">
+        <button onClick={onNext} className="p-1.5 text-gray-600 hover:text-[var(--brand-dark)] hover:bg-gray-100 rounded transition-colors">
           <ChevronRight size={16} />
         </button>
       </div>
 
       <div className="grid grid-cols-7 border-b border-gray-100">
         {DIAS_SEMANA.map((d) => (
-          <div key={d} className="py-2 text-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">{d}</div>
+          <div key={d} className="py-2 text-center text-[9px] font-bold text-gray-600 uppercase tracking-widest">{d}</div>
         ))}
       </div>
 
@@ -186,19 +187,19 @@ function VisitaCard({ v, onEdit }: { v: VisitaData; onEdit: () => void }) {
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-bold text-[var(--brand-dark)] text-sm">{v.clienteNome}</p>
-            <p className="text-gray-400 text-xs mt-0.5">{tipoLabel}</p>
-            {v.imovel && <p className="text-gray-400 text-xs">{v.imovel.titulo}</p>}
+            <p className="text-gray-600 text-xs mt-0.5">{tipoLabel}</p>
+            {v.imovel && <p className="text-gray-600 text-xs">{v.imovel.titulo}</p>}
           </div>
-          <span className={`text-[10px] font-bold px-2 py-0.5 uppercase shrink-0 ${statusStyle}`}>{v.status}</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 uppercase shrink-0 ${statusStyle}`}>{rotulo(v.status)}</span>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
+        <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-600">
           <span className="flex items-center gap-1"><Clock size={10} />{dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
           {v.corretor && <span className="flex items-center gap-1"><User size={10} />Corretor: {v.corretor.nome}</span>}
           {v.colaboradorNome && <span className="flex items-center gap-1"><User size={10} />Colaborador: {v.colaboradorNome}</span>}
         </div>
 
-        {v.notas && <p className="text-xs text-gray-400 mt-1 italic">{v.notas}</p>}
+        {v.notas && <p className="text-xs text-gray-600 mt-1 italic">{v.notas}</p>}
 
         <div className="flex gap-2 mt-2.5 flex-wrap items-center">
           {v.leadId && (
@@ -259,12 +260,12 @@ function LeadSearch({
         <div className="flex items-center justify-between gap-2 border border-gray-200 px-3 py-2.5 bg-gray-50">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{selecionado.nome}</p>
-            <p className="text-xs text-gray-400">{selecionado.telefone}</p>
+            <p className="text-xs text-gray-600">{selecionado.telefone}</p>
           </div>
           <button
             type="button"
             onClick={() => { onChange(null); setBusca(""); }}
-            className="shrink-0 text-gray-400 hover:text-red-500 transition-colors"
+            className="shrink-0 text-gray-600 hover:text-red-500 transition-colors"
             title="Trocar cliente"
           >
             <XIcon size={16} />
@@ -278,7 +279,7 @@ function LeadSearch({
     <div className="relative">
       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente (lead) *</label>
       <div className="relative">
-        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
         <input
           type="text"
           value={busca}
@@ -289,7 +290,7 @@ function LeadSearch({
           className="w-full border border-gray-200 pl-8 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
         />
       </div>
-      <p className="text-[10px] text-gray-400 mt-1">
+      <p className="text-[10px] text-gray-600 mt-1">
         Só é possível agendar visita para um lead já cadastrado. Não encontrou? Cadastre o lead primeiro.
       </p>
       {aberto && busca.trim().length >= 2 && (
@@ -303,11 +304,11 @@ function LeadSearch({
                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0"
               >
                 <span className="font-medium text-gray-800">{l.nome}</span>
-                <span className="text-gray-400 ml-2 text-xs">{l.telefone}</span>
+                <span className="text-gray-600 ml-2 text-xs">{l.telefone}</span>
               </button>
             ))
           ) : (
-            <p className="px-3 py-2 text-xs text-gray-400">Nenhum lead encontrado.</p>
+            <p className="px-3 py-2 text-xs text-gray-600">Nenhum lead encontrado.</p>
           )}
         </div>
       )}
@@ -521,7 +522,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Agenda de Visitas</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-gray-600 text-sm mt-0.5">
             {proximas.length} visita{proximas.length !== 1 ? "s" : ""} agendada{proximas.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -553,10 +554,10 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
                 <p className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">
                   {String(diaSel).padStart(2,"0")}/{String(mes+1).padStart(2,"0")}/{ano}
                 </p>
-                <span className="text-xs text-gray-400">{visitasDia.length} visita(s)</span>
+                <span className="text-xs text-gray-600">{visitasDia.length} visita(s)</span>
               </div>
               {visitasDia.length === 0 ? (
-                <div className="px-5 py-8 text-center text-gray-400 text-sm">
+                <div className="px-5 py-8 text-center text-gray-600 text-sm">
                   Nenhuma visita neste dia.{" "}
                   <button
                     onClick={() => { setEditando(null); setShowForm(true); }}
@@ -595,7 +596,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
                 <div key={v.id} className="px-5 py-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium text-[var(--brand-dark)] text-sm">{v.clienteNome}</p>
-                    <p className="text-gray-400 text-xs">
+                    <p className="text-gray-600 text-xs">
                       {TIPO_LABELS[v.tipoVisita] ?? v.tipoVisita} · {new Date(v.agendadaPara).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
@@ -605,7 +606,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
                     </span>
                     <button
                       onClick={() => { setEditando(v); setShowForm(true); }}
-                      className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded"
+                      className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded"
                     >
                       <Pencil size={13} />
                     </button>
@@ -614,7 +615,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
                 </div>
               ))}
               {allSorted.length === 0 && (
-                <div className="px-5 py-8 text-center text-gray-400 text-sm">Nenhuma visita registrada.</div>
+                <div className="px-5 py-8 text-center text-gray-600 text-sm">Nenhuma visita registrada.</div>
               )}
             </div>
           </div>
@@ -649,7 +650,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
                   </div>
                 );
               })}
-              {visitas.length === 0 && <p className="text-xs text-gray-400">Nenhuma visita.</p>}
+              {visitas.length === 0 && <p className="text-xs text-gray-600">Nenhuma visita.</p>}
             </div>
           </div>
         </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
+import { EXEMPLOS_LOCALIZACAO, interpretarLocalizacao } from "@/lib/geo/localizacao";
+import { resolverLinkCurtoAction } from "@/lib/actions/geo";
 
 const CENTER: [number, number] = [-6.5000, -49.8790];
 
@@ -10,28 +12,6 @@ interface LocalizacaoPickerProps {
   nameLng: string;
   defaultLat?: number | null;
   defaultLng?: number | null;
-}
-
-function parseMapsInput(input: string): { lat: number; lng: number } | null {
-  const s = input.trim();
-
-  // Bare coordinates: "-6.4854, -49.8935"
-  const bare = s.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
-  if (bare) {
-    const lat = parseFloat(bare[1]);
-    const lng = parseFloat(bare[2]);
-    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) return { lat, lng };
-  }
-
-  // Google Maps URL: ...@lat,lng,zoom or ...@lat,lng,altm
-  const at = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
-
-  // ?q=lat,lng or &q=lat,lng
-  const q = s.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-  if (q) return { lat: parseFloat(q[1]), lng: parseFloat(q[2]) };
-
-  return null;
 }
 
 export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: LocalizacaoPickerProps) {
@@ -47,7 +27,8 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
     defaultLat && defaultLng ? { lat: defaultLat, lng: defaultLng } : null
   );
   const [pasteValue, setPasteValue] = useState("");
-  const [parseError, setParseError] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [resolvendo, setResolvendo] = useState(false);
 
   function placeMarker(lat: number, lng: number) {
     const L = leafletRef.current;
@@ -62,12 +43,27 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
     setCoords({ lat, lng });
   }
 
-  function handleApplyPaste() {
-    const parsed = parseMapsInput(pasteValue);
-    if (!parsed) { setParseError(true); return; }
-    setParseError(false);
-    setPasteValue("");
-    placeMarker(parsed.lat, parsed.lng);
+  // Pedido de 18/10 (item 7): qualquer formato — decimal, graus, links de mapa, Plus Code.
+  async function handleApplyPaste() {
+    const lido = interpretarLocalizacao(pasteValue);
+    if (lido.ok) {
+      setParseError(null);
+      setPasteValue("");
+      placeMarker(lido.lat, lido.lng);
+      return;
+    }
+    if ("linkCurto" in lido) {
+      setResolvendo(true);
+      const r = await resolverLinkCurtoAction(lido.linkCurto);
+      setResolvendo(false);
+      if (r.ok) {
+        setParseError(null);
+        setPasteValue("");
+        placeMarker(r.lat, r.lng);
+      } else setParseError(r.erro);
+      return;
+    }
+    setParseError(lido.erro);
   }
 
   useEffect(() => {
@@ -147,31 +143,33 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
       {/* Campo colar link/coordenadas */}
       <div className="mb-3">
         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-          Colar link ou coordenadas do Google Maps
+          Colar coordenadas ou link do mapa
         </label>
         <div className="flex gap-2">
           <input
             type="text"
             value={pasteValue}
-            onChange={(e) => { setPasteValue(e.target.value); setParseError(false); }}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleApplyPaste())}
-            placeholder="Ex: -6.4854, -49.8935  ou  https://maps.google.com/..."
+            onChange={(e) => { setPasteValue(e.target.value); setParseError(null); }}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), void handleApplyPaste())}
+            placeholder="Coordenadas, link do Google Maps, Waze, Apple Maps ou Plus Code"
+            aria-label="Localização: coordenadas ou link do mapa"
             className={`flex-1 border px-3 py-2 text-sm focus:outline-none bg-gray-50 ${
               parseError ? "border-red-400 focus:border-red-500" : "border-gray-200 focus:border-[var(--brand-yellow)]"
             }`}
           />
           <button
             type="button"
-            onClick={handleApplyPaste}
-            className="px-4 py-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider transition-colors"
+            onClick={() => void handleApplyPaste()}
+            disabled={resolvendo}
+            className="disabled:opacity-60 px-4 py-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider transition-colors"
           >
-            Marcar
+            {resolvendo ? "Abrindo…" : "Marcar"}
           </button>
         </div>
-        {parseError && (
-          <p className="text-xs text-red-500 mt-1">
-            Não foi possível identificar as coordenadas. Cole as coordenadas no formato <strong>-6.4854, -49.8935</strong> ou a URL completa do Google Maps (não links curtos maps.app.goo.gl).
-          </p>
+        {parseError ? (
+          <p className="text-xs text-red-600 mt-1" role="alert">{parseError}</p>
+        ) : (
+          <p className="text-xs text-gray-600 mt-1">Aceita, por exemplo: {EXEMPLOS_LOCALIZACAO.join(" · ")}</p>
         )}
       </div>
 
@@ -185,7 +183,7 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
           </button>
         </p>
       ) : (
-        <p className="text-xs text-gray-400 mb-2">Clique no mapa para marcar ou cole o link acima</p>
+        <p className="text-xs text-gray-600 mb-2">Clique no mapa para marcar ou cole o link acima</p>
       )}
 
       <div ref={mapRef} style={{ height: "280px", width: "100%" }} className="z-0 border border-gray-200" />

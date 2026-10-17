@@ -42,7 +42,7 @@ export default async function AvaliacoesPage() {
     <div className="space-y-5">
       <div>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Avaliação de Imóveis</h1>
-        <p className="text-gray-400 text-sm mt-0.5">{avaliacoes.length} laudo{avaliacoes.length !== 1 ? "s" : ""} · Laudos e pareceres de avaliação</p>
+        <p className="text-gray-600 text-sm mt-0.5">{avaliacoes.length} laudo{avaliacoes.length !== 1 ? "s" : ""} · Laudos e pareceres de avaliação</p>
       </div>
 
       {/* Pipeline */}
@@ -63,15 +63,15 @@ export default async function AvaliacoesPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="bg-white border border-gray-100 p-4">
           <p className="font-black text-[var(--brand-dark)] text-xl">{emAndamento}</p>
-          <p className="text-gray-400 text-xs mt-1 uppercase tracking-wide">Em andamento</p>
+          <p className="text-gray-600 text-xs mt-1 uppercase tracking-wide">Em andamento</p>
         </div>
         <div className="bg-white border border-gray-100 p-4">
           <p className="font-black text-green-600 text-xl">{entregues}</p>
-          <p className="text-gray-400 text-xs mt-1 uppercase tracking-wide">Laudos entregues</p>
+          <p className="text-gray-600 text-xs mt-1 uppercase tracking-wide">Laudos entregues</p>
         </div>
         <div className="bg-white border border-gray-100 p-4">
           <p className="font-black text-[var(--brand-dark)] text-xl">{valorMedio > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorMedio) : "—"}</p>
-          <p className="text-gray-400 text-xs mt-1 uppercase tracking-wide">Valor médio avaliado</p>
+          <p className="text-gray-600 text-xs mt-1 uppercase tracking-wide">Valor médio avaliado</p>
         </div>
       </div>
 
