@@ -13,6 +13,14 @@ import { EnviarDocumento } from "./enviar-documento";
 const ETAPAS: FinanciamentoStatus[] = (Object.keys(STATUS_CONFIG) as FinanciamentoStatus[])
   .filter((s) => s !== "aguardando_configuracao" && s !== "cancelado")
   .sort((a, b) => STATUS_CONFIG[a].order - STATUS_CONFIG[b].order);
+// Processos antigos ainda guardam as etapas anteriores ao pipeline atual
+// ("analise_credito" segue como padrão do banco): cada uma cai na etapa equivalente.
+const ETAPA_EQUIVALENTE: Record<string, FinanciamentoStatus> = {
+  analise_credito: "pre_analise",
+  avaliacao_imovel: "analise_banco",
+  contrato_assinatura: "contrato",
+  registro_cartorio: "registro",
+};
 
 export default async function FinanciamentoDoClientePage() {
   const session = await auth();
@@ -34,7 +42,7 @@ export default async function FinanciamentoDoClientePage() {
       </div>
       {financiamentos.length === 0 && <div className="border border-gray-100 bg-white p-8 text-gray-700">Nenhum financiamento vinculado ao seu cadastro.</div>}
       {financiamentos.map((f) => {
-        const atual = (ETAPAS as string[]).indexOf(f.status);
+        const atual = (ETAPAS as string[]).indexOf(ETAPA_EQUIVALENTE[f.status] ?? f.status);
         return (
           <section key={f.id} className="space-y-4 border border-gray-100 bg-white p-5">
             <h2 className="break-words text-lg font-bold text-[var(--brand-dark)]">{f.imovel || "Financiamento imobiliário"}</h2>

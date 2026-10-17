@@ -83,8 +83,13 @@ describe.skipIf(!url)("exclusão definitiva com banco real (item 03)", () => {
   it("financiamento com comissão: some junto com a comissão e o checklist", async () => {
     const fin = await prisma.financiamento.create({ data: { clienteNome: "C", clienteTel: "1", tipo: "mcmv" } });
     await prisma.comissao.create({ data: { imovel: "F", valor: 10, vencimento: new Date(), tipoNegocio: "financiamento", negocioId: fin.id } });
+    const doc = await prisma.arquivo.create({ data: { nome: "rg.pdf", mime: "application/pdf", tamanho: 1, dados: Buffer.from([1]) } });
+    await prisma.checklistItem.create({ data: { financiamentoId: fin.id, grupo: "Documentos", item: "RG", arquivoId: doc.id, enviadoEm: new Date() } });
     expect(await excluir("financiamento", fin.id)).toEqual({ excluido: true });
     expect(await prisma.comissao.count({ where: { tipoNegocio: "financiamento", negocioId: fin.id } })).toBe(0);
+    expect(await prisma.checklistItem.count({ where: { financiamentoId: fin.id } })).toBe(0);
+    // O documento enviado pelo cliente não fica órfão em `arquivos`.
+    expect(await prisma.arquivo.findUnique({ where: { id: doc.id } })).toBeNull();
   });
 
   it("regularização com recebimento: some com itens e recebimentos", async () => {
