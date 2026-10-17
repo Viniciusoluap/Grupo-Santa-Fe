@@ -2,6 +2,8 @@
 // Confere que Excluir remove de verdade (com os lançamentos, pedido A6) e preserva o lead.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+// A trava de módulo do colaborador tem teste próprio (colaborador-modulos.test.ts).
+vi.mock("@/lib/crm/modulo-do-servico", () => ({ exigirModuloDoServico: async () => {} }));
 vi.mock("server-only", () => ({}));
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url;

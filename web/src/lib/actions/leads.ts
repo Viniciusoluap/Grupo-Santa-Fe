@@ -18,9 +18,8 @@ import {
   bloquearLead,
   adicionarOperacaoDoLead,
 } from "@/lib/crm/vinculo-lead";
-import { SERVICOS_LEAD, moduloDoServico, parseServicosLead, type ModuloServico } from "@/lib/crm/servicos-lead";
-import { usuarioAtual } from "@/lib/auth/modulos";
-import { podeAcessarModulo } from "@/lib/perfis-acesso";
+import { SERVICOS_LEAD, moduloDoServico, parseServicosLead } from "@/lib/crm/servicos-lead";
+import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
 
@@ -66,21 +65,11 @@ async function responsavelDoFormulario(escolhido: string, atual: string | null):
   return responsavelValido(escolhido);
 }
 
-/** Módulo do painel onde cada serviço do CRM cria o registro. */
-const MODULO_PAINEL_DO_SERVICO: Record<ModuloServico, string> = {
-  financiamento: "financiamentos", obra: "obras", projeto: "projetos", regularizacao: "regularizacao", avaliacao: "avaliacao",
-};
-
-/**
- * Revisão do Codex (Prospecta PR #130), mesma regra nos dois sistemas: o
- * colaborador só inclui serviço que cria registro num módulo liberado para ele.
- */
+/** Falha cedo, antes de abrir a transação (a sincronização confere de novo). */
 async function exigirModulosDosServicos(servicos: string[]) {
-  const u = await usuarioAtual();
-  if (u?.perfil !== "colaborador") return;
   for (const s of servicos) {
     const m = moduloDoServico(s);
-    if (m && !podeAcessarModulo(u, MODULO_PAINEL_DO_SERVICO[m.modulo])) throw new Error(`Sem permissão para o módulo de "${s}".`);
+    if (m) await exigirModuloDoServico(m.modulo, s);
   }
 }
 

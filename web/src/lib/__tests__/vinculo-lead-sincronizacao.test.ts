@@ -28,6 +28,8 @@ function clienteTx(estado: Estado) {
   return tx;
 }
 
+// A trava de módulo do colaborador tem teste próprio (colaborador-modulos.test.ts).
+vi.mock("@/lib/crm/modulo-do-servico", () => ({ exigirModuloDoServico: async () => {} }));
 vi.mock("@/lib/db", () => ({ prisma: { $transaction: async (callback: (tx: ReturnType<typeof clienteTx>) => Promise<unknown>, options: unknown) => {
   controle.chamadas.push(options);
   if (controle.conflitos > 0) { controle.conflitos--; throw Object.assign(new Error("Serialization conflict"), { code: "P2034" }); }
