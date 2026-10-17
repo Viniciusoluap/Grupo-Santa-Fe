@@ -7,11 +7,12 @@ vi.mock("@/lib/actions/agenda", () => ({ criarVisita: mocks.visita }));
 vi.mock("@/lib/notificacoes", () => ({ notificarAdmins: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: { usuario: { findUnique: mocks.usuario }, lead: { findUnique: mocks.findLead } } }));
 vi.mock("@/lib/crm/vinculo-lead", () => ({
-  transacaoCRM: async (fn: (tx: unknown) => Promise<unknown>) => fn({ lead: { findUnique: mocks.findLead, update: mocks.updateLead, updateMany: mocks.updateMany }, interacao: { create: mocks.interacao } }),
+  transacaoCRM: async (fn: (tx: unknown) => Promise<unknown>) => fn({ lead: { findUnique: mocks.findLead, findUniqueOrThrow: mocks.findLead, update: mocks.updateLead, updateMany: mocks.updateMany }, interacao: { create: mocks.interacao, findFirst: vi.fn() } }),
   bloquearLead: mocks.bloquear,
   resolverResponsavelId: vi.fn(), propagarDadosClienteDoLead: vi.fn(), sincronizarServicosDoLead: vi.fn(), adicionarOperacaoDoLead: vi.fn(),
 }));
-import { alterarEtapaLead, excluirLead, adicionarInteracao, agendarVisitaDoLead } from "../actions/leads";
+import { alterarEtapaLead, excluirLead, adicionarInteracao, agendarVisitaDoLead, adicionarOperacaoLead } from "../actions/leads";
+import { adicionarOperacaoDoLead } from "@/lib/crm/vinculo-lead";
 const atualizadoEm = new Date("2026-10-11T10:00:00.000Z");
 const lead = { id: "L1", status: "proposta", etapaOperacional: null, atualizadoEm, arquivadoEm: null, excluidoEm: null, corretorId: "c1" };
 beforeEach(() => {
@@ -58,5 +59,14 @@ describe("ações CRM protegidas e auditadas", () => {
     mocks.interacao.mockClear();
     mocks.usuario.mockResolvedValueOnce({ id: "u1", nome: "Zé", papel: "corretor", ativo: true, permissoes: "[]", corretor: { id: "c1", ativo: true } });
     await expect(adicionarInteracao(form)).rejects.toThrow("Sem permissão"); expect(mocks.interacao).not.toHaveBeenCalled();
+  });
+  it("revisão do Codex (Prospecta #130): colaborador só inclui serviço de módulo liberado", async () => {
+    vi.mocked(adicionarOperacaoDoLead).mockResolvedValue({ id: "O1" } as never);
+    mocks.auth.mockResolvedValue({ user: { id: "u1", role: "colaborador", permissoes: ["leads"] } });
+    await expect(adicionarOperacaoLead("L1", "Obra e reforma", "chave-1")).rejects.toThrow("Sem permissão para o módulo");
+    expect(adicionarOperacaoDoLead).not.toHaveBeenCalled();
+    mocks.auth.mockResolvedValue({ user: { id: "u1", role: "colaborador", permissoes: ["leads", "obras"] } });
+    await adicionarOperacaoLead("L1", "Obra e reforma", "chave-1");
+    expect(adicionarOperacaoDoLead).toHaveBeenCalledTimes(1);
   });
 });

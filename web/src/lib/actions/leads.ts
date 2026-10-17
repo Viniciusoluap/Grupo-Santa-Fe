@@ -18,7 +18,9 @@ import {
   bloquearLead,
   adicionarOperacaoDoLead,
 } from "@/lib/crm/vinculo-lead";
-import { SERVICOS_LEAD, parseServicosLead } from "@/lib/crm/servicos-lead";
+import { SERVICOS_LEAD, moduloDoServico, parseServicosLead, type ModuloServico } from "@/lib/crm/servicos-lead";
+import { usuarioAtual } from "@/lib/auth/modulos";
+import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
 
@@ -64,9 +66,28 @@ async function responsavelDoFormulario(escolhido: string, atual: string | null):
   return responsavelValido(escolhido);
 }
 
+/** Módulo do painel onde cada serviço do CRM cria o registro. */
+const MODULO_PAINEL_DO_SERVICO: Record<ModuloServico, string> = {
+  financiamento: "financiamentos", obra: "obras", projeto: "projetos", regularizacao: "regularizacao", avaliacao: "avaliacao",
+};
+
+/**
+ * Revisão do Codex (Prospecta PR #130), mesma regra nos dois sistemas: o
+ * colaborador só inclui serviço que cria registro num módulo liberado para ele.
+ */
+async function exigirModulosDosServicos(servicos: string[]) {
+  const u = await usuarioAtual();
+  if (u?.perfil !== "colaborador") return;
+  for (const s of servicos) {
+    const m = moduloDoServico(s);
+    if (m && !podeAcessarModulo(u, MODULO_PAINEL_DO_SERVICO[m.modulo])) throw new Error(`Sem permissão para o módulo de "${s}".`);
+  }
+}
+
 export async function criarLead(formData: FormData) {
   const ator = await obterAtorCrm();
   const servicos = validarServicos(formData.getAll("servicos"));
+  await exigirModulosDosServicos(servicos);
   const nome = texto(formData, "nome");
   const telefone = texto(formData, "telefone", 40);
   if (!nome) throw new Error("Informe o nome do cliente.");
@@ -171,6 +192,7 @@ export async function editarLead(formData: FormData) {
     if (atual.excluidoEm || atual.arquivadoEm) throw new Error("Restaure o lead antes de editar.");
     if (String(formData.get("atualizadoEm")) !== atual.atualizadoEm.toISOString() || String(formData.get("etapaAnterior") ?? "") !== (atual.etapaOperacional ?? "")) throw new Error("Este lead foi atualizado. Recarregue antes de salvar.");
     const servicos = validarServicos(formData.getAll("servicos"), parseServicosLead(atual.servico));
+    await exigirModulosDosServicos(servicos.filter((sv) => !parseServicosLead(atual.servico).includes(sv)));
     const etapa = texto(formData, "etapaOperacional", 50);
     if (etapa && etapa !== atual.etapaOperacional) await registrarMudancaEtapa(tx, atual, etapa, ator.nome);
     const nome = texto(formData, "nome");
@@ -213,6 +235,7 @@ export async function editarLead(formData: FormData) {
 export async function adicionarOperacaoLead(leadId: string, servico: string, requestKey: string) {
   const ator = await obterAtorCrm();
   exigirAtorInterno(ator);
+  await exigirModulosDosServicos([servico]);
   await transacaoCRM(async (tx) => {
     await bloquearLead(tx, leadId);
     const lead = await tx.lead.findUniqueOrThrow({ where: { id: leadId } });
