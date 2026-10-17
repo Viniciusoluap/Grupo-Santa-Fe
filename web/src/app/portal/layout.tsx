@@ -28,7 +28,8 @@ export default async function PortalLayout({ children }: { children: React.React
       <PortalHeader subtitulo={`Portal do Cliente · ${session.user?.name ?? ""}`} voltarPara="/portal" />
 
       <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex gap-6">
+        {/* No celular a navegação fica em cima do conteúdo (antes espremia a página numa coluna). */}
+        <div className="flex flex-col gap-0 md:flex-row md:gap-6">
           {/* Sidebar nav */}
           <aside className="hidden md:block w-52 shrink-0">
             <nav className="bg-white border border-gray-100 overflow-hidden">

@@ -31,7 +31,6 @@ export function PortalHeader({ subtitulo, voltarPara }: { subtitulo: string; vol
         <div className="min-w-0 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-on-dark.png" alt="Grupo Santa Fé" className="mx-auto h-8 w-auto" />
-          <p className="text-xs font-black uppercase tracking-wider text-[var(--brand-yellow)]">Grupo Santa Fé</p>
           <p className="truncate text-[11px] text-gray-300">{subtitulo}</p>
         </div>
         <div className="flex justify-end">

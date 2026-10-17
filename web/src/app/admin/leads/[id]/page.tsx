@@ -2,7 +2,7 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, FileText, Download, ExternalLink, AlertTriangle } from "lucide-react";
+import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, ExternalLink, AlertTriangle } from "lucide-react";
 import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
 import { etapaDoLead, parseServicosLead, leadNoPipelineAtivo } from "@/lib/crm/pipeline";
 import { BackButton } from "@/components/ui/back-button";
