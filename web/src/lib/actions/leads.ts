@@ -6,6 +6,7 @@ import { isLeadStage, leadNoPipelineAtivo } from "@/lib/crm/pipeline";
 import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG } from "@/lib/types/crm";
 
 import { prisma } from "@/lib/db";
+import { rotulo } from "@/lib/rotulos";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -92,6 +93,10 @@ export async function criarLead(formData: FormData) {
     ? await responsavelValido(escolhido)
     : await resolverResponsavelId(ator.id);
 
+  // Item 9 (18/10): estágio escolhido no cadastro (só as 7 etapas do funil).
+  const etapaEscolhida = texto(formData, "etapaOperacional", 50);
+  const etapaInicial = etapaEscolhida && isLeadStage(etapaEscolhida) ? etapaEscolhida : "novo_lead";
+
   await transacaoCRM(async (tx) => {
     const existente = await tx.lead.findUnique({ where: { creationRequestKey: `${ator.id}:${requestKey}` } });
     if (existente) { autorizarLeadDoAtor(ator, existente); return existente; }
@@ -101,7 +106,7 @@ export async function criarLead(formData: FormData) {
       telefone,
       email: (formData.get("email") as string) || undefined,
       servico: JSON.stringify(servicos),
-      etapaOperacional: "novo_lead",
+      etapaOperacional: etapaInicial,
       temperatura: temperaturaDoFormulario(formData.get("temperatura")),
       creationRequestKey: `${ator.id}:${requestKey}`,
       origem: (formData.get("origem") as string) || "site",
@@ -113,7 +118,7 @@ export async function criarLead(formData: FormData) {
     },
     });
     await sincronizarServicosDoLead(criado.id, tx);
-    await tx.interacao.create({ data: { leadId: criado.id, tipo: "nota", descricao: "Lead cadastrado na etapa NOVO LEAD; serviços persistidos no mesmo commit.", criadoPor: ator.nome } });
+    await tx.interacao.create({ data: { leadId: criado.id, tipo: "nota", descricao: `Lead cadastrado na etapa ${rotulo(etapaInicial)}; serviços persistidos no mesmo commit.`, criadoPor: ator.nome } });
     return criado;
   });
 

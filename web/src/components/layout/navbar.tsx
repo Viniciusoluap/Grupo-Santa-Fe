@@ -167,6 +167,7 @@ export function Navbar() {
       {/* Mobile menu */}
       {isOpen && (
         <div className="lg:hidden bg-[var(--brand-dark-secondary)] border-t border-gray-700 overflow-y-auto max-h-[calc(100dvh-96px)]">
+          {/* Pedido de 18/10 (item 2): mesmas opções do menu do computador, só o nível de cima. */}
           <nav className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
             {navLinks.map((link) => (
               <div key={link.label}>
@@ -177,20 +178,6 @@ export function Navbar() {
                 >
                   {link.label}
                 </Link>
-                {link.children && (
-                  <div className="pl-4 py-1">
-                    {link.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className="block py-2 text-gray-400 hover:text-[var(--brand-yellow)] text-sm transition-colors"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
             <Link

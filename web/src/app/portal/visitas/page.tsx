@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { getPortalVisitas } from "@/lib/data/portal-real";
-import { BackButton } from "@/components/ui/back-button";
 
 const STATUS_VISITA: Record<string, { label: string; color: string }> = {
   agendada:   { label: "Agendada",   color: "bg-blue-100 text-blue-700" },
@@ -21,7 +20,6 @@ export default async function PortalVisitasPage() {
   return (
     <div className="space-y-5">
       <div>
-        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Visitas</h1>
         <p className="text-gray-400 text-sm mt-0.5">{visitas.length} visita{visitas.length !== 1 ? "s" : ""} registrada{visitas.length !== 1 ? "s" : ""}</p>
       </div>

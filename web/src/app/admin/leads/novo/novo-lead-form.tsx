@@ -7,6 +7,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { LEAD_TEMPERATURAS, leadTemperaturaRotulo } from "@/lib/crm/temperatura-lead";
+import { LEAD_STAGES } from "@/lib/types/crm";
+import { rotulo } from "@/lib/rotulos";
 
 const SERVICOS = SERVICOS_LEAD;
 
@@ -94,6 +96,13 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
             name="orcamento"
             className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
           />
+        </div>
+        <div>
+          {/* Item 9 (18/10): o cadastro já posiciona o lead na etapa do funil. */}
+          <label htmlFor="etapaOperacional" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Estágio</label>
+          <select id="etapaOperacional" name="etapaOperacional" defaultValue="novo_lead" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+            {LEAD_STAGES.map((etapa) => <option key={etapa} value={etapa}>{rotulo(etapa)}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Temperatura</label>

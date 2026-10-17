@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
-import { editarImovel } from "@/lib/actions/imoveis";
+import { FormComEnvio } from "@/components/ui/form-com-envio";
 import { FotoUpload } from "../../_components/foto-upload";
 import { PrecoInput } from "../../_components/preco-input";
 import { LocalizacaoPicker } from "../../_components/localizacao-picker";
@@ -42,7 +42,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form action={editarImovel} className="space-y-6">
+        <FormComEnvio acao="/api/imoveis/salvar" destino="/admin/imoveis" campoFotos="imagens" className="space-y-6">
           <input type="hidden" name="id" value={imovel.id} />
 
           {/* Dados básicos */}
@@ -184,7 +184,7 @@ export default async function EditarImovelPage({ params }: PageProps) {
               Cancelar
             </Link>
           </div>
-        </form>
+        </FormComEnvio>
       </div>
     </div>
   );

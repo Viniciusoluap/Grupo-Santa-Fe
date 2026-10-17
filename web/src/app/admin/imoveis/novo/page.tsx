@@ -3,7 +3,7 @@ import { tiposDoCadastro } from "@/lib/portal-corretor";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
-import { criarImovel } from "@/lib/actions/imoveis";
+import { FormComEnvio } from "@/components/ui/form-com-envio";
 import { FotoUpload } from "../_components/foto-upload";
 import { PrecoInput } from "../_components/preco-input";
 import { LocalizacaoPicker } from "../_components/localizacao-picker";
@@ -33,7 +33,7 @@ export default async function NovoImovelPage() {
       </div>
 
       <div className="bg-white border border-gray-100 p-6">
-        <form action={criarImovel} className="space-y-6">
+        <FormComEnvio acao="/api/imoveis/salvar" destino="/admin/imoveis" campoFotos="imagens" className="space-y-6">
           {/* Dados básicos */}
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
@@ -236,7 +236,7 @@ export default async function NovoImovelPage() {
               Cancelar
             </Link>
           </div>
-        </form>
+        </FormComEnvio>
       </div>
     </div>
   );

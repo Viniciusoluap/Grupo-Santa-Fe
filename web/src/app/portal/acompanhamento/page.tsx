@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Clock, MessageSquare } from "lucide-react";
 import { getPortalInteracoes } from "@/lib/data/portal-real";
-import { BackButton } from "@/components/ui/back-button";
 
 const TIPO_INTERACAO: Record<string, string> = {
   ligacao:     "Ligação",
@@ -24,7 +23,6 @@ export default async function PortalAcompanhamentoPage() {
   return (
     <div className="space-y-5">
       <div>
-        <BackButton className="mb-1" />
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Acompanhamento</h1>
         <p className="text-gray-400 text-sm mt-0.5">Histórico completo do seu processo</p>
       </div>
