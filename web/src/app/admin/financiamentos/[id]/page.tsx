@@ -19,7 +19,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
   const f = await prisma.financiamento.findUnique({
     where: { id },
     include: {
-      checklist: { orderBy: { grupo: "asc" } },
+      checklist: { orderBy: { grupo: "asc" }, include: { arquivo: { select: { id: true, nome: true } } } },
       corretor: true,
       leadVinculado: { select: { id: true, nome: true } },
     },

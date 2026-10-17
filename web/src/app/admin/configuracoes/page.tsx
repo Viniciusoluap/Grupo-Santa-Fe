@@ -55,11 +55,11 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
       orderBy: { criadoEm: "asc" },
-      include: { leadCliente: { select: { nome: true } } },
+      include: { leadCliente: { select: { nome: true, telefone: true } } },
     }),
     prisma.lead.findMany({
       where: { excluidoEm: null, contaCliente: null },
-      select: { id: true, nome: true, email: true },
+      select: { id: true, nome: true, email: true, telefone: true },
       orderBy: { nome: "asc" },
     }),
   ]);
@@ -98,6 +98,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
         permissoes: u.permissoes,
         leadId: u.leadId,
         leadNome: u.leadCliente?.nome ?? null,
+        leadTelefone: u.leadCliente?.telefone ?? null,
       }))} leadsSemConta={leadsSemConta} />
     </div>
   );

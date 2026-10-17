@@ -269,6 +269,10 @@ model ChecklistItem {
   concluido       Boolean       @default(false)
   concluidoEm     DateTime?
   notas           String        @default("")
+  /// Pedido de 18/10 (item 15): documento enviado pelo cliente no Portal.
+  arquivoId       String?       @unique
+  arquivo         Arquivo?      @relation(fields: [arquivoId], references: [id], onDelete: SetNull)
+  enviadoEm       DateTime?
 
   @@map("checklist_items")
 }
@@ -1016,6 +1020,7 @@ model Arquivo {
   criadoEm  DateTime @default(now())
   obraFoto  ObraFoto?
   documentoRegistro EstudoDocumentoRegistro?
+  checklistItem ChecklistItem?
 
   @@map("arquivos")
 }

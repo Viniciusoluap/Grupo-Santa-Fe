@@ -18,9 +18,10 @@ interface Usuario {
   permissoes: string | null;  // JSON string
   leadId: string | null;
   leadNome: string | null;
+  leadTelefone: string | null;
 }
 
-interface LeadOpcao { id: string; nome: string; email: string | null }
+interface LeadOpcao { id: string; nome: string; email: string | null; telefone: string | null }
 
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
   { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
@@ -50,6 +51,9 @@ interface Props {
 export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
   const [papelNovo, setPapelNovo] = useState<Papel>("colaborador");
   const [buscaLead, setBuscaLead] = useState("");
+  // Item 12 (18/10): conta de cliente com nome e telefone do cadastro no CRM.
+  const [nomeNovo, setNomeNovo] = useState("");
+  const [foneNovo, setFoneNovo] = useState("");
   const [linkGerado, setLinkGerado] = useState<{ link: string; emailEnviado: boolean } | null>(null);
   const [perfilId, setPerfilId] = useState<string | null>(null);
   const [aba, setAba] = useState<Papel | "todos">("todos");
@@ -192,8 +196,8 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 {!u.ativo && <span className="text-[10px] text-red-500 font-bold uppercase">Inativo</span>}
               </div>
               <p className="text-xs text-gray-400 mt-0.5">{u.email}</p>
-              {u.creci && <p className="text-xs text-gray-400">CRECI: {u.creci}</p>}
-              {u.papel === "cliente" && <p className="text-xs text-gray-400">Cliente do CRM: {u.leadNome ?? "sem vínculo (vincule em Perfil)"}</p>}
+              {u.papel === "corretor" && u.creci && <p className="text-xs text-gray-600">CRECI: {u.creci}</p>}
+              {u.papel === "cliente" && <p className="text-xs text-gray-600">Cliente do CRM: {u.leadNome ? `${u.leadNome}${u.leadTelefone ? ` · ${u.leadTelefone}` : ""}` : "sem vínculo (vincule em Perfil)"}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -247,8 +251,8 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <label className="text-xs font-bold text-gray-500 uppercase">Cliente do CRM (se cliente)
                   <select name="leadId" defaultValue={u.leadId ?? ""} className="block mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case max-w-[16rem]">
                     <option value="">—</option>
-                    {u.leadId && <option value={u.leadId}>{u.leadNome ?? u.leadId}</option>}
-                    {leadsSemConta.map((l) => <option key={l.id} value={l.id}>{l.nome}{l.email ? ` · ${l.email}` : ""}</option>)}
+                    {u.leadId && <option value={u.leadId}>Atual: {u.leadNome ?? "cliente sem nome"}{u.leadTelefone ? ` · ${u.leadTelefone}` : ""}</option>}
+                    {leadsSemConta.map((l) => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ""}{l.email ? ` · ${l.email}` : ""}</option>)}
                   </select>
                 </label>
                 <button type="submit" disabled={isPending} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold px-3 py-1.5">Salvar perfil</button>
@@ -325,7 +329,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             <form onSubmit={handleCriar} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome completo *</label>
-                <input name="nome" type="text" required placeholder="Nome do usuário" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                <input name="nome" type="text" required value={nomeNovo} onChange={(e) => setNomeNovo(e.target.value)} placeholder="Nome do usuário" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail *</label>
@@ -345,7 +349,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone{papelNovo === "corretor" ? " *" : ""}</label>
-                <input name="telefone" type="tel" required={papelNovo === "corretor"} placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                <input name="telefone" type="tel" required={papelNovo === "corretor"} value={foneNovo} onChange={(e) => setFoneNovo(e.target.value)} placeholder="(00) 9 0000-0000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
               </div>
               {papelNovo === "corretor" && (
                 <div>
@@ -357,10 +361,19 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente do CRM *</label>
                   <input type="search" value={buscaLead} onChange={(e) => setBuscaLead(e.target.value)} placeholder="Pesquisar cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
-                  <select name="leadId" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] mt-1 bg-white">
+                  <select
+                    name="leadId"
+                    required
+                    aria-label="Cliente do CRM"
+                    onChange={(e) => {
+                      const lead = leadsSemConta.find((l) => l.id === e.target.value);
+                      if (lead) { setNomeNovo(lead.nome); setFoneNovo(lead.telefone ?? ""); }
+                    }}
+                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] mt-1 bg-white"
+                  >
                     <option value="">Selecione</option>
                     {leadsSemConta.filter((l) => !buscaLead.trim() || `${l.nome} ${l.email ?? ""}`.toLowerCase().includes(buscaLead.trim().toLowerCase())).slice(0, 200)
-                      .map((l) => <option key={l.id} value={l.id}>{l.nome}{l.email ? ` · ${l.email}` : ""}</option>)}
+                      .map((l) => <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` · ${l.telefone}` : ""}{l.email ? ` · ${l.email}` : ""}</option>)}
                   </select>
                 </div>
               )}
