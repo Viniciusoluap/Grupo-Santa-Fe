@@ -23,6 +23,7 @@ vi.mock("@/lib/db", () => ({
     obraFoto: { findUnique: mocks.foto, updateMany: vi.fn(async () => ({ count: 1 })) },
     obraProgressoItem: { deleteMany: vi.fn(), createMany: vi.fn() },
     obraProgressoHistorico: { create: vi.fn() },
+    $queryRaw: vi.fn().mockResolvedValue([]),
     $transaction: mocks.transacao,
   },
 }));

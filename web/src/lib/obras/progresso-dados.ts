@@ -40,10 +40,11 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       subsidio: true,
       custoTerreno: true,
       progressoItens: true,
-      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 100 },
+      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 101 },
     },
   });
   if (!obra) return null;
+  const historicoExibido = obra.progressoHistorico.slice(0, 100);
   const autores = await prisma.usuario.findMany({
     where: { id: { in: obra.progressoHistorico.flatMap((h) => [h.criadoPorId, h.solicitadaPorId, h.recebidaPorId]).filter((x): x is string => !!x) } },
     select: { id: true, nome: true },
@@ -67,7 +68,7 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
     medido: obra.progressoItens.length > 0,
     progressoLegado: obra.progresso,
     baseMedicao: base,
-    historico: obra.progressoHistorico.map((h) => ({
+    historico: historicoExibido.map((h) => ({
       id: h.id,
       progresso: Number(h.progresso),
       somaIncidencia: Number(h.somaIncidencia),

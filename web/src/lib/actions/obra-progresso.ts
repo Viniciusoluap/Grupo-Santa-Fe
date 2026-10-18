@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 import { calcularProgresso } from "@/lib/financeiro/progresso";
 import { LIMITE_LEGENDA } from "@/lib/obras/fotos";
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
@@ -47,6 +48,7 @@ export async function salvarProgressoObra(
   if (!existe) return { ok: false, erro: "Obra não encontrada." };
   const agora = new Date();
   await prisma.$transaction([
+    prisma.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`,
     prisma.obraProgressoItem.deleteMany({ where: { obraId } }),
     prisma.obraProgressoItem.createMany({
       data: itens.map((i) => ({ obraId, chave: i.chave, incidencia: i.incidencia, execucao: i.execucao, atualizadoPorId: usuarioId, atualizadoEm: agora })),
@@ -75,30 +77,25 @@ async function obraDaMedicao(medicaoId: string) {
   return (await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, select: { obraId: true } }))?.obraId ?? null;
 }
 
-async function ehUltimaMedicao(obraId: string, medicaoId: string) {
-  const ultima = await prisma.obraProgressoHistorico.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { id: true } });
+async function ehUltimaMedicao(obraId: string, medicaoId: string, db: Prisma.TransactionClient = prisma) {
+  const ultima = await db.obraProgressoHistorico.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { id: true } });
   return ultima?.id === medicaoId;
 }
 
 type ItemMedicao = { chave: string; incidencia: string; execucao: string };
 
 /** Grava a medição vigente da obra (itens + progresso). `null` = obra sem medição. */
-async function aplicarMedicaoVigente(obraId: string, itens: ItemMedicao[] | null, usuarioId: string, agora: Date) {
+async function aplicarMedicaoVigente(db: Prisma.TransactionClient, obraId: string, itens: ItemMedicao[] | null, usuarioId: string, agora: Date) {
+  await db.obraProgressoItem.deleteMany({ where: { obraId } });
   if (!itens) {
-    await prisma.$transaction([
-      prisma.obraProgressoItem.deleteMany({ where: { obraId } }),
-      prisma.obra.update({ where: { id: obraId }, data: { progressoMedido: null, progresso: 0 } }),
-    ]);
+    await db.obra.update({ where: { id: obraId }, data: { progressoMedido: null, progresso: 0 } });
     return;
   }
   const calculo = calcularProgresso(itens);
-  await prisma.$transaction([
-    prisma.obraProgressoItem.deleteMany({ where: { obraId } }),
-    prisma.obraProgressoItem.createMany({
-      data: itens.map((i) => ({ obraId, chave: i.chave, incidencia: i.incidencia, execucao: i.execucao, atualizadoPorId: usuarioId, atualizadoEm: agora })),
-    }),
-    prisma.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } }),
-  ]);
+  await db.obraProgressoItem.createMany({
+    data: itens.map((i) => ({ obraId, chave: i.chave, incidencia: i.incidencia, execucao: i.execucao, atualizadoPorId: usuarioId, atualizadoEm: agora })),
+  });
+  await db.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } });
 }
 
 function itensValidos(itens: ItemMedicao[]): string | null {
@@ -145,18 +142,21 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[]): Pr
   const calculo = calcularProgresso(itens);
   if (calculo.erros.length) return { ok: false, erro: calculo.erros.join(" ") };
   const agora = new Date();
-  await prisma.obraProgressoHistorico.update({
-    where: { id: medicaoId },
-    data: {
-      progresso: calculo.progresso.toFixed(6),
-      somaIncidencia: calculo.somaIncidencia.toFixed(4),
-      itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
-      editadaEm: agora,
-      editadaPorId: usuarioId,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+    await tx.obraProgressoHistorico.update({
+      where: { id: medicaoId },
+      data: {
+        progresso: calculo.progresso.toFixed(6),
+        somaIncidencia: calculo.somaIncidencia.toFixed(4),
+        itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
+        editadaEm: agora,
+        editadaPorId: usuarioId,
+      },
+    });
+    // A mais recente é a medição vigente: o progresso da obra acompanha.
+    if (await ehUltimaMedicao(obraId, medicaoId, tx)) await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, agora);
   });
-  // A mais recente é a medição vigente: o progresso da obra acompanha.
-  if (await ehUltimaMedicao(obraId, medicaoId)) await aplicarMedicaoVigente(obraId, itens, usuarioId, agora);
   revalidar(obraId);
   return { ok: true, progresso: calculo.progresso };
 }
@@ -165,13 +165,15 @@ export async function excluirMedicao(medicaoId: string): Promise<Resultado> {
   const obraId = await obraDaMedicao(medicaoId);
   const usuarioId = await exigirObraOuEmpreiteiro(obraId);
   if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
-  const eraUltima = await ehUltimaMedicao(obraId, medicaoId);
-  await prisma.obraProgressoHistorico.delete({ where: { id: medicaoId } });
-  if (eraUltima) {
-    // A obra volta para a medição anterior (ou fica sem medição).
-    const anterior = await prisma.obraProgressoHistorico.findFirst({ where: { obraId: obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { itens: true } });
-    await aplicarMedicaoVigente(obraId, anterior ? (anterior.itens as ItemMedicao[]) : null, usuarioId, new Date());
-  }
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+    const eraUltima = await ehUltimaMedicao(obraId, medicaoId, tx);
+    await tx.obraProgressoHistorico.delete({ where: { id: medicaoId } });
+    if (eraUltima) {
+      const anterior = await tx.obraProgressoHistorico.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { itens: true } });
+      await aplicarMedicaoVigente(tx, obraId, anterior ? (anterior.itens as ItemMedicao[]) : null, usuarioId, new Date());
+    }
+  });
   revalidar(obraId);
   return { ok: true };
 }
