@@ -42,3 +42,10 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 - Santa Fé: TypeScript e ESLint dos arquivos alterados aprovados; 670 testes aprovados, 46 testes de integração ignorados sem TEST_DATABASE_URL. Mock do portal do empreiteiro adaptado à trava transacional.
 - Não houve teste visual autenticado, teste Postgres real nem publicação. Não confundir testes simulados com evidência de produção.
 - Git push por HTTPS indisponível sem credencial no shell; usar conector GitHub para salvar somente a branch nova e abrir PRs em rascunho.
+
+## Checkpoint remoto salvo
+- Prospecta: PR #136 — https://github.com/Viniciusoluap/Prospecta/pull/136 (rascunho).
+- Santa Fé: PR #202 — https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/202 (rascunho).
+- Ambas em `codex/continuacao-medicoes-20261018`. Branches do Claude intactas.
+- As árvores de arquivos recuperadas foram conferidas por SHA. A branch de entrega foi ancorada na main atual, preservando os mesmos arquivos, para evitar integrar centenas de commits antigos de squash.
+- Este handoff está commitado no GitHub; retomar por estes PRs, não pelo scratch local nem pelos drafts antigos.
