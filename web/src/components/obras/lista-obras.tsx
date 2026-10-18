@@ -42,6 +42,9 @@ export interface ObraDaLista {
   etapas: ObraEtapa[];
   criadoEm: Date;
   empreiteiroNome: string | null;
+  /** Pedido de 18/10: medições aguardando o banco e já recebidas. */
+  medicoesSolicitadas: number;
+  medicoesRecebidas: number;
 }
 
 /** Código curto e estável exibido e pesquisável (o ID interno é longo). */
@@ -100,6 +103,14 @@ export function ListaObras({ obras, base, filtroResponsavel = true, podeExcluir 
           </label>
           <IntervaloDatas titulo="Período de execução" de={filtros.periodoDe} ate={filtros.periodoAte} onDe={(v) => set("periodoDe", v)} onAte={(v) => set("periodoAte", v)} />
           <IntervaloDatas titulo="Data de criação" de={filtros.criadoDe} ate={filtros.criadoAte} onDe={(v) => set("criadoDe", v)} onAte={(v) => set("criadoAte", v)} />
+          {/* Pedido de 18/10: obras com medição solicitada ou já recebida (paga). */}
+          <label className="min-w-0 text-xs font-bold text-gray-500 uppercase">Medições
+            <select value={filtros.medicao} onChange={(e) => set("medicao", e.target.value as FiltrosObras["medicao"])} className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white mt-1 font-normal normal-case">
+              <option value="">Todas</option>
+              <option value="solicitada">Com medição solicitada ({obras.filter((o) => o.medicoesSolicitadas > 0).length})</option>
+              <option value="recebida">Com medição recebida — paga ({obras.filter((o) => o.medicoesRecebidas > 0).length})</option>
+            </select>
+          </label>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">Ordenar

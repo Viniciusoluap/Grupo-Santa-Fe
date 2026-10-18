@@ -2,11 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, History, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, History, Pencil, Save, Send, Trash2, X } from "lucide-react";
 import { lerPercentualDigitado } from "@/lib/financeiro/obra";
 import { SERVICOS_PROGRESSO, calcularProgresso, formatarPercentual } from "@/lib/financeiro/progresso";
 import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
-import { salvarProgressoObra } from "@/lib/actions/obra-progresso";
+import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao } from "@/lib/actions/obra-progresso";
 
 // EPIC-020 Lote 4 (item 27) — progresso físico por incidência, igual à
 // Prospecta. O Progresso Geral é somente leitura: soma das Execuções na Obra.
@@ -46,9 +46,20 @@ export function BarraProgresso({ valor }: { valor: number }) {
   );
 }
 
+const reais = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const dataHora = (d: string) => new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
+
 export function ProgressoObra({ obraId, dados }: { obraId: string; dados: ProgressoObraDados }) {
   const router = useRouter();
   const [linhas, setLinhas] = useState<Linha[]>(dados.itens);
+  // Pedido de 18/10: edição de uma medição do histórico (admin, colaborador e empreiteiro).
+  const [editando, setEditando] = useState<{ id: string; quando: string } | null>(null);
+  // Depois de editar/excluir a medição vigente, a tabela acompanha o que ficou gravado.
+  const [itensGravados, setItensGravados] = useState(dados.itens);
+  if (itensGravados !== dados.itens) {
+    setItensGravados(dados.itens);
+    if (!editando) setLinhas(dados.itens);
+  }
   const [pendente, iniciar] = useTransition();
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const calculo = useMemo(() => calcularProgresso(linhas), [linhas]);
@@ -58,6 +69,14 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
   const gravar = () =>
     iniciar(async () => {
       setMensagem(null);
+      if (editando) {
+        const r = await editarMedicao(editando.id, linhas);
+        if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
+        setMensagem({ tipo: "ok", texto: `Medição de ${editando.quando} alterada.` });
+        setEditando(null);
+        router.refresh();
+        return;
+      }
       const r = await salvarProgressoObra(obraId, linhas);
       if (!r.ok) setMensagem({ tipo: "erro", texto: r.erro });
       else {
@@ -65,6 +84,27 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         router.refresh();
       }
     });
+
+  const acao = (fn: () => Promise<{ ok: true } | { ok: false; erro: string }>, sucesso: string) =>
+    iniciar(async () => {
+      setMensagem(null);
+      const r = await fn();
+      if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
+      setMensagem({ tipo: "ok", texto: sucesso });
+      setEditando(null);
+      router.refresh();
+    });
+
+  const iniciarEdicao = (h: ProgressoObraDados["historico"][number]) => {
+    setEditando({ id: h.id, quando: dataHora(h.criadoEm) });
+    setLinhas(h.itens);
+    setMensagem(null);
+    document.getElementById("medicao-por-servico")?.scrollIntoView({ behavior: "smooth" });
+  };
+  const cancelarEdicao = () => {
+    setEditando(null);
+    setLinhas(dados.itens);
+  };
 
   return (
     <div className="space-y-5">
@@ -80,11 +120,17 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         )}
       </section>
 
-      <section className="bg-white border border-gray-100 p-5 space-y-4">
+      <section id="medicao-por-servico" className="bg-white border border-gray-100 p-5 space-y-4">
         <div>
           <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Medição por serviço</h2>
           <p className="text-xs text-gray-500 mt-1">Incidência e Execução do Item são editáveis (até 4 casas decimais). Execução na Obra é automática.</p>
         </div>
+        {editando && (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <span>Editando a medição de {editando.quando}. Ao salvar, ela é corrigida no histórico.</span>
+            <button type="button" onClick={cancelarEdicao} className="inline-flex items-center gap-1 border border-amber-400 px-3 py-1 text-xs font-bold uppercase"><X size={12} />Cancelar edição</button>
+          </div>
+        )}
         {calculo.erros.length > 0 && (
           <div role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700 space-y-1">
             {calculo.erros.map((e) => <p key={e}>{e}</p>)}
@@ -133,7 +179,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         <div className="flex justify-end">
           <button type="button" onClick={gravar} disabled={pendente || calculo.erros.length > 0}
             className="flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 disabled:opacity-60">
-            <Save size={14} /> {pendente ? "Salvando..." : "Salvar medição"}
+            <Save size={14} /> {pendente ? "Salvando..." : editando ? "Salvar alterações da medição" : "Salvar medição"}
           </button>
         </div>
       </section>
@@ -143,14 +189,60 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         {dados.historico.length === 0 ? (
           <p className="text-sm text-gray-600">Nenhuma medição salva ainda.</p>
         ) : (
-          <ul className="divide-y divide-gray-100 text-sm">
-            {dados.historico.map((h) => (
-              <li key={h.id} className="flex justify-between py-2 text-gray-600">
-                <span>{new Date(h.criadoEm).toLocaleString("pt-BR")} — {h.autor ?? "—"}</span>
-                <span className="font-bold text-[var(--brand-dark)]">{formatarPercentual(h.progresso)}</span>
-              </li>
-            ))}
-          </ul>
+          <>
+            {/* Pedido de 18/10: valor estimado X = Y × avanço da medição; Y = (financiado + FGTS + subsídio) − terreno. */}
+            <p className="mb-3 text-xs text-gray-600">
+              {dados.baseMedicao.ok
+                ? <>Valor estimado = {reais(dados.baseMedicao.centavos)} (financiado + FGTS + subsídio − terreno) × percentual que a obra avançou na medição.</>
+                : <>Valor estimado indisponível — {dados.baseMedicao.motivo}. Preencha em Valores da Operação.</>}
+            </p>
+            <ul className="divide-y divide-gray-100 text-sm">
+              {dados.historico.map((h) => (
+                <li key={h.id} className="grid grid-cols-1 items-center gap-2 py-3 text-gray-700 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
+                  <div className="min-w-0">
+                    <p>{dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
+                    {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
+                  </div>
+                  <div>
+                    {h.solicitadaEm ? (
+                      <p className="text-xs text-amber-800"><Send size={12} className="mr-1 inline" />Solicitada em {dataHora(h.solicitadaEm)}{h.solicitadaPor ? ` por ${h.solicitadaPor}` : ""}</p>
+                    ) : (
+                      <button type="button" disabled={pendente} onClick={() => acao(() => solicitarMedicao(h.id), "Medição solicitada.")}
+                        className="inline-flex items-center gap-1 border border-[var(--brand-yellow)] px-3 py-1.5 text-xs font-bold uppercase text-[var(--brand-dark)] hover:bg-[var(--brand-yellow)] disabled:opacity-60">
+                        <Send size={12} />Solicitar medição
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    {h.recebidaEm ? (
+                      <p className="text-xs text-green-800"><CheckCircle2 size={12} className="mr-1 inline" />Recebida em {dataHora(h.recebidaEm)}{h.recebidaPor ? ` por ${h.recebidaPor}` : ""}</p>
+                    ) : (
+                      <button type="button" disabled={pendente || !h.solicitadaEm} title={h.solicitadaEm ? undefined : "Solicite a medição primeiro"}
+                        onClick={() => acao(() => confirmarRecebimentoMedicao(h.id), "Recebimento da medição confirmado.")}
+                        className="inline-flex items-center gap-1 border border-green-600 px-3 py-1.5 text-xs font-bold uppercase text-green-800 hover:bg-green-50 disabled:opacity-50">
+                        <CheckCircle2 size={12} />Confirmar recebimento
+                      </button>
+                    )}
+                  </div>
+                  <div className="md:text-right">
+                    <p className="text-xs text-gray-500">Valor estimado</p>
+                    <p className="font-bold text-[var(--brand-dark)] tabular-nums">{h.estimativa.valorCentavos === null ? "—" : reais(h.estimativa.valorCentavos)}</p>
+                    <p className={`text-xs ${h.estimativa.aviso ? "text-amber-700" : "text-gray-500"}`}>
+                      {h.estimativa.aviso ?? `${formatarPercentual(h.estimativa.percentualDaMedicao)} nesta medição`}
+                    </p>
+                  </div>
+                  <p className="font-bold text-[var(--brand-dark)] tabular-nums md:text-right">{formatarPercentual(h.progresso)}</p>
+                  <div className="flex gap-1 md:justify-end">
+                    <button type="button" aria-label={`Editar a medição de ${dataHora(h.criadoEm)}`} disabled={pendente} onClick={() => iniciarEdicao(h)}
+                      className="p-1.5 text-gray-600 hover:bg-blue-50 hover:text-blue-600"><Pencil size={15} /></button>
+                    <button type="button" aria-label={`Excluir a medição de ${dataHora(h.criadoEm)}`} disabled={pendente}
+                      onClick={() => { if (confirm(`Excluir definitivamente a medição de ${dataHora(h.criadoEm)}? Esta ação não pode ser desfeita.`)) acao(() => excluirMedicao(h.id), "Medição excluída."); }}
+                      className="p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
     </div>

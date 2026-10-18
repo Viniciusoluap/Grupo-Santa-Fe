@@ -70,6 +70,112 @@ export async function salvarProgressoObra(
   return { ok: true, progresso: calculo.progresso, avisos: calculo.avisos };
 }
 
+/** Obra da medição, para conferir o vínculo do empreiteiro. */
+async function obraDaMedicao(medicaoId: string) {
+  return (await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, select: { obraId: true } }))?.obraId ?? null;
+}
+
+async function ehUltimaMedicao(obraId: string, medicaoId: string) {
+  const ultima = await prisma.obraProgressoHistorico.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { id: true } });
+  return ultima?.id === medicaoId;
+}
+
+type ItemMedicao = { chave: string; incidencia: string; execucao: string };
+
+/** Grava a medição vigente da obra (itens + progresso). `null` = obra sem medição. */
+async function aplicarMedicaoVigente(obraId: string, itens: ItemMedicao[] | null, usuarioId: string, agora: Date) {
+  if (!itens) {
+    await prisma.$transaction([
+      prisma.obraProgressoItem.deleteMany({ where: { obraId } }),
+      prisma.obra.update({ where: { id: obraId }, data: { progressoMedido: null, progresso: 0 } }),
+    ]);
+    return;
+  }
+  const calculo = calcularProgresso(itens);
+  await prisma.$transaction([
+    prisma.obraProgressoItem.deleteMany({ where: { obraId } }),
+    prisma.obraProgressoItem.createMany({
+      data: itens.map((i) => ({ obraId, chave: i.chave, incidencia: i.incidencia, execucao: i.execucao, atualizadoPorId: usuarioId, atualizadoEm: agora })),
+    }),
+    prisma.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } }),
+  ]);
+}
+
+function itensValidos(itens: ItemMedicao[]): string | null {
+  if (!Array.isArray(itens) || itens.length !== 20) return "Envie os 20 serviços.";
+  for (const i of itens) {
+    if (typeof i?.chave !== "string" || !PERCENTUAL4.test(String(i.incidencia)) || !PERCENTUAL4.test(String(i.execucao)))
+      return "Percentual inválido (até 4 casas decimais).";
+  }
+  return null;
+}
+
+// Pedido de 18/10: ciclo da medição (solicitar ao banco, confirmar recebimento),
+// edição e exclusão — admin, colaborador com Obras e o empreiteiro da obra.
+// Mesmas regras de `obraProgresso.*Medicao` da Prospecta.
+
+export async function solicitarMedicao(medicaoId: string): Promise<Resultado> {
+  const obraId = await obraDaMedicao(medicaoId);
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
+  const r = await prisma.obraProgressoHistorico.updateMany({ where: { id: medicaoId, solicitadaEm: null }, data: { solicitadaEm: new Date(), solicitadaPorId: usuarioId } });
+  if (!r.count) return { ok: false, erro: "Esta medição já foi solicitada." };
+  revalidar(obraId);
+  return { ok: true };
+}
+
+export async function confirmarRecebimentoMedicao(medicaoId: string): Promise<Resultado> {
+  const obraId = await obraDaMedicao(medicaoId);
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
+  const atual = await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, select: { solicitadaEm: true } });
+  if (!atual?.solicitadaEm) return { ok: false, erro: "Solicite a medição antes de confirmar o recebimento." };
+  const r = await prisma.obraProgressoHistorico.updateMany({ where: { id: medicaoId, recebidaEm: null }, data: { recebidaEm: new Date(), recebidaPorId: usuarioId } });
+  if (!r.count) return { ok: false, erro: "O recebimento desta medição já foi confirmado." };
+  revalidar(obraId);
+  return { ok: true };
+}
+
+export async function editarMedicao(medicaoId: string, itens: ItemMedicao[]): Promise<Resultado<{ progresso: number }>> {
+  const obraId = await obraDaMedicao(medicaoId);
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
+  const invalido = itensValidos(itens);
+  if (invalido) return { ok: false, erro: invalido };
+  const calculo = calcularProgresso(itens);
+  if (calculo.erros.length) return { ok: false, erro: calculo.erros.join(" ") };
+  const agora = new Date();
+  await prisma.obraProgressoHistorico.update({
+    where: { id: medicaoId },
+    data: {
+      progresso: calculo.progresso.toFixed(6),
+      somaIncidencia: calculo.somaIncidencia.toFixed(4),
+      itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
+      editadaEm: agora,
+      editadaPorId: usuarioId,
+    },
+  });
+  // A mais recente é a medição vigente: o progresso da obra acompanha.
+  if (await ehUltimaMedicao(obraId, medicaoId)) await aplicarMedicaoVigente(obraId, itens, usuarioId, agora);
+  revalidar(obraId);
+  return { ok: true, progresso: calculo.progresso };
+}
+
+export async function excluirMedicao(medicaoId: string): Promise<Resultado> {
+  const obraId = await obraDaMedicao(medicaoId);
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
+  const eraUltima = await ehUltimaMedicao(obraId, medicaoId);
+  await prisma.obraProgressoHistorico.delete({ where: { id: medicaoId } });
+  if (eraUltima) {
+    // A obra volta para a medição anterior (ou fica sem medição).
+    const anterior = await prisma.obraProgressoHistorico.findFirst({ where: { obraId: obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { itens: true } });
+    await aplicarMedicaoVigente(obraId, anterior ? (anterior.itens as ItemMedicao[]) : null, usuarioId, new Date());
+  }
+  revalidar(obraId);
+  return { ok: true };
+}
+
 export async function atualizarFotoObra(fotoId: string, legenda: string | null, incluirNoRelatorio: boolean): Promise<Resultado> {
   await exigirObraOuEmpreiteiro(await obraDaFoto(fotoId));
   const texto = legenda?.trim() || null;

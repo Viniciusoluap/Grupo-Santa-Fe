@@ -15,7 +15,16 @@ export async function carregarListaObras(where: Prisma.ObraWhereInput = {}): Pro
     orderBy: { criadoEm: "desc" },
     include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } }, empreiteiro: { select: { nome: true } }, leadVinculado: { select: { valorAprovado: true } } },
   });
+  // Pedido de 18/10: medições aguardando o banco e já recebidas (filtro da lista).
+  const medicoes = await prisma.obraProgressoHistorico.groupBy({
+    by: ["obraId"],
+    where: { obraId: { in: registros.map((o) => o.id) }, solicitadaEm: { not: null } },
+    _count: { _all: true, recebidaEm: true },
+  });
+  const porObra = new Map(medicoes.map((m) => [m.obraId, { recebidas: m._count.recebidaEm, solicitadas: m._count._all - m._count.recebidaEm }]));
   return registros.map((o) => ({
+    medicoesSolicitadas: porObra.get(o.id)?.solicitadas ?? 0,
+    medicoesRecebidas: porObra.get(o.id)?.recebidas ?? 0,
     id: o.id, nome: o.nome, tipo: o.tipo, servicoLead: o.servicoLead, status: o.status,
     clienteNome: o.clienteNome, clienteTel: o.clienteTel, endereco: o.endereco, area: o.area,
     valorTotal: o.valorTotal, valorPago: o.valorPago, progresso: progressoDaObra(o.progressoMedido?.toString(), o.progresso), engenheiroResp: o.engenheiroResp,

@@ -15,6 +15,9 @@ export interface ObraFiltravel {
   /** Período de execução (início e previsão/conclusão), quando houver. */
   inicio?: Date | string | null;
   fim?: Date | string | null;
+  /** Pedido de 18/10: medições aguardando o banco e já recebidas. */
+  medicoesSolicitadas?: number;
+  medicoesRecebidas?: number;
 }
 
 export type OrdemObras = "recentes" | "antigas" | "az" | "za";
@@ -32,12 +35,14 @@ export interface FiltrosObras {
   /** Data de criação do registro (AAAA-MM-DD). */
   criadoDe: string;
   criadoAte: string;
+  /** "" = todas; "solicitada" = com medição solicitada; "recebida" = com medição recebida (paga). */
+  medicao: "" | "solicitada" | "recebida";
   ordem: OrdemObras;
 }
 
 export const FILTROS_OBRAS_VAZIOS: FiltrosObras = {
   nome: "", cliente: "", codigo: "", status: "", responsavel: "",
-  periodoDe: "", periodoAte: "", criadoDe: "", criadoAte: "", ordem: "recentes",
+  periodoDe: "", periodoAte: "", criadoDe: "", criadoAte: "", medicao: "", ordem: "recentes",
 };
 
 export function normalizarTexto(valor: string | null | undefined): string {
@@ -59,7 +64,7 @@ function dia(valor: Date | string | null | undefined): number | null {
 }
 
 export function filtrosAtivos(f: FiltrosObras): number {
-  return (["nome", "cliente", "codigo", "status", "responsavel", "periodoDe", "periodoAte", "criadoDe", "criadoAte"] as const)
+  return (["nome", "cliente", "codigo", "status", "responsavel", "periodoDe", "periodoAte", "criadoDe", "criadoAte", "medicao"] as const)
     .filter((k) => f[k].trim() !== "").length;
 }
 
@@ -82,6 +87,8 @@ export function filtrarObras<T extends ObraFiltravel>(obras: T[], f: FiltrosObra
     const criado = dia(o.criadoEm);
     if (criadoDe !== null && (criado === null || criado < criadoDe)) return false;
     if (criadoAte !== null && (criado === null || criado > criadoAte)) return false;
+    if (f.medicao === "solicitada" && !(o.medicoesSolicitadas ?? 0)) return false;
+    if (f.medicao === "recebida" && !(o.medicoesRecebidas ?? 0)) return false;
     return true;
   });
   const tempo = (o: ObraFiltravel) => new Date(o.criadoEm).getTime();
