@@ -1,12 +1,15 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { Toaster } from "sonner";
+import { dadosMedicaoPadrao, dadosPlsPadrao, rotuloTipoMedicao, type DadosMedicaoCaixa, type TipoMedicao } from "@/lib/medicao-caixa";
+import { BotoesArquivosMedicao, CamposMedicaoCaixa, FotosMedicao, PciObra, enviarFotosDaMedicao, type FotoNova } from "./medicao-caixa";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, History, Pencil, Save, Send, Trash2, X } from "lucide-react";
 import { lerPercentualDigitado } from "@/lib/financeiro/obra";
 import { SERVICOS_PROGRESSO, calcularProgresso, formatarPercentual } from "@/lib/financeiro/progresso";
 import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
-import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao } from "@/lib/actions/obra-progresso";
+import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, excluirFotoObra } from "@/lib/actions/obra-progresso";
 
 // EPIC-020 Lote 4 (item 27) — progresso físico por incidência, igual à
 // Prospecta. O Progresso Geral é somente leitura: soma das Execuções na Obra.
@@ -51,6 +54,11 @@ const dataHora = (d: string) => new Date(d).toLocaleString("pt-BR", { dateStyle:
 
 export function ProgressoObra({ obraId, dados }: { obraId: string; dados: ProgressoObraDados }) {
   const router = useRouter();
+  const [versaoFormulario, setVersaoFormulario] = useState(0);
+  const [tipo, setTipo] = useState<TipoMedicao>("pls");
+  const [dadosCaixa, setDadosCaixa] = useState<DadosMedicaoCaixa>(() => dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+  const [fotosNovas, setFotosNovas] = useState<FotoNova[]>([]);
+  const [ultimaSalva, setUltimaSalva] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<Linha[]>(dados.itens);
   // Pedido de 18/10: edição de uma medição do histórico (admin, colaborador e empreiteiro).
   const [editando, setEditando] = useState<{ id: string; quando: string } | null>(null);
@@ -66,48 +74,60 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
   const alterar = (chave: string, campo: "incidencia" | "execucao", v: string) =>
     setLinhas((atual) => atual.map((l) => (l.chave === chave ? { ...l, [campo]: v } : l)));
 
-  const gravar = () =>
-    iniciar(async () => {
-      setMensagem(null);
-      if (editando) {
-        const r = await editarMedicao(editando.id, linhas);
-        if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
-        setMensagem({ tipo: "ok", texto: `Medição de ${editando.quando} alterada.` });
-        setEditando(null);
-        router.refresh();
-        return;
+  const gravar = () => iniciar(async () => {
+    setMensagem(null);
+    try {
+      const r = editando ? await editarMedicao(editando.id, linhas, tipo, dadosCaixa) : await salvarProgressoObra(obraId, linhas, tipo, dadosCaixa);
+      if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
+      const id = editando?.id ?? ("medicaoId" in r && typeof r.medicaoId === "string" ? r.medicaoId : null);
+      const falhas = id && fotosNovas.length ? await enviarFotosDaMedicao(obraId, id, fotosNovas) : [];
+      if (falhas.length) {
+        setMensagem({ tipo: "erro", texto: `Medição salva. ${falhas.length} foto(s) não foram enviadas. Confira a aba Fotos antes de reenviar.` });
+        fotosNovas.filter(f => !falhas.includes(f)).forEach(f => URL.revokeObjectURL(f.previa));
+        setFotosNovas(falhas);
+        if (id) setEditando({ id, quando: new Date().toLocaleString("pt-BR") });
+        router.refresh(); return;
       }
-      const r = await salvarProgressoObra(obraId, linhas);
-      if (!r.ok) setMensagem({ tipo: "erro", texto: r.erro });
-      else {
-        setMensagem({ tipo: "ok", texto: `Medição salva: progresso geral ${formatarPercentual(r.progresso)}.` });
-        router.refresh();
-      }
-    });
+      fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
+      setMensagem({ tipo: "ok", texto: "Medição salva." }); setUltimaSalva(id); setEditando(null);
+      setVersaoFormulario(v => v + 1);
+      setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+      router.refresh();
+    } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao salvar a medição." }); }
+  });
 
   const acao = (fn: () => Promise<{ ok: true } | { ok: false; erro: string }>, sucesso: string) =>
     iniciar(async () => {
       setMensagem(null);
-      const r = await fn();
-      if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
-      setMensagem({ tipo: "ok", texto: sucesso });
-      setEditando(null);
-      router.refresh();
+      try {
+        const r = await fn();
+        if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
+        setMensagem({ tipo: "ok", texto: sucesso });
+        router.refresh();
+      } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao atualizar a medição." }); }
     });
 
   const iniciarEdicao = (h: ProgressoObraDados["historico"][number]) => {
     setEditando({ id: h.id, quando: dataHora(h.criadoEm) });
+    fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
+    setTipo(h.tipo ?? "pls");
+    setDadosCaixa(h.dadosCaixa ?? dadosMedicaoPadrao(h.tipo ?? "pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
     setLinhas(h.itens);
     setMensagem(null);
     document.getElementById("medicao-por-servico")?.scrollIntoView({ behavior: "smooth" });
   };
   const cancelarEdicao = () => {
+    setVersaoFormulario(v => v + 1);
     setEditando(null);
     setLinhas(dados.itens);
+    fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
+    setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
   };
 
   return (
     <div className="space-y-5">
+      <Toaster richColors />
+      <PciObra projectId={obraId} pci={dados.pci ?? null} />
       <section className="bg-white border border-gray-100 p-5 space-y-3">
         <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Progresso Geral</h2>
         <p className="text-xs text-gray-500">Calculado automaticamente: soma de Incidência × Execução de cada serviço (Mensurado Acumulado Total). Não é editável.</p>
@@ -173,6 +193,11 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
             </tfoot>
           </table>
         </div>
+        <CamposMedicaoCaixa key={`${editando?.id ?? "nova"}:${versaoFormulario}`} tipo={tipo} setTipo={setTipo} dados={dadosCaixa} setDados={setDadosCaixa} prazoPci={dados.pci?.prazoMeses ?? null} />
+        <FotosMedicao tipo={tipo} fotos={fotosNovas} setFotos={setFotosNovas} progresso={calculo.progresso}
+          existentes={dados.historico.find(h => h.id === editando?.id)?.fotos ?? []}
+          onExcluirExistente={id => { if (confirm("Excluir esta foto?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} />
+        {ultimaSalva && dados.pci && <BotoesArquivosMedicao medicaoId={ultimaSalva} />}
         {mensagem && (
           <p role={mensagem.tipo === "erro" ? "alert" : "status"} className={`text-sm ${mensagem.tipo === "erro" ? "text-red-700" : "text-green-700"}`}>{mensagem.texto}</p>
         )}
@@ -201,6 +226,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                 <li key={h.id} className="grid grid-cols-1 items-center gap-2 py-3 text-gray-700 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                   <div className="min-w-0">
                     <p>{dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
+                    <p className="text-xs text-gray-600">{rotuloTipoMedicao(h.tipo ?? "pls")}</p>
+                    {dados.pci && <BotoesArquivosMedicao medicaoId={h.id} />}
                     {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
                   </div>
                   <div>
@@ -235,7 +262,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                   <div className="flex gap-1 md:justify-end">
                     <button type="button" aria-label={`Editar a medição de ${dataHora(h.criadoEm)}`} disabled={pendente} onClick={() => iniciarEdicao(h)}
                       className="p-1.5 text-gray-600 hover:bg-blue-50 hover:text-blue-600"><Pencil size={15} /></button>
-                    <button type="button" aria-label={`Excluir a medição de ${dataHora(h.criadoEm)}`} disabled={pendente}
+                    <button type="button" aria-label={`Excluir a medição de ${dataHora(h.criadoEm)}`} disabled={pendente || !!editando}
                       onClick={() => { if (confirm(`Excluir definitivamente a medição de ${dataHora(h.criadoEm)}? Esta ação não pode ser desfeita.`)) acao(() => excluirMedicao(h.id), "Medição excluída."); }}
                       className="p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
                   </div>

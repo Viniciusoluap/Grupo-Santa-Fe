@@ -49,3 +49,36 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 - Ambas em `codex/continuacao-medicoes-20261018`. Branches do Claude intactas.
 - As árvores de arquivos recuperadas foram conferidas por SHA. A branch de entrega foi ancorada na main atual, preservando os mesmos arquivos, para evitar integrar centenas de commits antigos de squash.
 - Este handoff está commitado no GitHub; retomar por estes PRs, não pelo scratch local nem pelos drafts antigos.
+
+
+## Atualização posterior aos prints — portabilidade CAIXA preparada (18/10)
+### Recuperação exata e limite
+- Os prints mostram o Claude com Santa Fé já portado e 729 testes relatados. Foram verificadas 63 branches remotas: nenhuma contém os arquivos PCI/CAIXA dessa etapa. A branch do Claude permanece em 9922064. Não afirmar que esse código local foi recuperado.
+- A continuação Santa Fé foi implementada a partir do motor CAIXA da Prospecta 1fa371f, respeitando Prisma/Next e o visual claro. Código anterior preservado; branch do Claude intacta.
+
+### Alterações novas nesta continuação
+- Santa Fé: leitura de PCI XLS/XLSB; vínculo das incidências exatas; PLS/Repactuação/Alteração; fotos por medição; XLS/PDF autenticados; campos integrados ao progresso e histórico. Bibliotecas puras portadas da Prospecta e fixture anônima mantida.
+- Ambos: versão imutável da PCI vinculada à medição. Trocar PCI mantém documentos históricos. Medição legada sem versão não usa silenciosamente a PCI atual: exportação responde 409 e exige revisão explícita. Incidências incompatíveis são recusadas.
+- Prospecta: criar/editar/excluir usam trava da obra no batch e sincronizam a vigente lendo o histórico depois da trava, removendo o predecessor calculado fora da transação. INSERT usa clock_timestamp após trava.
+- Santa Fé: operações e upload da PCI compartilham trava da obra; horário da nova medição definido após a trava.
+- Ambos: falha parcial de fotos mantém somente as pendentes para reenvio na mesma medição, sem repetir as confirmadas. Campos numéricos do formulário reinicializam ao finalizar/cancelar edição.
+- PDF: título longo ajustado à largura do cabeçalho; revisão visual com dados anônimos da PLS (5 páginas) e primeiras páginas de Repactuação/Alteração. Sem avaliação/aceite pelo SIOPI real.
+
+### Migrations preparadas, não aplicadas em produção
+- Prospecta: 0058 original do Claude + nova 0059_medicao_pci_versoes.sql; journal atualizado. 0058 estava ausente na consulta somente-leitura anterior.
+- Santa Fé: 20261018220000_medicao_caixa_pci. Somente estruturas aditivas e ampliação da precisão de incidência.
+- Versão referenciada não pode ser removida isoladamente. Exclusão definitiva de obra já autorizada pela lógica existente continua consistente e sem versões órfãs (testada em banco de teste).
+- Rollback operacional: reverter código e manter estruturas/arquivos históricos. Não reduzir precisão nem apagar tabelas de versões.
+
+### Evidências atuais
+- Prospecta: suíte completa 856/856 (104 arquivos); validação posterior focada 20/20; TypeScript aprovado; build Vite/esbuild aprovado antes do pequeno ajuste visual do título e reset do formulário.
+- Santa Fé: suíte completa 690 aprovados e 46 ignorados por falta de TEST_DATABASE_URL; validação posterior focada 22/22; TypeScript aprovado; ESLint das novas rotas/componentes/actions sem erros (2 avisos de img em prévias locais/privadas).
+- Migrations dos dois bancos executadas em PostgreSQL embarcado PGlite: troca da PCI mantém versão histórica; FK recusa remoção da versão referenciada; exclusão autorizada da obra não deixa versões órfãs. Testes versionados caixa-pci-migration.test.ts.
+- Build completo Santa Fé compila e passa TypeScript, mas falha no prerender da home por ECONNREFUSED no banco local. Modo next build --experimental-build-mode compile aprovado; não declarar build completo aprovado.
+- Testes PGlite não substituem testes com os drivers Neon/Prisma em ambiente integrado nem autenticação real no navegador.
+
+### Próximo ponto de retomada
+1. Abrir PRs Prospecta #136 e Santa Fé #202, branches codex/continuacao-medicoes-20261018 (rascunhos); usar os heads atuais. Não usar os drafts antigos #105/#174.
+2. Configurar banco de teste isolado para executar testes integrados dos adaptadores e concluir build/prerender Santa Fé; testar os fluxos autenticados admin/colaborador/empreiteiro e recusa de outra obra.
+3. Validar os três modelos XLS/PDF com uma PCI autorizada e o fluxo no SIOPI, incluindo fotos e substituição da PCI.
+4. Revisar/aplicar migrations só no ambiente correto, com verificações antes/depois; solicitar autorização atual de produção conforme handoff de 15/10. Sem merge/deploy nesta retomada.

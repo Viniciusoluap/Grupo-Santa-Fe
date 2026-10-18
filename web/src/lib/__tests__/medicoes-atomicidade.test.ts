@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   estado: { existe: true, alterado: false },
   historico: {
+    findUniqueOrThrow: vi.fn().mockResolvedValue({ pciVersao: null }),
     findUnique: vi.fn().mockResolvedValue({ obraId: "obra" }),
     findFirst: vi.fn(),
     delete: vi.fn(async () => { mock.estado.existe = false; }),
@@ -16,6 +17,7 @@ vi.mock("@/lib/db", () => {
     $queryRaw: vi.fn().mockResolvedValue([]),
     obraProgressoHistorico: mock.historico,
     obraProgressoItem: { deleteMany: vi.fn(), createMany: vi.fn() },
+    obraPci: { findUnique: vi.fn().mockResolvedValue(null) },
     obra: { update: vi.fn(async () => { throw new Error("falha ao restaurar progresso"); }) },
   };
   return { prisma: {

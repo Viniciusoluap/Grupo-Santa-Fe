@@ -2,7 +2,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { calcularProgresso } from "@/lib/financeiro/progresso";
+import { obterPci, validarIncidenciasPci } from "@/lib/obras/pci";
+import { dadosMedicaoPadrao, dadosPlsPadrao, ehTipoMedicao, normalizarDadosMedicao, validarDadosMedicao, type TipoMedicao } from "@/lib/medicao-caixa";
+import type { DadosPci } from "@/lib/caixa/pci";
+import { calcularProgresso, mesclarComPadrao } from "@/lib/financeiro/progresso";
 import { LIMITE_LEGENDA } from "@/lib/obras/fotos";
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
@@ -15,6 +18,7 @@ import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
 
 export type Resultado<T = object> = ({ ok: true } & T) | { ok: false; erro: string };
 
+const INCIDENCIA = /^\d{1,3}(\.\d{1,15})?$/;
 const PERCENTUAL4 = /^\d{1,3}(\.\d{1,4})?$/;
 
 function revalidar(obraId: string) {
@@ -34,42 +38,39 @@ async function obraDaFoto(fotoId: string) {
 
 export async function salvarProgressoObra(
   obraId: string,
-  itens: { chave: string; incidencia: string; execucao: string }[]
-): Promise<Resultado<{ progresso: number; avisos: string[] }>> {
+  itens: { chave: string; incidencia: string; execucao: string }[],
+  tipo: TipoMedicao = "pls", dadosCaixa?: unknown
+): Promise<Resultado<{ progresso: number; avisos: string[]; medicaoId: string }>> {
   const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  if (!ehTipoMedicao(tipo)) return { ok: false, erro: "Tipo de medição inválido." };
+  if (!usuarioId) return { ok: false, erro: "Sem permissão." };
   if (!Array.isArray(itens) || itens.length !== 20) return { ok: false, erro: "Envie os 20 serviços." };
   for (const i of itens) {
-    if (typeof i?.chave !== "string" || !PERCENTUAL4.test(String(i.incidencia)) || !PERCENTUAL4.test(String(i.execucao)))
+    if (typeof i?.chave !== "string" || !INCIDENCIA.test(String(i.incidencia)) || !PERCENTUAL4.test(String(i.execucao)))
       return { ok: false, erro: "Percentual inválido (até 4 casas decimais)." };
   }
   const calculo = calcularProgresso(itens);
   if (calculo.erros.length) return { ok: false, erro: calculo.erros.join(" ") };
   const existe = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
   if (!existe) return { ok: false, erro: "Obra não encontrada." };
-  const agora = new Date();
-  await prisma.$transaction([
-    prisma.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`,
-    prisma.obraProgressoItem.deleteMany({ where: { obraId } }),
-    prisma.obraProgressoItem.createMany({
-      data: itens.map((i) => ({ obraId, chave: i.chave, incidencia: i.incidencia, execucao: i.execucao, atualizadoPorId: usuarioId, atualizadoEm: agora })),
-    }),
-    prisma.obra.update({
-      where: { id: obraId },
-      data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) },
-    }),
-    prisma.obraProgressoHistorico.create({
-      data: {
-        obraId,
-        progresso: calculo.progresso.toFixed(6),
-        somaIncidencia: calculo.somaIncidencia.toFixed(4),
-        itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
-        criadoPorId: usuarioId,
-        criadoEm: agora,
-      },
-    }),
-  ]);
+  const dados = normalizarDadosMedicao(tipo, dadosCaixa ?? dadosMedicaoPadrao(tipo, dadosPlsPadrao()));
+  const erros = validarDadosMedicao(tipo, dados);
+  if (erros.length) return { ok: false, erro: erros.join(" ") };
+  const medicaoId = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+    const gravadoEm = new Date();
+    const pci = await obterPci(obraId, tx);
+    if (pci && (!pci.vinculadaEm || !validarIncidenciasPci(itens, pci.versao.parsed as unknown as DadosPci))) throw new Error("Vincule a PCI e use as incidências da planilha antes de salvar.");
+    await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, gravadoEm);
+    const medicao = await tx.obraProgressoHistorico.create({ data: {
+      obraId, progresso: calculo.progresso.toFixed(6), somaIncidencia: calculo.somaIncidencia.toFixed(15),
+      itens, criadoPorId: usuarioId, criadoEm: gravadoEm, tipo, dadosCaixa: dados as unknown as Prisma.InputJsonValue,
+      pciVersaoId: pci?.versaoId ?? null,
+    }, select: { id: true } });
+    return medicao.id;
+  });
   revalidar(obraId);
-  return { ok: true, progresso: calculo.progresso, avisos: calculo.avisos };
+  return { ok: true, progresso: calculo.progresso, avisos: calculo.avisos, medicaoId };
 }
 
 /** Obra da medição, para conferir o vínculo do empreiteiro. */
@@ -101,7 +102,7 @@ async function aplicarMedicaoVigente(db: Prisma.TransactionClient, obraId: strin
 function itensValidos(itens: ItemMedicao[]): string | null {
   if (!Array.isArray(itens) || itens.length !== 20) return "Envie os 20 serviços.";
   for (const i of itens) {
-    if (typeof i?.chave !== "string" || !PERCENTUAL4.test(String(i.incidencia)) || !PERCENTUAL4.test(String(i.execucao)))
+    if (typeof i?.chave !== "string" || !INCIDENCIA.test(String(i.incidencia)) || !PERCENTUAL4.test(String(i.execucao)))
       return "Percentual inválido (até 4 casas decimais).";
   }
   return null;
@@ -133,10 +134,11 @@ export async function confirmarRecebimentoMedicao(medicaoId: string): Promise<Re
   return { ok: true };
 }
 
-export async function editarMedicao(medicaoId: string, itens: ItemMedicao[]): Promise<Resultado<{ progresso: number }>> {
+export async function editarMedicao(medicaoId: string, itens: ItemMedicao[], tipo?: TipoMedicao, dadosCaixa?: unknown): Promise<Resultado<{ progresso: number }>> {
   const obraId = await obraDaMedicao(medicaoId);
   const usuarioId = await exigirObraOuEmpreiteiro(obraId);
   if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
+  if (tipo !== undefined && !ehTipoMedicao(tipo)) return { ok: false, erro: "Tipo de medição inválido." };
   const invalido = itensValidos(itens);
   if (invalido) return { ok: false, erro: invalido };
   const calculo = calcularProgresso(itens);
@@ -144,12 +146,22 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[]): Pr
   const agora = new Date();
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+    const campos = dadosCaixa === undefined ? undefined : normalizarDadosMedicao(tipo ?? "pls", dadosCaixa);
+    if (campos) { const erros = validarDadosMedicao(tipo ?? "pls", campos); if (erros.length) throw new Error(erros.join(" ")); }
+    const medicao = await tx.obraProgressoHistorico.findUniqueOrThrow({ where: { id: medicaoId }, include: { pciVersao: true } });
+    // Uma medição existente mantém sua versão; a versão atual só é adotada em revisão de legado.
+    const pciAtual = medicao.pciVersao ? null : await obterPci(obraId, tx);
+    const versao = medicao.pciVersao ?? (pciAtual?.vinculadaEm ? pciAtual.versao : null);
+    if (versao && !validarIncidenciasPci(itens, versao.parsed as unknown as DadosPci)) throw new Error("As incidências devem corresponder à PCI desta medição.");
     await tx.obraProgressoHistorico.update({
       where: { id: medicaoId },
       data: {
         progresso: calculo.progresso.toFixed(6),
-        somaIncidencia: calculo.somaIncidencia.toFixed(4),
+        somaIncidencia: calculo.somaIncidencia.toFixed(15),
         itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
+        ...(tipo ? { tipo } : {}),
+        ...(campos ? { dadosCaixa: campos as unknown as Prisma.InputJsonValue } : {}),
+        pciVersaoId: versao?.id ?? null,
         editadaEm: agora,
         editadaPorId: usuarioId,
       },
@@ -241,4 +253,25 @@ export async function dadosRelatorioObra(obraId: string) {
     progresso,
     fotos: fotos.map((f) => ({ url: `/api/obras/fotos/${f.id}`, legenda: f.legenda, data: f.tiradaEm.toISOString() })),
   };
+}
+
+export async function vincularPciObra(obraId: string): Promise<Resultado<{ somaIncidencia: number }>> {
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  const somaIncidencia = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+    const pci = await obterPci(obraId, tx);
+    if (!pci) throw new Error("Envie a PCI antes de vincular.");
+    const parsed = pci.versao.parsed as unknown as DadosPci;
+    const atuais = await tx.obraProgressoItem.findMany({ where: { obraId } });
+    const itens = mesclarComPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) }))).map((i, k) => ({ chave: i.chave, incidencia: String(parsed.incidencias[k]), execucao: String(i.execucao) }));
+    const calculo = calcularProgresso(itens);
+    if (calculo.erros.length) throw new Error(calculo.erros.join(" "));
+    await tx.obraProgressoItem.deleteMany({ where: { obraId } });
+    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, ...i, atualizadoPorId: usuarioId })) });
+    await tx.obraPci.update({ where: { obraId }, data: { vinculadaEm: new Date(), vinculadaPorId: usuarioId } });
+    // O vínculo prepara a próxima medição; não modifica uma medição já gravada.
+    return calculo.somaIncidencia;
+  });
+  revalidar(obraId);
+  return { ok: true, somaIncidencia };
 }
