@@ -1074,6 +1074,13 @@ model ObraProgressoHistorico {
   itens          Json     @db.JsonB
   criadoPorId    String?
   criadoEm       DateTime @default(now())
+  /// Pedido de 18/10: ciclo da medição — solicitada ao banco e recebida (paga).
+  solicitadaEm    DateTime?
+  solicitadaPorId String?
+  recebidaEm      DateTime?
+  recebidaPorId   String?
+  editadaEm       DateTime?
+  editadaPorId    String?
 
   @@index([obraId, criadoEm])
   @@map("obra_progresso_historico")
