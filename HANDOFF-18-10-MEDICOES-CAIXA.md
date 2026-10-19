@@ -82,3 +82,31 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 2. Configurar banco de teste isolado para executar testes integrados dos adaptadores e concluir build/prerender Santa Fé; testar os fluxos autenticados admin/colaborador/empreiteiro e recusa de outra obra.
 3. Validar os três modelos XLS/PDF com uma PCI autorizada e o fluxo no SIOPI, incluindo fotos e substituição da PCI.
 4. Revisar/aplicar migrations só no ambiente correto, com verificações antes/depois; solicitar autorização atual de produção conforme handoff de 15/10. Sem merge/deploy nesta retomada.
+
+
+## Retomada do Claude após o Codex (19/10) — LER PRIMEIRO
+### Onde está o trabalho
+- Branch única de entrega nos dois: `claude/sync-mirrored-repos-bsqnz3` (a branch `codex/continuacao-medicoes-20261018` foi incorporada por merge, sem reescrever histórico; branches `codex/*` intactas).
+- Prospecta: merge `56cd309` (árvore idêntica à do Codex) + `f7b78d5` (Drive).
+- Santa Fé: merge `7f6811c` (port do Codex) + `da27330` (Drive + validação) + `bb5efca` (teste).
+- O port local antigo do Claude para o Santa Fé foi preservado só como referência (stash/patch local); o port do Codex foi adotado porque já tem versões imutáveis da PCI. O .xls gerado pelo port do Codex é byte a byte igual ao validado antes pelo Claude.
+
+### O que foi feito nesta retomada
+- Google Drive (pedido do dono): `Obras/<Obra (nº)>/Medições CAIXA/` recebe
+  - "PCI original — dd-mm-aaaa.xls" a cada versão nova da PCI (reenviar o mesmo arquivo não duplica);
+  - "PLS (levantamento dd-mm-aaaa) — dd-mm-aaaa.xls/.pdf" (ou Repactuação/Alteração) a cada medição salva.
+  - Sem Drive conectado ou com recusa do Google: a medição é salva normalmente e os arquivos seguem no download (nunca bloqueia).
+  - SF: `src/lib/obras/medicao-gerar.ts` (gerador único: download + Drive), action `copiarMedicaoNoDrive`, `uploadArquivoMedicaoObra` em `registro-drive.ts`.
+  - Prospecta: `gerarArquivoMedicao` + `POST /api/obras/medicoes/:id/drive` em `server/routes/obra-medicao-caixa.ts`, `uploadArquivoMedicaoObra` em `server/drive-documents.ts`.
+  - `caminhoMedicoesObra` igual em `shared/drive-estrutura.ts` e `web/src/lib/drive-estrutura.ts`.
+- SF: nome do arquivo igual à Prospecta (`PLS_Obra_2026-08-25.xls`) e histórico mostrando "PLS · N foto(s)".
+- A PCI original NUNCA é alterada: fica guardada (banco + Drive); cada medição gera uma cópia preenchida a partir da versão da PCI gravada nela.
+
+### Evidências (19/10)
+- (a) Automático: SF 739/739 testes COM Postgres real (inclui os 46 de banco que o Codex não rodou e o novo `medicao-drive.db.test.ts` com Drive simulado); build completo `next build` aprovado (o prerender que falhou para o Codex passou com banco local). Prospecta 857/857 testes (inclui PGlite), `pnpm check` e `pnpm build` aprovados.
+- (b) Manual (navegador, SF local com Postgres): E2E 21/21 — envio/vínculo da PCI com incidência exata 6,999996223999880 e soma 100; progresso 29,35% igual à PLS da CAIXA; fotos em lote; salvar PLS; baixar .xls/.pdf; foto na aba Fotos; repactuação; alteração sem justificativa barrada; outro empreiteiro e sem login recebem 403.
+- (c) Pendente em produção: .xls aberto no Excel e aceito no SIOPI; Drive real (só testado com Drive simulado); tela da Prospecta no navegador (sem banco local compatível com neon-http); leitor .xlsb sem amostra real.
+
+### Próximos passos
+1. Revisão AIOX (@qa) — ver seção seguinte quando concluída.
+2. Produção (autorizado pelo dono em 18/10: "Ao finalizar faça merge e deploy de cada etapa"): aplicar Prospecta 0058+0059 no Neon `br-steep-leaf-anxdjv1p` e SF `20261018220000_medicao_caixa_pci` no Supabase `giulchozonhzyopmgmkv` ANTES do merge; conferir antes/depois; squash merge; conferir deploy READY e erros de execução.
