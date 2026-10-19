@@ -165,3 +165,14 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 - (b) Produção Prospecta consultada somente com EXISTS: Google Drive OAuth está configurado; não há PCI real nem medição vinculada a PCI no banco, neste momento. Nenhum token/segredo foi lido.
 - (c) Navegador remoto disponível, mas sem sessão: a Prospecta abriu /login, com Email/Senha. Não redefinir senha, não gerar sessão de usuário via segredo, não conceder perfil nem criar conta administrativa em produção para contornar o login.
 - Próximo passo: obter autenticação pelo browserAuth seguro na aba Prospecta já aberta. Só então validar interface/Drive real com autorização adequada. SIOPI exige sessão CAIXA e uma PCI/medição real autorizada; não enviar a fixture fictícia como teste de aceite.
+
+
+## Validação autenticada posterior — 19/10/2026
+- browserAuth seguro concluído: painel Prospecta /admin observado com sessão autenticada. Nenhum segredo foi lido ou salvo pelo agente.
+- Interface /admin/configuracoes → Testar Google Drive: "Google Drive funcionando: os próximos arquivos serão gravados no Drive". Quatro etapas OK: autorização OAuth, acesso à pasta raiz, pasta privada sem link público e gravação do arquivo de teste. Comprova conexão/gravação reais; não comprova a cópia dos XLS/PDF de uma medição salva.
+- /admin/obras e editor /admin/obras/editar/38 (obra de teste existente) carregaram. Progresso: 20 etapas, incidências 100%, PLS/Repactuação/Alteração, controles de PCI/fotos/histórico presentes.
+- Teste apenas em memória: Execução Infraestrutura = 100 produziu progresso geral 7,00% e contribuição 7,0000%; voltou a 0,00. Tipo Repactuação revelou datas/prazos/motivo; voltou a PLS e saiu por Voltar SEM SALVAR. Lista confirmou #38 ainda em 0,00%. Nenhuma medição/obra de cliente alterada.
+- Logs error/fatal do deploy Prospecta consultados após navegação/Drive: nenhum registro na janela de 20 min.
+- Abrir Santa Fé em outra aba foi impedido pela proteção de observação/credenciais deste navegador. A navegação explícita à origem Prospecta recuperou sua observação, mas a tentativa seguinte no segundo sistema continuou bloqueada. Não insistir nem contornar; isto não é evidência de falha do site.
+- PENDENTES: envio/vínculo da PCI, salvar medição/fotos e downloads autenticados pela UI; cópia dos documentos dessa medição no Drive; UI autenticada do Santa Fé; Microsoft Excel; aceite SIOPI.
+- Antes do caso real, selecionar obra/contrato e PCI autorizados. Consulta anterior confirmou que ainda não havia PCI cadastrada em produção Prospecta. Não gravar fixture fictícia na obra real nem protocolar teste no SIOPI.
