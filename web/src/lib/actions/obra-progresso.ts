@@ -11,6 +11,7 @@ import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { tipoProjetoObra } from "@/lib/types/obra";
 import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
+import { invalidarAnexosMedicao } from "@/lib/obras/medicao-email-estado";
 import { sendEmail, adminNotificationTemplate } from "@/lib/email";
 import { solicitarComAnexos, DESTINO_MEDICOES } from "@/lib/obras/medicao-solicitacao";
 import { gerarArquivoMedicao, copiarMedicaoParaDrive, type ResultadoDrive } from "@/lib/obras/medicao-gerar";
@@ -141,8 +142,8 @@ export async function solicitarMedicao(medicaoId: string): Promise<Resultado<{ a
       gerar: formato => gerarArquivoMedicao(medicaoId, formato),
       reservar: () => prisma.$transaction(async tx => {
         tentativa = new Date();
-        const r = await tx.obraProgressoHistorico.updateMany({ where: { id: medicaoId, OR: [
-          { solicitadaEm: null }, { emailSolicitacaoStatus: "failed" },
+        const r = await tx.obraProgressoHistorico.updateMany({ where: { id: medicaoId, editadaEm: atual.editadaEm, OR: [
+          { solicitadaEm: null }, { emailSolicitacaoStatus: { in: ["failed", "pending"] } },
           { emailSolicitacaoStatus: "sending", emailSolicitacaoTentativaEm: { lt: new Date(tentativa.getTime() - 120_000) } },
         ] }, data: { solicitadaEm: atual.solicitadaEm ?? tentativa, solicitadaPorId: atual.solicitadaPorId ?? usuarioId,
           emailSolicitacaoStatus: "sending", emailSolicitacaoTentativaEm: tentativa } });
@@ -150,16 +151,20 @@ export async function solicitarMedicao(medicaoId: string): Promise<Resultado<{ a
         const admins = await tx.usuario.findMany({ where: { papel: "admin", ativo: true }, select: { id: true } });
         for (const admin of admins) {
           const link = `/admin/obras/${obraId}/editar`;
-          if (!await tx.notificacao.findFirst({ where: { usuarioId: admin.id, tipo: "medicao_solicitada", link, mensagem: { contains: medicaoId } } })) {
+          const anterior = await tx.notificacao.findFirst({ where: { usuarioId: admin.id, tipo: "medicao_solicitada", link, mensagem: { contains: medicaoId } } });
+          if (!anterior) {
             await tx.notificacao.create({ data: { usuarioId: admin.id, tipo: "medicao_solicitada", titulo, link,
               mensagem: `${atual.tipo.toUpperCase()} · ${Number(atual.progresso).toLocaleString("pt-BR")}% acumulado · ${usuario?.nome ?? "Usuário"}. Medição ${medicaoId}. Consulte o estado do envio na medição.` } });
+          } else if (atual.emailSolicitacaoStatus === "pending") {
+            await tx.notificacao.update({ where: { id: anterior.id }, data: { lida: false, titulo,
+              mensagem: `Versão atualizada · ${atual.tipo.toUpperCase()} · ${Number(atual.progresso)}% acumulado · ${usuario?.nome ?? "Usuário"}. Medição ${medicaoId}.` } });
           }
         }
         return true;
       }),
       enviar: attachments => sendEmail({ to: DESTINO_MEDICOES, attachments,
         ...adminNotificationTemplate({ titulo, linhas: [{ label: "Obra", valor: atual.obra.nome }, { label: "Tipo", valor: atual.tipo }, { label: "Progresso acumulado", valor: `${Number(atual.progresso)}%` }, { label: "Solicitante", valor: usuario?.nome ?? "Usuário" }] }) }),
-      concluir: async enviado => { await prisma.obraProgressoHistorico.updateMany({ where: { id: medicaoId, emailSolicitacaoTentativaEm: tentativa }, data: { emailSolicitacaoStatus: enviado ? "sent" : "failed" } }); },
+      concluir: async enviado => { await prisma.obraProgressoHistorico.updateMany({ where: { id: medicaoId, emailSolicitacaoTentativaEm: tentativa, emailSolicitacaoStatus: "sending" }, data: { emailSolicitacaoStatus: enviado ? "sent" : "failed" } }); },
     });
     revalidar(obraId);
     return { ok: true, ...resultado };
@@ -209,6 +214,7 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[], tip
         ...(tipo ? { tipo } : {}),
         ...(campos ? { dadosCaixa: campos as unknown as Prisma.InputJsonValue } : {}),
         pciVersaoId: versao?.id ?? null,
+        emailSolicitacaoStatus: medicao.solicitadaEm ? "pending" : medicao.emailSolicitacaoStatus,
         editadaEm: agora,
         editadaPorId: usuarioId,
       },
@@ -242,19 +248,24 @@ export async function atualizarFotoObra(fotoId: string, legenda: string | null, 
   await exigirObraOuEmpreiteiro(await obraDaFoto(fotoId));
   const texto = legenda?.trim() || null;
   if (texto && texto.length > LIMITE_LEGENDA) return { ok: false, erro: `A legenda pode ter até ${LIMITE_LEGENDA} caracteres.` };
-  const r = await prisma.obraFoto.updateMany({ where: { id: fotoId }, data: { legenda: texto, incluirNoRelatorio: !!incluirNoRelatorio } });
-  if (!r.count) return { ok: false, erro: "Foto não encontrada." };
-  const f = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { obraId: true } });
-  if (f) revalidar(f.obraId);
+  const f = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { obraId: true, medicaoId: true } });
+  if (!f) return { ok: false, erro: "Foto não encontrada." };
+  await prisma.$transaction(async tx => {
+    await tx.obraFoto.update({ where: { id: fotoId }, data: { legenda: texto, incluirNoRelatorio: !!incluirNoRelatorio } });
+    if (f.medicaoId) await invalidarAnexosMedicao(tx, f.medicaoId);
+  });
+  revalidar(f.obraId);
   return { ok: true };
 }
 
 export async function excluirFotoObra(fotoId: string): Promise<Resultado> {
   await exigirObraOuEmpreiteiro(await obraDaFoto(fotoId));
-  const foto = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { arquivoId: true, obraId: true } });
+  const foto = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { arquivoId: true, obraId: true, medicaoId: true } });
   if (!foto) return { ok: false, erro: "Foto não encontrada." };
-  // Apagar o arquivo apaga a foto (ON DELETE CASCADE em obra_fotos.arquivoId).
-  await prisma.arquivo.delete({ where: { id: foto.arquivoId } });
+  await prisma.$transaction(async tx => {
+    await tx.arquivo.delete({ where: { id: foto.arquivoId } });
+    if (foto.medicaoId) await invalidarAnexosMedicao(tx, foto.medicaoId);
+  });
   revalidar(foto.obraId);
   return { ok: true };
 }

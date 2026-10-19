@@ -30,7 +30,7 @@ export async function gerarArquivoMedicao(medicaoId: string, formato: FormatoMed
   const pci = m.pciVersao.parsed as unknown as DadosPci;
   const itens = m.itens as { chave: string; incidencia: string; execucao: string }[];
   if (!validarIncidenciasPci(itens, pci)) return { ok: false, status: 409, error: "As incidências salvas diferem da PCI desta medição. Revise a medição." };
-  if (formato === "xls" && pci.formato !== "xls") return { ok: false, status: 400, error: "Para gerar .xls, vincule uma PCI original em .xls." };
+  if (formato === "xls" && pci.formato !== "xls") return { ok: false, status: 400, error: "Para solicitar com PDF e XLS, use a PCI original em .xls. A PCI .xlsb permite PDF, mas não gera o XLS exigido para o envio." };
   const tipo = ehTipoMedicao(m.tipo) ? m.tipo : "pls";
   const dados = normalizarDadosMedicao(tipo, m.dadosCaixa);
   const anterioresBrutas = await prisma.obraProgressoHistorico.findMany({ where: { obraId: m.obraId, OR: [{ criadoEm: { lt: m.criadoEm } }, { criadoEm: m.criadoEm, id: { lt: m.id } }] }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }], select: { progresso: true, criadoEm: true, dadosCaixa: true } });

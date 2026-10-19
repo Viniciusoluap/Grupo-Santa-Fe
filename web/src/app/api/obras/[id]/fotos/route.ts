@@ -1,3 +1,4 @@
+import { invalidarAnexosMedicao } from "@/lib/obras/medicao-email-estado";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { usuarioAtual } from "@/lib/auth/modulos";
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         data: { nome: `obra-${obraId}-${Date.now()}.${extensao}`, mime: validacao.mime, tamanho: bytes.length, dados },
         select: { id: true },
       });
+      await invalidarAnexosMedicao(tx, medicaoId);
       return tx.obraFoto.create({
         data: { medicaoId, obraId, arquivoId: arquivo.id, legenda, tiradaEm, incluirNoRelatorio: body?.includeInReport !== false, enviadoPorId: user.id },
         select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },

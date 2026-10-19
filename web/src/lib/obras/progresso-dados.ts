@@ -17,11 +17,12 @@ export type ProgressoObraDados = {
   progressoLegado: number;
   /** Pedido de 18/10: Y = (financiado + FGTS + subsídio) − terreno. */
   baseMedicao: BaseMedicao;
+  fotosLegadas?: { id: string; imageUrl: string; caption: string | null; includeInReport: boolean }[];
   historico: {
     id: string;
     tipo?: TipoMedicao;
     dadosCaixa?: DadosMedicaoCaixa;
-    fotos?: { id: string; imageUrl: string; caption: string | null }[];
+    fotos?: { id: string; imageUrl: string; caption: string | null; includeInReport?: boolean }[];
     progresso: number;
     somaIncidencia: number;
     criadoEm: string;
@@ -50,8 +51,9 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       subsidio: true,
       custoTerreno: true,
       progressoItens: true,
+      fotos: { where: { medicaoId: null }, select: { id: true, legenda: true, incluirNoRelatorio: true } },
       pci: { include: { versao: { select: { nome: true, parsed: true } } } },
-      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 101, include: { fotos: { select: { id: true, legenda: true }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } },
+      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 101, include: { fotos: { select: { id: true, legenda: true, incluirNoRelatorio: true }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } },
     },
   });
   if (!obra) return null;
@@ -83,11 +85,12 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
     plsPadrao: dadosPlsPadrao(parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia, seloCasaAzul: parsed.seloCasaAzul } : undefined),
     progressoLegado: obra.progresso,
     baseMedicao: base,
+    fotosLegadas: obra.fotos.map(f => ({ id: f.id, caption: f.legenda, includeInReport: f.incluirNoRelatorio, imageUrl: `/api/obras/fotos/${f.id}` })),
     historico: historicoExibido.map((h) => ({
       id: h.id,
       tipo: ehTipoMedicao(h.tipo) ? h.tipo : "pls",
       dadosCaixa: normalizarDadosMedicao(ehTipoMedicao(h.tipo) ? h.tipo : "pls", h.dadosCaixa),
-      fotos: (h.fotos ?? []).map(f => ({ id: f.id, caption: f.legenda, imageUrl: `/api/obras/fotos/${f.id}` })),
+      fotos: (h.fotos ?? []).map(f => ({ id: f.id, caption: f.legenda, includeInReport: f.incluirNoRelatorio, imageUrl: `/api/obras/fotos/${f.id}` })),
       progresso: Number(h.progresso),
       somaIncidencia: Number(h.somaIncidencia),
       criadoEm: h.criadoEm.toISOString(),
@@ -95,7 +98,7 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       itens: mesclarComPadrao(Array.isArray(h.itens) ? (h.itens as { chave: string; incidencia: string; execucao: string }[]) : [])
         .map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
       situacao: situacaoDaMedicao(h),
-      emailPodeReenviar: h.emailSolicitacaoStatus === "failed" || (h.emailSolicitacaoStatus === "sending" && !!h.emailSolicitacaoTentativaEm && Date.now() - h.emailSolicitacaoTentativaEm.getTime() > 120_000),
+      emailPodeReenviar: ["failed", "pending"].includes(h.emailSolicitacaoStatus ?? "") || (h.emailSolicitacaoStatus === "sending" && !!h.emailSolicitacaoTentativaEm && Date.now() - h.emailSolicitacaoTentativaEm.getTime() > 120_000),
       emailStatus: h.emailSolicitacaoStatus,
       emailTentativaEm: h.emailSolicitacaoTentativaEm?.toISOString() ?? null,
       solicitadaEm: h.solicitadaEm?.toISOString() ?? null,
