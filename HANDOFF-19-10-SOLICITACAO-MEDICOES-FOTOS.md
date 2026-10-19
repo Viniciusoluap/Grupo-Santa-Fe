@@ -42,3 +42,27 @@ Os scripts de QA de modelos CAIXA não rastreados já pertencem ao trabalho ante
 - Um finding sugeriu enviar só PDF para PCI XLSB. Essa sugestão conflita com o requisito explícito do usuário de PDF + XLS. Mantida validação de ambos; mensagem explica que é necessária PCI original em XLS. Não foi inventada conversão nem renomeado XLSB como XLS, nem enviada solicitação incompleta. Essa limitação já existia no gerador de XLS.
 - Testes: Prospecta 870/870 (108 arquivos), incluindo transação PGlite com reenvio de versão corrigida, admin não lido e auditoria SMTP; foco adicional com import ESM/SMTP/transação passou (10 casos). Santa Fé 699 aprovados / 50 testes de banco pulados; fixture da janela de histórico atualizada para a relação de fotos legadas. TypeScript e revisão de componentes executados novamente. Não houve nova migração além das duas colunas já aplicadas.
 - Próximo: conferir builds dos novos SHAs, merge de #139/#204 e produção; guardar IDs finais e estado dos domínios neste HANDOFF.
+
+## Etapa 4 — publicação concluída em 19/10/2026
+
+| Sistema | PR mesclado | Commit de código na main | Deploy de produção |
+| --- | --- | --- | --- |
+| Prospecta | https://github.com/Viniciusoluap/Prospecta/pull/139 | da819637ca08ace317706ae2ebe864f06f4e5aca | dpl_8PW7gPEpsW2xvh57WYqK82yJjPVQ |
+| Grupo Santa Fé | https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/204 | 9dcd7e42201ba2b089e014d486945b2b4f6b1f1e | dpl_7E8j6gEynU4Vz5JCgtnKgEK6V9uM |
+
+(a) Verificações automáticas finais:
+- Ambos os deploys em READY, target production, SHA correspondente ao merge. Árvores de código dos merges idênticas às das branches testadas (`f7cf57e` / `05007d6`).
+- Domínios com e sem www conferidos pela API Vercel: `prospectaconstrucoes.com` e `gruposantafee.com.br` apontam aos respectivos deploys acima.
+- Prospecta: home HTTP 200; `/api/health` no deploy e no domínio oficial HTTP 200, `{"ok":true,"db":"connected"}`.
+- Santa Fé: home do domínio oficial HTTP 200 e marcador HTML do deploy novo confirmado.
+- Logs de runtime dos deploys novos: nenhuma entrada error/fatal na consulta de 15 minutos, feita depois das verificações HTTP. Isso cobre a janela observada, não garante inexistência de falhas futuras.
+- Prospecta: build final local passou, TypeScript passou, suíte 870/870. Santa Fé: TypeScript passou, suíte 699 aprovados / 50 testes de banco pulados. ESLint dos componentes revisados: zero erros; um aviso de `<img>` em imagem de prévia já existente.
+- As duas migrações aditivas já aplicadas e verificadas antes da publicação (detalhes na etapa 2).
+
+(b) Verificação manual: implementação, permissões, paridade e findings revisados. Não havia sessão autenticada no navegador disponível; não foi criada solicitação fictícia, disparado e-mail real nem confirmado recebimento financeiro de uma medição.
+
+(c) Limites de validação: o recebimento de anexos na caixa da empresa ainda não foi observado em uma solicitação real. SMTP está configurado no ambiente production dos dois projetos; geração, anexação, tratamento de falhas e notificações foram verificados em testes. Solicitar exige PCI original XLS, pois o gerador existente não reescreve XLSB; não envia apenas PDF contrariando o requisito do usuário.
+
+Operação Vercel: Santa Fé publicado pela integração Git. Prospecta criada explicitamente a partir do SHA do merge em target production; tentativa de promover retornou 409 porque esse deploy já era o atual de produção. A confirmação posterior dos dois domínios comprovou a publicação correta; não foi repetida a promoção.
+
+Estado para continuidade: código publicado e nenhuma implementação pendente deste pedido. Este HANDOFF final fica salvo na branch `codex/medicoes-email-galeria-20261019`, com o merge da main incluído em sua ancestralidade; não é necessário refazer merge/deploy do código. Não mesclar a branch Claude antiga apenas para recuperar os scripts de QA já preservados lá. Próximo acompanhamento opcional: conferir estado `sent`/anexos/aviso ao admin após a próxima solicitação real do usuário, sem reenviar uma medição já aceita.
