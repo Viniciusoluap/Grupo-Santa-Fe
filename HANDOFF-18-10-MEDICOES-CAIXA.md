@@ -110,3 +110,9 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 ### Próximos passos
 1. Revisão AIOX (@qa) — ver seção seguinte quando concluída.
 2. Produção (autorizado pelo dono em 18/10: "Ao finalizar faça merge e deploy de cada etapa"): aplicar Prospecta 0058+0059 no Neon `br-steep-leaf-anxdjv1p` e SF `20261018220000_medicao_caixa_pci` no Supabase `giulchozonhzyopmgmkv` ANTES do merge; conferir antes/depois; squash merge; conferir deploy READY e erros de execução.
+
+## Etapa 19/10 — PRs e regra de handoff
+- Concluído: PRs em rascunho da branch `claude/sync-mirrored-repos-bsqnz3` — Prospecta #137 e Santa Fé #203 (substituem #136/#202 do Codex). Regra permanente "atualizar HANDOFF + commit + push a cada etapa" gravada em `CLAUDE.md` e `AGENTS.md` dos dois repositórios.
+- Pendências: resultado da revisão AIOX (@qa) e correções; migrations em produção; merge; deploy; smoke.
+- Testes: sem mudança de código nesta etapa (evidências na seção anterior).
+- Próximo passo: corrigir os achados do @qa, depois aplicar Prospecta 0058+0059 (Neon produção) e SF 20261018220000 (Supabase) antes de mesclar #137 e #203.
