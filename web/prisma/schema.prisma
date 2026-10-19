@@ -1079,6 +1079,8 @@ model ObraProgressoHistorico {
   /// Pedido de 18/10: ciclo da medição — solicitada ao banco e recebida (paga).
   solicitadaEm    DateTime?
   solicitadaPorId String?
+  emailSolicitacaoStatus String? @db.VarChar(20)
+  emailSolicitacaoTentativaEm DateTime?
   recebidaEm      DateTime?
   recebidaPorId   String?
   editadaEm       DateTime?

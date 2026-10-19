@@ -7,6 +7,7 @@ import { definirInvestidoresObra, salvarValoresObra } from "@/lib/actions/obra-f
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
 import { ProgressoObra } from "./progresso-obra";
+import type { MedicaoGaleria } from "@/lib/obras/galeria-medicoes";
 import { FotosObra, type FotoObra } from "./fotos-obra";
 import { RelatorioObraBotao } from "./relatorio-obra-botao";
 import { Custos, ValoresOperacao, calcularAoVivo, formInicial, inputCls, labelCls, type FormFinanceiro } from "./financeiro-obra";
@@ -23,7 +24,7 @@ const ABAS: { id: Aba; label: string }[] = [
 // Progresso, Fotos e Relatórios gravam por conta própria (fora do formulário).
 const ABAS_DO_FORMULARIO: Aba[] = ["info", "valores", "custos"];
 
-export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, escritorioCef, datas, cancelarHref, progresso, fotos, modoEmpreiteiro = false, children }: {
+export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, escritorioCef, datas, cancelarHref, progresso, fotos, medicoesGaleria, modoEmpreiteiro = false, children }: {
   resumo: ResumoObra;
   empreiteiros: { id: string; nome: string }[];
   clienteNome: string;
@@ -33,6 +34,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
   cancelarHref: string;
   progresso: ProgressoObraDados;
   fotos: FotoObra[];
+  medicoesGaleria: MedicaoGaleria[];
   /**
    * Pedido de 15/10: o empreiteiro usa este mesmo painel nas obras vinculadas a ele.
    * Informações, Valores da Operação e Custos previstos ficam só leitura; Pagamentos,
@@ -79,7 +81,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
       </div>
 
       {aba === "progresso" && <ProgressoObra obraId={resumo.obra.id} dados={progresso} />}
-      {aba === "fotos" && <FotosObra obraId={resumo.obra.id} fotos={fotos} />}
+      {aba === "fotos" && <FotosObra fotos={fotos} medicoes={medicoesGaleria} />}
       {aba === "relatorios" && <RelatorioObraBotao obraId={resumo.obra.id} />}
 
     <form action={salvar} onInvalidCapture={() => setAba("info")} className={ABAS_DO_FORMULARIO.includes(aba) ? "space-y-5" : "hidden"}>

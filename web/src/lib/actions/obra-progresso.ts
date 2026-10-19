@@ -11,7 +11,9 @@ import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { tipoProjetoObra } from "@/lib/types/obra";
 import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
-import { copiarMedicaoParaDrive, type ResultadoDrive } from "@/lib/obras/medicao-gerar";
+import { sendEmail, adminNotificationTemplate } from "@/lib/email";
+import { solicitarComAnexos, DESTINO_MEDICOES } from "@/lib/obras/medicao-solicitacao";
+import { gerarArquivoMedicao, copiarMedicaoParaDrive, type ResultadoDrive } from "@/lib/obras/medicao-gerar";
 
 // EPIC-020 Lote 4 — progresso por incidência (27), fotos (28) e dados do
 // relatório executivo (29), com as mesmas regras da API `obraProgresso` da
@@ -126,14 +128,42 @@ function itensValidos(itens: ItemMedicao[]): string | null {
 // edição e exclusão — admin, colaborador com Obras e o empreiteiro da obra.
 // Mesmas regras de `obraProgresso.*Medicao` da Prospecta.
 
-export async function solicitarMedicao(medicaoId: string): Promise<Resultado> {
+export async function solicitarMedicao(medicaoId: string): Promise<Resultado<{ aviso?: string }>> {
   const obraId = await obraDaMedicao(medicaoId);
   const usuarioId = await exigirObraOuEmpreiteiro(obraId);
   if (!obraId || !usuarioId) return { ok: false, erro: "Medição não encontrada." };
-  const r = await prisma.obraProgressoHistorico.updateMany({ where: { id: medicaoId, solicitadaEm: null }, data: { solicitadaEm: new Date(), solicitadaPorId: usuarioId } });
-  if (!r.count) return { ok: false, erro: "Esta medição já foi solicitada." };
-  revalidar(obraId);
-  return { ok: true };
+  const atual = await prisma.obraProgressoHistorico.findUniqueOrThrow({ where: { id: medicaoId }, include: { obra: { select: { nome: true } } } });
+  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId }, select: { nome: true } });
+  let tentativa = new Date();
+  const titulo = `Solicitação de medição — ${atual.obra.nome}`.slice(0, 255);
+  try {
+    const resultado = await solicitarComAnexos({
+      gerar: formato => gerarArquivoMedicao(medicaoId, formato),
+      reservar: () => prisma.$transaction(async tx => {
+        tentativa = new Date();
+        const r = await tx.obraProgressoHistorico.updateMany({ where: { id: medicaoId, OR: [
+          { solicitadaEm: null }, { emailSolicitacaoStatus: "failed" },
+          { emailSolicitacaoStatus: "sending", emailSolicitacaoTentativaEm: { lt: new Date(tentativa.getTime() - 120_000) } },
+        ] }, data: { solicitadaEm: atual.solicitadaEm ?? tentativa, solicitadaPorId: atual.solicitadaPorId ?? usuarioId,
+          emailSolicitacaoStatus: "sending", emailSolicitacaoTentativaEm: tentativa } });
+        if (!r.count) return false;
+        const admins = await tx.usuario.findMany({ where: { papel: "admin", ativo: true }, select: { id: true } });
+        for (const admin of admins) {
+          const link = `/admin/obras/${obraId}/editar`;
+          if (!await tx.notificacao.findFirst({ where: { usuarioId: admin.id, tipo: "medicao_solicitada", link, mensagem: { contains: medicaoId } } })) {
+            await tx.notificacao.create({ data: { usuarioId: admin.id, tipo: "medicao_solicitada", titulo, link,
+              mensagem: `${atual.tipo.toUpperCase()} · ${Number(atual.progresso).toLocaleString("pt-BR")}% acumulado · ${usuario?.nome ?? "Usuário"}. Medição ${medicaoId}. Consulte o estado do envio na medição.` } });
+          }
+        }
+        return true;
+      }),
+      enviar: attachments => sendEmail({ to: DESTINO_MEDICOES, attachments,
+        ...adminNotificationTemplate({ titulo, linhas: [{ label: "Obra", valor: atual.obra.nome }, { label: "Tipo", valor: atual.tipo }, { label: "Progresso acumulado", valor: `${Number(atual.progresso)}%` }, { label: "Solicitante", valor: usuario?.nome ?? "Usuário" }] }) }),
+      concluir: async enviado => { await prisma.obraProgressoHistorico.updateMany({ where: { id: medicaoId, emailSolicitacaoTentativaEm: tentativa }, data: { emailSolicitacaoStatus: enviado ? "sent" : "failed" } }); },
+    });
+    revalidar(obraId);
+    return { ok: true, ...resultado };
+  } catch (e) { return { ok: false, erro: e instanceof Error ? e.message : "Erro ao solicitar medição." }; }
 }
 
 export async function confirmarRecebimentoMedicao(medicaoId: string): Promise<Resultado> {

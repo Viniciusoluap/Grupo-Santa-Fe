@@ -15,6 +15,9 @@ function defaultDependencies(): EmailDependencies | null {
       host: SMTP_HOST,
       port,
       secure: port === 465,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
       auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
     }),
   };
@@ -22,7 +25,7 @@ function defaultDependencies(): EmailDependencies | null {
 
 /** Envia e-mail via SMTP. Nunca lança — retorna false se SMTP não estiver configurado ou o envio falhar. */
 export async function sendEmail(
-  data: { to: string; subject: string; html: string },
+  data: { to: string; subject: string; html: string; attachments?: { filename: string; content: Buffer; contentType: string }[] },
   dependencies?: EmailDependencies
 ): Promise<boolean> {
   const deps = dependencies ?? defaultDependencies();
@@ -35,6 +38,7 @@ export async function sendEmail(
       subject: data.subject,
       html: data.html,
       text: data.html.replace(/<[^>]*>/g, ""),
+      attachments: data.attachments,
     });
     return true;
   } catch (erro) {

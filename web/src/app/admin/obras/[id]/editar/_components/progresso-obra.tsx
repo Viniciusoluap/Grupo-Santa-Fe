@@ -101,13 +101,13 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
     } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao salvar a medição." }); }
   });
 
-  const acao = (fn: () => Promise<{ ok: true } | { ok: false; erro: string }>, sucesso: string) =>
+  const acao = (fn: () => Promise<{ ok: true; aviso?: string } | { ok: false; erro: string }>, sucesso: string) =>
     iniciar(async () => {
       setMensagem(null);
       try {
         const r = await fn();
         if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
-        setMensagem({ tipo: "ok", texto: sucesso });
+        setMensagem({ tipo: r.aviso ? "erro" : "ok", texto: r.aviso ?? sucesso });
         router.refresh();
       } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao atualizar a medição." }); }
     });
@@ -238,6 +238,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                     {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
                   </div>
                   <div>
+                    {h.emailStatus && <p className="text-xs text-gray-500">E-mail: {h.emailStatus === "sent" ? "enviado com PDF e XLS" : h.emailStatus === "failed" ? "falhou — tente reenviar" : "processando"}</p>}
+                    {h.emailPodeReenviar && <button type="button" disabled={pendente} onClick={() => acao(() => solicitarMedicao(h.id), "E-mail enviado com PDF e XLS.")} className="text-sm underline">Reenviar e-mail</button>}
                     {h.solicitadaEm ? (
                       <p className="text-xs text-amber-800"><Send size={12} className="mr-1 inline" />Solicitada em {dataHora(h.solicitadaEm)}{h.solicitadaPor ? ` por ${h.solicitadaPor}` : ""}</p>
                     ) : (

@@ -28,6 +28,9 @@ export type ProgressoObraDados = {
     autor: string | null;
     itens: { chave: string; incidencia: string; execucao: string }[];
     situacao: SituacaoMedicao;
+    emailPodeReenviar?: boolean;
+    emailStatus?: string | null;
+    emailTentativaEm?: string | null;
     solicitadaEm: string | null;
     solicitadaPor: string | null;
     recebidaEm: string | null;
@@ -92,6 +95,9 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       itens: mesclarComPadrao(Array.isArray(h.itens) ? (h.itens as { chave: string; incidencia: string; execucao: string }[]) : [])
         .map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
       situacao: situacaoDaMedicao(h),
+      emailPodeReenviar: h.emailSolicitacaoStatus === "failed" || (h.emailSolicitacaoStatus === "sending" && !!h.emailSolicitacaoTentativaEm && Date.now() - h.emailSolicitacaoTentativaEm.getTime() > 120_000),
+      emailStatus: h.emailSolicitacaoStatus,
+      emailTentativaEm: h.emailSolicitacaoTentativaEm?.toISOString() ?? null,
       solicitadaEm: h.solicitadaEm?.toISOString() ?? null,
       solicitadaPor: quem(h.solicitadaPorId),
       recebidaEm: h.recebidaEm?.toISOString() ?? null,
