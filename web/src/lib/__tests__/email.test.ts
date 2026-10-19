@@ -63,3 +63,11 @@ describe("adminNotificationTemplate", () => {
     expect(template.html).toContain("Não informado");
   });
 });
+
+it("preserva PDF e XLS anexados no transporte SMTP", async () => {
+    const sendMail = vi.fn().mockResolvedValue({ messageId: "local" });
+    const deps = { transport: { sendMail } };
+    const attachments = [{ filename: "PLS.pdf", content: Buffer.from("%PDF-test"), contentType: "application/pdf" }, { filename: "PLS.xls", content: Buffer.from([0xd0,0xcf,0x11,0xe0]), contentType: "application/vnd.ms-excel" }];
+    await expect(sendEmail({ to: "empresa@example.test", subject: "Medição", html: "<p>Solicitação</p>",  attachments }, deps)).resolves.toBe(true);
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ attachments }));
+});

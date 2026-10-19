@@ -3,13 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import { Toaster } from "sonner";
 import { dadosMedicaoPadrao, dadosPlsPadrao, rotuloTipoMedicao, type DadosMedicaoCaixa, type TipoMedicao } from "@/lib/medicao-caixa";
-import { BotoesArquivosMedicao, CamposMedicaoCaixa, FotosMedicao, PciObra, enviarFotosDaMedicao, type FotoNova } from "./medicao-caixa";
+import { BotoesArquivosMedicao, CamposMedicaoCaixa, FotosMedicao, FotosSalvas, PciObra, enviarFotosDaMedicao, type FotoNova } from "./medicao-caixa";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, History, Pencil, Save, Send, Trash2, X } from "lucide-react";
 import { lerPercentualDigitado } from "@/lib/financeiro/obra";
 import { SERVICOS_PROGRESSO, calcularProgresso, formatarPercentual } from "@/lib/financeiro/progresso";
 import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
-import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, excluirFotoObra, copiarMedicaoNoDrive } from "@/lib/actions/obra-progresso";
+import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, atualizarFotoObra, excluirFotoObra, copiarMedicaoNoDrive } from "@/lib/actions/obra-progresso";
 
 // EPIC-020 Lote 4 (item 27) — progresso físico por incidência, igual à
 // Prospecta. O Progresso Geral é somente leitura: soma das Execuções na Obra.
@@ -101,13 +101,13 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
     } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao salvar a medição." }); }
   });
 
-  const acao = (fn: () => Promise<{ ok: true } | { ok: false; erro: string }>, sucesso: string) =>
+  const acao = (fn: () => Promise<{ ok: true; aviso?: string } | { ok: false; erro: string }>, sucesso: string) =>
     iniciar(async () => {
       setMensagem(null);
       try {
         const r = await fn();
         if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
-        setMensagem({ tipo: "ok", texto: sucesso });
+        setMensagem({ tipo: r.aviso ? "erro" : "ok", texto: r.aviso ?? sucesso });
         router.refresh();
       } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao atualizar a medição." }); }
     });
@@ -133,6 +133,9 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
 
   return (
     <div className="space-y-5">
+      {!!dados.fotosLegadas?.length && <section className="space-y-3"><h3>Fotos anteriores — sem medição vinculada</h3><FotosSalvas fotos={dados.fotosLegadas} ocupado={pendente}
+        onSalvar={(id, legenda, incluir) => acao(() => atualizarFotoObra(id, legenda, incluir), "Foto atualizada.")}
+        onExcluir={id => { if (confirm("Excluir esta foto anterior?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} /></section>}
       <Toaster richColors />
       <PciObra projectId={obraId} pci={dados.pci ?? null} />
       <section className="bg-white border border-gray-100 p-5 space-y-3">
@@ -201,7 +204,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
           </table>
         </div>
         <CamposMedicaoCaixa key={`${editando?.id ?? "nova"}:${versaoFormulario}`} tipo={tipo} setTipo={setTipo} dados={dadosCaixa} setDados={setDadosCaixa} prazoPci={dados.pci?.prazoMeses ?? null} />
-        <FotosMedicao tipo={tipo} fotos={fotosNovas} setFotos={setFotosNovas} progresso={calculo.progresso}
+        <FotosMedicao ocupado={pendente} onAtualizarExistente={(id, legenda, incluir) => acao(() => atualizarFotoObra(id, legenda, incluir), "Foto atualizada.")} tipo={tipo} fotos={fotosNovas} setFotos={setFotosNovas} progresso={calculo.progresso}
           existentes={dados.historico.find(h => h.id === editando?.id)?.fotos ?? []}
           onExcluirExistente={id => { if (confirm("Excluir esta foto?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} />
         {ultimaSalva && dados.pci && <BotoesArquivosMedicao medicaoId={ultimaSalva} />}
@@ -238,6 +241,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                     {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
                   </div>
                   <div>
+                    {h.emailStatus && <p className="text-xs text-gray-500">E-mail: {h.emailStatus === "sent" ? "enviado com PDF e XLS" : h.emailStatus === "failed" ? "falhou — tente reenviar" : h.emailStatus === "pending" ? "alterações pendentes de envio" : "processando"}</p>}
+                    {h.emailPodeReenviar && <button type="button" disabled={pendente} onClick={() => acao(() => solicitarMedicao(h.id), "E-mail enviado com PDF e XLS.")} className="text-sm underline">{h.emailStatus === "pending" ? "Enviar versão atualizada" : "Reenviar e-mail"}</button>}
                     {h.solicitadaEm ? (
                       <p className="text-xs text-amber-800"><Send size={12} className="mr-1 inline" />Solicitada em {dataHora(h.solicitadaEm)}{h.solicitadaPor ? ` por ${h.solicitadaPor}` : ""}</p>
                     ) : (

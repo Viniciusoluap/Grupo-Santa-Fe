@@ -23,15 +23,16 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
     },
   });
   if (!o) notFound();
-  const [resumo, empreiteiros, progresso, fotos] = await Promise.all([
+  const [resumo, empreiteiros, progresso, fotos, medicoesGaleria] = await Promise.all([
     carregarResumoObra(id),
     prisma.usuario.findMany({ where: { papel: "empreiteiro", ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
     carregarProgressoObra(id),
     prisma.obraFoto.findMany({
       where: { obraId: id },
       orderBy: [{ tiradaEm: "desc" }, { criadoEm: "desc" }],
-      select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },
+      select: { id: true, medicaoId: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },
     }),
+    prisma.obraProgressoHistorico.findMany({ where: { obraId: id }, select: { id: true, progresso: true, criadoEm: true } }),
   ]);
   if (!resumo || !progresso) notFound();
   const tipoProjeto = tipoProjetoObra(o);
@@ -58,7 +59,8 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
         cancelarHref={detalhesHref}
         modoEmpreiteiro={ehEmpreiteiro}
         progresso={progresso}
-        fotos={fotos.map((f) => ({ id: f.id, url: `/api/obras/fotos/${f.id}`, legenda: f.legenda, tiradaEm: f.tiradaEm.toISOString(), incluirNoRelatorio: f.incluirNoRelatorio }))}
+        medicoesGaleria={medicoesGaleria.map(m => ({ id: m.id, progresso: Number(m.progresso), criadoEm: m.criadoEm.toISOString() }))}
+        fotos={fotos.map((f) => ({ id: f.id, medicaoId: f.medicaoId, url: `/api/obras/fotos/${f.id}`, legenda: f.legenda, tiradaEm: f.tiradaEm.toISOString(), incluirNoRelatorio: f.incluirNoRelatorio }))}
       >
           <input type="hidden" name="id" value={id} />
 
