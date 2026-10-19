@@ -1,13 +1,17 @@
 // EPIC-020 Lote 4 (item 27) — progresso físico da obra por incidência.
-// Mesmo arquivo em Prospecta/shared/financeiro/progresso.ts.
+// Mesmo arquivo em Grupo-Santa-Fe/web/src/lib/financeiro/progresso.ts.
 //
 // Cada um dos 20 serviços tem uma Incidência (peso na obra, %) e uma Execução
 // do Item (0–100%). Execução na Obra = Incidência × Execução / 100.
 // Progresso Geral = Mensurado Acumulado Total = soma das execuções na obra.
-// Aritmética em milionésimos de ponto percentual (BigInt) e HALF_UP só no
-// resultado — Teste E: 28,196% → exibido 28,20%.
+// Aritmética exata em BigInt (15 casas decimais) e HALF_UP só no resultado —
+// Teste E: 28,196% → exibido 28,20%.
+//
+// Pedido de 18/10: a incidência vinculada da PCI da CAIXA é guardada com
+// todas as casas da planilha (ex.: 6,99999622399988) para o total fechar 100%
+// exatamente como no arquivo. A Execução do Item continua com até 4 casas.
 
-import { dividirHalfUp, percentualMicro } from "./obra";
+import { dividirHalfUp } from "./obra";
 
 export interface ServicoProgresso {
   chave: string;
@@ -41,11 +45,17 @@ export const SERVICOS_PROGRESSO: readonly ServicoProgresso[] = [
 
 const CHAVES = new Set(SERVICOS_PROGRESSO.map((s) => s.chave));
 const B0 = BigInt(0);
-const MICRO = BigInt(1_000_000);
-const CEM = BigInt(100) * MICRO;
-/** inc(µ%) × exec(µ%) / 100% → µ%: divide por 100 × 10⁶. */
-const DIVISOR_PRODUTO = BigInt(100) * MICRO;
-const MAX_CASAS = 4;
+/** Casas decimais da aritmética interna (precisão da planilha da CAIXA). */
+const CASAS = 15;
+const potencia10 = (n: number) => BigInt("1" + "0".repeat(n));
+const ESCALA = potencia10(CASAS);
+const CEM = BigInt(100) * ESCALA;
+/** inc × exec / 100% → mesma escala: divide por 100 × 10¹⁵. */
+const DIVISOR_PRODUTO = BigInt(100) * ESCALA;
+/** Arredondamentos de ponto flutuante da planilha (ex.: 100,00000000000001%). */
+const TOLERANCIA_SOMA = potencia10(CASAS - 9);
+const MAX_CASAS_EXECUCAO = 4;
+const MAX_CASAS_INCIDENCIA = CASAS;
 
 export interface ItemProgressoEntrada {
   chave: string;
@@ -72,7 +82,30 @@ export interface ResultadoProgresso {
   avisos: string[];
 }
 
-const micro = (v: bigint) => Number(v) / 1_000_000;
+const paraNumero = (v: bigint) => {
+  const negativo = v < B0;
+  const a = negativo ? -v : v;
+  const n = Number(`${a / ESCALA}.${(a % ESCALA).toString().padStart(CASAS, "0")}`);
+  return negativo ? -n : n;
+};
+
+/** Texto/número → BigInt na escala interna (15 casas), sem perder dígitos. */
+function percentualEscala(p: string | number): bigint | null {
+  const texto = typeof p === "number" ? (Number.isFinite(p) ? numeroParaTexto(p) : "") : String(p).trim();
+  if (!/^-?\d+(\.\d+)?$/.test(texto)) return null;
+  const negativo = texto.startsWith("-");
+  const [inteiro, frac = ""] = texto.replace("-", "").split(".");
+  const v = BigInt(inteiro) * ESCALA + BigInt((frac + "0".repeat(CASAS)).slice(0, CASAS));
+  return negativo ? -v : v;
+}
+
+/** Número em texto decimal, sem notação científica (até 15 casas). */
+function numeroParaTexto(n: number): string {
+  if (Number.isInteger(n)) return String(n);
+  const t = String(n);
+  if (!/e/i.test(t)) return t;
+  return n.toFixed(CASAS).replace(/0+$/, "").replace(/\.$/, "");
+}
 
 function casasDecimais(v: string | number): number {
   const t = typeof v === "number" ? String(v) : v.trim();
@@ -80,17 +113,17 @@ function casasDecimais(v: string | number): number {
   return i < 0 ? 0 : t.length - i - 1;
 }
 
-function lerPercentual(v: string | number | null, rotulo: string, erros: string[]): bigint | null {
+function lerPercentual(v: string | number | null, rotulo: string, erros: string[], maxCasas: number): bigint | null {
   if (v === null || v === undefined || String(v).trim() === "") {
     erros.push(`${rotulo}: não informado`);
     return null;
   }
-  const m = percentualMicro(v);
+  const m = percentualEscala(v);
   if (m === null) {
     erros.push(`${rotulo}: valor inválido`);
     return null;
   }
-  if (casasDecimais(v) > MAX_CASAS) erros.push(`${rotulo}: no máximo ${MAX_CASAS} casas decimais`);
+  if (casasDecimais(v) > maxCasas) erros.push(`${rotulo}: no máximo ${maxCasas} casas decimais`);
   if (m < B0) erros.push(`${rotulo}: não pode ser negativo`);
   else if (m > CEM) erros.push(`${rotulo}: não pode passar de 100%`);
   return m;
@@ -128,29 +161,29 @@ export function calcularProgresso(entrada: ItemProgressoEntrada[]): ResultadoPro
       erros.push(`${s.nome}: serviço ausente`);
       continue;
     }
-    const inc = lerPercentual(e.incidencia, `${s.nome} — Incidência`, erros) ?? B0;
-    const exe = lerPercentual(e.execucao, `${s.nome} — Execução do Item`, erros) ?? B0;
+    const inc = lerPercentual(e.incidencia, `${s.nome} — Incidência`, erros, MAX_CASAS_INCIDENCIA) ?? B0;
+    const exe = lerPercentual(e.execucao, `${s.nome} — Execução do Item`, erros, MAX_CASAS_EXECUCAO) ?? B0;
     const produto = inc * exe;
     soma += inc;
     acumulado += produto;
     itens.push({
       chave: s.chave,
       nome: s.nome,
-      incidencia: micro(inc),
-      execucao: micro(exe),
-      execucaoObra: micro(dividirHalfUp(produto, DIVISOR_PRODUTO)),
+      incidencia: paraNumero(inc),
+      execucao: paraNumero(exe),
+      execucaoObra: paraNumero(dividirHalfUp(produto, DIVISOR_PRODUTO)),
     });
   }
-  if (soma > CEM) erros.push(`A soma das incidências (${formatarPercentual(micro(soma))}) passa de 100%.`);
-  const distribuicaoCompleta = soma === CEM;
-  if (soma < CEM)
+  if (soma > CEM + TOLERANCIA_SOMA) erros.push(`A soma das incidências (${formatarPercentual(paraNumero(soma))}) passa de 100%.`);
+  const distribuicaoCompleta = soma >= CEM - TOLERANCIA_SOMA && soma <= CEM + TOLERANCIA_SOMA;
+  if (soma < CEM - TOLERANCIA_SOMA)
     avisos.push(
-      `Distribuição incompleta: a soma das incidências é ${formatarPercentual(micro(soma))} (faltam ${formatarPercentual(micro(CEM - soma))}).`
+      `Distribuição incompleta: a soma das incidências é ${formatarPercentual(paraNumero(soma))} (faltam ${formatarPercentual(paraNumero(CEM - soma))}).`
     );
   return {
     itens,
-    somaIncidencia: micro(soma),
-    progresso: micro(dividirHalfUp(acumulado, DIVISOR_PRODUTO)),
+    somaIncidencia: paraNumero(soma),
+    progresso: paraNumero(dividirHalfUp(acumulado, DIVISOR_PRODUTO)),
     distribuicaoCompleta,
     erros,
     avisos,
