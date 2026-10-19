@@ -8,6 +8,13 @@
 //   nunca era liberado → agora tudo é Promise, com tempo-limite e finally.
 
 export const LADO_MAXIMO = 1920;
+/**
+ * Fotos da medição CAIXA (18/10): ocupam um quadro pequeno da PLS; 1024 px bastam
+ * para impressão e mantêm o .xls/.pdf com 12 fotos abaixo do limite de 4,5 MB
+ * da resposta das funções da Vercel.
+ */
+export const LADO_FOTO_MEDICAO = 1024;
+export const LIMITE_FOTO_MEDICAO = 200 * 1024;
 const LIMITE_ENVIO = 2.5 * 1024 * 1024;
 const TEMPO_LIMITE_MS = 90_000;
 
@@ -58,11 +65,11 @@ export function blobParaDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Reduz para no máximo 1920 px no maior lado, JPEG, até ~2,5 MB. */
-export async function comprimirImagem(file: File): Promise<{ dataUrl: string; bytes: number }> {
+/** Reduz para no máximo `ladoMaximo` px (padrão 1920) no maior lado, JPEG, até `limiteBytes` (padrão ~2,5 MB). */
+export async function comprimirImagem(file: File, ladoMaximo = LADO_MAXIMO, limiteBytes = LIMITE_ENVIO): Promise<{ dataUrl: string; bytes: number }> {
   const { fonte, largura, altura, liberar } = await decodificar(file);
   try {
-    let lado = LADO_MAXIMO;
+    let lado = ladoMaximo;
     let qualidade = 0.82;
     for (let tentativa = 0; tentativa < 5; tentativa++) {
       const escala = Math.min(1, lado / Math.max(largura, altura));
@@ -75,7 +82,7 @@ export async function comprimirImagem(file: File): Promise<{ dataUrl: string; by
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(fonte, 0, 0, canvas.width, canvas.height);
       const blob = await paraBlob(canvas, qualidade);
-      if (blob.size <= LIMITE_ENVIO) return { dataUrl: await blobParaDataUrl(blob), bytes: blob.size };
+      if (blob.size <= limiteBytes) return { dataUrl: await blobParaDataUrl(blob), bytes: blob.size };
       lado = Math.round(lado * 0.8);
       qualidade = Math.max(0.6, qualidade - 0.08);
     }

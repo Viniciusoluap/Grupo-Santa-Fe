@@ -3,7 +3,7 @@ import { createHash, createSign } from "node:crypto";
 import { descreverErroDrive, ErroDrive, lerCorpoErroGoogle, type EtapaDrive } from "@/lib/drive-erro";
 import { conexaoOAuth, tokenOAuth } from "@/lib/google-drive-conexao";
 import { prisma } from "@/lib/db";
-import { caminhoImovel, CHAVE_RAIZ, nomeArquivo, nomeFotoImovel, pastaLegada, PASTAS_IMOVEL, PROPRIEDADE_PASTA, type AreaCliente, type PastaAlvo } from "@/lib/drive-estrutura";
+import { caminhoImovel, caminhoMedicoesObra, CHAVE_RAIZ, nomeArquivo, nomeFotoImovel, pastaLegada, PASTAS_IMOVEL, PROPRIEDADE_PASTA, type AreaCliente, type PastaAlvo } from "@/lib/drive-estrutura";
 import { caminhoDocumentoCliente, destinoDocumentoEstudo, numeroCurto } from "@/lib/drive-pastas";
 
 const DRIVE = "https://www.googleapis.com";
@@ -166,6 +166,14 @@ export async function uploadDocumentoCliente(doc: { leadId: string; area: AreaCl
   const fonte = await fonteObrigatoria();
   const root = await prepararRaiz(fonte);
   const pasta = await pastaDoCaminho(fonte, root, await caminhoDocumentoCliente(doc.leadId, doc.area));
+  return enviarParaPasta(fonte, pasta, nomeArquivo(doc.rotulo, new Date(), doc.nomeOriginal, doc.mime), doc.mime, doc.bytes);
+}
+
+/** Obras/<Obra (nº)>/Medições CAIXA/<Rótulo — dd-mm-aaaa.ext> (PCI original e medições preenchidas). */
+export async function uploadArquivoMedicaoObra(obra: { id: string; nome: string }, doc: { rotulo: string; nomeOriginal: string; mime: string; bytes: Buffer }): Promise<string> {
+  const fonte = await fonteObrigatoria();
+  const root = await prepararRaiz(fonte);
+  const pasta = await pastaDoCaminho(fonte, root, caminhoMedicoesObra({ id: obra.id, numero: numeroCurto(obra.id), nome: obra.nome }));
   return enviarParaPasta(fonte, pasta, nomeArquivo(doc.rotulo, new Date(), doc.nomeOriginal, doc.mime), doc.mime, doc.bytes);
 }
 

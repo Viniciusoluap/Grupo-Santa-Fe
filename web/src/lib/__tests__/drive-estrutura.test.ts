@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  areaDoServico, caminhoCliente, caminhoEstudo, dataArquivo, extensaoArquivo, limparNome, nomeArquivo, nomeComNumero, pastaLegada,
+  areaDoServico, caminhoCliente, caminhoMedicoesObra, caminhoEstudo, dataArquivo, extensaoArquivo, limparNome, nomeArquivo, nomeComNumero, pastaLegada,
 } from "@/lib/drive-estrutura";
 
 // Pedido 15/10: pastas do Google Drive com nomes legíveis, iguais nos dois sistemas.
@@ -47,5 +47,16 @@ describe("estrutura de pastas do Drive", () => {
     expect(pastaLegada({ name: "incorporacao-ckx9a1b2c3" })).toBe(true);
     expect(pastaLegada({ name: "Minha pasta" })).toBe(false);
     expect(pastaLegada({ name: "cliente-19", appProperties: { pastaSistema: "cliente:19" } })).toBe(false);
+  });
+
+  it("medições CAIXA (18/10): Obras/<Obra (nº id)>/Medições CAIXA, nome do arquivo .xls", () => {
+    expect(caminhoMedicoesObra({ id: 7, numero: 7, nome: "Casa Silmara" })).toEqual([
+      { chave: "obras", nome: "Obras" },
+      { chave: "obra:7", nome: "Casa Silmara (nº 7)" },
+      { chave: "obra:7:medicoes-caixa", nome: "Medições CAIXA" },
+    ]);
+    expect(nomeArquivo("PLS (levantamento 25-08-2026)", new Date("2026-10-19T15:00:00Z"), "PLS_Casa.xls", "application/vnd.ms-excel"))
+      .toBe("PLS (levantamento 25-08-2026) — 19-10-2026.xls");
+    expect(extensaoArquivo(null, "application/vnd.ms-excel")).toBe(".xls");
   });
 });

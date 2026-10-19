@@ -345,6 +345,8 @@ model Obra {
   comissaoPercentual    Decimal?  @db.Decimal(7, 4)
   /// EPIC-020 Lote 4: Progresso Geral medido (soma incidência × execução), 6 casas.
   progressoMedido       Decimal?  @db.Decimal(9, 6)
+  pci                   ObraPci?
+  pciVersoes            ObraPciVersao[]
   progressoItens        ObraProgressoItem[]
   progressoHistorico    ObraProgressoHistorico[]
   fotos                 ObraFoto[]
@@ -1056,7 +1058,7 @@ model ObraProgressoItem {
   obraId          String
   obra            Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
   chave           String   @db.VarChar(40)
-  incidencia      Decimal  @db.Decimal(7, 4)
+  incidencia      Decimal  @db.Decimal(20, 15)
   execucao        Decimal  @default(0) @db.Decimal(7, 4)
   atualizadoPorId String?
   atualizadoEm    DateTime @default(now())
@@ -1070,7 +1072,7 @@ model ObraProgressoHistorico {
   obraId         String
   obra           Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
   progresso      Decimal  @db.Decimal(9, 6)
-  somaIncidencia Decimal  @db.Decimal(9, 4)
+  somaIncidencia Decimal  @db.Decimal(20, 15)
   itens          Json     @db.JsonB
   criadoPorId    String?
   criadoEm       DateTime @default(now())
@@ -1081,6 +1083,11 @@ model ObraProgressoHistorico {
   recebidaPorId   String?
   editadaEm       DateTime?
   editadaPorId    String?
+  tipo           String @default("pls") @db.VarChar(20)
+  dadosCaixa     Json? @db.JsonB
+  pciVersaoId    String?
+  pciVersao      ObraPciVersao? @relation(fields: [pciVersaoId], references: [id], onDelete: NoAction)
+  fotos          ObraFoto[]
 
   @@index([obraId, criadoEm])
   @@map("obra_progresso_historico")
@@ -1095,10 +1102,13 @@ model ObraFoto {
   arquivo            Arquivo  @relation(fields: [arquivoId], references: [id], onDelete: Cascade)
   legenda            String?
   tiradaEm           DateTime
+  medicaoId          String?
+  medicao            ObraProgressoHistorico? @relation(fields: [medicaoId], references: [id], onDelete: SetNull)
   incluirNoRelatorio Boolean  @default(true)
   enviadoPorId       String?
   criadoEm           DateTime @default(now())
 
+  @@index([medicaoId])
   @@index([obraId, tiradaEm])
   @@map("obra_fotos")
 }
@@ -1206,4 +1216,33 @@ model ImovelFoto {
 
   @@index([imovelId])
   @@map("imovel_fotos")
+}
+
+/// Arquivo imutável: cada medição mantém a PCI que usou mesmo após uma substituição.
+model ObraPciVersao {
+  id         String @id @default(cuid())
+  obraId     String
+  obra       Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  hash       String @db.VarChar(64)
+  nome       String @db.VarChar(255)
+  dados      Bytes
+  tamanho    Int
+  parsed     Json @db.JsonB
+  enviadoPorId String?
+  criadoEm   DateTime @default(now())
+  atuais     ObraPci[]
+  medicoes   ObraProgressoHistorico[]
+  @@unique([obraId, hash])
+  @@map("obra_pci_versoes")
+}
+
+model ObraPci {
+  obraId     String @id
+  obra       Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  versaoId   String
+  versao     ObraPciVersao @relation(fields: [versaoId], references: [id], onDelete: NoAction)
+  enviadaEm  DateTime @default(now())
+  vinculadaEm DateTime?
+  vinculadaPorId String?
+  @@map("obra_pci")
 }

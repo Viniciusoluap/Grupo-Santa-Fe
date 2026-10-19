@@ -1,3 +1,5 @@
+import { dadosPlsPadrao, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
+import type { DadosPci } from "@/lib/caixa/pci";
 import { prisma } from "@/lib/db";
 import { calcularProgresso, mesclarComPadrao } from "@/lib/financeiro/progresso";
 import { baseDaMedicao, estimarMedicoes, situacaoDaMedicao, type BaseMedicao, type EstimativaMedicao, type SituacaoMedicao } from "@/lib/financeiro/medicoes";
@@ -9,12 +11,17 @@ import { centavosDe } from "@/lib/financeiro/obra";
 export type ProgressoObraDados = {
   itens: { chave: string; incidencia: string; execucao: string }[];
   medido: boolean;
+  pci?: { arquivo: string; enviadaEm: string; vinculadaEm: string | null; formato: "xls" | "xlsb"; proponente: string; prazoMeses: number | null } | null;
+  plsPadrao?: DadosPls;
   /** Valor antigo digitado à mão (só exibido enquanto não houver medição). */
   progressoLegado: number;
   /** Pedido de 18/10: Y = (financiado + FGTS + subsídio) − terreno. */
   baseMedicao: BaseMedicao;
   historico: {
     id: string;
+    tipo?: TipoMedicao;
+    dadosCaixa?: DadosMedicaoCaixa;
+    fotos?: { id: string; imageUrl: string; caption: string | null }[];
     progresso: number;
     somaIncidencia: number;
     criadoEm: string;
@@ -40,10 +47,14 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       subsidio: true,
       custoTerreno: true,
       progressoItens: true,
-      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 100 },
+      pci: { include: { versao: { select: { nome: true, parsed: true } } } },
+      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 101, include: { fotos: { select: { id: true, legenda: true }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } },
     },
   });
   if (!obra) return null;
+  const pci = obra.pci;
+  const parsed = pci?.versao.parsed as unknown as DadosPci | undefined;
+  const historicoExibido = obra.progressoHistorico.slice(0, 100);
   const autores = await prisma.usuario.findMany({
     where: { id: { in: obra.progressoHistorico.flatMap((h) => [h.criadoPorId, h.solicitadaPorId, h.recebidaPorId]).filter((x): x is string => !!x) } },
     select: { id: true, nome: true },
@@ -65,10 +76,15 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
   return {
     itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
     medido: obra.progressoItens.length > 0,
+    pci: pci && parsed ? { arquivo: pci.versao.nome, enviadaEm: pci.enviadaEm.toISOString(), vinculadaEm: pci.vinculadaEm?.toISOString() ?? null, formato: parsed.formato, proponente: parsed.identificacao.proponente, prazoMeses: parsed.prazoMeses } : null,
+    plsPadrao: dadosPlsPadrao(parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia, seloCasaAzul: parsed.seloCasaAzul } : undefined),
     progressoLegado: obra.progresso,
     baseMedicao: base,
-    historico: obra.progressoHistorico.map((h) => ({
+    historico: historicoExibido.map((h) => ({
       id: h.id,
+      tipo: ehTipoMedicao(h.tipo) ? h.tipo : "pls",
+      dadosCaixa: normalizarDadosMedicao(ehTipoMedicao(h.tipo) ? h.tipo : "pls", h.dadosCaixa),
+      fotos: (h.fotos ?? []).map(f => ({ id: f.id, caption: f.legenda, imageUrl: `/api/obras/fotos/${f.id}` })),
       progresso: Number(h.progresso),
       somaIncidencia: Number(h.somaIncidencia),
       criadoEm: h.criadoEm.toISOString(),

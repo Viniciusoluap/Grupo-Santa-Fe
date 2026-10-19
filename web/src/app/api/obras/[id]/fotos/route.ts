@@ -34,6 +34,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
     if (!obra) return NextResponse.json({ error: "Obra não encontrada." }, { status: 404 });
 
+    const medicaoId = typeof body?.medicaoId === "string" ? body.medicaoId : null;
+    if (medicaoId && !(await prisma.obraProgressoHistorico.findFirst({ where: { id: medicaoId, obraId }, select: { id: true } }))) return NextResponse.json({ error: "Medição não pertence a esta obra." }, { status: 400 });
+
     const dados = new Uint8Array(new ArrayBuffer(bytes.byteLength));
     dados.set(bytes);
     const extensao = validacao.mime.split("/")[1];
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         select: { id: true },
       });
       return tx.obraFoto.create({
-        data: { obraId, arquivoId: arquivo.id, legenda, tiradaEm, incluirNoRelatorio: body?.includeInReport !== false, enviadoPorId: user.id },
+        data: { medicaoId, obraId, arquivoId: arquivo.id, legenda, tiradaEm, incluirNoRelatorio: body?.includeInReport !== false, enviadoPorId: user.id },
         select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },
       });
     });

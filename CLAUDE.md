@@ -59,3 +59,17 @@ sentido de um lado".
   usuário/à sessão responsável pelo Santa Fé.
 - Nunca tratar uma funcionalidade como "exclusiva" de um dos lados sem que essa exclusividade já
   esteja listada nas exceções acima ou explicitamente autorizada pelo dono do produto.
+
+## Handoff a cada etapa (REGRA PERMANENTE — estabelecida pelo usuário em 19/10/2026)
+
+**Vale nos dois repositórios (Grupo Santa Fé e Prospecta) e para qualquer agente (Claude, Codex, AIOX).**
+
+Ao concluir cada etapa de trabalho (não só no fim da tarefa), sempre:
+1. Atualizar o HANDOFF da frente em andamento (ex.: `HANDOFF-18-10-MEDICOES-CAIXA.md`; se não houver, criar `HANDOFF-<dd-mm>-<assunto>.md` na raiz) com:
+   - o que foi concluído (commits e arquivos principais);
+   - pendências;
+   - testes executados e resultados, separando (a) automáticos, (b) manuais e (c) pendentes de validação em produção;
+   - o próximo passo exato para quem continuar.
+2. Fazer commit e push na branch de trabalho, e confirmar que o push chegou ao GitHub antes de dizer que está salvo.
+
+Objetivo: se os créditos acabarem no meio, outra sessão (Claude ou Codex) continua do ponto exato, sem perder trabalho.
