@@ -9,7 +9,7 @@ import { AlertTriangle, CheckCircle2, History, Pencil, Save, Send, Trash2, X } f
 import { lerPercentualDigitado } from "@/lib/financeiro/obra";
 import { SERVICOS_PROGRESSO, calcularProgresso, formatarPercentual } from "@/lib/financeiro/progresso";
 import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
-import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, excluirFotoObra } from "@/lib/actions/obra-progresso";
+import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, excluirFotoObra, copiarMedicaoNoDrive } from "@/lib/actions/obra-progresso";
 
 // EPIC-020 Lote 4 (item 27) — progresso físico por incidência, igual à
 // Prospecta. O Progresso Geral é somente leitura: soma das Execuções na Obra.
@@ -89,7 +89,12 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         router.refresh(); return;
       }
       fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
-      setMensagem({ tipo: "ok", texto: "Medição salva." }); setUltimaSalva(id); setEditando(null);
+      // Pedido de 18/10: cópia preenchida (.xls/.pdf) no Google Drive da obra.
+      const drive = id && dados.pci ? await copiarMedicaoNoDrive(id).catch(() => null) : null;
+      const notaDrive = !drive ? "" : drive.ok && drive.drive === "ok" ? " Arquivos .xls e .pdf salvos no Google Drive da obra."
+        : drive.ok && drive.drive === "indisponivel" ? " Google Drive não conectado: baixe os arquivos pelos botões da medição."
+        : " Não foi possível copiar para o Google Drive agora: baixe os arquivos pelos botões da medição.";
+      setMensagem({ tipo: "ok", texto: `Medição salva.${notaDrive}` }); setUltimaSalva(id); setEditando(null);
       setVersaoFormulario(v => v + 1);
       setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
       router.refresh();
@@ -226,7 +231,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                 <li key={h.id} className="grid grid-cols-1 items-center gap-2 py-3 text-gray-700 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                   <div className="min-w-0">
                     <p>{dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
-                    <p className="text-xs text-gray-600">{rotuloTipoMedicao(h.tipo ?? "pls")}</p>
+                    <p className="text-xs text-gray-600">{rotuloTipoMedicao(h.tipo ?? "pls")}{h.fotos?.length ? ` · ${h.fotos.length} foto(s)` : ""}</p>
                     {dados.pci && <BotoesArquivosMedicao medicaoId={h.id} />}
                     {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
                   </div>

@@ -6,6 +6,7 @@
 //     Incorporação/<Nome do estudo (nº id)>/<Etapa>/<Documento — dd-mm-aaaa.ext>
 //     Imóveis/<Título do imóvel (nº id)>/01 - Fotos/<Foto 01 — dd-mm-aaaa.jpg>
 //                                     /02 - Documentos do imóvel, 03 - Plantas e projetos, 04 - Propostas e contratos
+//     Obras/<Nome da obra (nº id)>/Medições CAIXA/<PCI original | PLS … — dd-mm-aaaa.xls/.pdf>
 //
 // Cada pasta criada pelo sistema leva uma etiqueta interna do Drive
 // (appProperties[PROPRIEDADE_PASTA] = chave). A pasta é achada pela etiqueta,
@@ -19,6 +20,9 @@ export const PASTA_CLIENTES = "Clientes";
 export const PASTA_INCORPORACAO = "Incorporação";
 export const CHAVE_IMOVEIS = "imoveis";
 export const PASTA_IMOVEIS = "Imóveis";
+export const CHAVE_OBRAS = "obras";
+export const PASTA_OBRAS = "Obras";
+export const PASTA_MEDICOES_CAIXA = "Medições CAIXA";
 
 /**
  * Pedido de 15/10: checklist fixo de pastas de cada imóvel, numeradas para
@@ -103,6 +107,7 @@ export function dataArquivo(data: Date): string {
 
 const EXTENSAO_DO_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
+  "application/vnd.ms-excel": ".xls",
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
@@ -127,6 +132,8 @@ export const chaveEstudo = (id: string | number) => `incorporacao:${id}`;
 export const chaveEtapaEstudo = (id: string | number, etapa: string) => `incorporacao:${id}:${etapa}`;
 export const chaveImovel = (id: string | number) => `imovel:${id}`;
 export const chavePastaImovel = (id: string | number, pasta: PastaImovel) => `imovel:${id}:${pasta}`;
+export const chaveObra = (id: string | number) => `obra:${id}`;
+export const chaveMedicoesObra = (id: string | number) => `obra:${id}:medicoes-caixa`;
 
 /** Um nível da árvore: a etiqueta interna e o nome exibido. */
 export interface PastaAlvo { chave: string; nome: string }
@@ -153,6 +160,18 @@ export function caminhoImovel(imovel: { id: string | number; numero: string | nu
     { chave: CHAVE_IMOVEIS, nome: PASTA_IMOVEIS },
     { chave: chaveImovel(imovel.id), nome: nomeComNumero(imovel.nome, imovel.numero) },
     { chave: chavePastaImovel(imovel.id, pasta), nome: sub.nome },
+  ];
+}
+
+/**
+ * Pedido de 18/10: a PCI enviada (original, intacta) e cada medição preenchida
+ * (.xls e .pdf) ficam em Obras/<Obra (nº)>/Medições CAIXA, uma cópia por versão.
+ */
+export function caminhoMedicoesObra(obra: { id: string | number; numero: string | number; nome: string | null }): PastaAlvo[] {
+  return [
+    { chave: CHAVE_OBRAS, nome: PASTA_OBRAS },
+    { chave: chaveObra(obra.id), nome: nomeComNumero(obra.nome, obra.numero) },
+    { chave: chaveMedicoesObra(obra.id), nome: PASTA_MEDICOES_CAIXA },
   ];
 }
 

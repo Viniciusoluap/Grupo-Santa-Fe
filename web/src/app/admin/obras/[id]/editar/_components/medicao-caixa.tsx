@@ -162,8 +162,9 @@ export function PciObra({ projectId, pci }: { projectId: string; pci: ResumoPci 
         publicarEnvio({ item: "arquivo", atual: 1, total: 1, fracao })
       );
       if (status < 200 || status >= 300) throw new Error(mensagemErroEnvio(status, dados));
-      const r = dados as { proponente?: string; formato?: string };
-      toast.success(`PCI enviada${r.proponente ? ` (${r.proponente})` : ""}. Clique em "Vincular PCI" para usar as incidências dela.`);
+      const r = dados as { proponente?: string; formato?: string; drive?: "ok" | "indisponivel" | "erro" | null };
+      const notaDrive = r.drive === "ok" ? " Original guardada no Google Drive da obra." : r.drive === "erro" ? " (Não foi possível copiar para o Google Drive; a PCI ficou guardada no sistema.)" : "";
+      toast.success(`PCI enviada${r.proponente ? ` (${r.proponente})` : ""}. Clique em "Vincular PCI" para usar as incidências dela.${notaDrive}`);
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));

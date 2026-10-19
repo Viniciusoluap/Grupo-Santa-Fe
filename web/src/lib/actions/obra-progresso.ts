@@ -11,6 +11,7 @@ import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { tipoProjetoObra } from "@/lib/types/obra";
 import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
+import { copiarMedicaoParaDrive, type ResultadoDrive } from "@/lib/obras/medicao-gerar";
 
 // EPIC-020 Lote 4 — progresso por incidência (27), fotos (28) e dados do
 // relatório executivo (29), com as mesmas regras da API `obraProgresso` da
@@ -274,4 +275,16 @@ export async function vincularPciObra(obraId: string): Promise<Resultado<{ somaI
   });
   revalidar(obraId);
   return { ok: true, somaIncidencia };
+}
+
+/**
+ * Pedido de 18/10: depois de salvar a medição (e enviar as fotos), guarda o .xls
+ * e o .pdf preenchidos no Google Drive da obra. A medição já está salva; isto
+ * nunca a desfaz.
+ */
+export async function copiarMedicaoNoDrive(medicaoId: string): Promise<Resultado<ResultadoDrive>> {
+  const ref = await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, select: { obraId: true } });
+  if (!ref) return { ok: false, erro: "Medição não encontrada." };
+  await exigirObraOuEmpreiteiro(ref.obraId);
+  return { ok: true, ...(await copiarMedicaoParaDrive(medicaoId)) };
 }

@@ -12,10 +12,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const b64 = typeof body?.arquivo === "string" ? body.arquivo.replace(/^data:[^,]*,/, "") : "";
     if (!b64 || b64.length > Math.ceil(LIMITE_PCI / 3) * 4 + 16 || !/^[A-Za-z0-9+/=\s]+$/.test(b64)) return NextResponse.json({ error: "PCI inválida ou maior que 3 MiB." }, { status: 400 });
     const nome = typeof body?.nome === "string" ? body.nome.slice(0, 255) : "pci.xls";
-    let parsed;
-    try { parsed = await gravarPci(id, nome, new Uint8Array(Buffer.from(b64, "base64")), usuarioId); }
+    let gravada;
+    try { gravada = await gravarPci(id, nome, new Uint8Array(Buffer.from(b64, "base64")), usuarioId); }
     catch (e) { if (e instanceof PciInvalida) return NextResponse.json({ error: e.message }, { status: 400 }); throw e; }
-    return NextResponse.json({ arquivo: nome, formato: parsed.formato, proponente: parsed.identificacao.proponente });
+    const { parsed, drive } = gravada;
+    return NextResponse.json({ arquivo: nome, formato: parsed.formato, proponente: parsed.identificacao.proponente, drive });
   } catch (e) { return erroAcesso(e); }
 }
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
