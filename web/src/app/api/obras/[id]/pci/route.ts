@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
-import { gravarPci, obterPci, LIMITE_PCI, PciInvalida } from "@/lib/obras/pci";
+import { gravarPci, mimePci, obterPci, LIMITE_PCI, PciInvalida } from "@/lib/obras/pci";
 import { arquivoResposta, erroAcesso } from "@/lib/obras/medicao-arquivo";
 export const runtime = "nodejs";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +25,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     await exigirObraOuEmpreiteiro(id);
     const pci = await obterPci(id);
     if (!pci) return NextResponse.json({ error: "PCI não encontrada." }, { status: 404 });
-    return arquivoResposta(pci.versao.dados, pci.versao.nome, "application/octet-stream");
+    return arquivoResposta(pci.versao.dados, pci.versao.nome, mimePci((pci.versao.parsed as { formato?: string } | null)?.formato ?? "xls"));
   } catch (e) { return erroAcesso(e); }
 }

@@ -22,7 +22,6 @@ import {
 } from "./medicao-xls";
 
 const AZUL = [31, 56, 100] as const;
-const AZUL_CLARO = [221, 235, 247] as const;
 const LILAS = [204, 204, 255] as const;
 const VERDE = [146, 208, 80] as const;
 const LARANJA = [237, 125, 49] as const;

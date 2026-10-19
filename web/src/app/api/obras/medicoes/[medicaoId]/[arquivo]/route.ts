@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
 import { arquivoResposta, erroAcesso } from "@/lib/obras/medicao-arquivo";
-import { gerarArquivoMedicao } from "@/lib/obras/medicao-gerar";
+import { gerarArquivoMedicao, LIMITE_DOWNLOAD, MENSAGEM_LIMITE_DOWNLOAD } from "@/lib/obras/medicao-gerar";
 export const runtime = "nodejs";
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ medicaoId: string; arquivo: string }> }) {
   try {
@@ -14,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ med
     await exigirObraOuEmpreiteiro(referencia.obraId);
     const r = await gerarArquivoMedicao(medicaoId, arquivo === "arquivo.xls" ? "xls" : "pdf");
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
+    if (r.bytes.length > LIMITE_DOWNLOAD) return NextResponse.json({ error: MENSAGEM_LIMITE_DOWNLOAD }, { status: 413 });
     return arquivoResposta(r.bytes, r.nome, r.mime);
   } catch (e) { return erroAcesso(e); }
 }

@@ -19,6 +19,17 @@ import { copiarMedicaoParaDrive, type ResultadoDrive } from "@/lib/obras/medicao
 
 export type Resultado<T = object> = ({ ok: true } & T) | { ok: false; erro: string };
 
+/**
+ * Recusa de regra de negócio dentro de uma transação. Em produção o Next esconde
+ * a mensagem de erros lançados em server actions; esta é devolvida como
+ * { ok: false, erro } para o usuário ver o motivo (igual ao TRPCError da Prospecta).
+ */
+class RecusaMedicao extends Error {}
+async function comRecusa<T>(fn: () => Promise<T>): Promise<{ ok: true; valor: T } | { ok: false; erro: string }> {
+  try { return { ok: true, valor: await fn() }; }
+  catch (e) { if (e instanceof RecusaMedicao) return { ok: false, erro: e.message }; throw e; }
+}
+
 const INCIDENCIA = /^\d{1,3}(\.\d{1,15})?$/;
 const PERCENTUAL4 = /^\d{1,3}(\.\d{1,4})?$/;
 
@@ -57,11 +68,11 @@ export async function salvarProgressoObra(
   const dados = normalizarDadosMedicao(tipo, dadosCaixa ?? dadosMedicaoPadrao(tipo, dadosPlsPadrao()));
   const erros = validarDadosMedicao(tipo, dados);
   if (erros.length) return { ok: false, erro: erros.join(" ") };
-  const medicaoId = await prisma.$transaction(async tx => {
+  const gravacao = await comRecusa(() => prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
     const gravadoEm = new Date();
     const pci = await obterPci(obraId, tx);
-    if (pci && (!pci.vinculadaEm || !validarIncidenciasPci(itens, pci.versao.parsed as unknown as DadosPci))) throw new Error("Vincule a PCI e use as incidências da planilha antes de salvar.");
+    if (pci && (!pci.vinculadaEm || !validarIncidenciasPci(itens, pci.versao.parsed as unknown as DadosPci))) throw new RecusaMedicao("Vincule a PCI e use as incidências da planilha antes de salvar.");
     await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, gravadoEm);
     const medicao = await tx.obraProgressoHistorico.create({ data: {
       obraId, progresso: calculo.progresso.toFixed(6), somaIncidencia: calculo.somaIncidencia.toFixed(15),
@@ -69,7 +80,9 @@ export async function salvarProgressoObra(
       pciVersaoId: pci?.versaoId ?? null,
     }, select: { id: true } });
     return medicao.id;
-  });
+  }));
+  if (!gravacao.ok) return gravacao;
+  const medicaoId = gravacao.valor;
   revalidar(obraId);
   return { ok: true, progresso: calculo.progresso, avisos: calculo.avisos, medicaoId };
 }
@@ -145,15 +158,18 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[], tip
   const calculo = calcularProgresso(itens);
   if (calculo.erros.length) return { ok: false, erro: calculo.erros.join(" ") };
   const agora = new Date();
-  await prisma.$transaction(async (tx) => {
+  const edicao = await comRecusa(() => prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
     const campos = dadosCaixa === undefined ? undefined : normalizarDadosMedicao(tipo ?? "pls", dadosCaixa);
-    if (campos) { const erros = validarDadosMedicao(tipo ?? "pls", campos); if (erros.length) throw new Error(erros.join(" ")); }
+    if (campos) { const erros = validarDadosMedicao(tipo ?? "pls", campos); if (erros.length) throw new RecusaMedicao(erros.join(" ")); }
     const medicao = await tx.obraProgressoHistorico.findUniqueOrThrow({ where: { id: medicaoId }, include: { pciVersao: true } });
     // Uma medição existente mantém sua versão; a versão atual só é adotada em revisão de legado.
     const pciAtual = medicao.pciVersao ? null : await obterPci(obraId, tx);
-    const versao = medicao.pciVersao ?? (pciAtual?.vinculadaEm ? pciAtual.versao : null);
-    if (versao && !validarIncidenciasPci(itens, versao.parsed as unknown as DadosPci)) throw new Error("As incidências devem corresponder à PCI desta medição.");
+    // Mesma regra da Prospecta (versaoPciParaMedicao): com PCI enviada, a revisão
+    // de uma medição sem versão exige a PCI vinculada.
+    if (!medicao.pciVersao && pciAtual && !pciAtual.vinculadaEm) throw new RecusaMedicao("Vincule a PCI e use as incidências da planilha antes de salvar.");
+    const versao = medicao.pciVersao ?? (pciAtual ? pciAtual.versao : null);
+    if (versao && !validarIncidenciasPci(itens, versao.parsed as unknown as DadosPci)) throw new RecusaMedicao("As incidências devem corresponder à PCI desta medição.");
     await tx.obraProgressoHistorico.update({
       where: { id: medicaoId },
       data: {
@@ -169,7 +185,8 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[], tip
     });
     // A mais recente é a medição vigente: o progresso da obra acompanha.
     if (await ehUltimaMedicao(obraId, medicaoId, tx)) await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, agora);
-  });
+  }));
+  if (!edicao.ok) return edicao;
   revalidar(obraId);
   return { ok: true, progresso: calculo.progresso };
 }
@@ -258,23 +275,24 @@ export async function dadosRelatorioObra(obraId: string) {
 
 export async function vincularPciObra(obraId: string): Promise<Resultado<{ somaIncidencia: number }>> {
   const usuarioId = await exigirObraOuEmpreiteiro(obraId);
-  const somaIncidencia = await prisma.$transaction(async tx => {
+  const vinculo = await comRecusa(() => prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
     const pci = await obterPci(obraId, tx);
-    if (!pci) throw new Error("Envie a PCI antes de vincular.");
+    if (!pci) throw new RecusaMedicao("Envie a PCI antes de vincular.");
     const parsed = pci.versao.parsed as unknown as DadosPci;
     const atuais = await tx.obraProgressoItem.findMany({ where: { obraId } });
-    const itens = mesclarComPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) }))).map((i, k) => ({ chave: i.chave, incidencia: String(parsed.incidencias[k]), execucao: String(i.execucao) }));
+    const itens = mesclarComPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) }))).map((i, k) => ({ chave: i.chave, incidencia: String(parsed.incidencias[k] ?? 0), execucao: String(i.execucao) }));
     const calculo = calcularProgresso(itens);
-    if (calculo.erros.length) throw new Error(calculo.erros.join(" "));
+    if (calculo.erros.length) throw new RecusaMedicao(calculo.erros.join(" "));
     await tx.obraProgressoItem.deleteMany({ where: { obraId } });
     await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, ...i, atualizadoPorId: usuarioId })) });
     await tx.obraPci.update({ where: { obraId }, data: { vinculadaEm: new Date(), vinculadaPorId: usuarioId } });
     // O vínculo prepara a próxima medição; não modifica uma medição já gravada.
     return calculo.somaIncidencia;
-  });
+  }));
+  if (!vinculo.ok) return vinculo;
   revalidar(obraId);
-  return { ok: true, somaIncidencia };
+  return { ok: true, somaIncidencia: vinculo.valor };
 }
 
 /**

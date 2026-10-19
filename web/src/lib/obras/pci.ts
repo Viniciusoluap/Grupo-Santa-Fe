@@ -37,15 +37,19 @@ export async function gravarPci(obraId: string, nome: string, bytes: Uint8Array,
   });
   // Pedido de 18/10: a PCI original (intacta) também fica no Google Drive da obra,
   // uma cópia por versão. Sem Drive, a versão continua guardada no banco.
-  const drive = nova ? await copiarPciParaDrive(obraId, nome, bytes) : null;
+  const drive = nova ? await copiarPciParaDrive(obraId, nome, bytes, parsed.formato) : null;
   return { parsed, drive };
 }
 
-async function copiarPciParaDrive(obraId: string, nome: string, bytes: Uint8Array) {
+export function mimePci(formato: string) {
+  return formato === "xlsb" ? "application/vnd.ms-excel.sheet.binary.macroEnabled.12" : "application/vnd.ms-excel";
+}
+
+async function copiarPciParaDrive(obraId: string, nome: string, bytes: Uint8Array, formato: string) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true, nome: true } });
   if (!obra) return null;
   const { tentarUploadDrive, uploadArquivoMedicaoObra } = await import("@/lib/incorporacao/registro-drive");
-  const mime = /\.xlsb$/i.test(nome) ? "application/vnd.ms-excel.sheet.binary.macroEnabled.12" : "application/vnd.ms-excel";
+  const mime = mimePci(formato);
   const r = await tentarUploadDrive(() => uploadArquivoMedicaoObra(obra, { rotulo: "PCI original", nomeOriginal: nome, mime, bytes: Buffer.from(bytes) }));
   return r.fileId ? "ok" as const : r.nota ? "erro" as const : "indisponivel" as const;
 }

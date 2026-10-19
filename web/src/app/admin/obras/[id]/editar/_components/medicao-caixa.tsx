@@ -7,7 +7,7 @@ const Input = ({ className = "", ...props }: InputHTMLAttributes<HTMLInputElemen
 const Textarea = ({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...props} className={`min-w-0 w-full min-h-20 rounded-md border px-3 py-2 ${className}`} />;
 import { useRouter } from "next/navigation";
 import { vincularPciObra } from "@/lib/actions/obra-progresso";
-import { blobParaDataUrl, comprimirImagem, enviarJsonComProgresso, mensagemErroEnvio, pareceImagem } from "@/lib/obras/comprimir-imagem";
+import { blobParaDataUrl, comprimirImagem, enviarJsonComProgresso, LADO_FOTO_MEDICAO, LIMITE_FOTO_MEDICAO, mensagemErroEnvio, pareceImagem } from "@/lib/obras/comprimir-imagem";
 import { publicarEnvio } from "@/lib/envio-progresso";
 import {
   MAX_ADICIONAIS,
@@ -284,7 +284,7 @@ export async function enviarFotosDaMedicao(projectId: string, medicaoId: string,
   for (let i = 0; i < fotos.length; i++) {
     const f = fotos[i];
     try {
-      const { dataUrl } = await comprimirImagem(f.arquivo);
+      const { dataUrl } = await comprimirImagem(f.arquivo, LADO_FOTO_MEDICAO, LIMITE_FOTO_MEDICAO);
       const { status, dados } = await enviarJsonComProgresso(
         `/api/obras/${projectId}/fotos`,
         { image: dataUrl, caption: f.legenda.trim() || null, takenAt: new Date(f.arquivo.lastModified || Date.now()).toISOString(), includeInReport: true, medicaoId },

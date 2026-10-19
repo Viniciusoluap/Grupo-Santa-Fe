@@ -116,7 +116,9 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
     setEditando({ id: h.id, quando: dataHora(h.criadoEm) });
     fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
     setTipo(h.tipo ?? "pls");
-    setDadosCaixa(h.dadosCaixa ?? dadosMedicaoPadrao(h.tipo ?? "pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+    // Medição antiga sem dados CAIXA: levantamento = data da própria medição (igual à Prospecta).
+    const padrao = dadosMedicaoPadrao(h.tipo ?? "pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null);
+    setDadosCaixa(h.dadosCaixa ?? { ...padrao, pls: { ...padrao.pls, dataLevantamento: new Date(new Date(h.criadoEm).getTime() - 3 * 3600_000).toISOString().slice(0, 10) } });
     setLinhas(h.itens);
     setMensagem(null);
     document.getElementById("medicao-por-servico")?.scrollIntoView({ behavior: "smooth" });

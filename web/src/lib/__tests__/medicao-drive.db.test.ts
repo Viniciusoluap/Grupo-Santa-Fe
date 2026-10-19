@@ -66,6 +66,13 @@ describe.skipIf(!url)("Medições CAIXA no Google Drive (banco real)", () => {
     expect(nomesNaPasta()).toHaveLength(1);
   });
 
+  it("PCI enviada e não vinculada: salvar devolve o motivo legível (não um erro genérico do Next)", async () => {
+    const acoes = await import("@/lib/actions/obra-progresso");
+    const { SERVICOS_PROGRESSO } = await import("@/lib/financeiro/progresso");
+    const itens = SERVICOS_PROGRESSO.map(s => ({ chave: s.chave, incidencia: s.incidenciaPadrao, execucao: "0" }));
+    expect(await acoes.salvarProgressoObra(obraId, itens, "pls")).toEqual({ ok: false, erro: "Vincule a PCI e use as incidências da planilha antes de salvar." });
+  });
+
   it("medição salva: .xls e .pdf preenchidos ficam na mesma pasta; a PCI original não muda", async () => {
     const acoes = await import("@/lib/actions/obra-progresso");
     expect((await acoes.vincularPciObra(obraId)).ok).toBe(true);

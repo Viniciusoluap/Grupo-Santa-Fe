@@ -116,3 +116,14 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 - Pendências: resultado da revisão AIOX (@qa) e correções; migrations em produção; merge; deploy; smoke.
 - Testes: sem mudança de código nesta etapa (evidências na seção anterior).
 - Próximo passo: corrigir os achados do @qa, depois aplicar Prospecta 0058+0059 (Neon produção) e SF 20261018220000 (Supabase) antes de mesclar #137 e #203.
+
+## Etapa 19/10 — revisão AIOX (@qa) e correções
+- Veredito do @qa: CONCERNS (sem bloqueio crítico). Corrigido:
+  1. (alta) .xls/.pdf com 12 fotos podia passar de 4,5 MB (limite da resposta da Vercel). Fotos da medição agora são reduzidas no envio para 1024 px / ~200 KB (`LADO_FOTO_MEDICAO`, `LIMITE_FOTO_MEDICAO` em comprimir-imagem, arquivo gêmeo). Pior caso medido com 12 fotos sintéticas de alta textura: .xls 2,65 MB e .pdf 1,54 MB (antes 4,76 MB). Se mesmo assim passar de 4,3 MB, o download responde 413 com mensagem clara e a cópia do Drive continua completa.
+  2. SF: recusas dentro da transação (`RecusaMedicao`) voltam como `{ ok: false, erro }`; antes o Next escondia a mensagem em produção.
+  3. Paridade: editar medição antiga sem versão de PCI exige a PCI vinculada nos dois. No SF, a data de levantamento de uma medição antiga sem dados CAIXA passa a ser a data da própria medição, como na Prospecta.
+  4. Prospecta: editar ou excluir uma medição antiga não reaplica mais os itens da obra; só a vigente faz isso, como no SF. Testes em `server/medicoes-atomicidade.test.ts`.
+  7/8. `?? 0` no vínculo (SF), MIME da PCI pelo formato lido (SF), tamanho do base64 checado antes de decodificar (Prospecta); constante sem uso removida do PDF.
+- Mantido de propósito: uma cópia no Drive a cada salvamento ou edição, porque é o histórico de versões pedido pelo dono. O envio repetido da mesma PCI ao mesmo tempo pode duplicar a cópia no Drive em caso raro de corrida; isso não afeta o banco. md5 x sha256 do hash interno.
+- Testes: (a) Prospecta 859/859, check e build OK; SF 741/741 com Postgres real, tsc e lint 0 erros, `next build` OK. (b) E2E SF no navegador 21/21 após as correções. (c) Pendente em produção: Excel/SIOPI, Drive real e tela da Prospecta.
+- Próximo passo: aplicar em produção a Prospecta 0058+0059 (Neon `br-steep-leaf-anxdjv1p`) e o SF `20261018220000_medicao_caixa_pci` (Supabase `giulchozonhzyopmgmkv`), conferindo antes e depois; em seguida, squash merge de #137/#203, deploy READY e smoke.

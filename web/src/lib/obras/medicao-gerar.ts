@@ -11,6 +11,9 @@ import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 // própria medição. Usado pelo download e pela cópia no Google Drive.
 
 export type FormatoMedicao = "xls" | "pdf";
+/** Resposta das funções da Vercel: até 4,5 MB. Acima disso o arquivo só vai para o Drive. */
+export const LIMITE_DOWNLOAD = 4.3 * 1024 * 1024;
+export const MENSAGEM_LIMITE_DOWNLOAD = "O arquivo desta medição passou de 4,3 MB (limite de download do servidor). Com o Google Drive conectado, ele fica completo em Obras/<Obra>/Medições CAIXA; para baixar por aqui, use menos fotos ou fotos menores.";
 export type ArquivoMedicao =
   | { ok: true; bytes: Uint8Array; nome: string; mime: string; obra: { id: string; nome: string }; rotulo: string }
   | { ok: false; status: number; error: string };
