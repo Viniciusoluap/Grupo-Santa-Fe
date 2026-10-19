@@ -127,3 +127,26 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 - Mantido de propósito: uma cópia no Drive a cada salvamento ou edição, porque é o histórico de versões pedido pelo dono. O envio repetido da mesma PCI ao mesmo tempo pode duplicar a cópia no Drive em caso raro de corrida; isso não afeta o banco. md5 x sha256 do hash interno.
 - Testes: (a) Prospecta 859/859, check e build OK; SF 741/741 com Postgres real, tsc e lint 0 erros, `next build` OK. (b) E2E SF no navegador 21/21 após as correções. (c) Pendente em produção: Excel/SIOPI, Drive real e tela da Prospecta.
 - Próximo passo: aplicar em produção a Prospecta 0058+0059 (Neon `br-steep-leaf-anxdjv1p`) e o SF `20261018220000_medicao_caixa_pci` (Supabase `giulchozonhzyopmgmkv`), conferindo antes e depois; em seguida, squash merge de #137/#203, deploy READY e smoke.
+
+
+## Retomada do Codex — 19/10/2026, 07h02 (Fortaleza) — LER PRIMEIRO
+### Ponto recuperado e conclusão da etapa
+- O print do Claude mostrava a tentativa de commit/push da correção ESM. O GitHub já continha o commit `80ed7c7`, e o PR Prospecta #138 estava em rascunho. A correção foi recuperada integralmente; nenhum código precisou ser refeito.
+- Medições CAIXA já mescladas: Prospecta #137, main `c3220a4`; Santa Fé #203, main `1ad0c8d`.
+- Prospecta #138 marcado pronto e mesclado por squash com conferência do head: main `b216b578b790d286e9834b1b7568d4849a1a42e3`.
+- Corrige 12 imports relativos de server/caixa para .js; inclui server/imports-esm.test.ts e a guarda no buildCommand da Vercel.
+- Deploy de produção corrigido `dpl_26vLxciZhBT8CbXmga7F3P6ThTJ4`, READY, promovido no projeto site-prospecta, equipe viniciusoluaps-projects. O domínio www.prospectaconstrucoes.com foi consultado pela API Vercel e aponta para esse deploy/commit.
+- Santa Fé permanece no deploy READY `dpl_3FwJPqH5GBxoGtCSsaq9f2tVaVSF`, main `1ad0c8d`; a correção de resolução ESM é específica da stack Prospecta e não exige mudar imports do Next.js.
+
+### Testes e verificações desta retomada
+- (a) Automáticos: logs do build de produção Prospecta confirmam 860/860 testes em 105 arquivos, tsc --noEmit e build concluído. Verificação local adicional em 155 arquivos de server/shared/api: zero imports relativos sem extensão .js/.json. A instalação local pelo pnpm global falhou por incompatibilidade de versão; a tentativa com Corepack foi interrompida por redundância após a suíte completa passar na Vercel. Não atribuir esses 860 testes a uma execução local do Codex.
+- (b) Verificações HTTP feitas pelo Codex: prévia corrigida e deploy de produção novo /api/trpc/auth.me = 200 (json null, sessão ausente). No domínio público Prospecta, /api/trpc/auth.me = 200 e /api/obras/medicoes/1/arquivo.pdf = 401, sem arquivo privado exposto. Santa Fé: home pública = 200; /api/obras/1/pci no deploy de produção = 403 sem login.
+- (b) Bancos de produção consultados SOMENTE por SELECT: Neon SiteProspecta/plain-cake-26372935, branch br-steep-leaf-anxdjv1p: construction_pci, construction_pci_versions, pci_version_id, measurement_type, caixa_data e progress_history_id presentes; incidencia numeric(20,15). Supabase giulchozonhzyopmgmkv: obra_pci/obra_pci_versoes, versaoId, pciVersaoId, dadosCaixa, tipo e obra_fotos.medicaoId presentes; incidencia e somaIncidencia numeric(20,15). Não reaplicar migrations 0058/0059/SF por suposição: estruturas já presentes.
+- (b) Logs error/fatal do deploy corrigido Prospecta e do deploy Santa Fé: nenhum registro encontrado na janela consultada imediatamente após os smokes (observação pontual, não garantia de ausência futura).
+- (c) Continuam pendentes: fluxo autenticado real da Prospecta (PCI → vincular → salvar medição → fotos → baixar XLS/PDF); Drive real; abrir XLS no Excel e aceitação no SIOPI; amostra real de XLSB. Nenhuma medição/dado de cliente foi criado ou alterado nesta retomada.
+
+### Limitação confirmada da prévia e próximo passo exato
+- A prévia Prospecta do commit 80ed7c7 inicia a API, mas baixar medição retorna 500 porque o banco configurado para preview não tem construction_progress_history (confirmado no log). Isto não aconteceu no smoke do domínio de produção. Não copiar credenciais nem apontar preview para produção para mascarar o problema.
+- Configurar/verificar um banco de teste isolado da prévia com schema completo antes de usar preview para E2E de medições. Verificar sessão antes de consultar a medição e evitar devolver SQL interno em erros são melhorias a avaliar no mesmo fluxo (sem alteração funcional nesta retomada).
+- Depois validar os itens (c) com sessão autorizada e PCI aprovada. Não declarar SIOPI/Drive validados com os smokes anônimos.
+- Branch de continuidade: claude/sync-mirrored-repos-bsqnz3 nos dois. Os drafts antigos #136/#202 foram substituídos por #137/#203 já mesclados: não mesclar novamente.
