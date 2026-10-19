@@ -21,3 +21,15 @@ Concluir verificações automatizadas, aplicar migrações aditivas com registro
 
 ## Continuidade
 Os scripts de QA de modelos CAIXA não rastreados já pertencem ao trabalho anterior na branch `claude/sync-mirrored-repos-bsqnz3`; não incluídos nesta alteração. Não sobrescrever dados PCI/medições reais.
+
+## Etapa 2 — validação e preparação da publicação
+- Etapa 1 salva e conferida no GitHub: Prospecta `1b18b37`; Santa Fé `3e03018`.
+- PRs: Prospecta #139; Santa Fé #204. Autorizações de merge/deploy dadas pelo usuário neste pedido.
+- Suítes finais: Prospecta 869/869 em 108 arquivos; Santa Fé 699 aprovados / 50 testes de banco pulados (86 arquivos aprovados / 10 pulados). TypeScript passou nos dois; ESLint dos três componentes alterados do Santa Fé passou.
+- Teste real com PGlite executa a migração 0060 e a mutação da Prospecta: registro + notificação transacionais, somente admin ativo, preservação da data original, reenvio após falha SMTP e bloqueio após sucesso. Inclui verificação do link correto da notificação (`/admin/obras/editar/:id`, formato da Prospecta).
+- Migrações aplicadas e colunas verificadas nos bancos de produção: Neon produção `br-steep-leaf-anxdjv1p` (transação aditiva) e Supabase `giulchozonhzyopmgmkv` (apply_migration `medicao_email_solicitacao_20261019`). Não foram alterados dados de medições ou fotos.
+- Histórico operacional existente: Neon registra Drizzle apenas até 0040, com migrações posteriores aplicadas manualmente antes deste trabalho; não avançamos artificialmente o journal para 0060, pois isso pularia lacunas antigas. Santa Fé não tem `_prisma_migrations`; a aplicação foi registrada pelo mecanismo existente do Supabase. Não executar `drizzle migrate`/`prisma migrate deploy` genéricos para resolver essas lacunas sem plano próprio.
+- Previews Vercel construídos em READY: Prospecta `dpl_3kEe5hivN19QQzYkppVdb2sGjcz8`, Santa Fé `dpl_8RPVBEJoHyoc2EeKYah2yy4yoURZ`.
+- Preview da Prospecta não tem DATABASE_URL; health retorna 500 com essa causa. Não há branch Neon para a nova preview; o limite de branches da integração já foi identificado no trabalho anterior. Não foi copiada conexão de produção para preview nem removida branch de outro trabalho. Isso não invalida o build, mas impede teste integrado nessa preview; confirmar health no deploy de produção.
+- Preview Santa Fé responde login HTTP 200. Sem sessão autenticada disponível no navegador de verificação; não houve envio de solicitação fictícia à empresa nem confirmação de recebimento bancário.
+- Próximo passo: concluir revisão automática dos PRs; fazer merge dos SHAs revisados; acompanhar produção e promover explicitamente a Prospecta se a atribuição de domínio continuar desativada pelo rollback anterior; verificar os domínios, health e logs. Salvar evidências finais neste HANDOFF na branch de trabalho.
