@@ -10,6 +10,7 @@ describe("documentos de projetos", () => {
     );
     expect(items.map(item => item.text)).toEqual(["Revisão final", "Projeto Arquitetônico", "Projeto Elétrico"]);
     expect(projectChecklist(["projeto_eletrico"], items, { projeto_eletrico: "Projeto Elétrico" })).toHaveLength(3);
+    expect(projectChecklist(["projeto_eletrico"], [{ id: "documented-item", text: "Projeto Elétrico", done: true }], { projeto_eletrico: "Projeto Elétrico" })[0]).toMatchObject({ id: "documented-item", type: "projeto_eletrico", done: true });
   });
 
   it("aceita 300 MB e rejeita excedente, nome inseguro e PDF incorreto", () => {
