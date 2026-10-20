@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS pci_upload_chunks (
 );
 CREATE INDEX IF NOT EXISTS pci_upload_chunks_expiry_idx ON pci_upload_chunks(created_at);
 CREATE INDEX IF NOT EXISTS pci_upload_chunks_owner_idx ON pci_upload_chunks(user_id, project_id);
+ALTER TABLE pci_upload_chunks ENABLE ROW LEVEL SECURITY;
