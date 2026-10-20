@@ -6,3 +6,5 @@ CREATE INDEX IF NOT EXISTS documentos_cliente_arquivoId_idx ON documentos_client
 
 CREATE TABLE IF NOT EXISTS documentos_cliente_versoes (id TEXT PRIMARY KEY, "leadId" TEXT NOT NULL REFERENCES leads(id) ON DELETE RESTRICT, "tipoChecklist" TEXT NOT NULL, "itemId" TEXT NOT NULL, "arquivoId" TEXT NOT NULL UNIQUE REFERENCES arquivos(id) ON DELETE RESTRICT, "enviadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS documentos_cliente_versoes_leadId_itemId_idx ON documentos_cliente_versoes("leadId","itemId");
+ALTER TABLE documentos_cliente ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documentos_cliente_versoes ENABLE ROW LEVEL SECURITY;
