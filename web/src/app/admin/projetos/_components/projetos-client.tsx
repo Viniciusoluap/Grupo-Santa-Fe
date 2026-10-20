@@ -81,7 +81,7 @@ export function ProjetosClient({ projetos }: Props) {
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Projetos e Orçamentos</h1>
           <p className="text-gray-600 text-sm mt-0.5">{projetos.length} projetos cadastrados</p>
         </div>
-        <Link href="/admin/leads" className="text-sm font-bold text-[var(--brand-dark)]">Abrir CRM</Link>
+
       </div>
 
       {/* KPIs */}
@@ -152,7 +152,7 @@ export function ProjetosClient({ projetos }: Props) {
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-[var(--brand-dark)] leading-tight">{p.nome}</p>
+                      <Link href={`/admin/projetos/${p.id}`} className="font-medium text-[var(--brand-dark)] leading-tight underline">{p.nome}</Link>
                       <p className="md:hidden text-xs text-gray-600 mt-1">{p.clienteNome}</p>
                       <TiposResumo raw={p.tipo} />
                     </td>
@@ -174,11 +174,8 @@ export function ProjetosClient({ projetos }: Props) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Link href={`/admin/projetos/${p.id}`} className="p-1.5 text-gray-600 hover:text-[var(--brand-yellow)] hover:bg-yellow-50 transition-colors rounded" title="Ver detalhes">
-                          <Ruler size={14} />
-                        </Link>
                         <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
-                          <Pencil size={14} />
+                          <Pencil size={14} /> Editar
                         </Link>
                         <AcoesExcluir id={p.id} rotulo={p.nome} excluir={excluirProjeto} compacto />
                       </div>

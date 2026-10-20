@@ -51,7 +51,8 @@ export function CurrencyInput({ name, defaultValue, value, onValueChange, placeh
         }}
         onBlur={() => setTexto(dinheiroParaCampo(numero))}
         required={required}
-        className={`pl-9 ${className}`}
+        className={`w-full min-w-0 ${className}`}
+        style={{ paddingInlineStart: "2.75rem" }}
       />
       {name && <input type="hidden" name={name} value={texto ? String(numero) : ""} />}
     </div>

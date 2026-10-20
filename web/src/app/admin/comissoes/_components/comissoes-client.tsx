@@ -6,6 +6,9 @@ import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
 import { excluirComissao, alterarStatusComissao } from "@/lib/actions/comissoes";
 import { ComissaoForm } from "./comissao-form";
+import { resumirComissoes } from "@/lib/comissoes/listagem";
+import { ComissoesDeObras } from "./comissoes-de-obras";
+import type { ComissaoDeObra } from "@/lib/comissoes/obras";
 import type { NegocioItem } from "@/lib/comissoes/calculo";
 
 type Corretor = { id: string; nome: string };
@@ -33,6 +36,7 @@ interface ComissoesClientProps {
   corretores: Corretor[];
   negociosPorTipo: Record<string, NegocioItem[]>;
   isAdmin: boolean;
+  comissoesDeObras: ComissaoDeObra[];
 }
 
 const TIPO_NEGOCIO_LABELS: Record<string, string> = {
@@ -86,19 +90,21 @@ function ExcluirComissaoBtn({ id }: { id: string }) {
   );
 }
 
-export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmin }: ComissoesClientProps) {
-  const [statusFilter, setStatusFilter] = useState<CommissionStatus | "todas">("todas");
+export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmin, comissoesDeObras }: ComissoesClientProps) {
+  const [statusFilter, setStatusFilter] = useState<string>("todas");
+  const [corretorFilter, setCorretorFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<DbComissao | null>(null);
 
   const filtered = comissoes
-    .filter((cm) => statusFilter === "todas" || cm.status === statusFilter)
+    .filter((cm) => (statusFilter === "todas" || cm.status === statusFilter) && (!corretorFilter || cm.corretorId === corretorFilter))
     .sort((a, b) => new Date(b.vencimento).getTime() - new Date(a.vencimento).getTime());
 
-  const totalPago = comissoes.filter((c) => c.status === "paga").reduce((s, c) => s + c.valor, 0);
-  const totalPendente = comissoes.filter((c) => c.status === "pendente").reduce((s, c) => s + c.valor, 0);
-  const totalAprovado = comissoes.filter((c) => c.status === "aprovada").reduce((s, c) => s + c.valor, 0);
-  const totalGeral = comissoes.filter((c) => c.status !== "cancelada").reduce((s, c) => s + c.valor, 0);
+  const obrasFiltradas = comissoesDeObras.filter(l => (statusFilter === "todas" || l.calculo.status === statusFilter) && (!corretorFilter || l.corretorId === corretorFilter));
+  const { pago: totalPago, pendente: totalPendente, aprovado: totalAprovado, geral: totalGeral } = resumirComissoes(obrasFiltradas,
+    filtered.map(c => ({ id: c.id, status: c.status, valor: c.valor })),
+    comissoesDeObras.flatMap(o => o.registrosManuais.map(m => m.id)));
+  const corretoresFiltro = Array.from(new Map([...corretores, ...comissoesDeObras.map(l => ({ id: l.corretorId, nome: l.corretor }))].map(c => [c.id, c])).values());
 
   return (
     <div className="space-y-5">
@@ -136,22 +142,25 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => setStatusFilter("todas")}
-          className={`px-4 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todas" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
-          Todas ({comissoes.length})
-        </button>
-        {(Object.entries(COMMISSION_STATUS_CONFIG) as [CommissionStatus, typeof COMMISSION_STATUS_CONFIG[CommissionStatus]][]).map(([status, cfg]) => {
-          const count = comissoes.filter((c) => c.status === status).length;
-          return (
-            <button key={status} onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
-              {cfg.label} ({count})
-            </button>
-          );
-        })}
-      </div>
+      <section className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium text-slate-900">Status
+            <select className="mt-1 w-full rounded border border-slate-300 bg-white p-2 text-slate-900" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="todas">Todos os status</option>
+              {Object.entries(COMMISSION_STATUS_CONFIG).map(([value, cfg]) => <option key={value} value={value}>{cfg.label}</option>)}
+              <option value="parcial">Paga parcialmente</option><option value="dados_incompletos">Dados incompletos</option>
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-900">Corretor
+            <select className="mt-1 w-full rounded border border-slate-300 bg-white p-2 text-slate-900" value={corretorFilter} onChange={e => setCorretorFilter(e.target.value)}>
+              <option value="">Todos os corretores</option>{corretoresFiltro.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          </label>
+        </div>
+        <p className="rounded border bg-white p-4 text-slate-900">Pendente: {formatCurrency(totalPendente)} · Pago: {formatCurrency(totalPago)}</p>
+        <p className="text-xs text-slate-600">Totais dos resultados filtrados, sem duplicar os registros manuais vinculados às obras.</p>
+        <ComissoesDeObras linhas={obrasFiltradas} somenteLeitura={!isAdmin} />
+      </section>
 
       {/* Table */}
       <div className="bg-white border border-gray-100 overflow-hidden">

@@ -88,6 +88,7 @@ model Lead {
   nome              String
   telefone          String
   email             String?
+  cpf               String?
   servico           String
   status            String   @default("novo")
   // Lote 1 (item 05): frio | morno | quente | fechado — independente da etapa.
@@ -296,6 +297,10 @@ model ChecklistItem {
   arquivoId       String?       @unique
   arquivo         Arquivo?      @relation(fields: [arquivoId], references: [id], onDelete: SetNull)
   enviadoEm       DateTime?
+  visivelCliente Boolean @default(true)
+  solicitadoEm DateTime?
+  emailSolicitadoEm DateTime?
+  legado Boolean @default(false)
 
   @@map("checklist_items")
 }
@@ -1247,4 +1252,31 @@ model ObraPci {
   vinculadaEm DateTime?
   vinculadaPorId String?
   @@map("obra_pci")
+}
+
+// Checklist pessoal do CRM; preferências existem mesmo antes da solicitação.
+model DocumentoCliente {
+  id String @id @default(cuid())
+  leadId String
+  tipo String
+  visivelCliente Boolean @default(true)
+  solicitadoEm DateTime?
+  emailSolicitadoEm DateTime?
+  arquivoId String?
+  enviadoEm DateTime?
+  atualizadoEm DateTime @updatedAt
+  @@unique([leadId, tipo])
+  @@index([arquivoId])
+  @@map("documentos_cliente")
+}
+
+model DocumentoClienteVersao {
+  id String @id @default(cuid())
+  leadId String
+  tipoChecklist String
+  itemId String
+  arquivoId String @unique
+  enviadoEm DateTime @default(now())
+  @@index([leadId,itemId])
+  @@map("documentos_cliente_versoes")
 }

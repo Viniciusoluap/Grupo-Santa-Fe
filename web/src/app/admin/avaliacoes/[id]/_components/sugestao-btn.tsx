@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, X, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { salvarSugestaoAvaliacao } from "@/lib/actions/avaliacoes";
+import { aplicarValorEstimadoAvaliacao } from "@/lib/actions/avaliacoes";
 
 interface Props {
   avaliacaoId: string;
@@ -58,6 +58,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<SugestaoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aplicado, setAplicado] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -99,17 +100,13 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
 
   async function aplicarValor() {
     if (!result) return;
-    // Persist suggestion data for the laudo
-    await salvarSugestaoAvaliacao(avaliacaoId, JSON.stringify(result));
-    const form = document.getElementById(`form-valor-${avaliacaoId}`) as HTMLFormElement | null;
-    if (form) {
-      const input = form.querySelector<HTMLInputElement>('input[name="valorEstimado"]');
-      if (input) {
-        input.value = String(result.valorSugerido);
-        form.requestSubmit();
-      }
-    }
-    setOpen(false);
+    setLoading(true);
+    try {
+      await aplicarValorEstimadoAvaliacao(avaliacaoId, result.valorSugerido, JSON.stringify(result));
+      setAplicado(result.valorSugerido);
+      setOpen(false);
+    } catch (e) { setError(e instanceof Error ? e.message : "Falha ao salvar valor"); }
+    finally { setLoading(false); }
   }
 
   const cfg = result ? CONFIABILIDADE_CONFIG[result.confiabilidade] : null;
@@ -117,6 +114,7 @@ export function SugestaoAvaliacaoBtn({ avaliacaoId, ...props }: Props) {
 
   return (
     <>
+      {aplicado !== null && <p role="status" className="text-xs text-green-700">Valor salvo: {formatCurrency(aplicado)}</p>}
       <button
         type="button"
         onClick={buscarSugestao}

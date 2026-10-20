@@ -50,15 +50,11 @@ export async function editarFinanciamento(formData: FormData) {
     await tx.financiamento.update({ where: { id }, data: {
       ...cliente,
       status: atual.status === "aguardando_configuracao" ? "pre_analise" : atual.status,
-      clienteCpf: (formData.get("clienteCpf") as string) || null,
-      imovel: textoObrigatorio(formData, "imovel"),
+      clienteCpf: atual.leadId ? (await tx.lead.findUniqueOrThrow({where:{id:atual.leadId},select:{cpf:true}})).cpf : (formData.get("clienteCpf") as string) || null,
       tipo,
       banco,
       valorImovel: numeroObrigatorio(formData, "valorImovel"),
       valorFinanciado: numeroObrigatorio(formData, "valorFinanciado"),
-      entrada: numeroObrigatorio(formData, "entrada"),
-      taxa: numeroObrigatorio(formData, "taxa"),
-      prazo: numeroObrigatorio(formData, "prazo", true),
     } });
     if (atual.leadId && atual.servicoLeadId && tipo !== atual.tipo) {
       const demanda = await tx.servicoLead.findUniqueOrThrow({ where: { id: atual.servicoLeadId } });

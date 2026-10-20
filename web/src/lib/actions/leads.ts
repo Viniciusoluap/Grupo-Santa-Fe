@@ -105,6 +105,7 @@ export async function criarLead(formData: FormData) {
       nome,
       telefone,
       email: (formData.get("email") as string) || undefined,
+      cpf: String(formData.get("cpf") ?? "").replace(/\D/g, "").slice(0,11) || null,
       servico: JSON.stringify(servicos),
       etapaOperacional: etapaInicial,
       temperatura: temperaturaDoFormulario(formData.get("temperatura")),
@@ -197,6 +198,7 @@ export async function editarLead(formData: FormData) {
       nome,
       telefone: texto(formData, "telefone", 40),
       email: (formData.get("email") as string) || null,
+      ...(formData.has("cpf") ? {cpf: String(formData.get("cpf") ?? "").replace(/\D/g, "").slice(0,11) || null} : {}),
       servico: JSON.stringify(servicos),
       temperatura: temperaturaDoFormulario(formData.get("temperatura"), atual.temperatura as LeadTemperatura),
       origem: (formData.get("origem") as string) || "site",
@@ -209,7 +211,7 @@ export async function editarLead(formData: FormData) {
       // de registros antigos) é preservado enquanto não for trocado.
       responsavelId: await responsavelDoFormulario(String(formData.get("responsavelId") ?? "").trim(), atual.responsavelId),
     },
-    select: { id: true, nome: true, telefone: true, email: true },
+    select: { id: true, nome: true, telefone: true, email: true, cpf: true },
     });
 
   // Lead é a fonte única dos dados do cliente: reflete a edição nos registros

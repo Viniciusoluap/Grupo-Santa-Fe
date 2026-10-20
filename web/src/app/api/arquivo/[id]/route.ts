@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { obterItemDocumento } from "@/lib/documentos-cliente";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { lerDocumentoRegistro } from "@/lib/incorporacao/registro-drive";
@@ -19,6 +20,17 @@ export async function GET(
   const { id } = await params;
   const arquivo = await prisma.arquivo.findUnique({ where: { id } });
   if (!arquivo) return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
+
+  // Documentos de checklist exigem vínculo e visibilidade também pela URL legada.
+  const [pessoal, financiamento, historico] = await Promise.all([
+    prisma.documentoCliente.findFirst({where:{arquivoId:id},select:{id:true}}),
+    prisma.checklistItem.findFirst({where:{arquivoId:id},select:{id:true}}),
+    prisma.documentoClienteVersao.findUnique({where:{arquivoId:id}}),
+  ]);
+  if (pessoal || financiamento || historico) {
+    try { await obterItemDocumento(pessoal ? "crm" : financiamento ? "financiamento" : historico!.tipoChecklist === "crm" ? "crm" : "financiamento", (pessoal ?? financiamento)?.id ?? historico!.itemId); }
+    catch { return NextResponse.json({error:"Documento não disponível."},{status:403}); }
+  }
 
   // Contratos gravados no Google Drive são lidos de lá; os demais, do banco.
   let body: Uint8Array<ArrayBuffer>;

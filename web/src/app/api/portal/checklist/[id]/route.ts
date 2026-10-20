@@ -28,9 +28,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const item = await prisma.checklistItem.findUnique({
     where: { id },
-    select: { id: true, item: true, concluido: true, arquivoId: true, financiamento: { select: { leadId: true } } },
+    select: { id: true, item: true, concluido: true, arquivoId: true, visivelCliente: true, solicitadoEm: true, legado: true, financiamento: { select: { leadId: true } } },
   });
-  if (!item || item.financiamento.leadId !== leadId) return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
+  if (!item || !item.visivelCliente || !item.solicitadoEm || item.legado || item.financiamento.leadId !== leadId) return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
   if (item.concluido) return NextResponse.json({ error: "Este documento já foi aprovado pela equipe." }, { status: 409 });
 
   const dados = await req.formData();

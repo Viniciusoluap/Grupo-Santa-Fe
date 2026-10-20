@@ -37,7 +37,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
 
       <div className="bg-white border border-gray-100 p-6">
         <EditarProjetoForm
-          projeto={{ id: p.id, nome: p.nome, status: p.status, clienteNome: p.clienteNome, clienteTel: p.clienteTel, engenheiro: p.engenheiro, engenheiroId: p.engenheiroId, engenheiroRegistro: p.engenheiroRegistro, valorProjeto: p.valorProjeto, descricao: p.descricao }}
+          projeto={{ id: p.id, nome: p.nome, status: p.status, clienteNome: p.clienteNome, clienteTel: p.clienteTel, engenheiro: p.engenheiro, engenheiroId: p.engenheiroId, engenheiroRegistro: p.engenheiroRegistro, valorProjeto: p.valorProjeto, descricao: p.descricao, checklist: p.checklist, arquivos: p.arquivos }}
           tiposSelecionados={tiposSelecionados}
           prazo={prazoValue}
           engenheiros={engenheiros}

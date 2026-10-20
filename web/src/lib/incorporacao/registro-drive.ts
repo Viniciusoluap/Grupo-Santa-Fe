@@ -449,3 +449,46 @@ async function reorganizar(fonte: FonteDrive, root: string): Promise<ResultadoOr
   }
   return resultado;
 }
+
+/** Portfólio por cliente/projeto/item. Sessão retomável; cada requisição leva até 1 MiB. */
+export async function iniciarUploadProjetoDrive(doc: { projectId: string; clientId: string; clientName: string; projectName: string; itemId: string; itemName: string; kind: "editable" | "pdf"; name: string; mime: string; size: number }): Promise<string> {
+  const fonte = await fonteObrigatoria();
+  const root = await prepararRaiz(fonte);
+  const caminho: PastaAlvo[] = [
+    { chave: "clientes", nome: "Clientes" },
+    { chave: `cliente:${doc.clientId}`, nome: `${doc.clientName.replace(/[\\/\x00-\x1f]/g, " ").slice(0, 100)} (nº ${doc.clientId})` },
+    { chave: `cliente:${doc.clientId}:projetos`, nome: "Projetos" },
+    { chave: `cliente-${doc.clientId}-portfolio`, nome: "Portfólio de projetos" },
+    { chave: `projeto-${doc.projectId}`, nome: `${doc.projectName.replace(/[\\/\x00-\x1f]/g, " ").slice(0, 100)} (nº ${doc.projectId})` },
+    { chave: `projeto-${doc.projectId}-item-${doc.itemId}`, nome: doc.itemName.replace(/[\\/\x00-\x1f]/g, " ").slice(0, 100) },
+  ];
+  const pasta = await pastaDoCaminho(fonte, root, caminho);
+  
+  const session = await authorized(fonte, "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id&supportsAllDrives=true", {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Content-Type": doc.mime, "X-Upload-Content-Length": String(doc.size) },
+    body: JSON.stringify({ name: nomeArquivo(`${doc.itemName} — ${doc.kind === "pdf" ? "PDF" : "Editável"}`, new Date(), doc.name, doc.mime), parents: [pasta] }),
+  }, "upload");
+  const location = session.headers.get("location");
+  if (!location || new URL(location).origin !== "https://www.googleapis.com" || !new URL(location).pathname.startsWith("/upload/drive/")) throw new Error("Sessão de upload inválida.");
+  return location;
+}
+
+export async function enviarParteProjetoDrive(location: string, start: number, total: number, mime: string, bytes: Buffer): Promise<{ offset: number; driveFileId?: string }> {
+  const url = new URL(location);
+  if (url.origin !== "https://www.googleapis.com" || !url.pathname.startsWith("/upload/drive/")) throw new Error("Sessão de upload inválida.");
+  const fonte = await fonteObrigatoria();
+  const response = await fetch(location, {
+    method: "PUT", headers: { Authorization: `Bearer ${await token(fonte)}`, "Content-Type": mime, "Content-Length": String(bytes.length),
+      "Content-Range": bytes.length ? `bytes ${start}-${start + bytes.length - 1}/${total}` : `bytes */${total}` },
+    body: Uint8Array.from(bytes),
+  });
+  if (response.status === 308) {
+    const range = /bytes=0-(\d+)/.exec(response.headers.get("range") || "");
+    return { offset: range ? Number(range[1]) + 1 : 0 };
+  }
+  if (!response.ok) throw new Error(response.status === 404 ? "Envio expirado. Selecione o arquivo novamente." : "Falha no Google Drive. Tente continuar o envio.");
+  const result = await response.json() as { id?: string };
+  if (!result.id) throw new Error("Drive não confirmou o arquivo.");
+  await assertPrivate(fonte, result.id);
+  return { offset: total, driveFileId: result.id };
+}

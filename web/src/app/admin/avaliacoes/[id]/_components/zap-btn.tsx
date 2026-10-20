@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Home, X, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { aplicarValorEstimadoAvaliacao } from "@/lib/actions/avaliacoes";
 
 interface Props {
   avaliacaoId: string;
@@ -34,6 +35,7 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ZapResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aplicado, setAplicado] = useState<number | null>(null);
 
   async function buscarComparaveis() {
     setLoading(true);
@@ -56,20 +58,18 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
     }
   }
 
-  function aplicarValor() {
+  async function aplicarValor() {
     if (!result) return;
     const valor = props.areaConstruida
       ? Math.round(result.precoPorM2Medio * props.areaConstruida)
       : result.valorMedio;
-    const form = document.getElementById(`form-valor-${avaliacaoId}`) as HTMLFormElement | null;
-    if (form) {
-      const input = form.querySelector<HTMLInputElement>('input[name="valorEstimado"]');
-      if (input) {
-        input.value = String(valor);
-        form.requestSubmit();
-      }
-    }
-    setOpen(false);
+    setLoading(true);
+    try {
+      await aplicarValorEstimadoAvaliacao(avaliacaoId, valor);
+      setAplicado(valor);
+      setOpen(false);
+    } catch (e) { setError(e instanceof Error ? e.message : "Falha ao salvar valor"); }
+    finally { setLoading(false); }
   }
 
   const valorSugerido = result
@@ -80,6 +80,7 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
 
   return (
     <>
+      {aplicado !== null && <p role="status" className="text-xs text-green-700">Valor salvo: {formatCurrency(aplicado)}</p>}
       <button
         type="button"
         onClick={buscarComparaveis}

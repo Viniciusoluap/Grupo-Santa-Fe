@@ -1,3 +1,4 @@
+import { ChecklistDocumentos } from "@/components/documentos/checklist-documentos";
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
@@ -378,6 +379,8 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               <p className="text-xs text-gray-600">Agendamento disponível para leads ativos.</p>
             )}
           </div>
+
+          {interno && <ChecklistDocumentos tipo="crm" id={lead.id} />}
 
           {/* Item 11 (18/10): contratos do cliente, criados e mantidos no Jurídico. */}
           <div className="bg-white border border-gray-100 p-5">

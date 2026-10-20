@@ -66,6 +66,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
         <div className="lg:col-span-2 space-y-5">
           {/* Interactive sections: status, checklist, arquivos */}
           <ProjetoDetailClient
+            tipos={(() => { try { const v = JSON.parse(p.tipo || "[]"); return Array.isArray(v) ? v : []; } catch { return p.tipo ? [p.tipo] : []; } })()}
             projetoId={p.id}
             checklistJson={p.checklist}
             arquivosJson={p.arquivos}
@@ -99,6 +100,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             {[
               { label: "Tipo", value: `${tipo.icon} ${tipo.label}` },
               { label: "Engenheiro", value: p.engenheiro ?? "Pendente de configuração" },
+              { label: "Habilitação técnica", value: p.engenheiroRegistro || "—" },
               p.prazoEntrega ? { label: "Prazo de entrega", value: new Date(p.prazoEntrega).toLocaleDateString("pt-BR") } : null,
             ].filter(Boolean).map((item) => item && (
               <div key={item.label} className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0 gap-2">
@@ -108,20 +110,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             ))}
           </div>
 
-          {/* Financial */}
-          <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Financeiro</p>
-            {[
-              { label: "Valor contratado", value: formatCurrency(p.valorProjeto), color: "text-[var(--brand-dark)]" },
-              { label: "Pago", value: formatCurrency(p.valorPago), color: "text-green-600" },
-              { label: "A receber", value: formatCurrency(p.valorProjeto == null ? null : p.valorProjeto - p.valorPago), color: (p.valorProjeto ?? 0) - p.valorPago > 0 ? "text-orange-500" : "text-gray-600" },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-                <span className="text-xs text-gray-500">{label}</span>
-                <span className={`text-xs font-bold ${color}`}>{value}</span>
-              </div>
-            ))}
-          </div>
+
         </div>
       </div>
     </div>
