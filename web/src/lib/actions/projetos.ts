@@ -1,18 +1,19 @@
 "use server";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto";
-import { exigirConfiguracaoParaStatus, textoObrigatorio, numeroObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
+import { exigirConfiguracaoParaStatus, textoObrigatorio, tiposObrigatorios } from "@/lib/crm/configuracao-servico";
 import { prisma } from "@/lib/db";
 import { bloquearLead, transacaoCRM, clienteParaRegistro, type TransacaoCRM } from "@/lib/crm/vinculo-lead";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
+import { projectChecklist } from "@/lib/projeto-documentos";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function alterarStatusProjeto(id: string, status: string) {
   await exigirModuloAcao("projetos");
   const registro = await prisma.projeto.findUnique({ where: { id } });
-  exigirConfiguracaoParaStatus(registro, status, ['tipo', 'engenheiro', 'valorProjeto'], PROJETO_STATUS_CONFIG);
+  exigirConfiguracaoParaStatus(registro, status, ['tipo', 'engenheiro'], PROJETO_STATUS_CONFIG);
   await prisma.projeto.update({ where: { id }, data: { status } });
   revalidatePath("/admin/projetos");
   revalidatePath(`/admin/projetos/${id}`);
@@ -20,20 +21,21 @@ export async function alterarStatusProjeto(id: string, status: string) {
 
 export async function salvarChecklistProjeto(id: string, checklist: string) {
   await exigirModuloAcao("projetos");
-  await prisma.projeto.update({ where: { id }, data: { checklist } });
+  const items = JSON.parse(checklist) as { id?: string; texto?: string; feito?: boolean; type?: string }[];
+  if (!Array.isArray(items) || items.length > 100 || items.some(c => typeof c.texto !== "string" || !c.texto.trim() || c.texto.length > 500 || typeof c.feito !== "boolean" || typeof c.id !== "string" || c.id.length > 100)) throw new Error("Checklist inválido.");
+  await prisma.projeto.update({ where: { id }, data: { checklist: JSON.stringify(items) } });
   revalidatePath(`/admin/projetos/${id}`);
 }
 
-export async function salvarArquivosProjeto(id: string, arquivos: string) {
+export async function salvarArquivosProjeto(_id: string, _arquivos: string) {
   await exigirModuloAcao("projetos");
-  await prisma.projeto.update({ where: { id }, data: { arquivos } });
-  revalidatePath(`/admin/projetos/${id}`);
+  throw new Error("Use o envio de arquivo editável ou PDF em cada item do checklist.");
 }
 
 export async function alterarStatusProjetoFromDetail(id: string, status: string) {
   await exigirModuloAcao("projetos");
   const registro = await prisma.projeto.findUnique({ where: { id } });
-  exigirConfiguracaoParaStatus(registro, status, ["tipo", "engenheiro", "valorProjeto"], PROJETO_STATUS_CONFIG);
+  exigirConfiguracaoParaStatus(registro, status, ["tipo", "engenheiro"], PROJETO_STATUS_CONFIG);
   await prisma.projeto.update({ where: { id }, data: { status } });
   revalidatePath("/admin/projetos");
   revalidatePath(`/admin/projetos/${id}`);
@@ -54,21 +56,28 @@ async function editarProjetoImpl(formData: FormData) {
   await exigirModuloAcao("projetos");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
-    const atual = await tx.projeto.findUnique({ where: { id }, select: { leadId: true, status: true, engenheiro: true } });
+    const atual = await tx.projeto.findUnique({ where: { id }, select: { leadId: true, status: true, engenheiro: true, checklist: true } });
     if (!atual) throw new Error("Registro não encontrado.");
     if (formData.has("leadId") && formData.get("leadId") !== atual.leadId) throw new Error("O vínculo com o CRM não pode ser alterado neste módulo.");
     if (atual.leadId) await bloquearLead(tx, atual.leadId);
     const cliente = await clienteParaRegistro(atual.leadId, formData, tx);
+    const tiposJson = tiposObrigatorios(formData, PROJETO_TIPO_CONFIG);
+    const tipos = JSON.parse(tiposJson) as string[];
+    let anteriores: {id?: string; texto: string; feito: boolean; type?: string}[] = [];
+    try { anteriores = JSON.parse(atual.checklist || "[]"); } catch { /* legado vazio */ }
+    const checklist = projectChecklist(tipos, anteriores.map(c => ({id:c.id,type:c.type,text:c.texto,done:c.feito})), Object.fromEntries(Object.entries(PROJETO_TIPO_CONFIG).map(([k,v]) => [k,v.label]))).map(c => ({id:c.id,type:c.type,texto:c.text,feito:c.done}));
+    const solicitado = String(formData.get("status") || atual.status);
+    if (!(solicitado in PROJETO_STATUS_CONFIG)) throw new Error("Status inválido.");
     await tx.projeto.update({
       where: { id },
       data: {
         nome: textoObrigatorio(formData, "nome"),
-        tipo: tiposObrigatorios(formData, PROJETO_TIPO_CONFIG),
-        status: atual.status === "aguardando_configuracao" ? "solicitado" : atual.status,
+        tipo: tiposJson,
+        checklist: JSON.stringify(checklist),
+        status: solicitado === "aguardando_configuracao" ? "solicitado" : solicitado,
         clienteNome: cliente.clienteNome,
         clienteTel: cliente.clienteTel,
         ...(await engenheiroDoFormulario(tx, formData, atual.engenheiro)),
-        valorProjeto: numeroObrigatorio(formData, "valorProjeto"),
         descricao: (formData.get("descricao") as string) || "",
         prazoEntrega: (formData.get("prazoEntrega") as string) ? new Date(formData.get("prazoEntrega") as string) : null,
       },

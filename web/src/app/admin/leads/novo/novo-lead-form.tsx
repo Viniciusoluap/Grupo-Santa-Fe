@@ -81,6 +81,7 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
             className="w-full border border-gray-200 px-3 py-2.5 text-sm placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
           />
         </div>
+        <div><label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">CPF</label><input name="cpf" inputMode="numeric" maxLength={14} className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50" /></div>
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Senha de Acesso</label>
           <input

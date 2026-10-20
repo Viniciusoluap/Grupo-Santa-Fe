@@ -1,3 +1,4 @@
+import { ChecklistDocumentos } from "@/components/documentos/checklist-documentos";
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { notFound } from "next/navigation";
@@ -75,9 +76,10 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: checklist */}
         <div className="lg:col-span-2 space-y-5">
+          <ChecklistDocumentos tipo="financiamento" id={f.id} />
           <FinanciamentoChecklistClient
             financiamentoId={f.id}
-            checklist={f.checklist.map((i) => ({ ...i }))}
+            checklist={f.checklist.filter(i=>i.legado).map((i) => ({ ...i }))}
             statusAtual={f.status}
           />
         </div>

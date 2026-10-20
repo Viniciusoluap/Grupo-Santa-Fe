@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
 import { excluirComissao, alterarStatusComissao } from "@/lib/actions/comissoes";
 import { ComissaoForm } from "./comissao-form";
+import { resumirComissoes } from "@/lib/comissoes/listagem";
 import { ComissoesDeObras } from "./comissoes-de-obras";
 import type { ComissaoDeObra } from "@/lib/comissoes/obras";
 import type { NegocioItem } from "@/lib/comissoes/calculo";
@@ -100,11 +101,9 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
     .sort((a, b) => new Date(b.vencimento).getTime() - new Date(a.vencimento).getTime());
 
   const obrasFiltradas = comissoesDeObras.filter(l => (statusFilter === "todas" || l.calculo.status === statusFilter) && (!corretorFilter || l.corretorId === corretorFilter));
-  const avulsas = filtered.filter(c => !comissoesDeObras.some(l => l.registrosManuais.some(m => m.id === c.id)));
-  const totalPago = obrasFiltradas.reduce((s, l) => s + l.calculo.pagoCentavos, 0) / 100 + avulsas.filter(c => c.status === "paga").reduce((s, c) => s + c.valor, 0);
-  const totalPendente = obrasFiltradas.reduce((s, l) => s + (l.calculo.saldoCentavos ?? 0), 0) / 100 + avulsas.filter(c => ["pendente", "aprovada"].includes(c.status)).reduce((s, c) => s + c.valor, 0);
-  const totalAprovado = avulsas.filter(c => c.status === "aprovada").reduce((s, c) => s + c.valor, 0);
-  const totalGeral = obrasFiltradas.reduce((s, l) => s + (l.calculo.valorCentavos ?? 0), 0) / 100 + avulsas.filter(c => c.status !== "cancelada").reduce((s, c) => s + c.valor, 0);
+  const { pago: totalPago, pendente: totalPendente, aprovado: totalAprovado, geral: totalGeral } = resumirComissoes(obrasFiltradas,
+    filtered.map(c => ({ id: c.id, status: c.status, valor: c.valor })),
+    comissoesDeObras.flatMap(o => o.registrosManuais.map(m => m.id)));
   const corretoresFiltro = Array.from(new Map([...corretores, ...comissoesDeObras.map(l => ({ id: l.corretorId, nome: l.corretor }))].map(c => [c.id, c])).values());
 
   return (

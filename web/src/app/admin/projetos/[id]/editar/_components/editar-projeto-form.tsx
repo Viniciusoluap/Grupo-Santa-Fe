@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto";
 import { editarProjeto } from "@/lib/actions/projetos";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { CurrencyInput } from "@/components/ui/currency-input";
+import ProjetoDetailClient from "../../_components/projeto-detail-client";
 
 const campo = "w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50";
 const rotulo = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1";
@@ -19,7 +19,7 @@ interface Engenheiro { id: string; nome: string; papel: string }
  * colaborador escolhido por ID, com busca.
  */
 export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheiros, cliente }: {
-  projeto: { id: string; nome: string; status: string; clienteNome: string; clienteTel: string | null; engenheiro: string | null; engenheiroId: string | null; engenheiroRegistro: string | null; valorProjeto: number | null; descricao: string };
+  projeto: { id: string; nome: string; status: string; clienteNome: string; clienteTel: string | null; engenheiro: string | null; engenheiroId: string | null; engenheiroRegistro: string | null; valorProjeto: number | null; descricao: string; checklist: string; arquivos: string };
   tiposSelecionados: string[];
   prazo: string;
   engenheiros: Engenheiro[];
@@ -92,10 +92,7 @@ export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheir
           <label className={rotulo}>Habilitação técnica (CREA/CAU)</label>
           <input name="engenheiroRegistro" type="text" maxLength={60} defaultValue={projeto.engenheiroRegistro ?? ""} placeholder="Se necessário" className={campo} />
         </div>
-        <div>
-          <label className={rotulo}>Valor do Projeto *</label>
-          <CurrencyInput name="valorProjeto" required defaultValue={projeto.valorProjeto} className={campo} />
-        </div>
+
       </div>
 
       <fieldset>
@@ -118,6 +115,7 @@ export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheir
         <textarea name="descricao" rows={3} defaultValue={projeto.descricao} className={`${campo} resize-none`} />
       </div>
 
+      <ProjetoDetailClient projetoId={projeto.id} checklistJson={projeto.checklist} arquivosJson={projeto.arquivos} tipos={tipos} readOnly={false} />
       <div className="flex gap-3 pt-2 border-t border-gray-100">
         <button type="submit" disabled={pendente}
           className="inline-flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">

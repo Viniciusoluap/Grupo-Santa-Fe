@@ -82,11 +82,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
                 <Mail size={13} /> {a.clienteEmail}
               </a>
             )}
-            {a.lead && (
-              <Link href={`/admin/leads/${a.lead.id}`} className="flex items-center gap-1 text-xs text-[var(--brand-yellow)] hover:underline font-bold mt-1">
-                Lead vinculado: {a.lead.nome}
-              </Link>
-            )}
+
           </div>
 
           {/* Imóvel */}

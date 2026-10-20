@@ -23,6 +23,7 @@ interface Props {
     nome: string;
     telefone: string;
     email: string | null;
+    cpf?: string | null;
     servico: string;
     origem: string;
     temperatura: string;
@@ -89,6 +90,7 @@ export function EditarLeadForm({ lead, corretores, responsaveis }: Props) {
           <input type="email" name="email" defaultValue={lead.email ?? ""}
             className="w-full border border-gray-200 px-3 py-2.5 text-sm placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
         </div>
+        <div><label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">CPF</label><input name="cpf" inputMode="numeric" maxLength={14} defaultValue={lead.cpf ?? ""} className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50" /></div>
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Budget</label>
           <div className="relative">

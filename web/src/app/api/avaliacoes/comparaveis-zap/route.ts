@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { auth } from "@/auth";
+import { exigirModuloAcao } from "@/lib/auth/modulos";
+import { normalizarComparaveis } from "@/lib/avaliacao-comparaveis";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,8 +31,7 @@ export interface ZapResult {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  try { await exigirModuloAcao("avaliacao"); } catch { return NextResponse.json({ error: "Sem permissão para avaliações" }, { status: 403 }); }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -81,14 +81,7 @@ Regras:
       throw new Error("Nenhum JSON encontrado na resposta.");
     }
 
-    const result = JSON.parse(jsonText.slice(start, end + 1)) as ZapResult;
-
-    if (!result.comparaveis?.length) {
-      return NextResponse.json(
-        { error: `Nenhum imóvel encontrado no ZAP/VivaReal para ${body.bairro}, ${body.cidade}.` },
-        { status: 404 }
-      );
-    }
+    const result = normalizarComparaveis(JSON.parse(jsonText.slice(start, end + 1)), body.bairro, zapUrl);
 
     return NextResponse.json(result);
   } catch (err) {

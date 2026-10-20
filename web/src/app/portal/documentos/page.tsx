@@ -1,3 +1,4 @@
+import { ChecklistDocumentos } from "@/components/documentos/checklist-documentos";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { FileText, MessageSquare, Download } from "lucide-react";
@@ -32,6 +33,8 @@ export default async function PortalDocumentosPage() {
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Documentos</h1>
         <p className="text-gray-600 text-sm mt-0.5">Contratos e documentos do seu processo</p>
       </div>
+
+      {leadId && <ChecklistDocumentos tipo="crm" id={leadId} />}
 
       {!leadId ? (
         <div className="bg-white border border-gray-100 p-10 text-center">
