@@ -1,4 +1,6 @@
 "use server";
+
+import { incidenciaPciParaTexto } from "@/lib/obras/pci-validacao";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
@@ -322,7 +324,7 @@ export async function vincularPciObra(obraId: string): Promise<Resultado<{ somaI
     if (!pci) throw new RecusaMedicao("Envie a PCI antes de vincular.");
     const parsed = pci.versao.parsed as unknown as DadosPci;
     const atuais = await tx.obraProgressoItem.findMany({ where: { obraId } });
-    const itens = mesclarComPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) }))).map((i, k) => ({ chave: i.chave, incidencia: String(parsed.incidencias[k] ?? 0), execucao: String(i.execucao) }));
+    const itens = mesclarComPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) }))).map((i, k) => ({ chave: i.chave, incidencia: incidenciaPciParaTexto(parsed.incidencias[k] ?? 0), execucao: String(i.execucao) }));
     const calculo = calcularProgresso(itens);
     if (calculo.erros.length) throw new RecusaMedicao(calculo.erros.join(" "));
     await tx.obraProgressoItem.deleteMany({ where: { obraId } });

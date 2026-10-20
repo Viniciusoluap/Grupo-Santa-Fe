@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { ComissoesClient } from "./_components/comissoes-client";
 import type { NegocioItem } from "@/lib/comissoes/calculo";
 import { listarComissoesDeObras } from "@/lib/comissoes/obras";
-import { ComissoesDeObras } from "./_components/comissoes-de-obras";
 
 type SessionUser = { role?: string; corretorId?: string };
 
@@ -59,8 +58,7 @@ export default async function ComissoesPage() {
 
   return (
     <div className="space-y-5">
-      <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} isAdmin={isAdmin} />
-      {(isAdmin || isCorretor) && <ComissoesDeObras linhas={comissoesDeObras} somenteLeitura={!isAdmin} />}
+      <ComissoesClient comissoes={comissoes} corretores={corretores} negociosPorTipo={negociosPorTipo} isAdmin={isAdmin} comissoesDeObras={comissoesDeObras} />
     </div>
   );
 }

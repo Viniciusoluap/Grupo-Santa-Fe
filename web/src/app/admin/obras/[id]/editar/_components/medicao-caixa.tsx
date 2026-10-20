@@ -1,4 +1,6 @@
 "use client";
+
+import { LIMITE_PCI_BYTES, PARTE_PCI_BYTES } from "@/lib/obras/pci-validacao";
 import { useRef, useState, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet, ImagePlus, Link2, Loader2, Trash2, Upload, X } from "lucide-react";
@@ -81,7 +83,8 @@ function CampoNumero({ valor, onChange, rotulo, sufixo }: { valor: number | null
 
 /** Baixa um arquivo gerado pelo servidor; erro vira aviso na tela. */
 export async function baixarArquivo(url: string, nomePadrao: string) {
-  const resposta = await fetch(url, { credentials: "include" });
+  const ehPci = /\/pci$/.test(url);
+  const resposta = await fetch(ehPci ? `${url}?parte=0` : url, { credentials: "include" });
   if (!resposta.ok) {
     let msg = `Erro ao gerar o arquivo (código ${resposta.status}).`;
     try {
@@ -94,7 +97,15 @@ export async function baixarArquivo(url: string, nomePadrao: string) {
   }
   const disposicao = resposta.headers.get("Content-Disposition") ?? "";
   const nome = /filename="([^"]+)"/.exec(disposicao)?.[1] ?? nomePadrao;
-  const blob = await resposta.blob();
+  const blobs = [await resposta.blob()];
+  const totalPartes = Number(resposta.headers.get("X-PCI-Partes") ?? 1);
+  const versao = resposta.headers.get("X-PCI-Versao") ?? "";
+  for (let parte = 1; parte < totalPartes; parte++) {
+    const proxima = await fetch(`${url}?parte=${parte}&versao=${encodeURIComponent(versao)}`, { credentials: "include" });
+    if (!proxima.ok) throw new Error("Não foi possível concluir o download da PCI. Tente novamente.");
+    blobs.push(await proxima.blob());
+  }
+  const blob = new Blob(blobs, { type: resposta.headers.get("Content-Type") ?? "application/octet-stream" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = nome;
@@ -151,16 +162,23 @@ export function PciObra({ projectId, pci }: { projectId: string; pci: ResumoPci 
       toast.error("Envie a PCI em .xls ou .xlsb (planilha da CAIXA).");
       return;
     }
-    if (arquivo.size > 3 * 1024 * 1024) {
-      toast.error("A PCI passa de 3 MiB. Reduza as imagens da planilha antes de enviar.");
+    if (arquivo.size > LIMITE_PCI_BYTES) {
+      toast.error("Envie uma PCI de até 8 MB.");
       return;
     }
     setEnviando(true);
     try {
-      const dataUrl = await blobParaDataUrl(arquivo);
-      const { status, dados } = await enviarJsonComProgresso(`/api/obras/${projectId}/pci`, { arquivo: dataUrl, nome: arquivo.name }, (fracao) =>
-        publicarEnvio({ item: "arquivo", atual: 1, total: 1, fracao })
-      );
+      const uploadId = crypto.randomUUID();
+      const totalChunks = Math.ceil(arquivo.size / PARTE_PCI_BYTES);
+      if (!totalChunks) throw new Error("Arquivo vazio.");
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const dataUrl = await blobParaDataUrl(arquivo.slice(chunkIndex * PARTE_PCI_BYTES, (chunkIndex + 1) * PARTE_PCI_BYTES));
+        const parte = await enviarJsonComProgresso(`/api/obras/${projectId}/pci`, { nome: arquivo.name, uploadId, chunkIndex, totalChunks, chunk: dataUrl.split(",")[1] }, fracao =>
+          publicarEnvio({ item: "arquivo", atual: 1, total: 1, fracao: (chunkIndex + fracao) / (totalChunks + 1) }));
+        if (parte.status < 200 || parte.status >= 300) throw new Error(mensagemErroEnvio(parte.status, parte.dados));
+      }
+      const { status, dados } = await enviarJsonComProgresso(`/api/obras/${projectId}/pci`, { uploadId, finalizar: true }, () =>
+        publicarEnvio({ item: "arquivo", atual: 1, total: 1, fracao: totalChunks / (totalChunks + 1) }));
       if (status < 200 || status >= 300) throw new Error(mensagemErroEnvio(status, dados));
       const r = dados as { proponente?: string; formato?: string; drive?: "ok" | "indisponivel" | "erro" | null };
       const notaDrive = r.drive === "ok" ? " Original guardada no Google Drive da obra." : r.drive === "erro" ? " (Não foi possível copiar para o Google Drive; a PCI ficou guardada no sistema.)" : "";

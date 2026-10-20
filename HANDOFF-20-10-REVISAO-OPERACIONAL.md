@@ -31,3 +31,6 @@ AIOX CLI indisponível na tentativa anterior. Usuário pediu orquestração com 
 
 ## Próximo passo
 Clonar as branches publicadas, ler AGENTS/CLAUDE, implementar por módulos com checkpoints remotos, integrar e testar. Aplicar somente migrações novas necessárias (há drift histórico em journals), abrir PRs, merge, verificar deploy dos dois domínios e atualizar evidência final.
+
+## Checkpoint 1 — Código preservado
+PCI em partes até 8 MiB, canonicalização de incidências, download em partes e testes novos; correções de contraste Fotos/Contratos, moeda mobile e filtros/totais comissões. Código salvo na branch; revisão integrada/testes ainda pendentes de dependências. Outros módulos em andamento. Não houve merge nem deploy. Próximo passo: concluir documentos/projetos/avaliações e executar checks.

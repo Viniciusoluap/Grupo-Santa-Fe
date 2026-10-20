@@ -114,7 +114,7 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
           onClick={() => setAberto(false)}
         >
           <div
-            className="bg-white w-full max-w-2xl my-8 border border-gray-200 shadow-xl"
+            className="bg-white text-slate-900 w-full max-w-2xl my-8 border border-gray-200 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
