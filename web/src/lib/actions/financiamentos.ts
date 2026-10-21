@@ -9,6 +9,7 @@ import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { prisma } from "@/lib/db";
 import { parseServicosLead, servicoDoModulo } from "@/lib/crm/servicos-lead";
 import { bloquearLead, transacaoCRM, clienteParaRegistro } from "@/lib/crm/vinculo-lead";
+import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
@@ -47,15 +48,23 @@ export async function editarFinanciamento(formData: FormData) {
     const banco = textoObrigatorio(formData, "banco");
     if (banco !== atual.banco && !Object.hasOwn(BANCO_CONFIG, banco)) throw new Error("Banco inválido.");
     const cliente = await clienteParaRegistro(atual.leadId, formData, tx);
+    const valorImovel = numeroObrigatorio(formData, "valorImovel");
+    const valorFinanciado = numeroObrigatorio(formData, "valorFinanciado");
+    if (valorFinanciado > valorImovel) throw new Error("O valor financiado não pode superar o VGV simulado.");
     await tx.financiamento.update({ where: { id }, data: {
       ...cliente,
       status: atual.status === "aguardando_configuracao" ? "pre_analise" : atual.status,
       clienteCpf: atual.leadId ? (await tx.lead.findUniqueOrThrow({where:{id:atual.leadId},select:{cpf:true}})).cpf : (formData.get("clienteCpf") as string) || null,
       tipo,
       banco,
-      valorImovel: numeroObrigatorio(formData, "valorImovel"),
-      valorFinanciado: numeroObrigatorio(formData, "valorFinanciado"),
+      valorImovel,
+      valorFinanciado,
     } });
+    if (atual.leadId) {
+      await tx.lead.update({ where: { id: atual.leadId }, data: { orcamento: valorImovel, valorAprovado: valorFinanciado } });
+      await tx.financiamento.updateMany({ where: { leadId: atual.leadId }, data: { valorImovel, valorFinanciado } });
+      await sincronizarVgvDoLead(atual.leadId, tx);
+    }
     if (atual.leadId && atual.servicoLeadId && tipo !== atual.tipo) {
       const demanda = await tx.servicoLead.findUniqueOrThrow({ where: { id: atual.servicoLeadId } });
       const novoServico = servicoDoModulo("financiamento", tipo);
@@ -102,12 +111,22 @@ export async function alterarStatusFinanciamento(id: string, status: string) {
 /** Pedido A9: valor total (imóvel) e valor financiado editados direto na lista. */
 export async function atualizarValoresFinanciamento(id: string, valorImovel: number, valorFinanciado: number) {
   return capturarErroAcao(async () => {
-    await financiamentoDoAtor(id);
+    const financiamento = await financiamentoDoAtor(id);
     for (const v of [valorImovel, valorFinanciado]) if (!Number.isFinite(v) || v < 0 || v > 1e12) throw new Error("Valor inválido.");
     if (valorFinanciado > valorImovel) throw new Error("O valor financiado não pode superar o valor total.");
-    await prisma.financiamento.update({ where: { id }, data: { valorImovel, valorFinanciado } });
+    await transacaoCRM(async tx => {
+      if (financiamento.leadId) {
+        await bloquearLead(tx, financiamento.leadId);
+        await tx.lead.update({ where: { id: financiamento.leadId }, data: { orcamento: valorImovel, valorAprovado: valorFinanciado } });
+        await tx.financiamento.updateMany({ where: { leadId: financiamento.leadId }, data: { valorImovel, valorFinanciado } });
+        await sincronizarVgvDoLead(financiamento.leadId, tx);
+      } else {
+        await tx.financiamento.update({ where: { id }, data: { valorImovel, valorFinanciado } });
+      }
+    });
     revalidatePath(`/admin/financiamentos/${id}`);
     revalidatePath("/admin/financiamentos");
+    if (financiamento.leadId) revalidatePath(`/admin/leads/${financiamento.leadId}`);
     return { ok: true as const };
   });
 }

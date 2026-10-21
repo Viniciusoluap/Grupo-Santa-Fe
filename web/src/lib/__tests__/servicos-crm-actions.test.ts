@@ -7,19 +7,20 @@ const mocks = vi.hoisted(() => ({
   servicos: '["Financiamento MCMV","Obra e reforma"]',
   outraDemanda: false,
   acessivel: true,
-  atualizarFin: vi.fn(), atualizarDemanda: vi.fn(), atualizarLead: vi.fn(), historico: vi.fn(), lock: vi.fn(),
+  atualizarFin: vi.fn(), atualizarFinMany: vi.fn(), atualizarDemanda: vi.fn(), atualizarLead: vi.fn(), historico: vi.fn(), lock: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: async () => ({ user: { id: "admin1", role: "admin" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: () => { throw new Error("REDIRECT"); } }));
 vi.mock("@/lib/crm/acesso-lead", () => ({ obterAtorCrm: async () => mocks.usuario }));
 vi.mock("@/lib/crm/acesso-financiamento", () => ({ escopoFinanciamentosDoAtor: () => ({}), financiamentoDoAtor: async () => mocks.fin }));
+vi.mock("@/lib/financeiro/vgv-lead", () => ({ sincronizarVgvDoLead: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 vi.mock("@/lib/crm/vinculo-lead", () => ({
   bloquearLead: (...args: unknown[]) => mocks.lock(...args),
   clienteParaRegistro: async () => ({ clienteNome: "Maria", clienteTel: "11999990000", clienteEmail: null }),
   transacaoCRM: async (cb: (tx: unknown) => Promise<unknown>) => cb({
-    financiamento: { findFirst: async () => mocks.acessivel ? mocks.fin : null, update: mocks.atualizarFin },
+    financiamento: { findFirst: async () => mocks.acessivel ? mocks.fin : null, update: mocks.atualizarFin, updateMany: mocks.atualizarFinMany },
     servicoLead: { findUniqueOrThrow: async () => mocks.demanda, update: mocks.atualizarDemanda, findFirst: async () => mocks.outraDemanda ? { id: "D2" } : null },
     lead: { findUniqueOrThrow: async () => ({ id: "L1", servico: mocks.servicos }), update: mocks.atualizarLead },
     interacao: { create: mocks.historico },
@@ -50,8 +51,10 @@ describe("ações operacionais mantêm origem e identidade do CRM", () => {
     await expect(editarFinanciamento(dados())).rejects.toThrow("REDIRECT");
     expect(mocks.lock).toHaveBeenCalledWith(expect.anything(), "L1");
     expect(mocks.atualizarFin).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "F1" }, data: expect.objectContaining({ tipo: "sbpe", status: "pre_analise", clienteNome: "Maria" }) }));
+    expect(mocks.atualizarLead).toHaveBeenCalledWith({ where: { id: "L1" }, data: { orcamento: 250000, valorAprovado: 200000 } });
+    expect(mocks.atualizarFinMany).toHaveBeenCalledWith({ where: { leadId: "L1" }, data: { valorImovel: 250000, valorFinanciado: 200000 } });
     expect(mocks.atualizarDemanda).toHaveBeenCalledWith({ where: { id: "D1" }, data: { servico: "Financiamento Convencional" } });
-    const update = mocks.atualizarLead.mock.calls[0][0];
+    const update = mocks.atualizarLead.mock.calls.find(([call]) => call.data.servico)?.[0];
     expect(JSON.parse(update.data.servico)).toEqual(["Obra e reforma", "Financiamento Convencional"]);
     expect(mocks.historico).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ leadId: "L1", criadoPor: "Admin" }) }));
   });
@@ -60,7 +63,7 @@ describe("ações operacionais mantêm origem e identidade do CRM", () => {
     mocks.outraDemanda = true;
     const { editarFinanciamento } = await import("@/lib/actions/financiamentos");
     await expect(editarFinanciamento(dados())).rejects.toThrow("REDIRECT");
-    expect(JSON.parse(mocks.atualizarLead.mock.calls[0][0].data.servico)).toEqual(["Financiamento MCMV", "Obra e reforma", "Financiamento Convencional"]);
+    expect(JSON.parse(mocks.atualizarLead.mock.calls.find(([call]) => call.data.servico)?.[0].data.servico)).toEqual(["Financiamento MCMV", "Obra e reforma", "Financiamento Convencional"]);
   });
 
   it("recusa substituir o lead pela edição do módulo", async () => {

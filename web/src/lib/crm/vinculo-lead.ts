@@ -59,13 +59,15 @@ export async function garantirChecklistDosFinanciamentos(leadId: string, tx?: Tr
   return semChecklist.length;
 }
 
-type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null };
+type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null; orcamento?: number | null; valorAprovado?: Prisma.Decimal | null };
 async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOperacional, servicoLeadId: string) {
   const cliente = dadosClienteDoLead(lead);
   const vinculo = { leadId: lead.id, servicoLeadId };
   switch (op.modulo) {
     case "financiamento":
-      return criarFinanciamentoComChecklist({ ...cliente, clienteCpf: lead.cpf ?? null, ...vinculo, tipo: op.tipoFinanciamento!, status: "aguardando_configuracao" }, tx);
+      return criarFinanciamentoComChecklist({ ...cliente, clienteCpf: lead.cpf ?? null, ...vinculo,
+        valorImovel: lead.orcamento ?? null, valorFinanciado: lead.valorAprovado == null ? null : Number(lead.valorAprovado),
+        tipo: op.tipoFinanciamento!, status: "aguardando_configuracao" }, tx);
     case "obra":
       return tx.obra.create({ data: { ...vinculo, nome: `Obra — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
     case "projeto":

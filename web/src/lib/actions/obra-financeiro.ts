@@ -93,7 +93,7 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
   }
   const atual = await prisma.obra.findUnique({
     where: { id: input.obraId },
-    select: { comissaoPercentual: true, leadId: true, leadVinculado: { select: { valorAprovado: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
+    select: { comissaoPercentual: true, leadId: true, leadVinculado: { select: { valorAprovado: true, orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
   });
   if (!atual) return { ok: false, erro: "Obra não encontrada." };
   if (input.comissaoPercentual === undefined) pctComissao = atual.comissaoPercentual?.toString() ?? null;
@@ -110,7 +110,7 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
   try {
     calculada = calcularComissaoObra({
       corretor: c ? { id: c.id, nome: c.nome, percentualPadrao: c.regraComissao?.percentual.toString() ?? null } : null,
-      vgvCentavos: centavosDe(vgv),
+      vgvCentavos: centavosDe(atual.leadId ? atual.leadVinculado?.orcamento?.toString() ?? null : vgv),
       percentualObra: pctComissao,
       pagoCentavos: 0,
     }).valorCentavos;
