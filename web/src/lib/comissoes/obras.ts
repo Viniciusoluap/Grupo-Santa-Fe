@@ -28,7 +28,7 @@ export async function listarComissoesDeObras(somenteCorretorId?: string): Promis
       orderBy: { nome: "asc" },
       select: {
         id: true, nome: true, clienteNome: true, vgv: true, comissaoPercentual: true,
-        leadVinculado: { select: { nome: true, valorAprovado: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
+        leadVinculado: { select: { nome: true, orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
         movimentos: { where: { status: "confirmado", natureza: "pagamento", categoria: "comissao" }, select: { valor: true } },
       },
     }),
@@ -41,8 +41,8 @@ export async function listarComissoesDeObras(somenteCorretorId?: string): Promis
     .filter((o) => o.leadVinculado?.corretor)
     .map((o) => {
       const c = o.leadVinculado!.corretor!;
-      // Pedido de 15/10: VGV da obra com lead = Valor Aprovado do CRM.
-      const vgv = o.leadVinculado!.valorAprovado?.toString() ?? null;
+      // Pedido de 15/10: Base da comissão = VGV simulado do CRM.
+      const vgv = o.leadVinculado!.orcamento?.toString() ?? null;
       const calculo = calcularComissaoObra({
         corretor: { id: c.id, nome: c.nome, percentualPadrao: c.regraComissao?.percentual.toString() ?? null },
         vgvCentavos: centavosDe(vgv),

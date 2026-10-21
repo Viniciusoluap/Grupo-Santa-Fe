@@ -32,7 +32,7 @@ export default async function ComissoesPage() {
     }),
     prisma.imovel.findMany({ select: { id: true, titulo: true, status: true, preco: true }, orderBy: { titulo: "asc" } }),
     prisma.financiamento.findMany({ select: { id: true, clienteNome: true, imovel: true, valorImovel: true }, orderBy: { clienteNome: "asc" } }),
-    prisma.obra.findMany({ select: { id: true, nome: true, clienteNome: true, vgv: true, leadId: true, leadVinculado: { select: { valorAprovado: true } } }, orderBy: { nome: "asc" } }),
+    prisma.obra.findMany({ select: { id: true, nome: true, clienteNome: true, vgv: true, leadId: true, leadVinculado: { select: { orcamento: true } } }, orderBy: { nome: "asc" } }),
   ]);
   // Pedido de 15/10: o corretor também vê as comissões das obras dos leads dele.
   const comissoesDeObras = isAdmin ? await listarComissoesDeObras() : isCorretor && corretorId ? await listarComissoesDeObras(corretorId) : [];
@@ -52,7 +52,7 @@ export default async function ComissoesPage() {
       valorBase: f.valorImovel,
     })),
     // Base da comissão de obra é o VGV (item 32), não o valor total legado.
-    obra: obras.map((o) => ({ id: o.id, label: `${o.nome} — ${o.clienteNome}`, valorBase: (() => { const v = o.leadId ? o.leadVinculado?.valorAprovado : o.vgv; return v == null ? null : Number(v); })() })),
+    obra: obras.map((o) => ({ id: o.id, label: `${o.nome} — ${o.clienteNome}`, valorBase: (() => { const v = o.leadId ? o.leadVinculado?.orcamento : o.vgv; return v == null ? null : Number(v); })() })),
     extra: [],
   };
 

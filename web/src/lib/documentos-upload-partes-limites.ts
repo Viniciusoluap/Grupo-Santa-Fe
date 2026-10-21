@@ -1,0 +1,2 @@
+export const LIMITE_DOCUMENTO_BYTES = 20 * 1024 * 1024;
+export const PARTE_DOCUMENTO_BYTES = 1024 * 1024;
