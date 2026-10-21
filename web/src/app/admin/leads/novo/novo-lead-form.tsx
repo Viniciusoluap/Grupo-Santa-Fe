@@ -91,19 +91,19 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
             className="w-full border border-gray-200 px-3 py-2.5 text-sm placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
           />
         </div>
-        <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Budget</label>
-          <CurrencyInput
-            name="orcamento"
-            className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
-          />
-        </div>
-        <div>
-          {/* Item 9 (18/10): o cadastro já posiciona o lead na etapa do funil. */}
-          <label htmlFor="etapaOperacional" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Estágio</label>
-          <select id="etapaOperacional" name="etapaOperacional" defaultValue="novo_lead" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-            {LEAD_STAGES.map((etapa) => <option key={etapa} value={etapa}>{rotulo(etapa)}</option>)}
-          </select>
+        <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            {/* Item 9 (18/10): o cadastro já posiciona o lead na etapa do funil. */}
+            <label htmlFor="etapaOperacional" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Estágio</label>
+            <select id="etapaOperacional" name="etapaOperacional" defaultValue="novo_lead" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
+              {LEAD_STAGES.map((etapa) => <option key={etapa} value={etapa}>{rotulo(etapa)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="novo-lead-vgv" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">VGV simulado (R$)</label>
+            <CurrencyInput id="novo-lead-vgv" name="orcamento"
+              className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+          </div>
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Temperatura</label>

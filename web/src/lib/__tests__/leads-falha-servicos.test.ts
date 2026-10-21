@@ -87,6 +87,15 @@ beforeEach(() => {
 });
 
 describe("criarLead — persistência atômica", () => {
+  it("salva VGV simulado no cadastro e ignora financiamento aprovado enviado indevidamente", async () => {
+    const fd = criarForm();
+    fd.set("orcamento", "230000.75");
+    fd.set("valorAprovado", "180000");
+    expect(await urlDoRedirect(criarLead(fd))).toBe("/admin/leads");
+    expect(mocks.leadCreate.mock.calls[0][0].data.orcamento).toBe(230000.75);
+    expect(mocks.leadCreate.mock.calls[0][0].data).not.toHaveProperty("valorAprovado");
+  });
+
   it("propaga falha na operação, sem notificação, revalidação ou redirect de sucesso", async () => {
     mocks.sincronizar.mockRejectedValue(new Error("Falha ao criar avaliação"));
     await expect(criarLead(criarForm())).rejects.toThrow("Falha ao criar avaliação");
