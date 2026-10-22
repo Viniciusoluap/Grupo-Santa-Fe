@@ -3,12 +3,12 @@
 import { LIMITE_PCI_BYTES, PARTE_PCI_BYTES } from "@/lib/obras/pci-validacao";
 import { useRef, useState, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet, ImagePlus, Link2, Loader2, Trash2, Upload, X } from "lucide-react";
+import { Download, FileSpreadsheet, ImagePlus, Link2, Link2Off, Loader2, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 const Input = ({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) => <input {...props} className={`min-w-0 w-full rounded-md border px-3 py-2 ${className}`} />;
 const Textarea = ({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...props} className={`min-w-0 w-full min-h-20 rounded-md border px-3 py-2 ${className}`} />;
 import { useRouter } from "next/navigation";
-import { vincularPciObra } from "@/lib/actions/obra-progresso";
+import { desvincularPciObra, vincularPciObra } from "@/lib/actions/obra-progresso";
 import { blobParaDataUrl, comprimirImagem, enviarJsonComProgresso, LADO_FOTO_MEDICAO, LIMITE_FOTO_MEDICAO, mensagemErroEnvio, pareceImagem } from "@/lib/obras/comprimir-imagem";
 import { publicarEnvio } from "@/lib/envio-progresso";
 import {
@@ -153,6 +153,7 @@ export interface ResumoPci {
 export function PciObra({ projectId, pci }: { projectId: string; pci: ResumoPci | null }) {
   const router = useRouter();
   const [vinculando, setVinculando] = useState(false);
+  const [desvinculando, setDesvinculando] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -206,6 +207,19 @@ export function PciObra({ projectId, pci }: { projectId: string; pci: ResumoPci 
     } finally { setVinculando(false); }
   };
 
+  const fazerDesvinculo = async () => {
+    if (!confirm("Desvincular a PCI desta obra e restaurar as incidências padrão? A execução e as medições já salvas serão mantidas.")) return;
+    try {
+      setDesvinculando(true);
+      const r = await desvincularPciObra(projectId);
+      if (!r.ok) throw new Error(r.erro);
+      toast.success("PCI desvinculada. Incidências padrão restauradas; a execução e o histórico foram mantidos.");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally { setDesvinculando(false); }
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <input ref={entrada} type="file" accept=".xls,.xlsb,application/vnd.ms-excel" className="hidden" onChange={(e) => enviar(e.target.files?.[0])} />
@@ -219,6 +233,10 @@ export function PciObra({ projectId, pci }: { projectId: string; pci: ResumoPci 
             {vinculando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
             Vincular PCI
           </Button>
+          {pci.vinculadaEm && <Button variant="outline" disabled={desvinculando} onClick={fazerDesvinculo} className="border-red-400 text-red-700 hover:bg-red-50 gap-2">
+            {desvinculando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2Off className="h-4 w-4" />}
+            Desvincular PCI
+          </Button>}
           <button type="button" className="inline-flex items-center gap-1 text-xs text-gray-700 underline-offset-2 hover:underline"
             onClick={() => baixarArquivo(`/api/obras/${projectId}/pci`, pci.arquivo).catch((e) => toast.error(e instanceof Error ? e.message : String(e)))}>
             <FileSpreadsheet className="h-3.5 w-3.5 text-[var(--brand-dark)]" />

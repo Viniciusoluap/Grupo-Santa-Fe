@@ -134,6 +134,12 @@ export function itensProgressoIniciais(): ItemProgressoEntrada[] {
   return SERVICOS_PROGRESSO.map((s) => ({ chave: s.chave, incidencia: s.incidenciaPadrao, execucao: "0" }));
 }
 
+/** Volta à distribuição padrão da obra sem apagar a execução já informada. */
+export function restaurarIncidenciasPadrao(salvos: ItemProgressoEntrada[]): ItemProgressoEntrada[] {
+  const porChave = new Map(salvos.map(i => [i.chave, i]));
+  return itensProgressoIniciais().map(i => ({ ...i, execucao: String(porChave.get(i.chave)?.execucao ?? "0") }));
+}
+
 /** Completa o que está salvo com os serviços que faltarem (incidência padrão, execução 0). */
 export function mesclarComPadrao(salvos: ItemProgressoEntrada[]): ItemProgressoEntrada[] {
   const porChave = new Map(salvos.map((i) => [i.chave, i]));
