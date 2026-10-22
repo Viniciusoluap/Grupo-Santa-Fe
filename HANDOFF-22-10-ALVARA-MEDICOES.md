@@ -17,6 +17,6 @@
 
 ## Pendências e próximo passo
 
-1. Revisão QA da branch e paridade com Prospecta.
-2. Commit/push e confirmação da árvore remota; prévia Vercel `READY`.
-3. Com a aprovação já fornecida pelo usuário no fluxo atual, merge e deploy coordenados com a correção da agenda e com Prospecta; validar produção sem alterar outras frentes.
+1. QA independente aprovado e paridade técnica coordenada com Prospecta. Commit de implementação publicado no GitHub (`ec35b57`), árvore `56501f5`, confirmado pelo compare remoto (ahead 1, behind 0 ante `7370f1e`).
+2. Validar prévia Vercel `READY` e typecheck. O handoff documental pode gerar um segundo commit na branch.
+3. Com a aprovação já fornecida pelo usuário no fluxo atual, merge e deploy coordenados com Prospecta; validar produção sem alterar outras frentes.
