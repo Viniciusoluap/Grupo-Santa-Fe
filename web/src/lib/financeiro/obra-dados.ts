@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { vgvSimuladoDoLead } from "@/lib/financeiro/vgv-lead";
 import { calcularObra, centavosDe, type EntradasObra, type ResultadoObra } from "@/lib/financeiro/obra";
 import { calcularComissaoObra, type ComissaoObraCalculada } from "@/lib/financeiro/comissao";
 
@@ -56,7 +57,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     where: { id: obraId },
     include: {
       empreiteiro: { select: { id: true, nome: true } },
-      leadVinculado: { select: { valorAprovado: true, orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
+      leadVinculado: { select: { orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
       investidores: { include: { investidor: { select: { nome: true } } }, orderBy: { investidor: { nome: "asc" } } },
       movimentos: {
         orderBy: [{ data: "asc" }, { criadoEm: "asc" }],
@@ -65,9 +66,10 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     },
   });
   if (!obra) return null;
-  // Pedido de 15/10: obra com cliente no CRM tem VGV = Valor Aprovado do lead.
+  // Obra com cliente no CRM tem VGV = VGV simulado do lead (correção 22/10;
+  // antes usava o valor financiado aprovado). Obra sem lead: VGV digitado.
   const vgvAutomatico = Boolean(obra.leadId);
-  const vgv = vgvAutomatico ? txt(obra.leadVinculado?.valorAprovado ?? null) : txt(obra.vgv);
+  const vgv = vgvAutomatico ? vgvSimuladoDoLead(obra.leadVinculado) : txt(obra.vgv);
 
   const c = obra.leadVinculado?.corretor;
   const corretor = c ? { id: c.id, nome: c.nome, percentualPadrao: txt(c.regraComissao?.percentual) } : null;
@@ -77,7 +79,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
   // Item 32: obra com corretor no CRM → comissão só pelo cálculo VGV × % (fonte
   // única; sem regra fica indisponível, nunca reaproveita valor antigo). Obra sem
   // corretor → valor informado manualmente.
-  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(vgvAutomatico ? txt(obra.leadVinculado?.orcamento) : vgv), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
+  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(vgv), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
 
   const entradas: EntradasObra = {
     vgv: centavosDe(vgv),

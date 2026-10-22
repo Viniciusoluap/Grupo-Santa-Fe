@@ -62,7 +62,7 @@ function orcamentoDoFormulario(formData: FormData) {
   return n;
 }
 
-/** Pedido de 15/10: Valor Aprovado (R$) — vazio limpa; o VGV das obras acompanha. */
+/** Valor financiado aprovado (R$) — vazio limpa. O VGV das obras acompanha o VGV simulado. */
 function valorAprovadoDoFormulario(formData: FormData): string | null {
   const raw = texto(formData, "valorAprovado", 40);
   if (!raw) return null;

@@ -13,7 +13,7 @@ export async function carregarListaObras(where: Prisma.ObraWhereInput = {}): Pro
   const registros = await prisma.obra.findMany({
     where,
     orderBy: { criadoEm: "desc" },
-    include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } }, empreiteiro: { select: { nome: true } }, leadVinculado: { select: { valorAprovado: true } } },
+    include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } }, empreiteiro: { select: { nome: true } }, leadVinculado: { select: { orcamento: true } } },
   });
   // Pedido de 18/10: medições aguardando o banco e já recebidas (filtro da lista).
   const medicoes = await prisma.obraProgressoHistorico.groupBy({
@@ -29,8 +29,8 @@ export async function carregarListaObras(where: Prisma.ObraWhereInput = {}): Pro
     clienteNome: o.clienteNome, clienteTel: o.clienteTel, endereco: o.endereco, area: o.area,
     valorTotal: o.valorTotal, valorPago: o.valorPago, progresso: progressoDaObra(o.progressoMedido?.toString(), o.progresso), engenheiroResp: o.engenheiroResp,
     dataInicio: o.dataInicio, dataPrevisaoFim: o.dataPrevisaoFim, dataConclusao: o.dataConclusao, etapas: o.etapas,
-    // Pedido de 15/10: obra com lead tem VGV = Valor Aprovado do CRM.
-    vgv: (() => { const v = o.leadId ? o.leadVinculado?.valorAprovado : o.vgv; return v == null ? null : Number(v); })(),
+    // Obra com lead tem VGV = VGV simulado do CRM (correção 22/10).
+    vgv: (() => { const v = o.leadId ? o.leadVinculado?.orcamento : o.vgv; return v == null ? null : Number(v); })(),
     orcamentoPrevisto: o.orcamentoPrevisto == null ? null : Number(o.orcamentoPrevisto),
     criadoEm: o.criadoEm, empreiteiroNome: o.empreiteiro?.nome ?? null,
   }));

@@ -173,11 +173,12 @@ describe("Lote 3 — comissão da obra pelo CRM (item 32)", () => {
     expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ comissaoValor: null, comissaoPercentual: null });
   });
 
-  it("obra com lead: VGV gravado é o Valor Aprovado do CRM, nunca o digitado (pedido 15/10)", async () => {
-    prisma.obra.findUnique.mockResolvedValue({ ...corretor("4"), leadVinculado: { valorAprovado: "195000.00", orcamento: "230000.00", corretor: { id: "c1", nome: "Corretor", regraComissao: { percentual: "4" } } } });
+  it("obra com lead: VGV gravado é o VGV simulado do CRM — nunca o valor aprovado nem o digitado (correção 22/10)", async () => {
+    // Caso real: VGV simulado R$ 291.000, valor financiado aprovado menor.
+    prisma.obra.findUnique.mockResolvedValue({ ...corretor("4"), leadVinculado: { valorAprovado: "232800.00", orcamento: 291000, corretor: { id: "c1", nome: "Corretor", regraComissao: { percentual: "4" } } } });
     const { salvarValoresObra } = await import("@/lib/actions/obra-financeiro");
     await salvarValoresObra({ ...entrada, vgv: "999999.00", comissaoPercentual: "" });
-    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ vgv: "195000.00", comissaoValor: "9200.00" });
+    expect(prisma.obra.update.mock.calls[0][0].data).toMatchObject({ vgv: "291000.00", comissaoValor: "11640.00" });
   });
 
   it("obra sem corretor: comissão é o valor informado", async () => {

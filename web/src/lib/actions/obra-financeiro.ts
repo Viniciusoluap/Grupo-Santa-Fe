@@ -8,6 +8,7 @@ import { centavosDe, reaisDeCentavos } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
 import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
+import { vgvSimuladoDoLead } from "@/lib/financeiro/vgv-lead";
 
 // EPIC-020 Lote 2 — ações financeiras da obra (somente admin), com as mesmas
 // regras da API `obraFinanceiro` da Prospecta. Os campos calculados não são
@@ -93,15 +94,15 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
   }
   const atual = await prisma.obra.findUnique({
     where: { id: input.obraId },
-    select: { comissaoPercentual: true, leadId: true, leadVinculado: { select: { valorAprovado: true, orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
+    select: { comissaoPercentual: true, leadId: true, leadVinculado: { select: { orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } } },
   });
   if (!atual) return { ok: false, erro: "Obra não encontrada." };
   if (input.comissaoPercentual === undefined) pctComissao = atual.comissaoPercentual?.toString() ?? null;
   const c = atual.leadVinculado?.corretor;
-  // Pedido de 15/10: obra com lead tem VGV = Valor Aprovado do CRM; o digitado é ignorado.
+  // Obra com lead tem VGV = VGV simulado do CRM (correção 22/10); o digitado é ignorado.
   let vgv: string | null;
   try {
-    vgv = atual.leadId ? (atual.leadVinculado?.valorAprovado?.toString() ?? null) : dinheiro(input.vgv, "VGV");
+    vgv = atual.leadId ? vgvSimuladoDoLead(atual.leadVinculado) : dinheiro(input.vgv, "VGV");
   } catch (err) {
     return { ok: false, erro: err instanceof Error ? err.message : "Valores inválidos." };
   }
@@ -110,7 +111,7 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
   try {
     calculada = calcularComissaoObra({
       corretor: c ? { id: c.id, nome: c.nome, percentualPadrao: c.regraComissao?.percentual.toString() ?? null } : null,
-      vgvCentavos: centavosDe(atual.leadId ? atual.leadVinculado?.orcamento?.toString() ?? null : vgv),
+      vgvCentavos: centavosDe(vgv),
       percentualObra: pctComissao,
       pagoCentavos: 0,
     }).valorCentavos;
