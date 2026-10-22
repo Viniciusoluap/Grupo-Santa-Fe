@@ -399,10 +399,10 @@ export function ValoresOperacao({ resumo, form, setForm, calculo, empreiteiroNom
       <Alertas calculo={calculo} />
       <Secao titulo="Composição da operação">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Pedido de 15/10: obra com cliente no CRM tem VGV = Valor Aprovado do lead (não editável aqui). */}
+          {/* Obra com cliente no CRM tem VGV = VGV simulado do lead (não editável aqui). */}
           {resumo.obra.vgvAutomatico
-            ? <Leitura label="VGV · automático" valor={form.vgv ? formatCurrency(Number(form.vgv)) : "Valor Aprovado não informado no CRM"}
-                ajuda="Vem do Valor Aprovado do cliente no CRM. Para alterar, edite o lead." />
+            ? <Leitura label="VGV · automático" valor={form.vgv ? formatCurrency(Number(form.vgv)) : "VGV simulado não informado no CRM"}
+                ajuda="Vem do VGV simulado do cliente no CRM. Para alterar, edite o lead." />
             : <div><p className={labelCls}>VGV</p><CampoDecimal valor={form.vgv} onChange={set("vgv")} prefixo="R$" ariaLabel="VGV" /></div>}
           <div><p className={labelCls}>Financiamento CEF</p><CampoDecimal valor={form.financiamento} onChange={set("financiamento")} prefixo="R$" ariaLabel="Financiamento CEF" /></div>
           <div><p className={labelCls}>FGTS</p><CampoDecimal valor={form.fgts} onChange={set("fgts")} prefixo="R$" ariaLabel="FGTS" /></div>

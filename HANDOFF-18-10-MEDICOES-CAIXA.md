@@ -127,3 +127,52 @@ Retomada solicitada pelo proprietário após esgotar o saldo no Claude.
 - Mantido de propósito: uma cópia no Drive a cada salvamento ou edição, porque é o histórico de versões pedido pelo dono. O envio repetido da mesma PCI ao mesmo tempo pode duplicar a cópia no Drive em caso raro de corrida; isso não afeta o banco. md5 x sha256 do hash interno.
 - Testes: (a) Prospecta 859/859, check e build OK; SF 741/741 com Postgres real, tsc e lint 0 erros, `next build` OK. (b) E2E SF no navegador 21/21 após as correções. (c) Pendente em produção: Excel/SIOPI, Drive real e tela da Prospecta.
 - Próximo passo: aplicar em produção a Prospecta 0058+0059 (Neon `br-steep-leaf-anxdjv1p`) e o SF `20261018220000_medicao_caixa_pci` (Supabase `giulchozonhzyopmgmkv`), conferindo antes e depois; em seguida, squash merge de #137/#203, deploy READY e smoke.
+
+
+## Retomada do Codex — 19/10/2026, 07h02 (Fortaleza) — LER PRIMEIRO
+### Ponto recuperado e conclusão da etapa
+- O print do Claude mostrava a tentativa de commit/push da correção ESM. O GitHub já continha o commit `80ed7c7`, e o PR Prospecta #138 estava em rascunho. A correção foi recuperada integralmente; nenhum código precisou ser refeito.
+- Medições CAIXA já mescladas: Prospecta #137, main `c3220a4`; Santa Fé #203, main `1ad0c8d`.
+- Prospecta #138 marcado pronto e mesclado por squash com conferência do head: main `b216b578b790d286e9834b1b7568d4849a1a42e3`.
+- Corrige 12 imports relativos de server/caixa para .js; inclui server/imports-esm.test.ts e a guarda no buildCommand da Vercel.
+- Deploy de produção corrigido `dpl_26vLxciZhBT8CbXmga7F3P6ThTJ4`, READY, promovido no projeto site-prospecta, equipe viniciusoluaps-projects. O domínio www.prospectaconstrucoes.com foi consultado pela API Vercel e aponta para esse deploy/commit.
+- Santa Fé permanece no deploy READY `dpl_3FwJPqH5GBxoGtCSsaq9f2tVaVSF`, main `1ad0c8d`; a correção de resolução ESM é específica da stack Prospecta e não exige mudar imports do Next.js.
+
+### Testes e verificações desta retomada
+- (a) Automáticos: logs do build de produção Prospecta confirmam 860/860 testes em 105 arquivos, tsc --noEmit e build concluído. Verificação local adicional em 155 arquivos de server/shared/api: zero imports relativos sem extensão .js/.json. A instalação local pelo pnpm global falhou por incompatibilidade de versão; a tentativa com Corepack foi interrompida por redundância após a suíte completa passar na Vercel. Não atribuir esses 860 testes a uma execução local do Codex.
+- (b) Verificações HTTP feitas pelo Codex: prévia corrigida e deploy de produção novo /api/trpc/auth.me = 200 (json null, sessão ausente). No domínio público Prospecta, /api/trpc/auth.me = 200 e /api/obras/medicoes/1/arquivo.pdf = 401, sem arquivo privado exposto. Santa Fé: home pública = 200; /api/obras/1/pci no deploy de produção = 403 sem login.
+- (b) Bancos de produção consultados SOMENTE por SELECT: Neon SiteProspecta/plain-cake-26372935, branch br-steep-leaf-anxdjv1p: construction_pci, construction_pci_versions, pci_version_id, measurement_type, caixa_data e progress_history_id presentes; incidencia numeric(20,15). Supabase giulchozonhzyopmgmkv: obra_pci/obra_pci_versoes, versaoId, pciVersaoId, dadosCaixa, tipo e obra_fotos.medicaoId presentes; incidencia e somaIncidencia numeric(20,15). Não reaplicar migrations 0058/0059/SF por suposição: estruturas já presentes.
+- (b) Logs error/fatal do deploy corrigido Prospecta e do deploy Santa Fé: nenhum registro encontrado na janela consultada imediatamente após os smokes (observação pontual, não garantia de ausência futura).
+- (c) Continuam pendentes: fluxo autenticado real da Prospecta (PCI → vincular → salvar medição → fotos → baixar XLS/PDF); Drive real; abrir XLS no Excel e aceitação no SIOPI; amostra real de XLSB. Nenhuma medição/dado de cliente foi criado ou alterado nesta retomada.
+
+### Limitação confirmada da prévia e próximo passo exato
+- A prévia Prospecta do commit 80ed7c7 inicia a API, mas baixar medição retorna 500 porque o banco configurado para preview não tem construction_progress_history (confirmado no log). Isto não aconteceu no smoke do domínio de produção. Não copiar credenciais nem apontar preview para produção para mascarar o problema.
+- Configurar/verificar um banco de teste isolado da prévia com schema completo antes de usar preview para E2E de medições. Verificar sessão antes de consultar a medição e evitar devolver SQL interno em erros são melhorias a avaliar no mesmo fluxo (sem alteração funcional nesta retomada).
+- Depois validar os itens (c) com sessão autorizada e PCI aprovada. Não declarar SIOPI/Drive validados com os smokes anônimos.
+- Branch de continuidade: claude/sync-mirrored-repos-bsqnz3 nos dois. Os drafts antigos #136/#202 foram substituídos por #137/#203 já mesclados: não mesclar novamente.
+
+
+## Validação adicional solicitada pelo dono — 19/10/2026, 07h14 (Fortaleza)
+- Pedido atual: executar as validações autonomamente.
+- Nova branch Neon tentada com compute 0,25–1 CU e suspensão em 300 s: recusada por "branches limit exceeded". Nada criado; nenhum plano alterado ou branch existente excluída.
+- Alternativa executada: prévia existente `br-ancient-unit-angrkoct` (preview/claude/sync-mirrored-repos-bsqnz3) recebeu as migrações aditivas 0040, 0057, 0058 e 0059, em transação. Primeira tentativa tinha dois comandos em uma instrução preparada e falhou; execução corrigida por arquivo/breakpoint foi confirmada. Acrescentadas também somente as quatro primeiras instruções da 0035 (enum empreiteiro e três colunas da obra), a primeira da 0036 (metadados CEF) e a 0039 (comissões/constraints).
+- Verificação posterior: construction_progress_history e construction_pci_versions existem, ambas vazias; download na prévia passou de 500 por relação ausente para 404 Medição não encontrada. Não houve gravação de obra/medição/usuário real.
+- IMPORTANTE: esta é uma preparação ESPECÍFICA do schema de medições/obra. O restante do banco preview ainda diverge da produção de 19/10. Não registrar a última migration isoladamente no journal como se todas as anteriores estivessem aplicadas; o histórico Drizzle antigo foi preservado. Antes de um migrate geral, reconciliar esses objetos já presentes, inclusive o trigger snapshot_construction_pci_before_write.
+- (a) Prospecta: 18/18 testes direcionados (caixa-medicao e caixa-pci-migration); pnpm check aprovado. Utilitário scripts/validar-modelos-medicao-caixa.ts (SF: web/scripts/validar-modelos-medicao-caixa.ts), sem qualquer efeito em banco: gera dados fictícios para os 3 tipos XLS/PDF. Executar com node --import tsx <script> <diretorio-temporario>. O CLI tsx não funciona neste sandbox por bloqueio de socket IPC; o loader node --import tsx funciona.
+- (a)/(b) LibreOffice abriu e converteu OS TRÊS XLS para XLSX sem erro de importação. Openpyxl após o recálculo externo confirmou: 9 abas preservadas; PLS V87=0,5, Y105=29,3499993392 e Y106=10,1; Repactuação X57=6, X59=9; Alteração AB120=23600, X119=18. Isto valida LibreOffice e os campos conferidos; NÃO significa abertura verificada no Microsoft Excel nem aceite do SIOPI.
+- (b) PDFs gerados: PLS 132464 bytes, Repactuação 70153 bytes, Alteração 97892 bytes. Primeiras páginas PLS/Alteração renderizadas e inspecionadas, sem cortes visíveis. Dados da fixture são fictícios e não podem ser protocolados.
+- (a) Paridade: o utilitário também foi executado contra os módulos CAIXA do Santa Fé, usando esbuild com dependências locais da Prospecta para isolar o motor puro. Os três XLS são IDÊNTICOS BYTE A BYTE aos gerados na Prospecta; PDFs têm mesmos tamanhos. Isso não substitui testar as actions Prisma/Next.
+- (b) Produção Prospecta consultada somente com EXISTS: Google Drive OAuth está configurado; não há PCI real nem medição vinculada a PCI no banco, neste momento. Nenhum token/segredo foi lido.
+- (c) Navegador remoto disponível, mas sem sessão: a Prospecta abriu /login, com Email/Senha. Não redefinir senha, não gerar sessão de usuário via segredo, não conceder perfil nem criar conta administrativa em produção para contornar o login.
+- Próximo passo: obter autenticação pelo browserAuth seguro na aba Prospecta já aberta. Só então validar interface/Drive real com autorização adequada. SIOPI exige sessão CAIXA e uma PCI/medição real autorizada; não enviar a fixture fictícia como teste de aceite.
+
+
+## Validação autenticada posterior — 19/10/2026
+- browserAuth seguro concluído: painel Prospecta /admin observado com sessão autenticada. Nenhum segredo foi lido ou salvo pelo agente.
+- Interface /admin/configuracoes → Testar Google Drive: "Google Drive funcionando: os próximos arquivos serão gravados no Drive". Quatro etapas OK: autorização OAuth, acesso à pasta raiz, pasta privada sem link público e gravação do arquivo de teste. Comprova conexão/gravação reais; não comprova a cópia dos XLS/PDF de uma medição salva.
+- /admin/obras e editor /admin/obras/editar/38 (obra de teste existente) carregaram. Progresso: 20 etapas, incidências 100%, PLS/Repactuação/Alteração, controles de PCI/fotos/histórico presentes.
+- Teste apenas em memória: Execução Infraestrutura = 100 produziu progresso geral 7,00% e contribuição 7,0000%; voltou a 0,00. Tipo Repactuação revelou datas/prazos/motivo; voltou a PLS e saiu por Voltar SEM SALVAR. Lista confirmou #38 ainda em 0,00%. Nenhuma medição/obra de cliente alterada.
+- Logs error/fatal do deploy Prospecta consultados após navegação/Drive: nenhum registro na janela de 20 min.
+- Abrir Santa Fé em outra aba foi impedido pela proteção de observação/credenciais deste navegador. A navegação explícita à origem Prospecta recuperou sua observação, mas a tentativa seguinte no segundo sistema continuou bloqueada. Não insistir nem contornar; isto não é evidência de falha do site.
+- PENDENTES: envio/vínculo da PCI, salvar medição/fotos e downloads autenticados pela UI; cópia dos documentos dessa medição no Drive; UI autenticada do Santa Fé; Microsoft Excel; aceite SIOPI.
+- Antes do caso real, selecionar obra/contrato e PCI autorizados. Consulta anterior confirmou que ainda não havia PCI cadastrada em produção Prospecta. Não gravar fixture fictícia na obra real nem protocolar teste no SIOPI.
