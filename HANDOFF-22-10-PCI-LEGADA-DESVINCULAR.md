@@ -18,6 +18,7 @@
 
 ## Verificação até este checkpoint
 
-- Automática: nenhuma desta frente PCI.
+- Automática: o parser agora localiza os 20 itens pela numeração da coluna G, lê as incidências da coluna X na linha correta (113 ou 120), acompanha a linha nas faixas mínima/máxima e recusa soma diferente de 100%. `web/src/lib/__tests__/pci-legada.test.ts` cobre as duas versões e os erros. `vitest run src/lib/__tests__/pci-legada.test.ts src/lib/__tests__/caixa-medicao.test.ts`: **21/21 passaram**. Arquivos alterados: `web/src/lib/caixa/pci.ts` e teste.
 - Manual: imagens examinadas; diagnóstico inicial por comparação com a constante do parser.
 - Produção pendente: deploy do alvará e validação autenticada da PCI após correção.
+- **Ainda não concluído:** botão e ação de desvincular; reparo do `parsed` da PCI previamente enviada; testes DB/permissão. Não mesclar/publicar esse lote em produção sem completar os itens e QA.
