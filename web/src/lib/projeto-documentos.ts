@@ -8,7 +8,7 @@ export function projectChecklist(types: string[], current: ProjectCheck[], label
   for (const type of selected) {
     const text = labels[type] || type;
     const found = result.find(c => c.type === type || c.id === type || c.text.toLocaleLowerCase("pt-BR") === text.toLocaleLowerCase("pt-BR"));
-    if (found) { found.id = type; found.type = type; }
+    if (found) { found.id ||= type; found.type = type; }
     else result.push({ id: type, type, text, done: false });
   }
   return result;

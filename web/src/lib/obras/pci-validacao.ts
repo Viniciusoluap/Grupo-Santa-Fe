@@ -7,7 +7,7 @@ export function validarPartePci(entrada: { uploadId?: unknown; chunkIndex?: unkn
   if (typeof uploadId !== "string" || !/^[a-zA-Z0-9-]{20,64}$/.test(uploadId)) throw new Error("Identificador de envio inválido.");
   if (!Number.isInteger(totalChunks) || Number(totalChunks) < 1 || Number(totalChunks) > MAX_PARTES_PCI || !Number.isInteger(chunkIndex) || Number(chunkIndex) < 0 || Number(chunkIndex) >= Number(totalChunks)) throw new Error("Parte da PCI inválida.");
   if (typeof nome !== "string" || !/\.(xls|xlsb)$/i.test(nome) || nome.length > 255) throw new Error("Envie a PCI em .xls ou .xlsb.");
-  if (typeof chunk !== "string" || !chunk || chunk.length > Math.ceil(PARTE_PCI_BYTES / 3) * 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(chunk)) throw new Error("Parte da PCI ausente ou inválida.");
+  if (typeof chunk !== "string" || !chunk || chunk.length > Math.ceil(PARTE_PCI_BYTES / 3) * 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(chunk) || (chunk.length / 4) * 3 - (chunk.endsWith("==") ? 2 : chunk.endsWith("=") ? 1 : 0) > PARTE_PCI_BYTES) throw new Error("Parte da PCI ausente ou inválida.");
   return { uploadId, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks), chunk, nome };
 }
 /** Remove ruído binário do Excel na fronteira de importação, na precisão do banco. */

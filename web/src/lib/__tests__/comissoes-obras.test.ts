@@ -25,9 +25,9 @@ describe("listarComissoesDeObras", () => {
   });
 
   it("calcula VGV × % e soma pagamentos de categoria comissão", async () => {
-    // Pedido de 15/10: o VGV vem do Valor Aprovado do lead (o da obra é ignorado).
+    // Pedido de 15/10: a comissão vem do VGV simulado do lead (o da obra é ignorado).
     prisma.obra.findMany.mockResolvedValue([obra({ vgv: "1.00", comissaoPercentual: "5.0000", movimentos: [{ valor: "5000.00" }],
-      leadVinculado: { nome: "Cliente CRM", valorAprovado: "230000.00", corretor: { id: "c1", nome: "Corretor", regraComissao: null } } })]);
+      leadVinculado: { nome: "Cliente CRM", valorAprovado: "180000.00", orcamento: "230000.00", corretor: { id: "c1", nome: "Corretor", regraComissao: null } } })]);
     prisma.comissao.findMany.mockResolvedValue([]);
     const { listarComissoesDeObras } = await import("@/lib/comissoes/obras");
     const [r] = await listarComissoesDeObras();
@@ -44,7 +44,7 @@ describe("listarComissoesDeObras", () => {
   });
 
   it("comissão manual da mesma obra é preservada e divergências sinalizadas", async () => {
-    prisma.obra.findMany.mockResolvedValue([obra({ vgv: "230000.00", leadVinculado: { nome: "X", valorAprovado: "230000.00", corretor: { id: "c1", nome: "C", regraComissao: { percentual: "5.0000" } } } })]);
+    prisma.obra.findMany.mockResolvedValue([obra({ vgv: "230000.00", leadVinculado: { nome: "X", valorAprovado: "180000.00", orcamento: "230000.00", corretor: { id: "c1", nome: "C", regraComissao: { percentual: "5.0000" } } } })]);
     prisma.comissao.findMany.mockResolvedValue([{ id: "m1", negocioId: "o1", corretorId: "c2", valor: 1000, percentual: 6, status: "pendente" }]);
     const { listarComissoesDeObras } = await import("@/lib/comissoes/obras");
     const [r] = await listarComissoesDeObras();

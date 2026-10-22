@@ -42,6 +42,7 @@ const existente = {
 };
 const tx = {
   lead: { findUnique: mocks.findUnique, findUniqueOrThrow: mocks.findUniqueOrThrow, create: mocks.leadCreate, update: mocks.leadUpdate, updateMany: mocks.updateMany },
+  financiamento: { updateMany: mocks.updateMany },
   interacao: { create: mocks.interacao },
 };
 function form(campos: Record<string, string | string[]>) {
@@ -77,7 +78,7 @@ beforeEach(() => {
   mocks.findUnique.mockResolvedValue(null);
   mocks.findUniqueOrThrow.mockResolvedValue(existente);
   mocks.leadCreate.mockResolvedValue({ ...existente, etapaOperacional: "novo_lead" });
-  mocks.leadUpdate.mockResolvedValue({ id: "L1", nome: "Maria atualizada", telefone: "2", email: null });
+  mocks.leadUpdate.mockResolvedValue({ id: "L1", nome: "Maria atualizada", telefone: "2", email: null, orcamento: 230000, valorAprovado: "184000.00" });
   mocks.updateMany.mockResolvedValue({ count: 1 });
   mocks.interacao.mockResolvedValue({});
   mocks.sincronizar.mockResolvedValue({ criados: 1, falhas: [] });
@@ -87,6 +88,15 @@ beforeEach(() => {
 });
 
 describe("criarLead — persistência atômica", () => {
+  it("salva VGV simulado no cadastro e ignora financiamento aprovado enviado indevidamente", async () => {
+    const fd = criarForm();
+    fd.set("orcamento", "230000.75");
+    fd.set("valorAprovado", "180000");
+    expect(await urlDoRedirect(criarLead(fd))).toBe("/admin/leads");
+    expect(mocks.leadCreate.mock.calls[0][0].data.orcamento).toBe(230000.75);
+    expect(mocks.leadCreate.mock.calls[0][0].data).not.toHaveProperty("valorAprovado");
+  });
+
   it("propaga falha na operação, sem notificação, revalidação ou redirect de sucesso", async () => {
     mocks.sincronizar.mockRejectedValue(new Error("Falha ao criar avaliação"));
     await expect(criarLead(criarForm())).rejects.toThrow("Falha ao criar avaliação");
@@ -124,7 +134,7 @@ describe("editarLead — persistência atômica", () => {
     await expect(editarLead(editarForm())).rejects.toThrow("Falha ao criar projeto");
     expect(mocks.bloquear).toHaveBeenCalledWith(tx, "L1");
     expect(mocks.updateMany.mock.calls[0][0].data).toEqual({ etapaOperacional: "projetos_vistorias" });
-    expect(mocks.propagar).toHaveBeenCalledWith({ id: "L1", nome: "Maria atualizada", telefone: "2", email: null }, tx);
+    expect(mocks.propagar).toHaveBeenCalledWith(expect.objectContaining({ id: "L1", nome: "Maria atualizada", telefone: "2", email: null }), tx);
     expect(mocks.sincronizar).toHaveBeenCalledWith("L1", tx);
     semFalsoSucesso(); semEscritaGlobal();
   });

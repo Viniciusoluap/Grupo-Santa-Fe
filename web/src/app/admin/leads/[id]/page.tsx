@@ -211,7 +211,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 <div className="flex items-start gap-2">
                   <span className="text-[var(--brand-dark)] mt-0.5 text-sm shrink-0">R$</span>
                   <div>
-                    <p className="text-xs text-gray-600">Valor Aprovado</p>
+                    <p className="text-xs text-gray-600">Valor financiado aprovado</p>
                     <p className="text-sm font-bold">{formatCurrency(Number(lead.valorAprovado))}</p>
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 <div className="flex items-start gap-2">
                   <span className="text-[var(--brand-dark)] mt-0.5 text-sm shrink-0">R$</span>
                   <div>
-                    <p className="text-xs text-gray-600">Budget</p>
+                    <p className="text-xs text-gray-600">VGV simulado</p>
                     <p className="text-sm font-bold">{formatCurrency(lead.orcamento)}</p>
                   </div>
                 </div>

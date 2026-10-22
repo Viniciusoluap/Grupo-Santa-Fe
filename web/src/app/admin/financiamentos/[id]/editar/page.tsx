@@ -18,7 +18,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
   await exigirModuloPagina("financiamentos");
   const { id } = await params;
   await financiamentoDoAtor(id);
-  const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true, cpf: true } } } });
+  const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true, cpf: true, orcamento: true, valorAprovado: true } } } });
   if (!f) notFound();
 
   return (
@@ -96,13 +96,13 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Valores</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Imóvel *</label>
-                <CurrencyInput name="valorImovel" required defaultValue={f.valorImovel}
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">VGV simulado *</label>
+                <CurrencyInput name="valorImovel" required defaultValue={f.leadVinculado ? f.leadVinculado.orcamento : f.valorImovel}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Financiamento *</label>
-                <CurrencyInput name="valorFinanciado" required defaultValue={f.valorFinanciado}
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor financiado aprovado *</label>
+                <CurrencyInput name="valorFinanciado" required defaultValue={f.leadVinculado ? Number(f.leadVinculado.valorAprovado ?? 0) : f.valorFinanciado}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
             </div>
