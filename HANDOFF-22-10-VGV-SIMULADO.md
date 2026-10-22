@@ -26,3 +26,12 @@ A obra com lead usava o valor financiado aprovado como VGV, na tela, na gravaç�
 
 ## Próximo passo
 PRs → merge → deploy READY → teste rápido → alinhar a coluna `vgv` (e a comissão gravada da Prospecta) com o VGV simulado.
+
+## Concluído em produção (22/10)
+- PRs mesclados: Prospecta #153 (`5ad5123`) e Santa Fé #216 (`929a7c1`). Deploys READY: `dpl_82XBz4YyKv6SAkVYpNMXAFpVmN3x` e `dpl_EAkAEU4csiYtQdYSMMN8uqKSz6wx`.
+- Teste rápido: `/api/trpc/auth.me` da Prospecta responde 200 (sem falha de módulo). Santa Fé sem erros de execução.
+- Dados alinhados com UPDATE protegido (só os ids listados e só onde o valor divergia):
+  - Prospecta: `vgv` = VGV simulado nas 9 obras; comissão gravada da obra 14 em R$ 5.140,50 (antes 3.600,45) e da obra 31 em R$ 6.800,00 (antes 7.000,00). Conferido: 0 obras divergentes; obra 48 (lead #92) com R$ 291.000 e comissão R$ 11.640.
+  - Santa Fé: `vgv` das 3 obras = VGV simulado (Vilton 1.000; Alessandra 260.000; Ageu Galpão 20.000).
+- (c) Pendente com o dono: revisar o VGV simulado dos leads "Ageu Galpão" (R$ 20.000 contra R$ 200.000 aprovado) e "Vilton" (R$ 1.000), que parecem digitados errado. Ao corrigir no lead, a obra acompanha sozinha.
+- Próximo passo: nenhum técnico. Aguardar a conferência visual do dono na obra do lead #92.
