@@ -1,5 +1,12 @@
 # Handoff — PCI legada e desvinculação (22/10/2026)
 
+## Situação final desta entrega (mais recente)
+
+- PR [#213](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/213) mesclado em `main` no commit `556a4e62597348941a4d06b10c2cd850f06690b9`. Prévia do commit `c775b0bb8fe3a7e1a037d4fcffe3dab9aad030f6` e deploy de produção do merge confirmados **READY** na Vercel em 22/10/2026.
+- Parser de PCI antiga, reprocessamento dos bytes no vínculo, botão de desvincular e restauração de incidências padrão com execução e histórico preservados estão publicados. A data principal do histórico usa a data do levantamento preenchida; o instante de registro permanece separado para auditoria. Registros antigos sem levantamento salvo exibem a data de criação.
+- Testes locais: 32/32. O primeiro build de prévia falhou na tipagem de itens do desvínculo; a correção entrou no commit final, e a segunda prévia e produção passaram. Nenhum XLS original ou operação de cliente real foi testado nesta sessão. Validar com a planilha original quando disponível; o usuário aciona **Vincular PCI** para reprocessar uma PCI já armazenada.
+- As seções abaixo descrevem checkpoints anteriores e podem conter pendências já concluídas. Esta seção prevalece para o estado da entrega.
+
 ## Contexto e estado confirmado
 
 - A agenda unificada foi mesclada no Grupo Santa Fé em `7370f1e` (PR #211) e publicada no Vercel READY. A herança das datas de alvará nas medições PLS foi aprovada em QA (26 testes, lint e prévia Vercel READY), mesclada em `30c6cf508caf0e6667b54afa7438ebf40e03ca99` (PR #212). O deploy de produção desse último commit foi confirmado READY pelo Vercel nesta sessão.
