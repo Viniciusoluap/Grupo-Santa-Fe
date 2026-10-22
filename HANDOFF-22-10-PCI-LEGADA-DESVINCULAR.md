@@ -34,6 +34,13 @@
 
 ## Estado mais recente — implementação local após o checkpoint de parser
 
+### Continuação da publicação e ajuste solicitado em 22/10
+
+- O código da PCI e do desvínculo foi publicado na branch remota, árvore `633df5eca1d451dfc9f8c355a402b7678524c3a4`, commit GitHub `f41862350469c057980e467655d6ec3d08ac5460`. PR #213 aberto. A autorização explícita do usuário para publicar nos repositórios públicos foi recebida.
+- A primeira prévia falhou no TypeScript de `desvincularPciObra`: `restaurarIncidenciasPadrao` permite `null` no tipo dos itens, enquanto `createMany` exige valores não nulos. As duas gravações de itens passaram a serializar `incidencia` e `execucao` com `String`, após a validação de `calcularProgresso`. Revalidar na nova prévia.
+- A data principal de cada medição no histórico passa a mostrar `dadosCaixa.pls.dataLevantamento` (dia/mês/ano). O cadastro permanece como `Registrada em`; registros antigos sem levantamento preservam a data de cadastro. A edição não altera o instante de criação.
+- Nova prévia, merge e produção ainda aguardam validação final. O XLS original do exemplo continua não anexado.
+
 Esta seção substitui as pendências de código descritas acima. O parser já estava publicado; as mudanças abaixo estão no worktree e precisam de commit/push/preview antes de merge.
 
 - `web/src/lib/actions/obra-progresso.ts`: `vincularPciObra` relê os bytes da versão corrente; se o JSON antigo divergir, cria versão lógica corrigida com hash dos bytes + identificador do parser e aponta o vínculo atual para ela, mantendo versões de históricos intactas. `desvincularPciObra` restaura incidências padrão com execução preservada, mantém arquivo e histórico, recalcula progresso e revalida páginas. Novas medições quando desvinculada usam `pciVersaoId: null`; editar/excluir histórico vinculado depois do desvínculo não repõe a distribuição antiga na obra.

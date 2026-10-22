@@ -344,7 +344,7 @@ export async function vincularPciObra(obraId: string): Promise<Resultado<{ somaI
     const calculo = calcularProgresso(itens);
     if (calculo.erros.length) throw new RecusaMedicao(calculo.erros.join(" "));
     await tx.obraProgressoItem.deleteMany({ where: { obraId } });
-    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, ...i, atualizadoPorId: usuarioId })) });
+    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao), atualizadoPorId: usuarioId })) });
     await tx.obraPci.update({ where: { obraId }, data: { vinculadaEm: new Date(), vinculadaPorId: usuarioId } });
     await tx.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } });
     // O vínculo prepara a próxima medição; não modifica uma medição já gravada.
@@ -368,7 +368,7 @@ export async function desvincularPciObra(obraId: string): Promise<Resultado<{ so
     const calculo = calcularProgresso(itens);
     if (calculo.erros.length) throw new RecusaMedicao(calculo.erros.join(" "));
     await tx.obraProgressoItem.deleteMany({ where: { obraId } });
-    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, ...i, atualizadoPorId: usuarioId })) });
+    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao), atualizadoPorId: usuarioId })) });
     await tx.obraPci.update({ where: { obraId }, data: { vinculadaEm: null, vinculadaPorId: null } });
     await tx.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } });
     return calculo.somaIncidencia;
