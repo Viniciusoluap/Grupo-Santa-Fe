@@ -11,7 +11,7 @@ export default async function LeadsPage() {
     orderBy: { criadoEm: "desc" },
     select: {
       id: true, nome: true, telefone: true, email: true, servico: true,
-      status: true, temperatura: true, etapaOperacional: true, arquivadoEm: true, excluidoEm: true,
+      status: true, temperatura: true, etapaOperacional: true, arquivadoEm: true, excluidoEm: true, vencimentoCard: true,
       origem: true, orcamento: true, notas: true, criadoEm: true, atualizadoEm: true, responsavelId: true,
       corretor: { select: { id: true, nome: true } },
       responsavel: { select: { id: true, nome: true } },

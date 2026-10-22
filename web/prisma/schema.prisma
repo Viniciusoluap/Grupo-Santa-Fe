@@ -85,6 +85,7 @@ model ImovelRecusadoAviso {
 
 model Lead {
   id                String   @id @default(cuid())
+  vencimentoCard    DateTime? @db.Date
   nome              String
   telefone          String
   email             String?
@@ -112,6 +113,7 @@ model Lead {
   notas             String   @default("")
   senhaAcesso       String?
   interacoes        Interacao[]
+  tarefas           TarefaCrm[]
   visitas           Visita[]
   financiamentos    Financiamento[]
   obras             Obra[]
@@ -143,6 +145,7 @@ model ServicoLead {
   projeto Projeto?
   regularizacao Regularizacao?
   avaliacao Avaliacao?
+  tarefa TarefaCrm?
   @@unique([id, leadId])
   @@index([leadId, modulo])
   @@map("servicos_lead")
@@ -181,6 +184,24 @@ model Visita {
   atualizadoEm    DateTime  @updatedAt
 
   @@map("visitas")
+}
+
+model TarefaCrm {
+  id String @id @default(cuid())
+  leadId String
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  servicoLeadId String? @unique
+  servicoLead ServicoLead? @relation(fields: [servicoLeadId], references: [id], onDelete: SetNull)
+  titulo String
+  descricao String @default("")
+  responsavelId String?
+  status String @default("pendente")
+  prazo DateTime?
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([leadId, prazo])
+  @@map("tarefas_crm")
 }
 
 // ─── CORRETORES ──────────────────────────────────────────────────────────────
@@ -827,6 +848,26 @@ model Notificacao {
 
   @@index([usuarioId, lida])
   @@map("notificacoes")
+}
+
+model AvisoVencimentoCard {
+  usuarioId String
+  leadId String
+  vencimento DateTime @db.Date
+  canal String
+  enviadoEm DateTime @default(now())
+
+  @@id([usuarioId, leadId, vencimento, canal])
+  @@map("avisos_vencimento_card")
+}
+
+model ResumoVencimentoCard {
+  usuarioId String
+  dia DateTime @db.Date
+  criadoEm DateTime @default(now())
+
+  @@id([usuarioId, dia])
+  @@map("resumos_vencimento_card")
 }
 
 // ─── INCORPORAÇÃO (estudos de viabilidade / massa / topografia / urbanístico) ──

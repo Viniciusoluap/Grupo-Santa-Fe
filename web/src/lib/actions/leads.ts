@@ -23,6 +23,24 @@ import { SERVICOS_LEAD, moduloDoServico, parseServicosLead } from "@/lib/crm/ser
 import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
+import { dataDoCard } from "@/lib/crm/vencimento-card";
+
+/** Atualiza somente o prazo deste lead; visitas e tarefas mantêm seus próprios prazos. */
+export async function alterarVencimentoCard(leadId: string, date: string, atualizadoEm: string) {
+  const ator = await obterAtorCrm();
+  exigirAtorInterno(ator);
+  const vencimentoCard = dataDoCard(date);
+  const atual = await prisma.lead.findUnique({ where: { id: leadId }, select: {
+    id: true, corretorId: true, excluidoEm: true, arquivadoEm: true, atualizadoEm: true,
+  } });
+  autorizarLeadDoAtor(ator, atual);
+  if (!atual || atual.excluidoEm || atual.arquivadoEm) throw new Error("Lead indisponível.");
+  if (atual.atualizadoEm.toISOString() !== atualizadoEm) throw new Error("Este card mudou. Atualize a página antes de salvar.");
+  await prisma.lead.update({ where: { id: leadId }, data: { vencimentoCard } });
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/agenda");
+  revalidatePath(`/admin/leads/${leadId}`);
+}
 
 function validarServicos(raw: FormDataEntryValue[], legados: string[] = []) {
   const servicos = [...new Set(raw.map(String))];
