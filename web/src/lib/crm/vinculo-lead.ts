@@ -59,7 +59,7 @@ export async function garantirChecklistDosFinanciamentos(leadId: string, tx?: Tr
   return semChecklist.length;
 }
 
-type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null; orcamento?: number | null; valorAprovado?: Prisma.Decimal | null };
+type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null; orcamento?: number | null; valorAprovado?: Prisma.Decimal | null; responsavelId?: string | null };
 async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOperacional, servicoLeadId: string) {
   const cliente = dadosClienteDoLead(lead);
   const vinculo = { leadId: lead.id, servicoLeadId };
@@ -77,6 +77,9 @@ async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOpe
     case "avaliacao":
       // Identificador longo evita colisões e não exige recuperar uma transação abortada.
       return tx.avaliacao.create({ data: { ...cliente, ...vinculo, numero: `AVL-${randomUUID()}`, tipo: "mercado", finalidade: "compra_venda", endereco: "A definir", bairro: "A definir", avaliador: "A definir" } });
+    case "tarefa":
+      return tx.tarefaCrm.create({ data: { ...vinculo, titulo: `Atender ${lead.nome}`,
+        responsavelId: lead.responsavelId ?? null } });
   }
 }
 
@@ -104,7 +107,7 @@ async function reconciliarLegados(tx: TransacaoCRM, leadId: string) {
   }
 }
 
-const demandaInclude = { financiamento: true, obra: true, projeto: true, regularizacao: true, avaliacao: true } as const;
+const demandaInclude = { financiamento: true, obra: true, projeto: true, regularizacao: true, avaliacao: true, tarefa: true } as const;
 export interface ResultadoSincronizacao { criados: number; falhas: ModuloServico[] }
 
 /** Lead e operações são gravados no mesmo commit. Falha em qualquer write aborta tudo. */

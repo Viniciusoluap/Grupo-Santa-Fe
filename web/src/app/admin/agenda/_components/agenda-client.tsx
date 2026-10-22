@@ -10,6 +10,8 @@ import {
 import { criarVisita, editarVisita, excluirVisita, atualizarStatusVisita } from "@/lib/actions/agenda";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { rotulo } from "@/lib/rotulos";
+import { chaveDoCard } from "@/lib/crm/vencimento-card";
+import { editarTarefaCrm } from "@/lib/actions/tarefas-crm";
 
 type Corretor = { id: string; nome: string };
 type ImovelItem = { id: string; titulo: string };
@@ -36,6 +38,8 @@ interface Props {
   corretores: Corretor[];
   imoveis: ImovelItem[];
   leads: LeadItem[];
+  vencimentos: { id: string; nome: string; vencimentoCard: Date | string | null }[];
+  tarefas: { id: string; titulo: string; status: string; prazo: Date | string | null; leadId: string; lead: { nome: string } }[];
   /** Pedido de 15/10: o corretor não escolhe corretor/colaborador (vem da sessão). */
   ehCorretor?: boolean;
 }
@@ -98,10 +102,10 @@ function ExcluirVisitaBtn({ id }: { id: string }) {
 
 /* ────────── Calendário ────────── */
 function Calendario({
-  visitas, ano, mes, diaSelecionado,
+  visitas, vencimentos, tarefas, ano, mes, diaSelecionado,
   onSelect, onPrev, onNext,
 }: {
-  visitas: VisitaData[]; ano: number; mes: number;
+  visitas: VisitaData[]; vencimentos: Props["vencimentos"]; tarefas: Props["tarefas"]; ano: number; mes: number;
   diaSelecionado: number | null;
   onSelect: (d: number) => void; onPrev: () => void; onNext: () => void;
 }) {
@@ -140,6 +144,8 @@ function Calendario({
           const isHoje = hoje.getFullYear() === ano && hoje.getMonth() === mes && hoje.getDate() === dia;
           const isSel = diaSelecionado === dia;
           const vsDia = visitasNoDia(visitas, ano, mes, dia);
+          const cardCount = vencimentos.filter(card => chaveDoCard(card.vencimentoCard) === `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`).length;
+          const taskCount = tarefas.filter(task => task.prazo && task.status !== "concluida" && task.status !== "cancelada" && new Date(task.prazo).toLocaleDateString("sv-SE") === `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`).length;
           const temAgendada = vsDia.some((v) => v.status === "agendada");
           const temRealizada = vsDia.some((v) => v.status === "realizada");
 
@@ -161,6 +167,8 @@ function Calendario({
                   {temRealizada && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
                 </div>
               )}
+              {cardCount > 0 && <span className="text-[9px] font-bold text-red-700">{cardCount} lead{cardCount === 1 ? "" : "s"}</span>}
+              {taskCount > 0 && <span className="text-[9px] font-bold text-blue-700">{taskCount} tarefa{taskCount === 1 ? "" : "s"}</span>}
             </button>
           );
         })}
@@ -487,7 +495,7 @@ function VisitaModal({
 }
 
 /* ────────── Componente principal ────────── */
-export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor = false }: Props) {
+export function AgendaClient({ visitas, corretores, imoveis, leads, vencimentos, tarefas, ehCorretor = false }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -512,6 +520,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
     .sort((a, b) => new Date(a.agendadaPara).getTime() - new Date(b.agendadaPara).getTime());
 
   const visitasDia = diaSel ? visitasNoDia(visitas, ano, mes, diaSel) : [];
+  const cardsDia = diaSel ? vencimentos.filter(card => chaveDoCard(card.vencimentoCard) === `${ano}-${String(mes + 1).padStart(2, "0")}-${String(diaSel).padStart(2, "0")}`) : [];
   const allSorted = [...visitas].sort(
     (a, b) => new Date(b.agendadaPara).getTime() - new Date(a.agendadaPara).getTime()
   );
@@ -539,6 +548,8 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
         <div className="lg:col-span-2 space-y-4">
           <Calendario
             visitas={visitas}
+            vencimentos={vencimentos}
+            tarefas={tarefas}
             ano={ano}
             mes={mes}
             diaSelecionado={diaSel}
@@ -546,6 +557,23 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
             onPrev={prevMes}
             onNext={nextMes}
           />
+          {!ehCorretor && <section className="bg-white border border-gray-100 p-4" aria-label="Tarefas e SLA">
+            <h2 className="font-bold text-[var(--brand-dark)] text-sm mb-2">Tarefas e SLA</h2>
+            <div className="space-y-2">{tarefas.map(task => <div key={task.id} className="flex flex-wrap items-center gap-2 border-b pb-2 text-sm">
+              <Link href={`/admin/leads/${task.leadId}`} className="underline font-medium">{task.titulo} · {task.lead.nome}</Link>
+              <select aria-label={`Status de ${task.titulo}`} defaultValue={task.status}
+                onChange={event => { editarTarefaCrm(task.id, { status: event.target.value }).catch(error => alert(error.message)); }}
+                className="border p-1 bg-white text-gray-900"><option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option></select>
+              <input type="datetime-local" aria-label={`Prazo de ${task.titulo}`}
+                defaultValue={task.prazo ? toDatetimeLocal(task.prazo) : ""}
+                onChange={event => { editarTarefaCrm(task.id, { prazo: event.target.value ? new Date(event.target.value).toISOString() : null }).catch(error => alert(error.message)); }}
+                className="border p-1 bg-white text-gray-900" />
+            </div>)}</div>
+          </section>}
+          {cardsDia.length > 0 && <section className="bg-white border border-gray-100 p-4" aria-label="Vencimentos dos leads">
+            <h2 className="font-bold text-[var(--brand-dark)] text-sm mb-2">Vencimentos dos cards</h2>
+            {cardsDia.map(card => <Link key={card.id} href={`/admin/leads/${card.id}`} className="block text-sm underline text-red-700 py-1">{card.nome}</Link>)}
+          </section>}
 
           {/* Visitas do dia selecionado */}
           {diaSel !== null && (

@@ -31,6 +31,16 @@ export default async function AgendaPage() {
     select: { id: true, nome: true, telefone: true },
     orderBy: { nome: "asc" },
   });
+  const vencimentos = isCorretor ? [] : await prisma.lead.findMany({
+    where: { vencimentoCard: { not: null }, excluidoEm: null, arquivadoEm: null,
+      NOT: { etapaOperacional: "finalizado" } },
+    select: { id: true, nome: true, vencimentoCard: true },
+  });
+  const tarefas = isCorretor ? [] : await prisma.tarefaCrm.findMany({
+    where: { lead: { excluidoEm: null, arquivadoEm: null } },
+    select: { id: true, titulo: true, status: true, prazo: true, leadId: true,
+      lead: { select: { nome: true } } }, orderBy: { criadoEm: "desc" },
+  });
 
   const visitas = visitasRaw.map((v) => ({
     id: v.id,
@@ -54,6 +64,8 @@ export default async function AgendaPage() {
       corretores={corretores}
       imoveis={imoveis}
       leads={leads}
+      vencimentos={vencimentos}
+      tarefas={tarefas}
       ehCorretor={isCorretor}
     />
   );

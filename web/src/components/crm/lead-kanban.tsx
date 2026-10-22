@@ -8,6 +8,8 @@ import { LEAD_STAGES, LEAD_STAGE_CONFIG } from "@/lib/types/crm";
 import { etapaDoLead, leadNoPipelineAtivo, parseServicosLead } from "@/lib/crm/pipeline";
 import { formatCurrency } from "@/lib/utils";
 import { alterarEtapaLead } from "@/lib/actions/leads";
+import { alterarVencimentoCard } from "@/lib/actions/leads";
+import { chaveDoCard, diaEmImperatriz } from "@/lib/crm/vencimento-card";
 
 export type KanbanLead = {
   id: string;
@@ -21,6 +23,7 @@ export type KanbanLead = {
   arquivadoEm: Date | null;
   excluidoEm: Date | null;
   atualizadoEm: Date;
+  vencimentoCard: Date | null;
   origem: string;
   orcamento: number | null;
   notas: string;
@@ -36,6 +39,8 @@ export function LeadCard({ lead, podeMover = true }: { lead: KanbanLead; podeMov
   const etapa = etapaDoLead(lead);
   const ativo = leadNoPipelineAtivo(lead);
   const phone = lead.telefone.replace(/\D/g, "");
+  const due = lead.vencimentoCard ? chaveDoCard(lead.vencimentoCard) : "";
+  const today = diaEmImperatriz();
   return (
     <article className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
       <Link href={`/admin/leads/${lead.id}`} className="block font-bold text-[var(--brand-dark)] text-sm leading-tight hover:underline">{lead.temperatura === "fechado" && <span className="mr-1" title="Negócio fechado">{LEAD_TEMPERATURA_CONFIG.fechado.emoji}</span>}{lead.nome}</Link>
@@ -45,6 +50,17 @@ export function LeadCard({ lead, podeMover = true }: { lead: KanbanLead; podeMov
       </div>
       {lead.orcamento !== null && <p className="font-bold text-[var(--brand-dark)] text-sm mb-2">{formatCurrency(lead.orcamento)}</p>}
       <div className="flex items-center gap-1 text-gray-600 text-xs mb-2"><User size={12} /><span>{lead.responsavel?.nome ?? "Sem responsável"}</span></div>
+      {ativo && <label className={`flex justify-end items-center gap-1 text-xs ${due && due < today ? "text-red-700" : due === today ? "text-amber-800" : "text-gray-700"}`}>
+        <Calendar size={13} /><span className="sr-only">Vencimento do card de {lead.nome}</span>
+        <input type="date" aria-label={`Vencimento do card de ${lead.nome}`} value={due} disabled={isPending}
+          className="max-w-32 bg-transparent text-current" onChange={(event) => {
+            const value = event.target.value;
+            startTransition(async () => {
+              try { await alterarVencimentoCard(lead.id, value, new Date(lead.atualizadoEm).toISOString()); }
+              catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível salvar o vencimento."); }
+            });
+          }} />
+      </label>}
       {!etapa && <p className="text-xs text-gray-600 mb-2">Status comercial original: {lead.status}</p>}
       {agendada && <div className="flex items-center gap-1 text-purple-600 text-xs bg-purple-50 p-2 mb-2"><Calendar size={12} />{new Date(agendada.agendadaPara).toLocaleString("pt-BR")}</div>}
       {podeMover && ativo && <label className="block text-[10px] font-bold text-gray-600">Mover para etapa
@@ -74,7 +90,8 @@ export function LeadCard({ lead, podeMover = true }: { lead: KanbanLead; podeMov
 
 export function LeadKanban({ leads }: { leads: KanbanLead[] }) {
   const ativos = leads.filter(leadNoPipelineAtivo);
-  const semEtapa = ativos.filter((lead) => !etapaDoLead(lead));
+  const porVencimento = (a: KanbanLead, b: KanbanLead) => chaveDoCard(a.vencimentoCard).localeCompare(chaveDoCard(b.vencimentoCard)) || a.id.localeCompare(b.id);
+  const semEtapa = ativos.filter((lead) => !etapaDoLead(lead)).sort(porVencimento);
   return <div className="space-y-5">
     {semEtapa.length > 0 && <section className="border border-amber-200 bg-amber-50 rounded-lg p-4">
       <h2 className="text-sm font-bold text-amber-900">A CLASSIFICAR · {semEtapa.length}</h2>
@@ -84,7 +101,7 @@ export function LeadKanban({ leads }: { leads: KanbanLead[] }) {
     <div className="flex gap-3 overflow-x-auto pb-4" aria-label="Pipeline de sete etapas">
       {LEAD_STAGES.map((stage) => {
         const cfg = LEAD_STAGE_CONFIG[stage];
-        const col = ativos.filter((lead) => etapaDoLead(lead) === stage);
+        const col = ativos.filter((lead) => etapaDoLead(lead) === stage).sort(porVencimento);
         return <section key={stage} className="shrink-0 w-64 rounded-lg bg-gray-50 border border-gray-100 p-2">
           <div className="flex items-center justify-between gap-2 mb-3 min-h-9"><h2 className={`text-[10px] font-black p-2 rounded ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</h2><span className="text-xs font-bold text-gray-600">{col.length}</span></div>
           <div className="space-y-2 min-h-20">{col.map((lead) => <LeadCard key={lead.id} lead={lead} />)}{col.length === 0 && <p className="border border-dashed border-gray-200 rounded p-5 text-center text-gray-600 text-xs">Nenhum lead</p>}</div>

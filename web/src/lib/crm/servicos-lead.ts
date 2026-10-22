@@ -16,9 +16,10 @@ export const SERVICOS_LEAD = [
   "Avaliação de imóvel",
   "Compra de lote",
   "Outro",
+  "Tarefas e Agenda",
 ] as const;
 
-export type ModuloServico = "financiamento" | "obra" | "projeto" | "regularizacao" | "avaliacao";
+export type ModuloServico = "financiamento" | "obra" | "projeto" | "regularizacao" | "avaliacao" | "tarefa";
 
 export const MODULO_CONFIG: Record<ModuloServico, { label: string; rota: string }> = {
   financiamento: { label: "Financiamento", rota: "/admin/financiamentos" },
@@ -26,6 +27,7 @@ export const MODULO_CONFIG: Record<ModuloServico, { label: string; rota: string 
   projeto: { label: "Projeto", rota: "/admin/projetos" },
   regularizacao: { label: "Regularização", rota: "/admin/regularizacao" },
   avaliacao: { label: "Avaliação", rota: "/admin/avaliacoes" },
+  tarefa: { label: "Tarefa", rota: "/admin/agenda" },
 };
 
 export interface ServicoOperacional {
@@ -42,6 +44,7 @@ const MAPA: Record<string, Omit<ServicoOperacional, "servico">> = {
   "Projeto de engenharia": { modulo: "projeto" },
   "Regularização imobiliária": { modulo: "regularizacao" },
   "Avaliação de imóvel": { modulo: "avaliacao" },
+  "Tarefas e Agenda": { modulo: "tarefa" },
 };
 
 /** Serviço de lead → módulo operacional. `null` = serviço só de CRM (compra, venda, locação...). */
@@ -110,6 +113,8 @@ export function servicoDoModulo(modulo: ModuloServico, tipoFinanciamento?: strin
       return "Regularização imobiliária";
     case "avaliacao":
       return "Avaliação de imóvel";
+    case "tarefa":
+      return "Tarefas e Agenda";
   }
 }
 
