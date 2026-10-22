@@ -27,3 +27,6 @@ CREATE TABLE IF NOT EXISTS "tarefas_crm" (
   "atualizadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS "tarefas_crm_leadId_prazo_idx" ON "tarefas_crm" ("leadId", "prazo");
+ALTER TABLE "avisos_vencimento_card" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "resumos_vencimento_card" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "tarefas_crm" ENABLE ROW LEVEL SECURITY;
