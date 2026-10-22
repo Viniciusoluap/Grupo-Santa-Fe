@@ -7,6 +7,7 @@ import {
   formatarPercentual,
   itensProgressoIniciais,
   mesclarComPadrao,
+  restaurarIncidenciasPadrao,
 } from "@/lib/financeiro/progresso";
 
 const comExecucao = (execucoes: Record<string, string>) =>
@@ -84,5 +85,12 @@ describe("validações", () => {
     const m = mesclarComPadrao([{ chave: "pisos", incidencia: "8.5", execucao: "30" }]);
     expect(m).toHaveLength(20);
     expect(m.find((i) => i.chave === "pisos")!.execucao).toBe("30");
+  });
+  it("desvincular restaura a distribuição padrão sem apagar a execução", () => {
+    const antigos = itensProgressoIniciais().map(i => ({ ...i, incidencia: "1", execucao: i.chave === "pisos" ? "37.5" : "0" }));
+    const restaurados = restaurarIncidenciasPadrao(antigos);
+    expect(restaurados.map(i => i.incidencia)).toEqual(itensProgressoIniciais().map(i => i.incidencia));
+    expect(restaurados.find(i => i.chave === "pisos")?.execucao).toBe("37.5");
+    expect(calcularProgresso(restaurados).erros).toEqual([]);
   });
 });

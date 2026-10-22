@@ -6,8 +6,9 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { obterPci, validarIncidenciasPci } from "@/lib/obras/pci";
 import { dadosMedicaoPadrao, dadosPlsPadrao, ehTipoMedicao, normalizarDadosMedicao, validarDadosMedicao, type TipoMedicao } from "@/lib/medicao-caixa";
-import type { DadosPci } from "@/lib/caixa/pci";
-import { calcularProgresso, mesclarComPadrao } from "@/lib/financeiro/progresso";
+import { lerPci, type DadosPci } from "@/lib/caixa/pci";
+import { createHash } from "node:crypto";
+import { calcularProgresso, mesclarComPadrao, restaurarIncidenciasPadrao } from "@/lib/financeiro/progresso";
 import { LIMITE_LEGENDA } from "@/lib/obras/fotos";
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
@@ -77,12 +78,12 @@ export async function salvarProgressoObra(
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
     const gravadoEm = new Date();
     const pci = await obterPci(obraId, tx);
-    if (pci && (!pci.vinculadaEm || !validarIncidenciasPci(itens, pci.versao.parsed as unknown as DadosPci))) throw new RecusaMedicao("Vincule a PCI e use as incidências da planilha antes de salvar.");
+    if (pci?.vinculadaEm && !validarIncidenciasPci(itens, pci.versao.parsed as unknown as DadosPci)) throw new RecusaMedicao("Vincule a PCI e use as incidências da planilha antes de salvar.");
     await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, gravadoEm);
     const medicao = await tx.obraProgressoHistorico.create({ data: {
       obraId, progresso: calculo.progresso.toFixed(6), somaIncidencia: calculo.somaIncidencia.toFixed(15),
       itens, criadoPorId: usuarioId, criadoEm: gravadoEm, tipo, dadosCaixa: dados as unknown as Prisma.InputJsonValue,
-      pciVersaoId: pci?.versaoId ?? null,
+      pciVersaoId: pci?.vinculadaEm ? pci.versaoId : null,
     }, select: { id: true } });
     return medicao.id;
   }));
@@ -204,8 +205,7 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[], tip
     const pciAtual = medicao.pciVersao ? null : await obterPci(obraId, tx);
     // Mesma regra da Prospecta (versaoPciParaMedicao): com PCI enviada, a revisão
     // de uma medição sem versão exige a PCI vinculada.
-    if (!medicao.pciVersao && pciAtual && !pciAtual.vinculadaEm) throw new RecusaMedicao("Vincule a PCI e use as incidências da planilha antes de salvar.");
-    const versao = medicao.pciVersao ?? (pciAtual ? pciAtual.versao : null);
+    const versao = medicao.pciVersao ?? (pciAtual?.vinculadaEm ? pciAtual.versao : null);
     if (versao && !validarIncidenciasPci(itens, versao.parsed as unknown as DadosPci)) throw new RecusaMedicao("As incidências devem corresponder à PCI desta medição.");
     await tx.obraProgressoHistorico.update({
       where: { id: medicaoId },
@@ -222,7 +222,9 @@ export async function editarMedicao(medicaoId: string, itens: ItemMedicao[], tip
       },
     });
     // A mais recente é a medição vigente: o progresso da obra acompanha.
-    if (await ehUltimaMedicao(obraId, medicaoId, tx)) await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, agora);
+    const pciCorrente = await obterPci(obraId, tx);
+    if (await ehUltimaMedicao(obraId, medicaoId, tx) && !(pciCorrente && !pciCorrente.vinculadaEm && versao))
+      await aplicarMedicaoVigente(tx, obraId, itens, usuarioId, agora);
   }));
   if (!edicao.ok) return edicao;
   revalidar(obraId);
@@ -238,8 +240,10 @@ export async function excluirMedicao(medicaoId: string): Promise<Resultado> {
     const eraUltima = await ehUltimaMedicao(obraId, medicaoId, tx);
     await tx.obraProgressoHistorico.delete({ where: { id: medicaoId } });
     if (eraUltima) {
-      const anterior = await tx.obraProgressoHistorico.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { itens: true } });
-      await aplicarMedicaoVigente(tx, obraId, anterior ? (anterior.itens as ItemMedicao[]) : null, usuarioId, new Date());
+      const anterior = await tx.obraProgressoHistorico.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { itens: true, pciVersaoId: true } });
+      const pciCorrente = await obterPci(obraId, tx);
+      if (!(pciCorrente && !pciCorrente.vinculadaEm && anterior?.pciVersaoId))
+        await aplicarMedicaoVigente(tx, obraId, anterior ? (anterior.itens as ItemMedicao[]) : null, usuarioId, new Date());
     }
   });
   revalidar(obraId);
@@ -322,20 +326,56 @@ export async function vincularPciObra(obraId: string): Promise<Resultado<{ somaI
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
     const pci = await obterPci(obraId, tx);
     if (!pci) throw new RecusaMedicao("Envie a PCI antes de vincular.");
-    const parsed = pci.versao.parsed as unknown as DadosPci;
+    let parsed: DadosPci;
+    try { parsed = lerPci(pci.versao.dados); }
+    catch (e) { throw new RecusaMedicao(e instanceof Error ? e.message : "A PCI precisa ser reenviada em formato válido."); }
+    if (JSON.stringify(parsed) !== JSON.stringify(pci.versao.parsed)) {
+      // Preserva a versão antiga em medições históricas. Um parser corrigido
+      // cria uma versão lógica distinta, com os mesmos bytes originais.
+      const hash = createHash("sha256").update(pci.versao.dados).update("|incidencias-localizadas-v2").digest("hex");
+      const corrigida = await tx.obraPciVersao.upsert({
+        where: { obraId_hash: { obraId, hash } }, update: {},
+        create: { obraId, hash, nome: pci.versao.nome, dados: pci.versao.dados, tamanho: pci.versao.tamanho, parsed: parsed as unknown as Prisma.InputJsonValue, enviadoPorId: pci.versao.enviadoPorId },
+      });
+      await tx.obraPci.update({ where: { obraId }, data: { versaoId: corrigida.id } });
+    }
     const atuais = await tx.obraProgressoItem.findMany({ where: { obraId } });
     const itens = mesclarComPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) }))).map((i, k) => ({ chave: i.chave, incidencia: incidenciaPciParaTexto(parsed.incidencias[k] ?? 0), execucao: String(i.execucao) }));
     const calculo = calcularProgresso(itens);
     if (calculo.erros.length) throw new RecusaMedicao(calculo.erros.join(" "));
     await tx.obraProgressoItem.deleteMany({ where: { obraId } });
-    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, ...i, atualizadoPorId: usuarioId })) });
+    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao), atualizadoPorId: usuarioId })) });
     await tx.obraPci.update({ where: { obraId }, data: { vinculadaEm: new Date(), vinculadaPorId: usuarioId } });
+    await tx.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } });
     // O vínculo prepara a próxima medição; não modifica uma medição já gravada.
     return calculo.somaIncidencia;
   }));
   if (!vinculo.ok) return vinculo;
   revalidar(obraId);
   return { ok: true, somaIncidencia: vinculo.valor };
+}
+
+/** Remove o vínculo atual e volta às incidências padrão sem tocar no histórico. */
+export async function desvincularPciObra(obraId: string): Promise<Resultado<{ somaIncidencia: number }>> {
+  const usuarioId = await exigirObraOuEmpreiteiro(obraId);
+  if (!usuarioId) return { ok: false, erro: "Sem permissão." };
+  const resultado = await comRecusa(() => prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+    const pci = await obterPci(obraId, tx);
+    if (!pci?.vinculadaEm) throw new RecusaMedicao("Esta obra não possui PCI vinculada.");
+    const atuais = await tx.obraProgressoItem.findMany({ where: { obraId } });
+    const itens = restaurarIncidenciasPadrao(atuais.map(i => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })));
+    const calculo = calcularProgresso(itens);
+    if (calculo.erros.length) throw new RecusaMedicao(calculo.erros.join(" "));
+    await tx.obraProgressoItem.deleteMany({ where: { obraId } });
+    await tx.obraProgressoItem.createMany({ data: itens.map(i => ({ obraId, chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao), atualizadoPorId: usuarioId })) });
+    await tx.obraPci.update({ where: { obraId }, data: { vinculadaEm: null, vinculadaPorId: null } });
+    await tx.obra.update({ where: { id: obraId }, data: { progressoMedido: calculo.progresso.toFixed(6), progresso: Math.round(calculo.progresso) } });
+    return calculo.somaIncidencia;
+  }));
+  if (!resultado.ok) return resultado;
+  revalidar(obraId);
+  return { ok: true, somaIncidencia: resultado.valor };
 }
 
 /**

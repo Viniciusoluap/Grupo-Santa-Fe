@@ -51,6 +51,8 @@ export function BarraProgresso({ valor }: { valor: number }) {
 
 const reais = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = (d: string) => new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
+const dataDoLevantamento = (data: string | null | undefined) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(data ?? "") ? data!.split("-").reverse().join("/") : null;
 
 export function ProgressoObra({ obraId, dados }: { obraId: string; dados: ProgressoObraDados }) {
   const router = useRouter();
@@ -258,7 +260,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
               {dados.historico.map((h) => (
                 <li key={h.id} className="grid grid-cols-1 items-center gap-2 py-3 text-gray-700 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                   <div className="min-w-0">
-                    <p>{dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
+                    <p>{dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
+                    {dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) && <p className="text-xs text-gray-500">Registrada em {dataHora(h.criadoEm)}</p>}
                     <p className="text-xs text-gray-600">{rotuloTipoMedicao(h.tipo ?? "pls")}{h.fotos?.length ? ` · ${h.fotos.length} foto(s)` : ""}</p>
                     {dados.pci && <BotoesArquivosMedicao medicaoId={h.id} />}
                     {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
@@ -295,10 +298,10 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                   </div>
                   <p className="font-bold text-[var(--brand-dark)] tabular-nums md:text-right">{formatarPercentual(h.progresso)}</p>
                   <div className="flex gap-1 md:justify-end">
-                    <button type="button" aria-label={`Editar a medição de ${dataHora(h.criadoEm)}`} disabled={pendente} onClick={() => iniciarEdicao(h)}
+                    <button type="button" aria-label={`Editar a medição de ${dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)}`} disabled={pendente} onClick={() => iniciarEdicao(h)}
                       className="p-1.5 text-gray-600 hover:bg-blue-50 hover:text-blue-600"><Pencil size={15} /></button>
-                    <button type="button" aria-label={`Excluir a medição de ${dataHora(h.criadoEm)}`} disabled={pendente || !!editando}
-                      onClick={() => { if (confirm(`Excluir definitivamente a medição de ${dataHora(h.criadoEm)}? Esta ação não pode ser desfeita.`)) acao(() => excluirMedicao(h.id), "Medição excluída."); }}
+                    <button type="button" aria-label={`Excluir a medição de ${dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)}`} disabled={pendente || !!editando}
+                      onClick={() => { if (confirm(`Excluir definitivamente a medição de ${dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)}? Esta ação não pode ser desfeita.`)) acao(() => excluirMedicao(h.id), "Medição excluída."); }}
                       className="p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
                   </div>
                 </li>
