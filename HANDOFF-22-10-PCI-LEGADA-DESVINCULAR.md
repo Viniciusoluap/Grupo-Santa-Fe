@@ -1,5 +1,10 @@
 # Handoff — PCI legada e desvinculação (22/10/2026)
 
+## Validação da PCI antiga real (22/10/2026)
+
+- A mesma PCI `.xls` antiga foi lida pelo parser deste projeto. O parser encontrou os 20 serviços nas linhas 113–132, extraiu as incidências da coluna X e totalizou 100,0000%, em paridade com Prospecta. Nenhum arquivo de cliente foi incluído no repositório.
+- Testes automáticos locais: 32/32 nos testes de PCI, medição e progresso. O teste de migração que depende de `@electric-sql/pglite` não rodou neste checkout por ausência local da dependência; a prévia e o deploy de produção anteriormente passaram. O deploy dos PRs #213 e #214 permanece READY. Nenhum dado de cliente no Santa Fé foi alterado nesta validação.
+
 ## Situação final desta entrega (mais recente)
 
 - PR [#213](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/213) mesclado em `main` no commit `556a4e62597348941a4d06b10c2cd850f06690b9`. Prévia do commit `c775b0bb8fe3a7e1a037d4fcffe3dab9aad030f6` e deploy de produção do merge confirmados **READY** na Vercel em 22/10/2026.
