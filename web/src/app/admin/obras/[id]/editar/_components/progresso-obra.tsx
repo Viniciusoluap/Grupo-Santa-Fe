@@ -56,12 +56,23 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
   const router = useRouter();
   const [versaoFormulario, setVersaoFormulario] = useState(0);
   const [tipo, setTipo] = useState<TipoMedicao>("pls");
+  const [plsPadraoAtual, setPlsPadraoAtual] = useState(() => dados.plsPadrao ?? dadosPlsPadrao());
+  const [fontePadrao, setFontePadrao] = useState(dados.plsPadrao);
+  const [formularioAlterado, setFormularioAlterado] = useState(false);
   const [dadosCaixa, setDadosCaixa] = useState<DadosMedicaoCaixa>(() => dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
   const [fotosNovas, setFotosNovas] = useState<FotoNova[]>([]);
   const [ultimaSalva, setUltimaSalva] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<Linha[]>(dados.itens);
   // Pedido de 18/10: edição de uma medição do histórico (admin, colaborador e empreiteiro).
   const [editando, setEditando] = useState<{ id: string; quando: string } | null>(null);
+  // router.refresh substitui os dados da obra. Atualizar o próximo formulário
+  // sem apagar uma medição histórica em edição nem o rascunho já digitado.
+  if (fontePadrao !== dados.plsPadrao) {
+    setFontePadrao(dados.plsPadrao);
+    const novoPadrao = dados.plsPadrao ?? dadosPlsPadrao();
+    setPlsPadraoAtual(novoPadrao);
+    if (!editando && !formularioAlterado) setDadosCaixa(dadosMedicaoPadrao("pls", novoPadrao, dados.pci?.prazoMeses ?? null));
+  }
   // Depois de editar/excluir a medição vigente, a tabela acompanha o que ficou gravado.
   const [itensGravados, setItensGravados] = useState(dados.itens);
   if (itensGravados !== dados.itens) {
@@ -96,7 +107,17 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         : " Não foi possível copiar para o Google Drive agora: baixe os arquivos pelos botões da medição.";
       setMensagem({ tipo: "ok", texto: `Medição salva.${notaDrive}` }); setUltimaSalva(id); setEditando(null);
       setVersaoFormulario(v => v + 1);
-      setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+      // Após salvar, já usar as datas desta medição na próxima, sem aguardar o refresh.
+      // A edição de uma medição antiga não altera o padrão da medição mais recente.
+      const atualizaPadrao = !editando || editando.id === dados.historico[0]?.id;
+      const novoPadrao = atualizaPadrao ? {
+        ...plsPadraoAtual,
+        alvaraEmissao: dadosCaixa.pls.alvaraEmissao ?? plsPadraoAtual.alvaraEmissao,
+        alvaraVigencia: dadosCaixa.pls.alvaraVigencia ?? plsPadraoAtual.alvaraVigencia,
+      } : plsPadraoAtual;
+      if (atualizaPadrao) setPlsPadraoAtual(novoPadrao);
+      setFormularioAlterado(false);
+      setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", novoPadrao, dados.pci?.prazoMeses ?? null));
       router.refresh();
     } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao salvar a medição." }); }
   });
@@ -114,10 +135,11 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
 
   const iniciarEdicao = (h: ProgressoObraDados["historico"][number]) => {
     setEditando({ id: h.id, quando: dataHora(h.criadoEm) });
+    setFormularioAlterado(false);
     fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
     setTipo(h.tipo ?? "pls");
     // Medição antiga sem dados CAIXA: levantamento = data da própria medição (igual à Prospecta).
-    const padrao = dadosMedicaoPadrao(h.tipo ?? "pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null);
+    const padrao = dadosMedicaoPadrao(h.tipo ?? "pls", plsPadraoAtual, dados.pci?.prazoMeses ?? null);
     setDadosCaixa(h.dadosCaixa ?? { ...padrao, pls: { ...padrao.pls, dataLevantamento: new Date(new Date(h.criadoEm).getTime() - 3 * 3600_000).toISOString().slice(0, 10) } });
     setLinhas(h.itens);
     setMensagem(null);
@@ -126,9 +148,10 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
   const cancelarEdicao = () => {
     setVersaoFormulario(v => v + 1);
     setEditando(null);
+    setFormularioAlterado(false);
     setLinhas(dados.itens);
     fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
-    setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+    setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", plsPadraoAtual, dados.pci?.prazoMeses ?? null));
   };
 
   return (
@@ -203,7 +226,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
             </tfoot>
           </table>
         </div>
-        <CamposMedicaoCaixa key={`${editando?.id ?? "nova"}:${versaoFormulario}`} tipo={tipo} setTipo={setTipo} dados={dadosCaixa} setDados={setDadosCaixa} prazoPci={dados.pci?.prazoMeses ?? null} />
+        <CamposMedicaoCaixa key={`${editando?.id ?? "nova"}:${versaoFormulario}`} tipo={tipo} setTipo={(proximo) => { setFormularioAlterado(true); setTipo(proximo); }} dados={dadosCaixa} setDados={(proximo) => { setFormularioAlterado(true); setDadosCaixa(proximo); }} prazoPci={dados.pci?.prazoMeses ?? null} />
         <FotosMedicao ocupado={pendente} onAtualizarExistente={(id, legenda, incluir) => acao(() => atualizarFotoObra(id, legenda, incluir), "Foto atualizada.")} tipo={tipo} fotos={fotosNovas} setFotos={setFotosNovas} progresso={calculo.progresso}
           existentes={dados.historico.find(h => h.id === editando?.id)?.fotos ?? []}
           onExcluirExistente={id => { if (confirm("Excluir esta foto?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} />

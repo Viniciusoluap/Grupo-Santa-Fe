@@ -1,4 +1,4 @@
-import { dadosPlsPadrao, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
+import { dadosPlsPadrao, datasAlvaraDeMedicoes, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
 import type { DadosPci } from "@/lib/caixa/pci";
 import { prisma } from "@/lib/db";
 import { calcularProgresso, mesclarComPadrao } from "@/lib/financeiro/progresso";
@@ -60,10 +60,19 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
   const pci = obra.pci;
   const parsed = pci?.versao.parsed as unknown as DadosPci | undefined;
   const historicoExibido = obra.progressoHistorico.slice(0, 100);
-  const autores = await prisma.usuario.findMany({
-    where: { id: { in: obra.progressoHistorico.flatMap((h) => [h.criadoPorId, h.solicitadaPorId, h.recebidaPorId]).filter((x): x is string => !!x) } },
-    select: { id: true, nome: true },
-  });
+  // O histórico exibido é limitado a 100, mas o alvará pode ter sido preenchido
+  // numa medição anterior. Consultar apenas os dados PLS da mesma obra.
+  const [autores, medicoesPls] = await Promise.all([
+    prisma.usuario.findMany({
+      where: { id: { in: obra.progressoHistorico.flatMap((h) => [h.criadoPorId, h.solicitadaPorId, h.recebidaPorId]).filter((x): x is string => !!x) } },
+      select: { id: true, nome: true },
+    }),
+    prisma.obraProgressoHistorico.findMany({
+      where: { obraId, tipo: "pls" },
+      orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
+      select: { tipo: true, dadosCaixa: true },
+    }),
+  ]);
   const nome = new Map(autores.map((a) => [a.id, a.nome]));
   const itens = mesclarComPadrao(
     obra.progressoItens.map((i) => ({ chave: i.chave, incidencia: i.incidencia.toString(), execucao: i.execucao.toString() }))
@@ -82,7 +91,10 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
     itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
     medido: obra.progressoItens.length > 0,
     pci: pci && parsed ? { arquivo: pci.versao.nome, enviadaEm: pci.enviadaEm.toISOString(), vinculadaEm: pci.vinculadaEm?.toISOString() ?? null, formato: parsed.formato, proponente: parsed.identificacao.proponente, prazoMeses: parsed.prazoMeses } : null,
-    plsPadrao: dadosPlsPadrao(parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia, seloCasaAzul: parsed.seloCasaAzul } : undefined),
+    plsPadrao: dadosPlsPadrao({
+      ...datasAlvaraDeMedicoes(medicoesPls, parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia } : undefined),
+      seloCasaAzul: parsed?.seloCasaAzul,
+    }),
     progressoLegado: obra.progresso,
     baseMedicao: base,
     fotosLegadas: obra.fotos.map(f => ({ id: f.id, caption: f.legenda, includeInReport: f.incluirNoRelatorio, imageUrl: `/api/obras/fotos/${f.id}` })),
