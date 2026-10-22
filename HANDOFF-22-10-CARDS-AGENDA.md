@@ -14,6 +14,8 @@
 
 Prévia Vercel do primeiro commit `ea919c0` falhou na tipagem de `src/lib/data/projetos.ts` (`projeto_completo` fora de `ProjetoTipo`). A correção pontual preexistente no diretório local troca para `projeto_estrutural` e segue em commit adicional desta branch; verificar o novo status Vercel.
 
+A nova prévia Vercel `GursMEAT4RJ2mReQu8os9MFcDJJd` ficou READY após o commit remoto `045e4ce`. Não houve merge/deploy de produção nem migração aplicada.
+
 ## Próximo passo e limitações
 - Restaurar dependências de desenvolvimento do ambiente, rodar tsc/build e homologar antes de merge/deploy.
 - Aplicar migration 20261022080000_vencimento_cards antes de publicar; build atual gera Prisma mas não executa migration automaticamente.
