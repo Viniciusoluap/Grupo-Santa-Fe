@@ -3,13 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import { Toaster } from "sonner";
 import { dadosMedicaoPadrao, dadosPlsPadrao, rotuloTipoMedicao, type DadosMedicaoCaixa, type TipoMedicao } from "@/lib/medicao-caixa";
-import { BotoesArquivosMedicao, CamposMedicaoCaixa, FotosMedicao, PciObra, enviarFotosDaMedicao, type FotoNova } from "./medicao-caixa";
+import { BotoesArquivosMedicao, CamposMedicaoCaixa, FotosMedicao, FotosSalvas, PciObra, enviarFotosDaMedicao, type FotoNova } from "./medicao-caixa";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, History, Pencil, Save, Send, Trash2, X } from "lucide-react";
 import { lerPercentualDigitado } from "@/lib/financeiro/obra";
 import { SERVICOS_PROGRESSO, calcularProgresso, formatarPercentual } from "@/lib/financeiro/progresso";
 import type { ProgressoObraDados } from "@/lib/obras/progresso-dados";
-import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, excluirFotoObra, copiarMedicaoNoDrive } from "@/lib/actions/obra-progresso";
+import { confirmarRecebimentoMedicao, editarMedicao, excluirMedicao, salvarProgressoObra, solicitarMedicao, atualizarFotoObra, excluirFotoObra, copiarMedicaoNoDrive } from "@/lib/actions/obra-progresso";
 
 // EPIC-020 Lote 4 (item 27) — progresso físico por incidência, igual à
 // Prospecta. O Progresso Geral é somente leitura: soma das Execuções na Obra.
@@ -51,17 +51,30 @@ export function BarraProgresso({ valor }: { valor: number }) {
 
 const reais = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = (d: string) => new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
+const dataDoLevantamento = (data: string | null | undefined) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(data ?? "") ? data!.split("-").reverse().join("/") : null;
 
 export function ProgressoObra({ obraId, dados }: { obraId: string; dados: ProgressoObraDados }) {
   const router = useRouter();
   const [versaoFormulario, setVersaoFormulario] = useState(0);
   const [tipo, setTipo] = useState<TipoMedicao>("pls");
+  const [plsPadraoAtual, setPlsPadraoAtual] = useState(() => dados.plsPadrao ?? dadosPlsPadrao());
+  const [fontePadrao, setFontePadrao] = useState(dados.plsPadrao);
+  const [formularioAlterado, setFormularioAlterado] = useState(false);
   const [dadosCaixa, setDadosCaixa] = useState<DadosMedicaoCaixa>(() => dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
   const [fotosNovas, setFotosNovas] = useState<FotoNova[]>([]);
   const [ultimaSalva, setUltimaSalva] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<Linha[]>(dados.itens);
   // Pedido de 18/10: edição de uma medição do histórico (admin, colaborador e empreiteiro).
   const [editando, setEditando] = useState<{ id: string; quando: string } | null>(null);
+  // router.refresh substitui os dados da obra. Atualizar o próximo formulário
+  // sem apagar uma medição histórica em edição nem o rascunho já digitado.
+  if (fontePadrao !== dados.plsPadrao) {
+    setFontePadrao(dados.plsPadrao);
+    const novoPadrao = dados.plsPadrao ?? dadosPlsPadrao();
+    setPlsPadraoAtual(novoPadrao);
+    if (!editando && !formularioAlterado) setDadosCaixa(dadosMedicaoPadrao("pls", novoPadrao, dados.pci?.prazoMeses ?? null));
+  }
   // Depois de editar/excluir a medição vigente, a tabela acompanha o que ficou gravado.
   const [itensGravados, setItensGravados] = useState(dados.itens);
   if (itensGravados !== dados.itens) {
@@ -96,28 +109,39 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         : " Não foi possível copiar para o Google Drive agora: baixe os arquivos pelos botões da medição.";
       setMensagem({ tipo: "ok", texto: `Medição salva.${notaDrive}` }); setUltimaSalva(id); setEditando(null);
       setVersaoFormulario(v => v + 1);
-      setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+      // Após salvar, já usar as datas desta medição na próxima, sem aguardar o refresh.
+      // A edição de uma medição antiga não altera o padrão da medição mais recente.
+      const atualizaPadrao = !editando || editando.id === dados.historico[0]?.id;
+      const novoPadrao = atualizaPadrao ? {
+        ...plsPadraoAtual,
+        alvaraEmissao: dadosCaixa.pls.alvaraEmissao ?? plsPadraoAtual.alvaraEmissao,
+        alvaraVigencia: dadosCaixa.pls.alvaraVigencia ?? plsPadraoAtual.alvaraVigencia,
+      } : plsPadraoAtual;
+      if (atualizaPadrao) setPlsPadraoAtual(novoPadrao);
+      setFormularioAlterado(false);
+      setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", novoPadrao, dados.pci?.prazoMeses ?? null));
       router.refresh();
     } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao salvar a medição." }); }
   });
 
-  const acao = (fn: () => Promise<{ ok: true } | { ok: false; erro: string }>, sucesso: string) =>
+  const acao = (fn: () => Promise<{ ok: true; aviso?: string } | { ok: false; erro: string }>, sucesso: string) =>
     iniciar(async () => {
       setMensagem(null);
       try {
         const r = await fn();
         if (!r.ok) return setMensagem({ tipo: "erro", texto: r.erro });
-        setMensagem({ tipo: "ok", texto: sucesso });
+        setMensagem({ tipo: r.aviso ? "erro" : "ok", texto: r.aviso ?? sucesso });
         router.refresh();
       } catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro ao atualizar a medição." }); }
     });
 
   const iniciarEdicao = (h: ProgressoObraDados["historico"][number]) => {
     setEditando({ id: h.id, quando: dataHora(h.criadoEm) });
+    setFormularioAlterado(false);
     fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
     setTipo(h.tipo ?? "pls");
     // Medição antiga sem dados CAIXA: levantamento = data da própria medição (igual à Prospecta).
-    const padrao = dadosMedicaoPadrao(h.tipo ?? "pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null);
+    const padrao = dadosMedicaoPadrao(h.tipo ?? "pls", plsPadraoAtual, dados.pci?.prazoMeses ?? null);
     setDadosCaixa(h.dadosCaixa ?? { ...padrao, pls: { ...padrao.pls, dataLevantamento: new Date(new Date(h.criadoEm).getTime() - 3 * 3600_000).toISOString().slice(0, 10) } });
     setLinhas(h.itens);
     setMensagem(null);
@@ -126,13 +150,17 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
   const cancelarEdicao = () => {
     setVersaoFormulario(v => v + 1);
     setEditando(null);
+    setFormularioAlterado(false);
     setLinhas(dados.itens);
     fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
-    setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", dados.plsPadrao ?? dadosPlsPadrao(), dados.pci?.prazoMeses ?? null));
+    setTipo("pls"); setDadosCaixa(dadosMedicaoPadrao("pls", plsPadraoAtual, dados.pci?.prazoMeses ?? null));
   };
 
   return (
     <div className="space-y-5">
+      {!!dados.fotosLegadas?.length && <section className="space-y-3"><h3>Fotos anteriores — sem medição vinculada</h3><FotosSalvas fotos={dados.fotosLegadas} ocupado={pendente}
+        onSalvar={(id, legenda, incluir) => acao(() => atualizarFotoObra(id, legenda, incluir), "Foto atualizada.")}
+        onExcluir={id => { if (confirm("Excluir esta foto anterior?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} /></section>}
       <Toaster richColors />
       <PciObra projectId={obraId} pci={dados.pci ?? null} />
       <section className="bg-white border border-gray-100 p-5 space-y-3">
@@ -200,8 +228,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
             </tfoot>
           </table>
         </div>
-        <CamposMedicaoCaixa key={`${editando?.id ?? "nova"}:${versaoFormulario}`} tipo={tipo} setTipo={setTipo} dados={dadosCaixa} setDados={setDadosCaixa} prazoPci={dados.pci?.prazoMeses ?? null} />
-        <FotosMedicao tipo={tipo} fotos={fotosNovas} setFotos={setFotosNovas} progresso={calculo.progresso}
+        <CamposMedicaoCaixa key={`${editando?.id ?? "nova"}:${versaoFormulario}`} tipo={tipo} setTipo={(proximo) => { setFormularioAlterado(true); setTipo(proximo); }} dados={dadosCaixa} setDados={(proximo) => { setFormularioAlterado(true); setDadosCaixa(proximo); }} prazoPci={dados.pci?.prazoMeses ?? null} />
+        <FotosMedicao ocupado={pendente} onAtualizarExistente={(id, legenda, incluir) => acao(() => atualizarFotoObra(id, legenda, incluir), "Foto atualizada.")} tipo={tipo} fotos={fotosNovas} setFotos={setFotosNovas} progresso={calculo.progresso}
           existentes={dados.historico.find(h => h.id === editando?.id)?.fotos ?? []}
           onExcluirExistente={id => { if (confirm("Excluir esta foto?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} />
         {ultimaSalva && dados.pci && <BotoesArquivosMedicao medicaoId={ultimaSalva} />}
@@ -232,12 +260,15 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
               {dados.historico.map((h) => (
                 <li key={h.id} className="grid grid-cols-1 items-center gap-2 py-3 text-gray-700 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                   <div className="min-w-0">
-                    <p>{dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
+                    <p>{dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)} — {h.autor ?? "—"}</p>
+                    {dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) && <p className="text-xs text-gray-500">Registrada em {dataHora(h.criadoEm)}</p>}
                     <p className="text-xs text-gray-600">{rotuloTipoMedicao(h.tipo ?? "pls")}{h.fotos?.length ? ` · ${h.fotos.length} foto(s)` : ""}</p>
                     {dados.pci && <BotoesArquivosMedicao medicaoId={h.id} />}
                     {h.editadaEm && <p className="text-xs text-gray-500">Editada em {dataHora(h.editadaEm)}</p>}
                   </div>
                   <div>
+                    {h.emailStatus && <p className="text-xs text-gray-500">E-mail: {h.emailStatus === "sent" ? "enviado com PDF e XLS" : h.emailStatus === "failed" ? "falhou — tente reenviar" : h.emailStatus === "pending" ? "alterações pendentes de envio" : "processando"}</p>}
+                    {h.emailPodeReenviar && <button type="button" disabled={pendente} onClick={() => acao(() => solicitarMedicao(h.id), "E-mail enviado com PDF e XLS.")} className="text-sm underline">{h.emailStatus === "pending" ? "Enviar versão atualizada" : "Reenviar e-mail"}</button>}
                     {h.solicitadaEm ? (
                       <p className="text-xs text-amber-800"><Send size={12} className="mr-1 inline" />Solicitada em {dataHora(h.solicitadaEm)}{h.solicitadaPor ? ` por ${h.solicitadaPor}` : ""}</p>
                     ) : (
@@ -267,10 +298,10 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                   </div>
                   <p className="font-bold text-[var(--brand-dark)] tabular-nums md:text-right">{formatarPercentual(h.progresso)}</p>
                   <div className="flex gap-1 md:justify-end">
-                    <button type="button" aria-label={`Editar a medição de ${dataHora(h.criadoEm)}`} disabled={pendente} onClick={() => iniciarEdicao(h)}
+                    <button type="button" aria-label={`Editar a medição de ${dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)}`} disabled={pendente} onClick={() => iniciarEdicao(h)}
                       className="p-1.5 text-gray-600 hover:bg-blue-50 hover:text-blue-600"><Pencil size={15} /></button>
-                    <button type="button" aria-label={`Excluir a medição de ${dataHora(h.criadoEm)}`} disabled={pendente || !!editando}
-                      onClick={() => { if (confirm(`Excluir definitivamente a medição de ${dataHora(h.criadoEm)}? Esta ação não pode ser desfeita.`)) acao(() => excluirMedicao(h.id), "Medição excluída."); }}
+                    <button type="button" aria-label={`Excluir a medição de ${dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)}`} disabled={pendente || !!editando}
+                      onClick={() => { if (confirm(`Excluir definitivamente a medição de ${dataDoLevantamento(h.dadosCaixa?.pls?.dataLevantamento) ?? dataHora(h.criadoEm)}? Esta ação não pode ser desfeita.`)) acao(() => excluirMedicao(h.id), "Medição excluída."); }}
                       className="p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
                   </div>
                 </li>

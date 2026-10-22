@@ -128,6 +128,28 @@ export function dadosPlsPadrao(opcoes: { alvaraEmissao?: string | null; alvaraVi
   };
 }
 
+/** Datas da última PLS preenchida desta obra, independentes por campo.
+ * O histórico deve vir em ordem decrescente; medições antigas podem ter somente uma data.
+ */
+export function datasAlvaraDeMedicoes(
+  historico: readonly { tipo: string; dadosCaixa: unknown }[],
+  fallback: { alvaraEmissao?: string | null; alvaraVigencia?: string | null } = {},
+): Pick<DadosPls, "alvaraEmissao" | "alvaraVigencia"> {
+  let emissao: string | null = null;
+  let vigencia: string | null = null;
+  for (const medicao of historico) {
+    if (medicao.tipo !== "pls") continue;
+    const pls = obj(obj(medicao.dadosCaixa).pls);
+    if (!emissao && dataValida(pls.alvaraEmissao)) emissao = pls.alvaraEmissao as string;
+    if (!vigencia && dataValida(pls.alvaraVigencia)) vigencia = pls.alvaraVigencia as string;
+    if (emissao && vigencia) break;
+  }
+  return {
+    alvaraEmissao: emissao ?? fallback.alvaraEmissao ?? null,
+    alvaraVigencia: vigencia ?? fallback.alvaraVigencia ?? null,
+  };
+}
+
 export function dadosRepactuacaoPadrao(prazoOriginal: number | null = null): DadosRepactuacao {
   return { dataRepactuacao: hojeIso(), prazoOriginal, prazoProposto: null, previstoOriginal: [], acumuladoProposto: [], motivo: "" };
 }

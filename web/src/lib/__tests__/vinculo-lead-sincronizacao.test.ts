@@ -59,7 +59,7 @@ describe("CRM materializa demandas com identidade estável em um único commit",
     const fin = controle.estado.registros.financiamento[0];
     expect(fin).toMatchObject({ leadId: "L1", servicoLeadId: controle.estado.demandas[0].id, clienteNome: "Maria", clienteTel: "11999990000", tipo: "mcmv", status: "aguardando_configuracao" });
     expect(fin).not.toHaveProperty("banco");
-    expect(fin).not.toHaveProperty("valorImovel");
+    expect(fin.valorImovel).toBeNull();
     expect(controle.estado.checklist).toHaveLength(CHECKLIST_FINANCIAMENTO_PADRAO.length);
     expect(controle.chamadas[0]).toMatchObject({ isolationLevel: "Serializable" });
     expect(controle.locks).toContain("L1");

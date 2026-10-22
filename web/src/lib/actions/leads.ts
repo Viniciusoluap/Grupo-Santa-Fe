@@ -23,6 +23,24 @@ import { SERVICOS_LEAD, moduloDoServico, parseServicosLead } from "@/lib/crm/ser
 import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
+import { dataDoCard } from "@/lib/crm/vencimento-card";
+
+/** Atualiza somente o prazo deste lead; visitas e tarefas mantêm seus próprios prazos. */
+export async function alterarVencimentoCard(leadId: string, date: string, atualizadoEm: string) {
+  const ator = await obterAtorCrm();
+  exigirAtorInterno(ator);
+  const vencimentoCard = dataDoCard(date);
+  const atual = await prisma.lead.findUnique({ where: { id: leadId }, select: {
+    id: true, corretorId: true, excluidoEm: true, arquivadoEm: true, atualizadoEm: true,
+  } });
+  autorizarLeadDoAtor(ator, atual);
+  if (!atual || atual.excluidoEm || atual.arquivadoEm) throw new Error("Lead indisponível.");
+  if (atual.atualizadoEm.toISOString() !== atualizadoEm) throw new Error("Este card mudou. Atualize a página antes de salvar.");
+  await prisma.lead.update({ where: { id: leadId }, data: { vencimentoCard } });
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/agenda");
+  revalidatePath(`/admin/leads/${leadId}`);
+}
 
 function validarServicos(raw: FormDataEntryValue[], legados: string[] = []) {
   const servicos = [...new Set(raw.map(String))];
@@ -105,6 +123,7 @@ export async function criarLead(formData: FormData) {
       nome,
       telefone,
       email: (formData.get("email") as string) || undefined,
+      cpf: String(formData.get("cpf") ?? "").replace(/\D/g, "").slice(0,11) || null,
       servico: JSON.stringify(servicos),
       etapaOperacional: etapaInicial,
       temperatura: temperaturaDoFormulario(formData.get("temperatura")),
@@ -197,6 +216,7 @@ export async function editarLead(formData: FormData) {
       nome,
       telefone: texto(formData, "telefone", 40),
       email: (formData.get("email") as string) || null,
+      ...(formData.has("cpf") ? {cpf: String(formData.get("cpf") ?? "").replace(/\D/g, "").slice(0,11) || null} : {}),
       servico: JSON.stringify(servicos),
       temperatura: temperaturaDoFormulario(formData.get("temperatura"), atual.temperatura as LeadTemperatura),
       origem: (formData.get("origem") as string) || "site",
@@ -209,13 +229,16 @@ export async function editarLead(formData: FormData) {
       // de registros antigos) é preservado enquanto não for trocado.
       responsavelId: await responsavelDoFormulario(String(formData.get("responsavelId") ?? "").trim(), atual.responsavelId),
     },
-    select: { id: true, nome: true, telefone: true, email: true },
+    select: { id: true, nome: true, telefone: true, email: true, cpf: true, orcamento: true, valorAprovado: true },
     });
 
   // Lead é a fonte única dos dados do cliente: reflete a edição nos registros
   // vinculados e cria os registros dos serviços recém-marcados.
     await propagarDadosClienteDoLead(lead, tx);
     await sincronizarServicosDoLead(lead.id, tx);
+    await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: {
+      valorImovel: lead.orcamento, valorFinanciado: lead.valorAprovado == null ? null : Number(lead.valorAprovado),
+    } });
     await sincronizarVgvDoLead(lead.id, tx);
   });
 

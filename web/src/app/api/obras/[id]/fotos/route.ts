@@ -1,3 +1,4 @@
+import { invalidarAnexosMedicao } from "@/lib/obras/medicao-email-estado";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { usuarioAtual } from "@/lib/auth/modulos";
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!obra) return NextResponse.json({ error: "Obra não encontrada." }, { status: 404 });
 
     const medicaoId = typeof body?.medicaoId === "string" ? body.medicaoId : null;
+    if (!medicaoId) return NextResponse.json({ error: "Adicione fotos em Progresso, dentro de uma medição." }, { status: 400 });
     if (medicaoId && !(await prisma.obraProgressoHistorico.findFirst({ where: { id: medicaoId, obraId }, select: { id: true } }))) return NextResponse.json({ error: "Medição não pertence a esta obra." }, { status: 400 });
 
     const dados = new Uint8Array(new ArrayBuffer(bytes.byteLength));
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         data: { nome: `obra-${obraId}-${Date.now()}.${extensao}`, mime: validacao.mime, tamanho: bytes.length, dados },
         select: { id: true },
       });
+      await invalidarAnexosMedicao(tx, medicaoId);
       return tx.obraFoto.create({
         data: { medicaoId, obraId, arquivoId: arquivo.id, legenda, tiradaEm, incluirNoRelatorio: body?.includeInReport !== false, enviadoPorId: user.id },
         select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },

@@ -6,6 +6,12 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const sessao = vi.hoisted(() => ({ usuarioId: "" }));
 vi.mock("@/lib/obras/acesso-empreiteiro", () => ({ exigirObraOuEmpreiteiro: async () => sessao.usuarioId }));
+// O ciclo testa a transação sem enviar solicitações fictícias ao e-mail real.
+vi.mock("@/lib/email", () => ({ sendEmail: vi.fn(async () => true), adminNotificationTemplate: () => ({ subject: "Teste", html: "<p>Teste</p>" }) }));
+vi.mock("@/lib/obras/medicao-gerar", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/obras/medicao-gerar")>(),
+  gerarArquivoMedicao: vi.fn(async (_id: string, formato: string) => ({ ok: true, bytes: new Uint8Array([1]), nome: `teste.${formato}`, mime: "application/octet-stream" })),
+}));
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url;
 

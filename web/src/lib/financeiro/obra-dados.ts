@@ -44,6 +44,7 @@ export type ResumoObra = {
   /** Corretor vem do lead no CRM (item 24), com a regra padrão de comissão. */
   corretor: { id: string; nome: string; percentualPadrao: string | null } | null;
   comissaoCalculada: ComissaoObraCalculada;
+  baseComissao: string | null;
   empreiteiro: { id: string; nome: string } | null;
   investidores: { investidorId: string; nome: string; percentual: string }[];
   movimentos: MovimentoResumo[];
@@ -55,7 +56,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     where: { id: obraId },
     include: {
       empreiteiro: { select: { id: true, nome: true } },
-      leadVinculado: { select: { valorAprovado: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
+      leadVinculado: { select: { valorAprovado: true, orcamento: true, corretor: { select: { id: true, nome: true, regraComissao: { select: { percentual: true } } } } } },
       investidores: { include: { investidor: { select: { nome: true } } }, orderBy: { investidor: { nome: "asc" } } },
       movimentos: {
         orderBy: [{ data: "asc" }, { criadoEm: "asc" }],
@@ -76,7 +77,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
   // Item 32: obra com corretor no CRM → comissão só pelo cálculo VGV × % (fonte
   // única; sem regra fica indisponível, nunca reaproveita valor antigo). Obra sem
   // corretor → valor informado manualmente.
-  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(vgv), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
+  const comissaoCalculada = calcularComissaoObra({ corretor, vgvCentavos: centavosDe(vgvAutomatico ? txt(obra.leadVinculado?.orcamento) : vgv), percentualObra: txt(obra.comissaoPercentual), pagoCentavos: pagoComissao });
 
   const entradas: EntradasObra = {
     vgv: centavosDe(vgv),
@@ -122,6 +123,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     },
     corretor,
     comissaoCalculada,
+    baseComissao: vgvAutomatico ? txt(obra.leadVinculado?.orcamento) : vgv,
     empreiteiro: obra.empreiteiro,
     investidores: obra.investidores.map((i) => ({ investidorId: i.investidorId, nome: i.investidor.nome, percentual: i.percentual.toString() })),
     movimentos: obra.movimentos.map((m) => ({

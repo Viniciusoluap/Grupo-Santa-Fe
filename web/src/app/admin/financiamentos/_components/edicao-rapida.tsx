@@ -57,11 +57,11 @@ export function ValoresRapidos({ id, valorImovel, valorFinanciado, cliente }: { 
   const campo = "w-36 border border-gray-200 bg-white py-1.5 pr-2 text-xs text-[var(--brand-dark)] focus:border-[var(--brand-yellow)] focus:outline-none";
   return (
     <div className="flex flex-col items-end gap-1">
-      <label className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500">Total
-        <span aria-label={`Valor total de ${cliente}`}><CurrencyInput value={total} onValueChange={setTotal} className={campo} /></span>
+      <label className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500">VGV simulado
+        <span aria-label={`VGV simulado de ${cliente}`}><CurrencyInput value={total} onValueChange={setTotal} className={campo} /></span>
       </label>
-      <label className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500">Financiado
-        <span aria-label={`Valor financiado de ${cliente}`}><CurrencyInput value={financiado} onValueChange={setFinanciado} className={campo} /></span>
+      <label className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500">Valor financiado aprovado
+        <span aria-label={`Valor financiado aprovado de ${cliente}`}><CurrencyInput value={financiado} onValueChange={setFinanciado} className={campo} /></span>
       </label>
       <button
         type="button"

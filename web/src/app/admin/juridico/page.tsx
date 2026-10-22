@@ -66,7 +66,7 @@ export default async function JuridicoPage({
   const valorTotal = contratos.filter((c) => c.status === "ativo").reduce((s, c) => s + c.valor, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 text-slate-900">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide flex items-center gap-2">

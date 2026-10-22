@@ -1,3 +1,4 @@
+import { ChecklistDocumentos } from "@/components/documentos/checklist-documentos";
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
@@ -49,6 +50,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
       projetos: { select: { id: true, nome: true, status: true, criadoEm: true } },
       regularizacoes: { select: { id: true, nome: true, status: true, criadoEm: true } },
       avaliacoes: { select: { id: true, numero: true, status: true, criadoEm: true } },
+      tarefas: { select: { id: true, titulo: true, status: true, criadoEm: true } },
     },
   });
 
@@ -68,6 +70,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
     ...lead.projetos.map((p) => ({ modulo: "projeto" as const, id: p.id, titulo: p.nome, status: p.status, criadoEm: p.criadoEm })),
     ...lead.regularizacoes.map((r) => ({ modulo: "regularizacao" as const, id: r.id, titulo: r.nome, status: r.status, criadoEm: r.criadoEm })),
     ...lead.avaliacoes.map((a) => ({ modulo: "avaliacao" as const, id: a.id, titulo: `Avaliação ${a.numero}`, status: a.status, criadoEm: a.criadoEm })),
+    ...lead.tarefas.map((t) => ({ modulo: "tarefa" as const, id: t.id, titulo: t.titulo, status: t.status, criadoEm: t.criadoEm })),
   ].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
 
   // Item 10 (18/10): opções do agendamento de visita (responsável e corretor).
@@ -208,7 +211,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 <div className="flex items-start gap-2">
                   <span className="text-[var(--brand-dark)] mt-0.5 text-sm shrink-0">R$</span>
                   <div>
-                    <p className="text-xs text-gray-600">Valor Aprovado</p>
+                    <p className="text-xs text-gray-600">Valor financiado aprovado</p>
                     <p className="text-sm font-bold">{formatCurrency(Number(lead.valorAprovado))}</p>
                   </div>
                 </div>
@@ -217,7 +220,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 <div className="flex items-start gap-2">
                   <span className="text-[var(--brand-dark)] mt-0.5 text-sm shrink-0">R$</span>
                   <div>
-                    <p className="text-xs text-gray-600">Budget</p>
+                    <p className="text-xs text-gray-600">VGV simulado</p>
                     <p className="text-sm font-bold">{formatCurrency(lead.orcamento)}</p>
                   </div>
                 </div>
@@ -250,7 +253,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                       <p className="text-[11px] text-gray-600">{rotulo(sv.status)}</p>
                     </div>
                     <Link
-                      href={`${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
+                      href={sv.modulo === "tarefa" ? "/admin/agenda" : `${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
                       className="shrink-0 flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-3 py-1.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 transition-opacity"
                     >
                       <ExternalLink size={11} /> Abrir
@@ -378,6 +381,8 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               <p className="text-xs text-gray-600">Agendamento disponível para leads ativos.</p>
             )}
           </div>
+
+          {interno && <ChecklistDocumentos tipo="crm" id={lead.id} />}
 
           {/* Item 11 (18/10): contratos do cliente, criados e mantidos no Jurídico. */}
           <div className="bg-white border border-gray-100 p-5">

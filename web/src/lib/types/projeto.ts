@@ -4,7 +4,6 @@ export type ProjetoTipo =
   | "projeto_estrutural"
   | "projeto_eletrico"
   | "projeto_hidrossanitario"
-  | "projeto_completo"
   | "orcamento_obra"
   | "laudo_tecnico"
   | "art_rrt";
@@ -63,7 +62,6 @@ export const PROJETO_TIPO_CONFIG: Record<ProjetoTipo, { label: string; icon: str
   projeto_estrutural: { label: "Projeto Estrutural", icon: "⚙️" },
   projeto_eletrico: { label: "Projeto Elétrico", icon: "⚡" },
   projeto_hidrossanitario: { label: "Projeto Hidrossanitário", icon: "🔧" },
-  projeto_completo: { label: "Projeto Completo", icon: "📐" },
   orcamento_obra: { label: "Orçamento de Obra", icon: "📊" },
   laudo_tecnico: { label: "Laudo Técnico", icon: "📋" },
   art_rrt: { label: "ART / RRT", icon: "📜" },

@@ -1,4 +1,4 @@
-import { dadosPlsPadrao, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
+import { dadosPlsPadrao, datasAlvaraDeMedicoes, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
 import type { DadosPci } from "@/lib/caixa/pci";
 import { prisma } from "@/lib/db";
 import { calcularProgresso, mesclarComPadrao } from "@/lib/financeiro/progresso";
@@ -17,17 +17,21 @@ export type ProgressoObraDados = {
   progressoLegado: number;
   /** Pedido de 18/10: Y = (financiado + FGTS + subsídio) − terreno. */
   baseMedicao: BaseMedicao;
+  fotosLegadas?: { id: string; imageUrl: string; caption: string | null; includeInReport: boolean }[];
   historico: {
     id: string;
     tipo?: TipoMedicao;
     dadosCaixa?: DadosMedicaoCaixa;
-    fotos?: { id: string; imageUrl: string; caption: string | null }[];
+    fotos?: { id: string; imageUrl: string; caption: string | null; includeInReport?: boolean }[];
     progresso: number;
     somaIncidencia: number;
     criadoEm: string;
     autor: string | null;
     itens: { chave: string; incidencia: string; execucao: string }[];
     situacao: SituacaoMedicao;
+    emailPodeReenviar?: boolean;
+    emailStatus?: string | null;
+    emailTentativaEm?: string | null;
     solicitadaEm: string | null;
     solicitadaPor: string | null;
     recebidaEm: string | null;
@@ -47,18 +51,28 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       subsidio: true,
       custoTerreno: true,
       progressoItens: true,
+      fotos: { where: { medicaoId: null }, select: { id: true, legenda: true, incluirNoRelatorio: true } },
       pci: { include: { versao: { select: { nome: true, parsed: true } } } },
-      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 101, include: { fotos: { select: { id: true, legenda: true }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } },
+      progressoHistorico: { orderBy: [{ criadoEm: "desc" }, { id: "desc" }], take: 101, include: { fotos: { select: { id: true, legenda: true, incluirNoRelatorio: true }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } },
     },
   });
   if (!obra) return null;
   const pci = obra.pci;
   const parsed = pci?.versao.parsed as unknown as DadosPci | undefined;
   const historicoExibido = obra.progressoHistorico.slice(0, 100);
-  const autores = await prisma.usuario.findMany({
-    where: { id: { in: obra.progressoHistorico.flatMap((h) => [h.criadoPorId, h.solicitadaPorId, h.recebidaPorId]).filter((x): x is string => !!x) } },
-    select: { id: true, nome: true },
-  });
+  // O histórico exibido é limitado a 100, mas o alvará pode ter sido preenchido
+  // numa medição anterior. Consultar apenas os dados PLS da mesma obra.
+  const [autores, medicoesPls] = await Promise.all([
+    prisma.usuario.findMany({
+      where: { id: { in: obra.progressoHistorico.flatMap((h) => [h.criadoPorId, h.solicitadaPorId, h.recebidaPorId]).filter((x): x is string => !!x) } },
+      select: { id: true, nome: true },
+    }),
+    prisma.obraProgressoHistorico.findMany({
+      where: { obraId, tipo: "pls" },
+      orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
+      select: { tipo: true, dadosCaixa: true },
+    }),
+  ]);
   const nome = new Map(autores.map((a) => [a.id, a.nome]));
   const itens = mesclarComPadrao(
     obra.progressoItens.map((i) => ({ chave: i.chave, incidencia: i.incidencia.toString(), execucao: i.execucao.toString() }))
@@ -77,14 +91,18 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
     itens: itens.map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
     medido: obra.progressoItens.length > 0,
     pci: pci && parsed ? { arquivo: pci.versao.nome, enviadaEm: pci.enviadaEm.toISOString(), vinculadaEm: pci.vinculadaEm?.toISOString() ?? null, formato: parsed.formato, proponente: parsed.identificacao.proponente, prazoMeses: parsed.prazoMeses } : null,
-    plsPadrao: dadosPlsPadrao(parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia, seloCasaAzul: parsed.seloCasaAzul } : undefined),
+    plsPadrao: dadosPlsPadrao({
+      ...datasAlvaraDeMedicoes(medicoesPls, parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia } : undefined),
+      seloCasaAzul: parsed?.seloCasaAzul,
+    }),
     progressoLegado: obra.progresso,
     baseMedicao: base,
+    fotosLegadas: obra.fotos.map(f => ({ id: f.id, caption: f.legenda, includeInReport: f.incluirNoRelatorio, imageUrl: `/api/obras/fotos/${f.id}` })),
     historico: historicoExibido.map((h) => ({
       id: h.id,
       tipo: ehTipoMedicao(h.tipo) ? h.tipo : "pls",
       dadosCaixa: normalizarDadosMedicao(ehTipoMedicao(h.tipo) ? h.tipo : "pls", h.dadosCaixa),
-      fotos: (h.fotos ?? []).map(f => ({ id: f.id, caption: f.legenda, imageUrl: `/api/obras/fotos/${f.id}` })),
+      fotos: (h.fotos ?? []).map(f => ({ id: f.id, caption: f.legenda, includeInReport: f.incluirNoRelatorio, imageUrl: `/api/obras/fotos/${f.id}` })),
       progresso: Number(h.progresso),
       somaIncidencia: Number(h.somaIncidencia),
       criadoEm: h.criadoEm.toISOString(),
@@ -92,6 +110,9 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
       itens: mesclarComPadrao(Array.isArray(h.itens) ? (h.itens as { chave: string; incidencia: string; execucao: string }[]) : [])
         .map((i) => ({ chave: i.chave, incidencia: String(i.incidencia), execucao: String(i.execucao) })),
       situacao: situacaoDaMedicao(h),
+      emailPodeReenviar: ["failed", "pending"].includes(h.emailSolicitacaoStatus ?? "") || (h.emailSolicitacaoStatus === "sending" && !!h.emailSolicitacaoTentativaEm && Date.now() - h.emailSolicitacaoTentativaEm.getTime() > 120_000),
+      emailStatus: h.emailSolicitacaoStatus,
+      emailTentativaEm: h.emailSolicitacaoTentativaEm?.toISOString() ?? null,
       solicitadaEm: h.solicitadaEm?.toISOString() ?? null,
       solicitadaPor: quem(h.solicitadaPorId),
       recebidaEm: h.recebidaEm?.toISOString() ?? null,

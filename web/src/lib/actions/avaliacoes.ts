@@ -131,3 +131,16 @@ export async function salvarSugestaoAvaliacao(id: string, sugestaoJson: string) 
   await prisma.avaliacao.update({ where: { id }, data: { sugestaoJson } });
   // revalidatePath omitido intencionalmente: mesma razão das fotos base64.
 }
+
+/** Aplicar IA/comparáveis funciona mesmo quando o valor já existe, sem depender de formulário aberto. */
+export async function aplicarValorEstimadoAvaliacao(id: string, valor: number, sugestaoJson?: string) {
+  await exigirModuloAcao("avaliacao");
+  if (!Number.isFinite(valor) || valor <= 0) throw new Error("Informe um valor estimado válido.");
+  if (sugestaoJson) {
+    if (sugestaoJson.length > 100000) throw new Error("Sugestão muito extensa.");
+    JSON.parse(sugestaoJson);
+  }
+  await prisma.avaliacao.update({ where: { id }, data: { valorEstimado: valor, ...(sugestaoJson ? { sugestaoJson } : {}) } });
+  // Não reenviar fotos base64 do checklist por re-render de server action.
+  return { valorEstimado: valor };
+}

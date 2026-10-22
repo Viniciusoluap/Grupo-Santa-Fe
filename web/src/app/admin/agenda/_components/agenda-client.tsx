@@ -10,6 +10,8 @@ import {
 import { criarVisita, editarVisita, excluirVisita, atualizarStatusVisita } from "@/lib/actions/agenda";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { rotulo } from "@/lib/rotulos";
+import { chaveLocalAgenda, registrosAgenda, type FiltroAgenda } from "@/lib/crm/agenda-registros";
+import { editarTarefaCrm } from "@/lib/actions/tarefas-crm";
 
 type Corretor = { id: string; nome: string };
 type ImovelItem = { id: string; titulo: string };
@@ -36,6 +38,8 @@ interface Props {
   corretores: Corretor[];
   imoveis: ImovelItem[];
   leads: LeadItem[];
+  vencimentos: { id: string; nome: string; vencimentoCard: Date | string | null }[];
+  tarefas: { id: string; titulo: string; status: string; prazo: Date | string | null; leadId: string; lead: { nome: string } }[];
   /** Pedido de 15/10: o corretor não escolhe corretor/colaborador (vem da sessão). */
   ehCorretor?: boolean;
 }
@@ -64,13 +68,6 @@ const STATUS_STYLES: Record<string, string> = {
 const MESES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
-function visitasNoDia(visitas: VisitaData[], ano: number, mes: number, dia: number) {
-  return visitas.filter((v) => {
-    const d = new Date(v.agendadaPara);
-    return d.getFullYear() === ano && d.getMonth() === mes && d.getDate() === dia;
-  });
-}
-
 function toDatetimeLocal(d: Date | string | undefined) {
   if (!d) return "";
   const dt = new Date(d);
@@ -98,10 +95,10 @@ function ExcluirVisitaBtn({ id }: { id: string }) {
 
 /* ────────── Calendário ────────── */
 function Calendario({
-  visitas, ano, mes, diaSelecionado,
+  visitas, vencimentos, tarefas, ano, mes, diaSelecionado,
   onSelect, onPrev, onNext,
 }: {
-  visitas: VisitaData[]; ano: number; mes: number;
+  visitas: VisitaData[]; vencimentos: Props["vencimentos"]; tarefas: Props["tarefas"]; ano: number; mes: number;
   diaSelecionado: number | null;
   onSelect: (d: number) => void; onPrev: () => void; onNext: () => void;
 }) {
@@ -139,7 +136,11 @@ function Calendario({
           if (!dia) return <div key={`e-${idx}`} className="aspect-square" />;
           const isHoje = hoje.getFullYear() === ano && hoje.getMonth() === mes && hoje.getDate() === dia;
           const isSel = diaSelecionado === dia;
-          const vsDia = visitasNoDia(visitas, ano, mes, dia);
+          const data = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+          const registros = registrosAgenda(visitas, vencimentos, tarefas, "data_selecionada", data, chaveLocalAgenda(hoje));
+          const vsDia = registros.flatMap(registro => registro.tipo === "agendamento" ? [registro.item] : []);
+          const cardCount = registros.filter(registro => registro.tipo === "lead").length;
+          const taskCount = registros.filter(registro => registro.tipo === "tarefa").length;
           const temAgendada = vsDia.some((v) => v.status === "agendada");
           const temRealizada = vsDia.some((v) => v.status === "realizada");
 
@@ -147,6 +148,8 @@ function Calendario({
             <button
               key={dia}
               onClick={() => onSelect(dia)}
+              aria-pressed={isSel}
+              aria-label={`${dia}/${mes + 1}/${ano}: ${cardCount} leads, ${taskCount} tarefas e ${vsDia.length} agendamentos`}
               className={`aspect-square flex flex-col items-center justify-start pt-1.5 gap-0.5 transition-colors hover:bg-gray-50 ${isSel ? "bg-[var(--brand-yellow)]/20 ring-1 ring-[var(--brand-yellow)] ring-inset" : ""}`}
             >
               <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center leading-none ${
@@ -161,6 +164,8 @@ function Calendario({
                   {temRealizada && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
                 </div>
               )}
+              {cardCount > 0 && <span className="text-[9px] font-bold text-red-700">{cardCount} lead{cardCount === 1 ? "" : "s"}</span>}
+              {taskCount > 0 && <span className="text-[9px] font-bold text-blue-700">{taskCount} tarefa{taskCount === 1 ? "" : "s"}</span>}
             </button>
           );
         })}
@@ -487,43 +492,42 @@ function VisitaModal({
 }
 
 /* ────────── Componente principal ────────── */
-export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor = false }: Props) {
+export function AgendaClient({ visitas, corretores, imoveis, leads, vencimentos, tarefas, ehCorretor = false }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
-  const [diaSel, setDiaSel] = useState<number | null>(hoje.getDate());
+  const [diaSel, setDiaSel] = useState(hoje.getDate());
+  const [filtro, setFiltro] = useState<FiltroAgenda>("data_selecionada");
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<VisitaData | null>(null);
 
   function prevMes() {
     if (mes === 0) { setMes(11); setAno((a) => a - 1); }
     else setMes((m) => m - 1);
-    setDiaSel(null);
+    setDiaSel(1);
+    setFiltro("data_selecionada");
   }
   function nextMes() {
     if (mes === 11) { setMes(0); setAno((a) => a + 1); }
     else setMes((m) => m + 1);
-    setDiaSel(null);
+    setDiaSel(1);
+    setFiltro("data_selecionada");
   }
 
-  const agora = new Date();
-  const proximas = visitas
-    .filter((v) => v.status === "agendada" && new Date(v.agendadaPara) >= agora)
-    .sort((a, b) => new Date(a.agendadaPara).getTime() - new Date(b.agendadaPara).getTime());
-
-  const visitasDia = diaSel ? visitasNoDia(visitas, ano, mes, diaSel) : [];
-  const allSorted = [...visitas].sort(
-    (a, b) => new Date(b.agendadaPara).getTime() - new Date(a.agendadaPara).getTime()
-  );
+  const dia = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(diaSel).padStart(2, "0")}`;
+  const registros = registrosAgenda(visitas, vencimentos, tarefas, filtro, dia, chaveLocalAgenda(hoje));
+  const tituloLista = filtro === "data_selecionada" ? `Registros de ${dia.split("-").reverse().join("/")}` : {
+    leads_vencidos: "Leads vencidos", leads_do_dia: "Leads do dia", leads_a_vencer: "Leads a vencer", todas_tarefas: "Todas as tarefas",
+  }[filtro];
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Agenda de Visitas</h1>
+          <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Agenda operacional</h1>
           <p className="text-gray-600 text-sm mt-0.5">
-            {proximas.length} visita{proximas.length !== 1 ? "s" : ""} agendada{proximas.length !== 1 ? "s" : ""}
+            Cards de leads, tarefas e agendamentos em uma única lista.
           </p>
         </div>
         <button
@@ -535,90 +539,66 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, ehCorretor =
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Col esquerda: calendário + visitas do dia + próximas + histórico */}
+        {/* Calendário e lista do filtro selecionado */}
         <div className="lg:col-span-2 space-y-4">
+          <label className="block text-sm font-bold text-[var(--brand-dark)]">
+            Exibir
+            <select value={filtro} onChange={event => setFiltro(event.target.value as FiltroAgenda)}
+              className="mt-1 w-full rounded border border-gray-200 bg-white p-2.5 text-gray-900">
+              <option value="data_selecionada">Data selecionada</option>
+              {!ehCorretor && <>
+                <option value="leads_vencidos">Leads vencidos</option>
+                <option value="leads_do_dia">Leads do dia</option>
+                <option value="leads_a_vencer">Leads a vencer</option>
+                <option value="todas_tarefas">Todas as tarefas</option>
+              </>}
+            </select>
+          </label>
           <Calendario
             visitas={visitas}
+            vencimentos={vencimentos}
+            tarefas={tarefas}
             ano={ano}
             mes={mes}
-            diaSelecionado={diaSel}
-            onSelect={setDiaSel}
+            diaSelecionado={filtro === "data_selecionada" ? diaSel : null}
+            onSelect={value => { setDiaSel(value); setFiltro("data_selecionada"); }}
             onPrev={prevMes}
             onNext={nextMes}
           />
-
-          {/* Visitas do dia selecionado */}
-          {diaSel !== null && (
-            <div className="bg-white border border-gray-100">
-              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                <p className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">
-                  {String(diaSel).padStart(2,"0")}/{String(mes+1).padStart(2,"0")}/{ano}
-                </p>
-                <span className="text-xs text-gray-600">{visitasDia.length} visita(s)</span>
-              </div>
-              {visitasDia.length === 0 ? (
-                <div className="px-5 py-8 text-center text-gray-600 text-sm">
-                  Nenhuma visita neste dia.{" "}
-                  <button
-                    onClick={() => { setEditando(null); setShowForm(true); }}
-                    className="text-[var(--brand-yellow)] font-bold hover:underline"
-                  >
-                    + Agendar
-                  </button>
+          <section className="bg-white border border-gray-100" aria-label="Registros da agenda">
+            <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-bold text-[var(--brand-dark)] text-sm">{tituloLista}</h2>
+              <span className="text-xs text-gray-600">{registros.length} registro(s)</span>
+            </div>
+            <div className="p-3 space-y-2">
+              {registros.map(registro => registro.tipo === "agendamento" ? (
+                <VisitaCard key={`agendamento-${registro.item.id}`} v={registro.item}
+                  onEdit={() => { setEditando(registro.item); setShowForm(true); }} />
+              ) : registro.tipo === "lead" ? (
+                <div key={`lead-${registro.item.id}`} className="border border-gray-100 p-4 text-sm">
+                  <p className="text-xs font-bold text-red-700 mb-1">Lead · {registro.dia.split("-").reverse().join("/")}</p>
+                  <Link href={`/admin/leads/${registro.item.id}`} className="underline font-semibold text-[var(--brand-dark)]">{registro.item.nome}</Link>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50 p-3 space-y-2">
-                  {visitasDia.map((v) => (
-                    <VisitaCard key={v.id} v={v} onEdit={() => { setEditando(v); setShowForm(true); }} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Próximas visitas */}
-          {proximas.length > 0 && (
-            <div className="space-y-2">
-              <p className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Próximas Visitas</p>
-              {proximas.slice(0, 5).map((v) => (
-                <VisitaCard key={v.id} v={v} onEdit={() => { setEditando(v); setShowForm(true); }} />
-              ))}
-            </div>
-          )}
-
-          {/* Histórico */}
-          <div className="bg-white border border-gray-100">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">Histórico Completo</h2>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {allSorted.map((v) => (
-                <div key={v.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-[var(--brand-dark)] text-sm">{v.clienteNome}</p>
-                    <p className="text-gray-600 text-xs">
-                      {TIPO_LABELS[v.tipoVisita] ?? v.tipoVisita} · {new Date(v.agendadaPara).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${STATUS_STYLES[v.status] ?? "bg-gray-100 text-gray-600"}`}>
-                      {v.status}
-                    </span>
-                    <button
-                      onClick={() => { setEditando(v); setShowForm(true); }}
-                      className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <ExcluirVisitaBtn id={v.id} />
+                <div key={`tarefa-${registro.item.id}`} className="border border-gray-100 p-4 text-sm space-y-2">
+                  <p className="text-xs font-bold text-blue-700">Tarefa · {registro.dia ? registro.dia.split("-").reverse().join("/") : "Sem prazo"}</p>
+                  <Link href={`/admin/leads/${registro.item.leadId}`} className="block underline font-semibold text-[var(--brand-dark)]">{registro.item.titulo} · {registro.item.lead.nome}</Link>
+                  <div className="flex flex-wrap gap-2">
+                    <select aria-label={`Status de ${registro.item.titulo}`} value={registro.item.status}
+                      onChange={event => { editarTarefaCrm(registro.item.id, { status: event.target.value }).catch(error => alert(error.message)); }}
+                      className="border p-1 bg-white text-gray-900">
+                      <option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option>
+                    </select>
+                    <input type="datetime-local" aria-label={`Prazo de ${registro.item.titulo}`}
+                      defaultValue={registro.item.prazo ? toDatetimeLocal(registro.item.prazo) : ""}
+                      onChange={event => { editarTarefaCrm(registro.item.id, { prazo: event.target.value ? new Date(event.target.value).toISOString() : null }).catch(error => alert(error.message)); }}
+                      className="border p-1 bg-white text-gray-900" />
                   </div>
                 </div>
               ))}
-              {allSorted.length === 0 && (
-                <div className="px-5 py-8 text-center text-gray-600 text-sm">Nenhuma visita registrada.</div>
-              )}
+              {!registros.length && <p className="px-5 py-8 text-center text-gray-600 text-sm">Nenhum registro encontrado para este filtro.</p>}
             </div>
-          </div>
+          </section>
         </div>
 
         {/* Col direita: resumo + por tipo */}

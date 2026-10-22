@@ -15,9 +15,29 @@ export const ABA_PLS = "PLS";
 export const ABA_REPACTUACAO = "Repactuação_Prazo";
 export const ABA_ALTERACAO = "Alteração_Projeto_Especific";
 
-/** Linhas dos 20 serviços na aba da proposta (coluna X = incidência). */
+/** Posição no modelo atual; versões antigas têm a tabela deslocada. */
 export const LINHA_PRIMEIRO_SERVICO_PCI = 120;
 export const TOTAL_SERVICOS_PCI = 20;
+
+/** Localiza os itens 1–20 pela numeração da coluna G, sem confiar na linha fixa. */
+export function localizarIncidenciasPci(ler: (endereco: string) => ValorCelula): { linha: number; incidencias: number[] } {
+  for (let linha = 90; linha <= 200 - TOTAL_SERVICOS_PCI; linha++) {
+    const incidencias: number[] = [];
+    for (let k = 0; k < TOTAL_SERVICOS_PCI; k++) {
+      if (numero(ler(`G${linha + k}`)) !== k + 1) break;
+      const incidencia = numero(ler(`X${linha + k}`));
+      if (incidencia === null || incidencia < 0 || incidencia > 100) break;
+      incidencias.push(incidencia);
+    }
+    if (incidencias.length !== TOTAL_SERVICOS_PCI) continue;
+    const soma = incidencias.reduce((total, valor) => total + valor, 0);
+    if (Math.abs(soma - 100) > 0.01) {
+      throw new Error(`A soma das incidências da PCI é ${soma.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%, deveria ser 100%. Confira os 20 itens da planilha.`);
+    }
+    return { linha, incidencias };
+  }
+  throw new Error("A PCI não tem uma tabela válida de 20 serviços (itens 1 a 20, coluna Incidência). Confira a versão da planilha.");
+}
 
 export interface IdentificacaoPci {
   proponente: string;
@@ -145,13 +165,7 @@ export function lerPci(arquivo: Uint8Array): DadosPci {
     throw new Error(`A planilha não tem a aba "${ABA_PROPOSTA}". Confira se é a PCI da CAIXA.`);
   }
   const p = (e: string) => planilha.ler(ABA_PROPOSTA, e);
-  const incidencias: number[] = [];
-  for (let k = 0; k < TOTAL_SERVICOS_PCI; k++) {
-    const v = numero(p(`X${LINHA_PRIMEIRO_SERVICO_PCI + k}`));
-    incidencias.push(v ?? 0);
-  }
-  const soma = incidencias.reduce((s, v) => s + v, 0);
-  if (soma <= 0) throw new Error("A PCI não tem as incidências preenchidas (coluna Incidência, itens 1 a 20).");
+  const { linha: linhaPrimeiroServico, incidencias } = localizarIncidenciasPci(p);
 
   const pls = planilha.abas.includes(ABA_PLS) ? (e: string) => planilha.ler(ABA_PLS, e) : () => null;
   const identificacao: IdentificacaoPci = {
@@ -211,8 +225,8 @@ export function lerPci(arquivo: Uint8Array): DadosPci {
   const incidenciaMinima: number[] = [];
   const incidenciaMaxima: number[] = [];
   for (let k = 0; k < TOTAL_SERVICOS_PCI; k++) {
-    incidenciaMinima.push(numero(p(`AN${LINHA_PRIMEIRO_SERVICO_PCI + k}`)) ?? 0);
-    incidenciaMaxima.push(numero(p(`AS${LINHA_PRIMEIRO_SERVICO_PCI + k}`)) ?? 0);
+    incidenciaMinima.push(numero(p(`AN${linhaPrimeiroServico + k}`)) ?? 0);
+    incidenciaMaxima.push(numero(p(`AS${linhaPrimeiroServico + k}`)) ?? 0);
   }
 
   return {

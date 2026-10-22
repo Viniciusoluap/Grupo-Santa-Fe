@@ -16,7 +16,7 @@ describe("janela do histórico de medições", () => {
     })).reverse();
     findUnique.mockResolvedValue({
       progresso: 50, financiamentoCef: "200000", fgts: "0", subsidio: "0",
-      custoTerreno: "0", progressoItens: [], progressoHistorico: historico,
+      custoTerreno: "0", fotos: [], progressoItens: [], progressoHistorico: historico,
     });
     const dados = await carregarProgressoObra("obra-teste");
     expect(findUnique.mock.calls[0][0].select.progressoHistorico.take).toBe(101);

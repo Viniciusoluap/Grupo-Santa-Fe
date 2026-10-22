@@ -246,7 +246,8 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm pointer-events-none">R$</span>
                 <input type="text" inputMode="numeric" required placeholder="0,00"
                   value={valorDisplay} onChange={(e) => setValorDisplay(mascararDinheiro(e.target.value).texto)}
-                  className="w-full border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  style={{ paddingInlineStart: "2.75rem" }}
+                  className="w-full min-w-0 border border-gray-200 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 <input type="hidden" name="valor" value={currencyToFloat(valorDisplay)} />
               </div>
             </div>

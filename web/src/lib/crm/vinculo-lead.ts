@@ -1,3 +1,4 @@
+import { DOCUMENTOS_FINANCIAMENTO } from "@/lib/documentos-cliente-padrao";
 import { prisma } from "@/lib/db";
 import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import type { Prisma, Financiamento } from "@/generated/prisma/client";
@@ -25,26 +26,22 @@ export async function bloquearLead(tx: TransacaoCRM, leadId: string) {
   if (!linhas.length) throw new Error("Lead não encontrado.");
 }
 
-export const CHECKLIST_FINANCIAMENTO_PADRAO = [
-  // Documento do Comprador
-  { grupo: "Comprador", item: "RG e CPF (cópia autenticada)" },
-  { grupo: "Comprador", item: "Certidão de nascimento ou casamento" },
-  { grupo: "Comprador", item: "Comprovante de residência (últimos 3 meses)" },
-  { grupo: "Comprador", item: "Comprovante de renda (holerite ou IR)" },
-  { grupo: "Comprador", item: "Extrato bancário (3 meses)" },
-  { grupo: "Comprador", item: "CTPS ou contrato de trabalho" },
-  // Documento do Imóvel
-  { grupo: "Imóvel", item: "Matrícula atualizada do imóvel" },
-  { grupo: "Imóvel", item: "Certidão de ônus e ações reais" },
-  { grupo: "Imóvel", item: "IPTU (exercício atual)" },
-  { grupo: "Imóvel", item: "Planta baixa aprovada" },
-  { grupo: "Imóvel", item: "Habite-se ou auto de conclusão" },
-  // Banco
-  { grupo: "Banco", item: "Proposta de financiamento assinada" },
-  { grupo: "Banco", item: "Laudo de avaliação do imóvel" },
-  { grupo: "Banco", item: "Aprovação de crédito" },
-  { grupo: "Banco", item: "Minuta do contrato assinada" },
-];
+export const CHECKLIST_FINANCIAMENTO_PADRAO = DOCUMENTOS_FINANCIAMENTO.map(item => ({ grupo: "Financiamento e imóvel", item }));
+
+/** Migração de apresentação aditiva: arquivos e itens antigos continuam no histórico. */
+export async function atualizarChecklistFinanciamento(financiamentoId: string) {
+  await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM financiamentos WHERE id = ${financiamentoId} FOR UPDATE`;
+    const itens = await tx.checklistItem.findMany({where: {financiamentoId}});
+    for (const item of DOCUMENTOS_FINANCIAMENTO) {
+      const existente = itens.find(i => i.item === item);
+      if (existente) await tx.checklistItem.update({where:{id:existente.id},data:{legado:false}});
+      else await tx.checklistItem.create({data:{financiamentoId,grupo:"Financiamento e imóvel",item}});
+    }
+    await tx.checklistItem.updateMany({where:{financiamentoId,item:{notIn:[...DOCUMENTOS_FINANCIAMENTO]}},data:{legado:true}});
+  });
+}
+
 
 
 type DadosFinanciamento = Parameters<typeof prisma.financiamento.create>[0]["data"];
@@ -62,13 +59,15 @@ export async function garantirChecklistDosFinanciamentos(leadId: string, tx?: Tr
   return semChecklist.length;
 }
 
-type ClienteLead = { id: string; nome: string; telefone: string; email: string | null };
+type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null; orcamento?: number | null; valorAprovado?: Prisma.Decimal | null; responsavelId?: string | null };
 async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOperacional, servicoLeadId: string) {
   const cliente = dadosClienteDoLead(lead);
   const vinculo = { leadId: lead.id, servicoLeadId };
   switch (op.modulo) {
     case "financiamento":
-      return criarFinanciamentoComChecklist({ ...cliente, ...vinculo, tipo: op.tipoFinanciamento!, status: "aguardando_configuracao" }, tx);
+      return criarFinanciamentoComChecklist({ ...cliente, clienteCpf: lead.cpf ?? null, ...vinculo,
+        valorImovel: lead.orcamento ?? null, valorFinanciado: lead.valorAprovado == null ? null : Number(lead.valorAprovado),
+        tipo: op.tipoFinanciamento!, status: "aguardando_configuracao" }, tx);
     case "obra":
       return tx.obra.create({ data: { ...vinculo, nome: `Obra — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
     case "projeto":
@@ -78,6 +77,9 @@ async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOpe
     case "avaliacao":
       // Identificador longo evita colisões e não exige recuperar uma transação abortada.
       return tx.avaliacao.create({ data: { ...cliente, ...vinculo, numero: `AVL-${randomUUID()}`, tipo: "mercado", finalidade: "compra_venda", endereco: "A definir", bairro: "A definir", avaliador: "A definir" } });
+    case "tarefa":
+      return tx.tarefaCrm.create({ data: { ...vinculo, titulo: `Atender ${lead.nome}`,
+        responsavelId: lead.responsavelId ?? null } });
   }
 }
 
@@ -105,7 +107,7 @@ async function reconciliarLegados(tx: TransacaoCRM, leadId: string) {
   }
 }
 
-const demandaInclude = { financiamento: true, obra: true, projeto: true, regularizacao: true, avaliacao: true } as const;
+const demandaInclude = { financiamento: true, obra: true, projeto: true, regularizacao: true, avaliacao: true, tarefa: true } as const;
 export interface ResultadoSincronizacao { criados: number; falhas: ModuloServico[] }
 
 /** Lead e operações são gravados no mesmo commit. Falha em qualquer write aborta tudo. */
@@ -148,7 +150,7 @@ export async function propagarDadosClienteDoLead(lead: ClienteLead, tx?: Transac
   if (!tx) return transacaoCRM(async (t) => { await bloquearLead(t, lead.id); return propagarDadosClienteDoLead(lead, t); });
   const c = dadosClienteDoLead(lead);
   const base = { clienteNome: c.clienteNome, clienteTel: c.clienteTel };
-  await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } });
+  await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail, clienteCpf: lead.cpf ?? null } });
   await tx.avaliacao.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } });
   await tx.obra.updateMany({ where: { leadId: lead.id }, data: base });
   await tx.projeto.updateMany({ where: { leadId: lead.id }, data: base });
@@ -198,7 +200,7 @@ export async function clienteParaRegistro(leadId: string | null | undefined, for
 
 export async function carregarLeadParaVinculo(leadId: string | null | undefined) {
   if (!leadId) throw new Error("Selecione um lead do CRM.");
-  return prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { id: true, nome: true, telefone: true, email: true } });
+  return prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { id: true, nome: true, telefone: true, email: true, cpf: true } });
 }
 
 /** Compatibilidade apenas com avaliação, que já possuía uma entrada própria. */

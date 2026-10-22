@@ -1,3 +1,4 @@
+import { ChecklistDocumentos } from "@/components/documentos/checklist-documentos";
 import { redirect } from "next/navigation";
 import { FileCheck2, Download } from "lucide-react";
 import { auth } from "@/auth";
@@ -70,11 +71,12 @@ export default async function FinanciamentoDoClientePage() {
               <div><dt className="text-xs uppercase text-gray-600">Valor do imóvel</dt><dd className="font-semibold text-[var(--brand-dark)]">{f.valorImovel != null ? formatCurrency(f.valorImovel) : "—"}</dd></div>
               <div><dt className="text-xs uppercase text-gray-600">Valor financiado</dt><dd className="font-semibold text-[var(--brand-dark)]">{f.valorFinanciado != null ? formatCurrency(f.valorFinanciado) : "—"}</dd></div>
             </dl>
+            <ChecklistDocumentos tipo="financiamento" id={f.id} />
             <div>
-              <h3 className="mb-2 font-bold text-[var(--brand-dark)]">Documentos</h3>
+              <h3 className="mb-2 font-bold text-[var(--brand-dark)]">Documentos anteriores</h3>
               {f.checklist.length === 0 && <p className="text-sm text-gray-700">A equipe ainda não liberou documentos para você enviar.</p>}
               <ul className="divide-y divide-gray-100">
-                {f.checklist.map((item) => (
+                {f.checklist.filter(item=>item.legado && item.visivelCliente && item.arquivoId).map((item) => (
                   <li key={item.id} className="flex flex-col gap-2 py-3 md:flex-row md:items-center md:justify-between">
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--brand-dark)]">
@@ -91,7 +93,7 @@ export default async function FinanciamentoDoClientePage() {
                         </a>
                       )}
                     </div>
-                    {!item.concluido && <EnviarDocumento itemId={item.id} temArquivo={!!item.arquivo} />}
+
                   </li>
                 ))}
               </ul>

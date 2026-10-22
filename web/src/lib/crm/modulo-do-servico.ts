@@ -5,6 +5,7 @@ import type { ModuloServico } from "@/lib/crm/servicos-lead";
 /** Módulo do painel onde cada serviço do CRM cria o registro. */
 export const MODULO_PAINEL_DO_SERVICO: Record<ModuloServico, string> = {
   financiamento: "financiamentos", obra: "obras", projeto: "projetos", regularizacao: "regularizacao", avaliacao: "avaliacao",
+  tarefa: "agenda",
 };
 
 /**

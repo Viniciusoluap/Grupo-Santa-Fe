@@ -1,3 +1,4 @@
+import { LIMITE_PCI_BYTES } from "@/lib/obras/pci-validacao";
 import { createHash } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -6,7 +7,7 @@ import { incidenciasCorrespondem } from "@/lib/medicao-caixa";
 import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 
 export class PciInvalida extends Error {}
-export const LIMITE_PCI = 3 * 1024 * 1024;
+export const LIMITE_PCI = LIMITE_PCI_BYTES;
 export function validarIncidenciasPci(itens: { chave: string; incidencia: string }[], pci: DadosPci) {
   return incidenciasCorrespondem(itens, SERVICOS_PROGRESSO.map(s => s.chave), pci.incidencias);
 }
@@ -14,7 +15,7 @@ export async function obterPci(obraId: string, db: Prisma.TransactionClient = pr
   return db.obraPci.findUnique({ where: { obraId }, include: { versao: true } });
 }
 export async function gravarPci(obraId: string, nome: string, bytes: Uint8Array, usuarioId: string) {
-  if (!bytes.length || bytes.length > LIMITE_PCI) throw new PciInvalida("Envie uma PCI de até 3 MiB.");
+  if (!bytes.length || bytes.length > LIMITE_PCI) throw new PciInvalida("Envie uma PCI de até 8 MB.");
   let parsed: DadosPci;
   try { parsed = lerPci(bytes); } catch (e) { throw new PciInvalida(e instanceof Error ? e.message : "PCI inválida."); }
   const hash = createHash("sha256").update(bytes).digest("hex");

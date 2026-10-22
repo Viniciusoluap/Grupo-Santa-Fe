@@ -10,8 +10,12 @@ export default async function FinanciamentosPage() {
   const financiamentos = await prisma.financiamento.findMany({
     where: escopoFinanciamentosDoAtor(ator),
     orderBy: { criadoEm: "desc" },
-    include: { corretor: true, checklist: true },
+    include: { corretor: true, checklist: true, leadVinculado: { select: { orcamento: true, valorAprovado: true } } },
   });
 
-  return <FinanciamentosClient financiamentos={financiamentos} podeArquivar={ator.papel === "admin" || ator.papel === "colaborador"} />;
+  const valoresDoCrm = financiamentos.map(({ leadVinculado, ...f }) => ({ ...f,
+    valorImovel: leadVinculado ? leadVinculado.orcamento : f.valorImovel,
+    valorFinanciado: leadVinculado ? (leadVinculado.valorAprovado == null ? null : Number(leadVinculado.valorAprovado)) : f.valorFinanciado,
+  }));
+  return <FinanciamentosClient financiamentos={valoresDoCrm} podeArquivar={ator.papel === "admin" || ator.papel === "colaborador"} />;
 }

@@ -35,7 +35,7 @@ export const projetos: Projeto[] = [
     clientName: "Indústria São Lucas",
     clientPhone: "(62) 3333-8899",
     clientEmail: "contato@saolucas.com.br",
-    tipo: "projeto_completo",
+    tipo: "projeto_estrutural",
     status: "entregue",
     engineer: "Eng. Pedro Lima",
     address: "Av. Industrial, 1500 — Dist. Industrial, Aparecida-GO",

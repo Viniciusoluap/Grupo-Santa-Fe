@@ -10,7 +10,6 @@ import { editarFinanciamento } from "@/lib/actions/financiamentos";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { PercentInput } from "@/components/ui/percent-input";
 import { rotulo } from "@/lib/rotulos";
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -19,7 +18,7 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
   await exigirModuloPagina("financiamentos");
   const { id } = await params;
   await financiamentoDoAtor(id);
-  const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
+  const f = await prisma.financiamento.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true, cpf: true, orcamento: true, valorAprovado: true } } } });
   if (!f) notFound();
 
   return (
@@ -62,19 +61,9 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
               )}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CPF</label>
-                <input name="clienteCpf" type="text" defaultValue={f.clienteCpf ?? ""}
+                <input name="clienteCpf" type="text" readOnly={!!f.leadVinculado} defaultValue={f.leadVinculado?.cpf ?? f.clienteCpf ?? ""}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
-            </div>
-          </div>
-
-          {/* Imóvel */}
-          <div>
-            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Imóvel</p>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome / Endereço do Imóvel *</label>
-              <input name="imovel" type="text" required defaultValue={f.imovel ?? ""}
-                className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
           </div>
 
@@ -107,28 +96,13 @@ export default async function EditarFinanciamentoPage({ params }: PageProps) {
             <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Valores</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Imóvel *</label>
-                <CurrencyInput name="valorImovel" required defaultValue={f.valorImovel}
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">VGV simulado *</label>
+                <CurrencyInput name="valorImovel" required defaultValue={f.leadVinculado ? f.leadVinculado.orcamento : f.valorImovel}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor do Financiamento *</label>
-                <CurrencyInput name="valorFinanciado" required defaultValue={f.valorFinanciado}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Entrada</label>
-                <CurrencyInput name="entrada" defaultValue={f.entrada}
-                  className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Taxa de Juros (% a.a.) *</label>
-                <PercentInput name="taxa" required defaultValue={f.taxa}
-                  className="w-full px-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prazo (meses) *</label>
-                <input name="prazo" type="number" required defaultValue={f.prazo ?? ""}
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor financiado aprovado *</label>
+                <CurrencyInput name="valorFinanciado" required defaultValue={f.leadVinculado ? Number(f.leadVinculado.valorAprovado ?? 0) : f.valorFinanciado}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
             </div>

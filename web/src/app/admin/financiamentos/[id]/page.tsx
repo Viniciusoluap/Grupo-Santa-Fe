@@ -1,3 +1,4 @@
+import { ChecklistDocumentos } from "@/components/documentos/checklist-documentos";
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { notFound } from "next/navigation";
@@ -21,7 +22,7 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
     include: {
       checklist: { orderBy: { grupo: "asc" }, include: { arquivo: { select: { id: true, nome: true } } } },
       corretor: true,
-      leadVinculado: { select: { id: true, nome: true } },
+      leadVinculado: { select: { id: true, nome: true, orcamento: true, valorAprovado: true } },
     },
   });
   if (!f) notFound();
@@ -75,9 +76,10 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: checklist */}
         <div className="lg:col-span-2 space-y-5">
+          <ChecklistDocumentos tipo="financiamento" id={f.id} />
           <FinanciamentoChecklistClient
             financiamentoId={f.id}
-            checklist={f.checklist.map((i) => ({ ...i }))}
+            checklist={f.checklist.filter(i=>i.legado).map((i) => ({ ...i }))}
             statusAtual={f.status}
           />
         </div>
@@ -105,8 +107,8 @@ export default async function FinanciamentoDetailPage({ params }: PageProps) {
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Resumo Financeiro</p>
             {[
-              { label: "Valor do imóvel", value: formatCurrency(f.valorImovel) },
-              { label: "Valor financiado", value: formatCurrency(f.valorFinanciado) },
+              { label: "VGV simulado", value: formatCurrency(f.leadVinculado ? f.leadVinculado.orcamento : f.valorImovel) },
+              { label: "Valor financiado aprovado", value: formatCurrency(f.leadVinculado ? Number(f.leadVinculado.valorAprovado ?? 0) : f.valorFinanciado) },
               { label: "Entrada", value: formatCurrency(f.entrada) },
               f.parcela ? { label: "Parcela", value: formatCurrency(f.parcela) } : null,
               { label: "Prazo", value: f.prazo == null ? "Pendente de configuração" : `${f.prazo} meses` },
