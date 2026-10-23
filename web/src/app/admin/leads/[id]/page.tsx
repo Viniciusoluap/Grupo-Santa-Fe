@@ -14,6 +14,9 @@ import { MODULO_CONFIG, PARAM_FALHA_SERVICOS, parseFalhasServicos, type ModuloSe
 import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
+import { ConcluirServicoBotao } from "./concluir-servico-botao";
+import { DuplicarLeadBotao } from "./duplicar-lead-botao";
+import { podeConcluir } from "@/lib/crm/conclusao-servico";
 import { AdicionarOperacaoForm } from "./adicionar-operacao-form";
 import { LeadAgendarVisita } from "./lead-agendar-visita";
 import { LeadContratos } from "./lead-contratos";
@@ -114,7 +117,14 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
           <p className="text-gray-600 text-sm mt-0.5">
             {servicosLead.join(", ")} · {lead.origem} · {lead.responsavel?.nome ?? "Sem responsável"}
           </p>
+          {lead.duplicadoDeId && (
+            <p className="text-xs text-gray-600 mt-0.5">
+              Duplicado do <Link href={`/admin/leads/${lead.duplicadoDeId}`} className="underline">lead de origem</Link>
+              {lead.duplicadoEm ? ` em ${lead.duplicadoEm.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}.
+            </p>
+          )}
         </div>
+        {interno && !lead.excluidoEm && <DuplicarLeadBotao leadId={lead.id} nome={lead.nome} />}
       </div>
 
       {falhasServicos.length > 0 && (
@@ -252,12 +262,17 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{sv.titulo}</p>
                       <p className="text-[11px] text-gray-600">{rotulo(sv.status)}</p>
                     </div>
+                    <div className="flex shrink-0 items-start gap-2">
+                    {interno && ativo && podeConcluir(sv.modulo, sv.status) && (
+                      <ConcluirServicoBotao leadId={lead.id} modulo={sv.modulo} registroId={sv.id} titulo={sv.titulo} />
+                    )}
                     <Link
                       href={sv.modulo === "tarefa" ? "/admin/agenda" : `${MODULO_CONFIG[sv.modulo].rota}/${sv.id}`}
                       className="shrink-0 flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-3 py-1.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 transition-opacity"
                     >
                       <ExternalLink size={11} /> Abrir
                     </Link>
+                    </div>
                   </div>
                 ))}
               </div>

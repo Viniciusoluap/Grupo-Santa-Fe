@@ -1,4 +1,5 @@
 "use server";
+import { coordenadasDoFormulario, salvarLocalizacaoObra } from "@/lib/obras/localizacao";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { OBRA_STATUS_CONFIG, validarMudancaStatusObra } from "@/lib/types/obra";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
@@ -42,8 +43,10 @@ function dataOpcional(formData: FormData, campo: string): Date | null {
 }
 
 export async function editarObra(formData: FormData) {
-  await exigirModuloAcao("obras");
+  const usuario = await exigirModuloAcao("obras");
   const id = formData.get("id") as string;
+  // Lote 23/10, etapa 3: valida a "Localização exata" antes de gravar qualquer coisa.
+  const coords = coordenadasDoFormulario(formData);
   await transacaoCRM(async (tx) => {
     const atual = await tx.obra.findUnique({ where: { id }, select: { leadId: true, status: true } });
     if (!atual) throw new Error("Registro não encontrado.");
@@ -69,7 +72,9 @@ export async function editarObra(formData: FormData) {
         descricao: (formData.get("descricao") as string) || "",
       },
     });
+    if (coords !== undefined) await salvarLocalizacaoObra(tx, id, coords, usuario.id);
   });
   revalidatePath("/admin/obras");
+  revalidatePath("/admin/mapa");
   redirect(`/admin/obras/${id}`);
 }

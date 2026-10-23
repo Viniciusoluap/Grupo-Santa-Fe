@@ -13,14 +13,14 @@ datasource db {
 // ─── IMÓVEIS ─────────────────────────────────────────────────────────────────
 
 model Imovel {
-  id              String   @id @default(cuid())
-  slug            String   @unique
-  tipo            String   // casa, apartamento, lote, terreno, comercial, chacara
-  status          String   // venda, locacao, lancamento, vendido, locado
+  id              String               @id @default(cuid())
+  slug            String               @unique
+  tipo            String // casa, apartamento, lote, terreno, comercial, chacara
+  status          String // venda, locacao, lancamento, vendido, locado
   titulo          String
   descricao       String
   preco           Float
-  precoNegociavel Boolean  @default(false)
+  precoNegociavel Boolean              @default(false)
   condominio      Float?
   iptu            Float?
   area            Float
@@ -29,42 +29,43 @@ model Imovel {
   suites          Int?
   banheiros       Int?
   vagas           Int?
-  rua             String   @default("")
+  rua             String               @default("")
   bairro          String
-  cidade          String   @default("Canaã dos Carajás")
-  estado          String   @default("PA")
+  cidade          String               @default("Canaã dos Carajás")
+  estado          String               @default("PA")
   cep             String?
   latitude        Float?
   longitude       Float?
-  features        String   @default("[]")
-  imagens         String   @default("[]")
-  destaque        Boolean  @default(false)
+  features        String               @default("[]")
+  imagens         String               @default("[]")
+  destaque        Boolean              @default(false)
   badge           String?
-  publicadoSite   Boolean  @default(true)
-  publicadoZap    Boolean  @default(false)
-  publicadoOlx    Boolean  @default(false)
-  publicadoViva   Boolean  @default(false)
+  publicadoSite   Boolean              @default(true)
+  publicadoZap    Boolean              @default(false)
+  publicadoOlx    Boolean              @default(false)
+  publicadoViva   Boolean              @default(false)
   corretorId      String?
-  corretor        Corretor?    @relation(fields: [corretorId], references: [id])
+  corretor        Corretor?            @relation(fields: [corretorId], references: [id])
   leads           Lead[]
   contratos       Contrato[]
   visitas         Visita[]
-  financiamentos  Financiamento[] @relation("FinanciamentoImovel")
+  financiamentos  Financiamento[]      @relation("FinanciamentoImovel")
+  obraLocalizacao Obra?                @relation("ObraImovel")
   estudosIncorp   EstudoIncorporacao[]
   /// Pedido de 18/10 (itens 3 e 8, paridade com a Prospecta): cadastro feito pelo
   /// corretor entra "pendente" e só vai ao site depois da revisão da equipe.
-  revisaoStatus   String   @default("aprovado") // pendente | aprovado | recusado
+  revisaoStatus   String               @default("aprovado") // pendente | aprovado | recusado
   /// Quando a revisão foi decidida — o corretor vê "Recusado" por 3 dias.
   revisadoEm      DateTime?
   /// Corretor que cadastrou o imóvel (edita e exclui só o próprio cadastro).
   cadastradoPorId String?
-  cadastradoPor   Usuario? @relation("ImovelCadastradoPor", fields: [cadastradoPorId], references: [id], onDelete: SetNull)
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  cadastradoPor   Usuario?             @relation("ImovelCadastradoPor", fields: [cadastradoPorId], references: [id], onDelete: SetNull)
+  criadoEm        DateTime             @default(now())
+  atualizadoEm    DateTime             @updatedAt
+  fotos           ImovelFoto[]
 
   @@index([cadastradoPorId])
   @@map("imoveis")
-  fotos           ImovelFoto[]
 }
 
 /// Pedido de 18/10 (item 8): imóvel recusado e excluído pela equipe continua
@@ -84,81 +85,89 @@ model ImovelRecusadoAviso {
 // ─── LEADS / CRM ─────────────────────────────────────────────────────────────
 
 model Lead {
-  id                String   @id @default(cuid())
-  vencimentoCard    DateTime? @db.Date
-  nome              String
-  telefone          String
-  email             String?
-  cpf               String?
-  servico           String
-  status            String   @default("novo")
+  id                   String          @id @default(cuid())
+  vencimentoCard       DateTime?       @db.Date
+  nome                 String
+  telefone             String
+  email                String?
+  cpf                  String?
+  servico              String
+  status               String          @default("novo")
   // Lote 1 (item 05): frio | morno | quente | fechado — independente da etapa.
-  temperatura       String   @default("frio")
-  etapaOperacional  String?
-  creationRequestKey String? @unique
-  arquivadoEm       DateTime?
-  excluidoEm        DateTime?
-  origem            String   @default("site")
-  corretorId        String?
-  corretor          Corretor? @relation(fields: [corretorId], references: [id])
+  temperatura          String          @default("frio")
+  etapaOperacional     String?
+  creationRequestKey   String?         @unique
+  arquivadoEm          DateTime?
+  excluidoEm           DateTime?
+  origem               String          @default("site")
+  corretorId           String?
+  corretor             Corretor?       @relation(fields: [corretorId], references: [id])
   // Responsável interno pelo atendimento (usuário real do sistema: admin,
   // colaborador ou corretor) — substitui nomes fixos (EPIC-007 S-08).
-  responsavelId     String?
-  responsavel       Usuario?  @relation("LeadResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
-  imovelInteresseId String?
-  imovelInteresse   Imovel?  @relation(fields: [imovelInteresseId], references: [id])
-  orcamento         Float?
+  responsavelId        String?
+  responsavel          Usuario?        @relation("LeadResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  imovelInteresseId    String?
+  imovelInteresse      Imovel?         @relation(fields: [imovelInteresseId], references: [id])
+  orcamento            Float?
   // Pedido de 15/10: Valor Aprovado do cliente; é o VGV das obras dele (fonte única).
-  valorAprovado     Decimal? @db.Decimal(15, 2)
-  notas             String   @default("")
-  senhaAcesso       String?
-  interacoes        Interacao[]
-  tarefas           TarefaCrm[]
-  visitas           Visita[]
-  financiamentos    Financiamento[]
-  obras             Obra[]
-  projetos          Projeto[]        @relation("ProjetoLead")
-  regularizacoes    Regularizacao[]  @relation("RegularizacaoLead")
-  avaliacoes        Avaliacao[]      @relation("AvaliacaoLead")
-  contratos         Contrato[]       @relation("ContratoLead")
+  valorAprovado        Decimal?        @db.Decimal(15, 2)
+  notas                String          @default("")
+  senhaAcesso          String?
+  interacoes           Interacao[]
+  tarefas              TarefaCrm[]
+  visitas              Visita[]
+  financiamentos       Financiamento[]
+  obras                Obra[]
+  projetos             Projeto[]       @relation("ProjetoLead")
+  regularizacoes       Regularizacao[] @relation("RegularizacaoLead")
+  avaliacoes           Avaliacao[]     @relation("AvaliacaoLead")
+  contratos            Contrato[]      @relation("ContratoLead")
   servicosOperacionais ServicoLead[]
-  chatMensagens     ChatMensagem[]   @relation("ChatLead")
-  criadoEm          DateTime @default(now())
-  atualizadoEm      DateTime @updatedAt
+  chatMensagens        ChatMensagem[]  @relation("ChatLead")
+  criadoEm             DateTime        @default(now())
+  atualizadoEm         DateTime        @updatedAt
+  contaCliente         Usuario?        @relation("UsuarioCliente")
+  /// Lote 23/10, etapa 6: origem da duplicação ("Duplicar lead").
+  duplicadoDeId        String?
+  duplicadoDe          Lead?           @relation("LeadDuplicado", fields: [duplicadoDeId], references: [id], onDelete: SetNull)
+  duplicatas           Lead[]          @relation("LeadDuplicado")
+  duplicadoEm          DateTime?
+  duplicadoPorId       String?
+  duplicadoPor         Usuario?        @relation("LeadDuplicadoPor", fields: [duplicadoPorId], references: [id], onDelete: SetNull)
 
   @@map("leads")
-  contaCliente  Usuario? @relation("UsuarioCliente")
 }
 
 // Demanda operacional criada exclusivamente pelo CRM; requestKey identifica
 // a intenção do administrador e permite repetir requisições sem duplicação.
 model ServicoLead {
-  id String @id @default(cuid())
-  leadId String
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
-  modulo String
-  servico String
-  requestKey String @unique
-  criadoEm DateTime @default(now())
+  id            String         @id @default(cuid())
+  leadId        String
+  lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  modulo        String
+  servico       String
+  requestKey    String         @unique
+  criadoEm      DateTime       @default(now())
   financiamento Financiamento?
-  obra Obra?
-  projeto Projeto?
+  obra          Obra?
+  projeto       Projeto?
   regularizacao Regularizacao?
-  avaliacao Avaliacao?
-  tarefa TarefaCrm?
+  avaliacao     Avaliacao?
+  tarefa        TarefaCrm?
+
   @@unique([id, leadId])
   @@index([leadId, modulo])
   @@map("servicos_lead")
 }
 
 model Interacao {
-  id          String   @id @default(cuid())
-  leadId      String
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  tipo        String
-  descricao   String
-  criadoEm    DateTime @default(now())
-  criadoPor   String
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tipo      String
+  descricao String
+  criadoEm  DateTime @default(now())
+  criadoPor String
 
   @@map("interacoes")
 }
@@ -187,18 +196,18 @@ model Visita {
 }
 
 model TarefaCrm {
-  id String @id @default(cuid())
-  leadId String
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
-  servicoLeadId String? @unique
-  servicoLead ServicoLead? @relation(fields: [servicoLeadId], references: [id], onDelete: SetNull)
-  titulo String
-  descricao String @default("")
+  id            String       @id @default(cuid())
+  leadId        String
+  lead          Lead         @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  servicoLeadId String?      @unique
+  servicoLead   ServicoLead? @relation(fields: [servicoLeadId], references: [id], onDelete: SetNull)
+  titulo        String
+  descricao     String       @default("")
   responsavelId String?
-  status String @default("pendente")
-  prazo DateTime?
-  criadoEm DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  status        String       @default("pendente")
+  prazo         DateTime?
+  criadoEm      DateTime     @default(now())
+  atualizadoEm  DateTime     @updatedAt
 
   @@index([leadId, prazo])
   @@map("tarefas_crm")
@@ -207,25 +216,25 @@ model TarefaCrm {
 // ─── CORRETORES ──────────────────────────────────────────────────────────────
 
 model Corretor {
-  id               String    @id @default(cuid())
-  usuarioId        String?   @unique
-  usuario          Usuario?  @relation(fields: [usuarioId], references: [id])
-  nome             String
-  email            String    @unique
-  telefone         String
-  creci            String
-  foto             String?
-  ativo            Boolean   @default(true)
-  especialidades   String    @default("[]")
-  senhaAcesso      String?
-  regraComissao    RegraComissaoCorretor?
-  imoveis          Imovel[]
-  leads            Lead[]
-  visitas          Visita[]
-  comissoes        Comissao[]
-  financiamentos   Financiamento[]
-  criadoEm         DateTime  @default(now())
-  atualizadoEm     DateTime  @updatedAt
+  id             String                 @id @default(cuid())
+  usuarioId      String?                @unique
+  usuario        Usuario?               @relation(fields: [usuarioId], references: [id])
+  nome           String
+  email          String                 @unique
+  telefone       String
+  creci          String
+  foto           String?
+  ativo          Boolean                @default(true)
+  especialidades String                 @default("[]")
+  senhaAcesso    String?
+  regraComissao  RegraComissaoCorretor?
+  imoveis        Imovel[]
+  leads          Lead[]
+  visitas        Visita[]
+  comissoes      Comissao[]
+  financiamentos Financiamento[]
+  criadoEm       DateTime               @default(now())
+  atualizadoEm   DateTime               @updatedAt
 
   @@map("corretores")
 }
@@ -273,55 +282,55 @@ model Comissao {
 // ─── FINANCIAMENTOS ──────────────────────────────────────────────────────────
 
 model Financiamento {
-  id              String          @id @default(cuid())
-  clienteNome     String
-  clienteCpf      String?
-  clienteTel      String
-  clienteEmail    String?
-  imovel          String?
-  tipo            String
-  banco           String?
-  valorImovel     Float?
-  valorFinanciado Float?
-  entrada         Float?
-  taxa            Float?
-  prazo           Int?
-  parcela         Float?
-  status          String          @default("analise_credito")
-  protocolo       String?
-  leadId              String?
-  servicoLeadId       String? @unique
-  servicoLead         ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
-  leadVinculado       Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  imovelVinculadoId   String?
-  imovelVinculado     Imovel?         @relation("FinanciamentoImovel", fields: [imovelVinculadoId], references: [id], onDelete: SetNull)
-  corretorId          String?
-  corretor            Corretor?       @relation(fields: [corretorId], references: [id])
-  checklist           ChecklistItem[]
-  criadoEm            DateTime        @default(now())
-  atualizadoEm        DateTime        @updatedAt
+  id                String          @id @default(cuid())
+  clienteNome       String
+  clienteCpf        String?
+  clienteTel        String
+  clienteEmail      String?
+  imovel            String?
+  tipo              String
+  banco             String?
+  valorImovel       Float?
+  valorFinanciado   Float?
+  entrada           Float?
+  taxa              Float?
+  prazo             Int?
+  parcela           Float?
+  status            String          @default("analise_credito")
+  protocolo         String?
+  leadId            String?
+  servicoLeadId     String?         @unique
+  servicoLead       ServicoLead?    @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  leadVinculado     Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  imovelVinculadoId String?
+  imovelVinculado   Imovel?         @relation("FinanciamentoImovel", fields: [imovelVinculadoId], references: [id], onDelete: SetNull)
+  corretorId        String?
+  corretor          Corretor?       @relation(fields: [corretorId], references: [id])
+  checklist         ChecklistItem[]
+  criadoEm          DateTime        @default(now())
+  atualizadoEm      DateTime        @updatedAt
 
-  @@map("financiamentos")
   @@unique([servicoLeadId, leadId])
+  @@map("financiamentos")
 }
 
 model ChecklistItem {
-  id              String        @id @default(cuid())
-  financiamentoId String
-  financiamento   Financiamento @relation(fields: [financiamentoId], references: [id], onDelete: Cascade)
-  grupo           String
-  item            String
-  concluido       Boolean       @default(false)
-  concluidoEm     DateTime?
-  notas           String        @default("")
+  id                String        @id @default(cuid())
+  financiamentoId   String
+  financiamento     Financiamento @relation(fields: [financiamentoId], references: [id], onDelete: Cascade)
+  grupo             String
+  item              String
+  concluido         Boolean       @default(false)
+  concluidoEm       DateTime?
+  notas             String        @default("")
   /// Pedido de 18/10 (item 15): documento enviado pelo cliente no Portal.
-  arquivoId       String?       @unique
-  arquivo         Arquivo?      @relation(fields: [arquivoId], references: [id], onDelete: SetNull)
-  enviadoEm       DateTime?
-  visivelCliente Boolean @default(true)
-  solicitadoEm DateTime?
+  arquivoId         String?       @unique
+  arquivo           Arquivo?      @relation(fields: [arquivoId], references: [id], onDelete: SetNull)
+  enviadoEm         DateTime?
+  visivelCliente    Boolean       @default(true)
+  solicitadoEm      DateTime?
   emailSolicitadoEm DateTime?
-  legado Boolean @default(false)
+  legado            Boolean       @default(false)
 
   @@map("checklist_items")
 }
@@ -329,48 +338,51 @@ model ChecklistItem {
 // ─── OBRAS ───────────────────────────────────────────────────────────────────
 
 model Obra {
-  id              String       @id @default(cuid())
-  nome            String
-  tipo            String?
-  status          String       @default("orcamento")
-  clienteNome     String
-  clienteTel      String
-  endereco        String?
-  area            Float?
-  valorTotal      Float?
-  valorPago       Float        @default(0)
-  progresso       Int          @default(0)
-  engenheiroResp  String?
-  dataInicio      DateTime?
-  dataPrevisaoFim DateTime?
-  dataConclusao   DateTime?
-  leadId          String?
-  servicoLeadId    String? @unique
-  servicoLead      ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
-  leadVinculado   Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  latitude        Float?
-  longitude       Float?
-  descricao       String       @default("")
+  id                    String                   @id @default(cuid())
+  nome                  String
+  tipo                  String?
+  status                String                   @default("orcamento")
+  clienteNome           String
+  clienteTel            String
+  endereco              String?
+  area                  Float?
+  valorTotal            Float?
+  valorPago             Float                    @default(0)
+  progresso             Int                      @default(0)
+  engenheiroResp        String?
+  dataInicio            DateTime?
+  dataPrevisaoFim       DateTime?
+  dataConclusao         DateTime?
+  leadId                String?
+  servicoLeadId         String?                  @unique
+  servicoLead           ServicoLead?             @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  /// Lote 23/10, etapa 3: imóvel vinculado que guarda a "Localização exata" da obra (Mapa Operacional).
+  imovelId              String?                  @unique
+  imovel                Imovel?                  @relation("ObraImovel", fields: [imovelId], references: [id], onDelete: SetNull)
+  leadVinculado         Lead?                    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  latitude              Float?
+  longitude             Float?
+  descricao             String                   @default("")
   // EPIC-020 Lote 2 — Valores da Operação e Custos (entradas; os totais são
   // sempre calculados por src/lib/financeiro/obra.ts, nunca gravados).
   // `valorTotal`/`valorPago` (Float) são legados preservados, sem uso no cálculo.
-  vgv                   Decimal? @db.Decimal(15, 2)
-  financiamentoCef      Decimal? @db.Decimal(15, 2)
-  fgts                  Decimal? @db.Decimal(15, 2)
-  subsidio              Decimal? @db.Decimal(15, 2)
-  custoTerreno          Decimal? @db.Decimal(15, 2)
-  comissaoValor         Decimal? @db.Decimal(15, 2)
-  orcamentoPrevisto     Decimal? @db.Decimal(15, 2)
-  taxaMensalPct         Decimal? @db.Decimal(7, 4)
+  vgv                   Decimal?                 @db.Decimal(15, 2)
+  financiamentoCef      Decimal?                 @db.Decimal(15, 2)
+  fgts                  Decimal?                 @db.Decimal(15, 2)
+  subsidio              Decimal?                 @db.Decimal(15, 2)
+  custoTerreno          Decimal?                 @db.Decimal(15, 2)
+  comissaoValor         Decimal?                 @db.Decimal(15, 2)
+  orcamentoPrevisto     Decimal?                 @db.Decimal(15, 2)
+  taxaMensalPct         Decimal?                 @db.Decimal(7, 4)
   qtdeParcelas          Int?
   escritorioCef         String?
   empreiteiroId         String?
-  empreiteiro           Usuario? @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
-  percentualEmpreiteiro Decimal? @db.Decimal(9, 6)
+  empreiteiro           Usuario?                 @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
+  percentualEmpreiteiro Decimal?                 @db.Decimal(9, 6)
   /// EPIC-020 Lote 3: percentual de comissão próprio da obra (prevalece sobre o do corretor).
-  comissaoPercentual    Decimal?  @db.Decimal(7, 4)
+  comissaoPercentual    Decimal?                 @db.Decimal(7, 4)
   /// EPIC-020 Lote 4: Progresso Geral medido (soma incidência × execução), 6 casas.
-  progressoMedido       Decimal?  @db.Decimal(9, 6)
+  progressoMedido       Decimal?                 @db.Decimal(9, 6)
   pci                   ObraPci?
   pciVersoes            ObraPciVersao[]
   progressoItens        ObraProgressoItem[]
@@ -378,25 +390,25 @@ model Obra {
   fotos                 ObraFoto[]
   movimentos            ObraMovimento[]
   investidores          ObraInvestidor[]
-  etapas          ObraEtapa[]
-  diario          ObraDiario[]
-  criadoEm        DateTime     @default(now())
-  atualizadoEm    DateTime     @updatedAt
+  etapas                ObraEtapa[]
+  diario                ObraDiario[]
+  criadoEm              DateTime                 @default(now())
+  atualizadoEm          DateTime                 @updatedAt
 
-  @@map("obras")
   @@unique([servicoLeadId, leadId])
+  @@map("obras")
 }
 
 model ObraEtapa {
-  id          String   @id @default(cuid())
-  obraId      String
-  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  nome        String
-  descricao   String   @default("")
-  status      String   @default("pendente")
-  percentual  Float    @default(0)
-  ordem       Int      @default(0)
-  criadoEm    DateTime @default(now())
+  id         String   @id @default(cuid())
+  obraId     String
+  obra       Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  nome       String
+  descricao  String   @default("")
+  status     String   @default("pendente")
+  percentual Float    @default(0)
+  ordem      Int      @default(0)
+  criadoEm   DateTime @default(now())
 
   @@map("obra_etapas")
 }
@@ -418,68 +430,94 @@ model ObraDiario {
 // ─── PROJETOS ────────────────────────────────────────────────────────────────
 
 model Projeto {
-  id           String    @id @default(cuid())
-  nome         String
-  tipo         String?
-  status       String    @default("orcamento")
-  clienteNome  String
-  clienteTel   String
-  engenheiro   String?
+  id                 String           @id @default(cuid())
+  nome               String
+  tipo               String?
+  status             String           @default("orcamento")
+  clienteNome        String
+  clienteTel         String
+  engenheiro         String?
   /// Item 07: colaborador (ou admin) ativo vinculado como engenheiro; `engenheiro` guarda o nome exibido.
-  engenheiroId String?
-  engenheiroUsuario Usuario? @relation("ProjetoEngenheiro", fields: [engenheiroId], references: [id], onDelete: SetNull)
+  engenheiroId       String?
+  engenheiroUsuario  Usuario?         @relation("ProjetoEngenheiro", fields: [engenheiroId], references: [id], onDelete: SetNull)
   /// CREA/CAU ou outra habilitação técnica, quando necessária.
-  engenheiroRegistro String? @db.VarChar(60)
-  valorProjeto Float?
-  valorPago    Float     @default(0)
-  prazoEntrega DateTime?
-  leadId       String?
-  servicoLeadId String? @unique
-  servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
-  leadVinculado Lead?    @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
-  descricao    String    @default("")
-  arquivos     String    @default("[]")
-  checklist    String    @default("[]")
-  criadoEm     DateTime  @default(now())
-  atualizadoEm DateTime  @updatedAt
+  engenheiroRegistro String?          @db.VarChar(60)
+  valorProjeto       Float?
+  valorPago          Float            @default(0)
+  prazoEntrega       DateTime?
+  leadId             String?
+  servicoLeadId      String?          @unique
+  servicoLead        ServicoLead?     @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  leadVinculado      Lead?            @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
+  descricao          String           @default("")
+  arquivos           String           @default("[]")
+  checklist          String           @default("[]")
+  revisoes           ProjetoRevisao[]
+  criadoEm           DateTime         @default(now())
+  atualizadoEm       DateTime         @updatedAt
 
-  @@map("projetos")
   @@unique([servicoLeadId, leadId])
+  @@map("projetos")
+}
+
+/// Lote 23/10, etapa 2C: pedido de revisão de projeto e entregas da versão revisada.
+model ProjetoRevisao {
+  id                  String    @id @default(cuid())
+  projetoId           String
+  projeto             Projeto   @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  solicitadoPorId     String?
+  solicitadoPor       Usuario?  @relation("RevisaoSolicitante", fields: [solicitadoPorId], references: [id], onDelete: SetNull)
+  solicitadoPorNome   String
+  texto               String
+  status              String    @default("pendente") // pendente | entregue
+  colaboradorId       String?
+  colaborador         Usuario?  @relation("RevisaoColaborador", fields: [colaboradorId], references: [id], onDelete: SetNull)
+  situacaoNotificacao String // enviado | sem_destinatario | falhou
+  situacaoEmail       String
+  entregas            String    @default("[]")
+  entregueEm          DateTime?
+  entreguePorId       String?
+  entreguePor         Usuario?  @relation("RevisaoEntregador", fields: [entreguePorId], references: [id], onDelete: SetNull)
+  criadoEm            DateTime  @default(now())
+  atualizadoEm        DateTime  @updatedAt
+
+  @@index([projetoId, criadoEm(sort: Desc)])
+  @@map("projeto_revisoes")
 }
 
 // ─── REGULARIZAÇÃO ───────────────────────────────────────────────────────────
 
 model Regularizacao {
-  id           String         @id @default(cuid())
-  nome         String
-  tipo         String?
+  id               String                        @id @default(cuid())
+  nome             String
+  tipo             String?
   // EPIC-020 Lote 6: em_analise | em_andamento | concluido (| aguardando_configuracao | cancelado)
-  status       String         @default("em_analise")
-  statusLegado String?
-  clienteNome  String
-  clienteTel   String
-  endereco     String?
-  matricula    String?
-  cartorio     String?
-  responsavel  String?
-  leadId       String?
-  servicoLeadId String? @unique
-  servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
-  leadVinculado Lead?          @relation("RegularizacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
-  valorServico Float?
+  status           String                        @default("em_analise")
+  statusLegado     String?
+  clienteNome      String
+  clienteTel       String
+  endereco         String?
+  matricula        String?
+  cartorio         String?
+  responsavel      String?
+  leadId           String?
+  servicoLeadId    String?                       @unique
+  servicoLead      ServicoLead?                  @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  leadVinculado    Lead?                         @relation("RegularizacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
+  valorServico     Float?
   /// Legado: substituído pela tabela financeira (Lote 6); mantido sem edição.
-  valorPago    Float          @default(0)
-  previsaoFim  DateTime?
-  descricao    String         @default("")
-  documentos   RegDocumento[]
-  etapas       RegularizacaoEtapa[]
+  valorPago        Float                         @default(0)
+  previsaoFim      DateTime?
+  descricao        String                        @default("")
+  documentos       RegDocumento[]
+  etapas           RegularizacaoEtapa[]
   itensFinanceiros RegularizacaoItemFinanceiro[]
-  recebimentos RegularizacaoRecebimento[]
-  criadoEm     DateTime       @default(now())
-  atualizadoEm DateTime       @updatedAt
+  recebimentos     RegularizacaoRecebimento[]
+  criadoEm         DateTime                      @default(now())
+  atualizadoEm     DateTime                      @updatedAt
 
-  @@map("regularizacoes")
   @@unique([servicoLeadId, leadId])
+  @@map("regularizacoes")
 }
 
 // EPIC-020 Lote 6 — Regularização: etapas livres (30) e tabela financeira (31).
@@ -605,8 +643,8 @@ model ContratoDocumento {
   contrato   Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   nome       String
   url        String
-  tipo       String   // contrato_gerado | assinado | anexo
-  criadoEm  DateTime @default(now())
+  tipo       String // contrato_gerado | assinado | anexo
+  criadoEm   DateTime @default(now())
 
   @@map("contrato_documentos")
 }
@@ -615,16 +653,15 @@ model ChatMensagem {
   id        String   @id @default(cuid())
   leadId    String
   lead      Lead     @relation("ChatLead", fields: [leadId], references: [id], onDelete: Cascade)
-  remetente String   // cliente | corretor | sistema
+  remetente String // cliente | corretor | sistema
   texto     String
   lido      Boolean  @default(false)
-  criadoEm DateTime @default(now())
+  criadoEm  DateTime @default(now())
 
   @@map("chat_mensagens")
 }
 
 // ─── AGREGADOR ────────────────────────────────────────────────────────────────
-
 
 // ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
 
@@ -661,21 +698,21 @@ model BpoCliente {
 }
 
 model BpoLancamento {
-  id               String      @id @default(cuid())
-  movimentosObra   ObraMovimento[]
+  id                        String                     @id @default(cuid())
+  movimentosObra            ObraMovimento[]
   recebimentosRegularizacao RegularizacaoRecebimento[]
-  clienteId        String?
-  cliente          BpoCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  clienteNomeLivre String?     // nome do lead/cliente quando não há clienteId
-  tipo             String      // honorario, despesa, reembolso
-  descricao        String
-  valor            Float
-  vencimento       DateTime
-  pago             Boolean     @default(false)
-  pagoEm           DateTime?
-  competencia      String      // "2026-06"
-  centroCustos     String?
-  criadoEm         DateTime    @default(now())
+  clienteId                 String?
+  cliente                   BpoCliente?                @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteNomeLivre          String? // nome do lead/cliente quando não há clienteId
+  tipo                      String // honorario, despesa, reembolso
+  descricao                 String
+  valor                     Float
+  vencimento                DateTime
+  pago                      Boolean                    @default(false)
+  pagoEm                    DateTime?
+  competencia               String // "2026-06"
+  centroCustos              String?
+  criadoEm                  DateTime                   @default(now())
 
   @@map("bpo_lancamentos")
 }
@@ -683,76 +720,80 @@ model BpoLancamento {
 // ─── AVALIAÇÃO DE IMÓVEIS ─────────────────────────────────────────────────────
 
 model Avaliacao {
-  id             String    @id @default(cuid())
-  numero         String    @unique
-  tipo           String    // mercado, locacao, judicial, parecer_tecnico
-  finalidade     String    // compra_venda, locacao, judicial, garantia, inventario
-  status         String    @default("solicitada") // solicitada, vistoria, elaboracao, revisao, entregue, cancelada
-  clienteNome    String
-  clienteCpf     String?
-  clienteTel     String
-  clienteEmail   String?
-  endereco       String
-  bairro         String
-  cidade         String    @default("Canaã dos Carajás")
-  estado         String    @default("PA")
-  areaConstruida Float?
-  areaTerreno    Float?
-  quartos        Int?
-  banheiros      Int?
-  vagas          Int?
-  caracteristicas String   @default("")
-  metodologia    String    @default("comparativo") // comparativo, renda, custo
-  valorEstimado  Float?
-  avaliador      String
-  dataVistoria   DateTime?
-  prazoEntrega   DateTime?
-  dataEntrega    DateTime?
-  observacoes    String    @default("")
-  laudo          String?
-  documentos     String    @default("[]")
-  sugestaoJson   String?
-  valorServico   Float?    // valor cobrado pelo serviço de avaliação
-  leadId         String?
-  lead           Lead?     @relation("AvaliacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
-  servicoLeadId String? @unique
-  servicoLead ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
-  criadoEm       DateTime  @default(now())
-  atualizadoEm   DateTime  @updatedAt
+  id              String       @id @default(cuid())
+  numero          String       @unique
+  tipo            String // mercado, locacao, judicial, parecer_tecnico
+  finalidade      String // compra_venda, locacao, judicial, garantia, inventario
+  status          String       @default("solicitada") // solicitada, vistoria, elaboracao, revisao, entregue, cancelada
+  clienteNome     String
+  clienteCpf      String?
+  clienteTel      String
+  clienteEmail    String?
+  endereco        String
+  bairro          String
+  cidade          String       @default("Canaã dos Carajás")
+  estado          String       @default("PA")
+  areaConstruida  Float?
+  areaTerreno     Float?
+  quartos         Int?
+  banheiros       Int?
+  vagas           Int?
+  caracteristicas String       @default("")
+  metodologia     String       @default("comparativo") // comparativo, renda, custo
+  valorEstimado   Float?
+  avaliador       String
+  dataVistoria    DateTime?
+  prazoEntrega    DateTime?
+  dataEntrega     DateTime?
+  observacoes     String       @default("")
+  laudo           String?
+  documentos      String       @default("[]")
+  sugestaoJson    String?
+  valorServico    Float? // valor cobrado pelo serviço de avaliação
+  leadId          String?
+  lead            Lead?        @relation("AvaliacaoLead", fields: [leadId], references: [id], onDelete: SetNull)
+  servicoLeadId   String?      @unique
+  servicoLead     ServicoLead? @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  criadoEm        DateTime     @default(now())
+  atualizadoEm    DateTime     @updatedAt
 
-  @@map("avaliacoes")
   @@unique([servicoLeadId, leadId])
+  @@map("avaliacoes")
 }
 
 // ─── USUÁRIOS DO SISTEMA ─────────────────────────────────────────────────────
 
 model Usuario {
-  id                         String           @id @default(cuid())
-  obrasComoEmpreiteiro       Obra[]           @relation("ObraEmpreiteiro")
-  projetosComoEngenheiro     Projeto[]        @relation("ProjetoEngenheiro")
-  nome                       String
-  email                      String           @unique
-  senha                      String
-  papel                      String           @default("colaborador") // admin | corretor | colaborador | cliente
-  ativo                      Boolean          @default(true)
-  sessionVersion             Int              @default(0)
-  creci                      String?
-  telefone                   String?
-  foto                       String?
-  permissoes                 String           @default("[]")
-  tokenPrimeiroAcesso        String?          @unique
-  tokenPrimeiroAcessoExpira  DateTime?
-  criadoEm                   DateTime         @default(now())
-  conexaoWhatsApp            ConexaoWhatsApp?
-  corretor                   Corretor?
-  leadsResponsavel           Lead[]           @relation("LeadResponsavel")
+  id                          String                @id @default(cuid())
+  obrasComoEmpreiteiro        Obra[]                @relation("ObraEmpreiteiro")
+  projetosComoEngenheiro      Projeto[]             @relation("ProjetoEngenheiro")
+  revisoesSolicitadas         ProjetoRevisao[]      @relation("RevisaoSolicitante")
+  revisoesComoColaborador     ProjetoRevisao[]      @relation("RevisaoColaborador")
+  revisoesEntregues           ProjetoRevisao[]      @relation("RevisaoEntregador")
+  leadsDuplicados             Lead[]                @relation("LeadDuplicadoPor")
+  nome                        String
+  email                       String                @unique
+  senha                       String
+  papel                       String                @default("colaborador") // admin | corretor | colaborador | cliente
+  ativo                       Boolean               @default(true)
+  sessionVersion              Int                   @default(0)
+  creci                       String?
+  telefone                    String?
+  foto                        String?
+  permissoes                  String                @default("[]")
+  tokenPrimeiroAcesso         String?               @unique
+  tokenPrimeiroAcessoExpira   DateTime?
+  criadoEm                    DateTime              @default(now())
+  conexaoWhatsApp             ConexaoWhatsApp?
+  corretor                    Corretor?
+  leadsResponsavel            Lead[]                @relation("LeadResponsavel")
   /// Item 05: conta de cliente vinculada ao cliente real do CRM.
-  leadId                     String?          @unique
-  leadCliente                Lead?            @relation("UsuarioCliente", fields: [leadId], references: [id], onDelete: SetNull)
-  atualizadoEm               DateTime         @updatedAt
+  leadId                      String?               @unique
+  leadCliente                 Lead?                 @relation("UsuarioCliente", fields: [leadId], references: [id], onDelete: SetNull)
+  atualizadoEm                DateTime              @updatedAt
   eventosUnidadesIncorporacao EstudoUnidadeEvento[]
-  imoveisCadastrados         Imovel[]         @relation("ImovelCadastradoPor")
-  avisosImovelRecusado       ImovelRecusadoAviso[]
+  imoveisCadastrados          Imovel[]              @relation("ImovelCadastradoPor")
+  avisosImovelRecusado        ImovelRecusadoAviso[]
 
   @@map("usuarios")
 }
@@ -779,23 +820,22 @@ model ContaBancaria {
 }
 
 model TransacaoBancaria {
-  id          String        @id @default(cuid())
-  contaId     String
-  conta       ContaBancaria @relation(fields: [contaId], references: [id], onDelete: Cascade)
-  data        DateTime
-  descricao   String
-  valor       Float
-  tipo        String        // credito, debito
-  categoria   String?
-  status      String        @default("pendente") // pendente, conciliado, ignorado
-  externalId  String?       @unique
-  criadoEm    DateTime      @default(now())
+  id         String        @id @default(cuid())
+  contaId    String
+  conta      ContaBancaria @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  data       DateTime
+  descricao  String
+  valor      Float
+  tipo       String // credito, debito
+  categoria  String?
+  status     String        @default("pendente") // pendente, conciliado, ignorado
+  externalId String?       @unique
+  criadoEm   DateTime      @default(now())
 
   @@map("transacoes_bancarias")
 }
 
 // ─── CONTABILIDADE ────────────────────────────────────────────────────────────
-
 
 // ─── WHATSAPP ─────────────────────────────────────────────────────────────────
 
@@ -851,11 +891,11 @@ model Notificacao {
 }
 
 model AvisoVencimentoCard {
-  usuarioId String
-  leadId String
+  usuarioId  String
+  leadId     String
   vencimento DateTime @db.Date
-  canal String
-  enviadoEm DateTime @default(now())
+  canal      String
+  enviadoEm  DateTime @default(now())
 
   @@id([usuarioId, leadId, vencimento, canal])
   @@map("avisos_vencimento_card")
@@ -863,8 +903,8 @@ model AvisoVencimentoCard {
 
 model ResumoVencimentoCard {
   usuarioId String
-  dia DateTime @db.Date
-  criadoEm DateTime @default(now())
+  dia       DateTime @db.Date
+  criadoEm  DateTime @default(now())
 
   @@id([usuarioId, dia])
   @@map("resumos_vencimento_card")
@@ -873,47 +913,47 @@ model ResumoVencimentoCard {
 // ─── INCORPORAÇÃO (estudos de viabilidade / massa / topografia / urbanístico) ──
 
 model EstudoIncorporacao {
-  id            String   @id @default(cuid())
-  nome          String
-  municipio     String
-  estado        String   @default("PA")
-  endereco      String?  // endereço/logradouro (opcional)
-  latitude      Float?   // localização exata (Google Maps)
-  longitude     Float?
-  responsavel   String?
-  status        String   @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
-  tipoIncorporacao String? // legado NULL: não inferir tipo pelo nome ou pelo status
-  dueDiligenceJson String?
-  unidades      EstudoUnidade[]
-  matriculaImovel String?
-  carRegistro String?
+  id                String          @id @default(cuid())
+  nome              String
+  municipio         String
+  estado            String          @default("PA")
+  endereco          String? // endereço/logradouro (opcional)
+  latitude          Float? // localização exata (Google Maps)
+  longitude         Float?
+  responsavel       String?
+  status            String          @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
+  tipoIncorporacao  String? // legado NULL: não inferir tipo pelo nome ou pelo status
+  dueDiligenceJson  String?
+  unidades          EstudoUnidade[]
+  matriculaImovel   String?
+  carRegistro       String?
   zoneamentoOficial String?
-  zoneamentoFonte String?
+  zoneamentoFonte   String?
 
   // Terreno / geometria
-  imovelId      String?
-  imovel        Imovel?  @relation(fields: [imovelId], references: [id], onDelete: SetNull)
-  kmlUrl        String?
-  geojson       String?  // Feature<Polygon> serializado
-  areaM2        Float    @default(0)
-  perimetroM    Float    @default(0)
-  centroLat     Float?
-  centroLng     Float?
+  imovelId   String?
+  imovel     Imovel? @relation(fields: [imovelId], references: [id], onDelete: SetNull)
+  kmlUrl     String?
+  geojson    String? // Feature<Polygon> serializado
+  areaM2     Float   @default(0)
+  perimetroM Float   @default(0)
+  centroLat  Float?
+  centroLng  Float?
 
   // APP (área de preservação permanente) calculada automaticamente a partir do
   // mapa (Overpass + Código Florestal ou largura manual) — nunca preenchida à mão.
-  appAreaM2     Float?
-  appLarguraM   Float?
-  appOrigem     String?  // "auto" (Código Florestal) | "30"|"50"|"100"|"200"|"500" (manual)
+  appAreaM2   Float?
+  appLarguraM Float?
+  appOrigem   String? // "auto" (Código Florestal) | "30"|"50"|"100"|"200"|"500" (manual)
 
   // Topografia
-  elevacaoJson  String?  // grid de elevações amostrado
+  elevacaoJson    String? // grid de elevações amostrado
   levantamentoUrl String?
   corteAterroJson String?
 
   // Urbanístico (Fase 2)
-  parametrosJson String?
-  potencialJson  String?
+  parametrosJson   String?
+  potencialJson    String?
   urbanismoParecer String?
 
   // Mercado (Fase 2)
@@ -928,7 +968,7 @@ model EstudoIncorporacao {
   pesquisaPrimariaJson String?
 
   // Massa generativo (Fase 3)
-  massaCenariosJson String?
+  massaCenariosJson  String?
   cenarioEscolhidoId String?
 
   // Quadro de Áreas — NBR 12721 (2.3 Novos Negócios / 3.3 Incorporação e Produto)
@@ -951,7 +991,7 @@ model EstudoIncorporacao {
 
   // Registro da Incorporação (3.4 Incorporação e Produto)
   registroIncorporacaoJson String?
-  documentosRegistro EstudoDocumentoRegistro[]
+  documentosRegistro       EstudoDocumentoRegistro[]
 
   // Orçamento Preliminar e EVE (3.5 Incorporação e Produto)
   orcamentoPreliminarJson String?
@@ -981,7 +1021,7 @@ model EstudoIncorporacao {
   atendimentoClientesJson String?
 
   // Mix de produtos (Fase 3)
-  mixJson       String?
+  mixJson String?
 
   // Viabilidade econômica (EVE — Fase 1)
   viabilidadeJson String?
@@ -989,13 +1029,13 @@ model EstudoIncorporacao {
   parecerIa       String?
 
   // Estudo de loteamento determinístico (premissas do motor, estilo Lotelytics)
-  loteamentoJson  String?
+  loteamentoJson String?
 
   // Relatórios gerados (URLs de PDF)
-  relatorios    String   @default("[]")
+  relatorios String @default("[]")
 
-  criadoEm      DateTime @default(now())
-  atualizadoEm  DateTime @updatedAt
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 
   @@index([status])
   @@map("estudos_incorporacao")
@@ -1004,11 +1044,11 @@ model EstudoIncorporacao {
 // Snapshots imutáveis a cada alteração do estudo, preservados inclusive após
 // exclusão do registro principal. Criados por trigger no banco.
 model EstudoIncorporacaoVersao {
-  id        String   @id @default(uuid()) @db.Uuid
-  estudoId  String
-  numero    Int
-  snapshot  Json     @db.JsonB
-  criadoEm  DateTime @default(now()) @db.Timestamptz(6)
+  id       String   @id @default(uuid()) @db.Uuid
+  estudoId String
+  numero   Int
+  snapshot Json     @db.JsonB
+  criadoEm DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([estudoId, numero])
   @@index([estudoId, criadoEm])
@@ -1018,25 +1058,25 @@ model EstudoIncorporacaoVersao {
 // Referências privadas ao Google Drive; versões substituídas/desvinculadas
 // permanecem na trilha de auditoria sem publicar ou apagar o arquivo remoto.
 model EstudoDocumentoRegistro {
-  id             String   @id @default(cuid())
-  estudoId       String
-  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
-  itemId         String   @db.VarChar(80)
+  id                String             @id @default(cuid())
+  estudoId          String
+  estudo            EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
+  itemId            String             @db.VarChar(80)
   /// Preenchido quando o arquivo está no Google Drive.
-  driveFileId    String?  @unique
+  driveFileId       String?            @unique
   /// "drive" ou "banco" (bytes em `arquivos`, quando o Drive recusou a gravação).
-  armazenamento  String   @default("drive") @db.VarChar(10)
-  notaArmazenamento String? @db.VarChar(400)
-  arquivoId      String?  @unique
-  arquivo        Arquivo? @relation(fields: [arquivoId], references: [id], onDelete: Restrict)
-  nome           String   @db.VarChar(255)
-  mime           String   @db.VarChar(100)
-  tamanho        Int
-  sha256         String   @db.VarChar(64)
-  enviadoPorId   String
-  enviadoEm      DateTime @default(now())
-  ativo          Boolean  @default(true)
-  desvinculadoEm DateTime?
+  armazenamento     String             @default("drive") @db.VarChar(10)
+  notaArmazenamento String?            @db.VarChar(400)
+  arquivoId         String?            @unique
+  arquivo           Arquivo?           @relation(fields: [arquivoId], references: [id], onDelete: Restrict)
+  nome              String             @db.VarChar(255)
+  mime              String             @db.VarChar(100)
+  tamanho           Int
+  sha256            String             @db.VarChar(64)
+  enviadoPorId      String
+  enviadoEm         DateTime           @default(now())
+  ativo             Boolean            @default(true)
+  desvinculadoEm    DateTime?
   desvinculadoPorId String?
 
   @@index([estudoId, itemId, ativo])
@@ -1044,56 +1084,56 @@ model EstudoDocumentoRegistro {
 }
 
 model EstudoUnidade {
-  id             String @id @default(cuid())
-  estudoId       String
-  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Restrict)
-  codigo         String @db.VarChar(120)
-  codigoChave    String @db.VarChar(120)
-  tipo           String @db.VarChar(40)
-  status         String @default("disponivel") @db.VarChar(20)
-  comprador      String? @db.VarChar(255)
-  valorVenda     Decimal? @db.Decimal(15, 2)
-  criadoEm       DateTime @default(now())
-  atualizadoEm   DateTime @updatedAt
-  eventos        EstudoUnidadeEvento[]
+  id           String                @id @default(cuid())
+  estudoId     String
+  estudo       EstudoIncorporacao    @relation(fields: [estudoId], references: [id], onDelete: Restrict)
+  codigo       String                @db.VarChar(120)
+  codigoChave  String                @db.VarChar(120)
+  tipo         String                @db.VarChar(40)
+  status       String                @default("disponivel") @db.VarChar(20)
+  comprador    String?               @db.VarChar(255)
+  valorVenda   Decimal?              @db.Decimal(15, 2)
+  criadoEm     DateTime              @default(now())
+  atualizadoEm DateTime              @updatedAt
+  eventos      EstudoUnidadeEvento[]
 
   @@unique([estudoId, codigoChave])
   @@map("estudo_unidades")
 }
 
 model EstudoUnidadeEvento {
-  id             String @id @default(cuid())
+  id             String        @id @default(cuid())
   unidadeId      String
   unidade        EstudoUnidade @relation(fields: [unidadeId], references: [id], onDelete: Restrict)
-  statusAnterior String? @db.VarChar(20)
-  statusNovo     String @db.VarChar(20)
-  comprador      String? @db.VarChar(255)
-  valorVenda     Decimal? @db.Decimal(15, 2)
-  vendaLegadaId  String? @db.VarChar(120)
+  statusAnterior String?       @db.VarChar(20)
+  statusNovo     String        @db.VarChar(20)
+  comprador      String?       @db.VarChar(255)
+  valorVenda     Decimal?      @db.Decimal(15, 2)
+  vendaLegadaId  String?       @db.VarChar(120)
   usuarioId      String
-  usuario        Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
-  criadoEm       DateTime @default(now())
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  criadoEm       DateTime      @default(now())
 
-  @@index([unidadeId, criadoEm])
   @@unique([unidadeId, vendaLegadaId])
+  @@index([unidadeId, criadoEm])
   @@map("estudo_unidades_eventos")
 }
 
 // ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────
 
 model Arquivo {
-  id        String   @id @default(cuid())
-  nome      String
-  mime      String   @default("application/octet-stream")
-  tamanho   Int      @default(0)
+  id                String                   @id @default(cuid())
+  nome              String
+  mime              String                   @default("application/octet-stream")
+  tamanho           Int                      @default(0)
   /// Bytes no banco. Vazio quando o arquivo está no Google Drive (driveFileId).
-  dados     Bytes?
+  dados             Bytes?
   /// Arquivo gravado no Google Drive (contratos do Jurídico/Portal); servido pela mesma rota.
-  driveFileId String? @unique
-  criadoEm  DateTime @default(now())
-  obraFoto  ObraFoto?
+  driveFileId       String?                  @unique
+  criadoEm          DateTime                 @default(now())
+  obraFoto          ObraFoto?
   documentoRegistro EstudoDocumentoRegistro?
-  checklistItem ChecklistItem?
+  checklistItem     ChecklistItem?
 
   @@map("arquivos")
 }
@@ -1114,28 +1154,28 @@ model ObraProgressoItem {
 }
 
 model ObraProgressoHistorico {
-  id             String   @id @default(cuid())
-  obraId         String
-  obra           Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  progresso      Decimal  @db.Decimal(9, 6)
-  somaIncidencia Decimal  @db.Decimal(20, 15)
-  itens          Json     @db.JsonB
-  criadoPorId    String?
-  criadoEm       DateTime @default(now())
+  id                          String         @id @default(cuid())
+  obraId                      String
+  obra                        Obra           @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  progresso                   Decimal        @db.Decimal(9, 6)
+  somaIncidencia              Decimal        @db.Decimal(20, 15)
+  itens                       Json           @db.JsonB
+  criadoPorId                 String?
+  criadoEm                    DateTime       @default(now())
   /// Pedido de 18/10: ciclo da medição — solicitada ao banco e recebida (paga).
-  solicitadaEm    DateTime?
-  solicitadaPorId String?
-  emailSolicitacaoStatus String? @db.VarChar(20)
+  solicitadaEm                DateTime?
+  solicitadaPorId             String?
+  emailSolicitacaoStatus      String?        @db.VarChar(20)
   emailSolicitacaoTentativaEm DateTime?
-  recebidaEm      DateTime?
-  recebidaPorId   String?
-  editadaEm       DateTime?
-  editadaPorId    String?
-  tipo           String @default("pls") @db.VarChar(20)
-  dadosCaixa     Json? @db.JsonB
-  pciVersaoId    String?
-  pciVersao      ObraPciVersao? @relation(fields: [pciVersaoId], references: [id], onDelete: NoAction)
-  fotos          ObraFoto[]
+  recebidaEm                  DateTime?
+  recebidaPorId               String?
+  editadaEm                   DateTime?
+  editadaPorId                String?
+  tipo                        String         @default("pls") @db.VarChar(20)
+  dadosCaixa                  Json?          @db.JsonB
+  pciVersaoId                 String?
+  pciVersao                   ObraPciVersao? @relation(fields: [pciVersaoId], references: [id], onDelete: NoAction)
+  fotos                       ObraFoto[]
 
   @@index([obraId, criadoEm])
   @@map("obra_progresso_historico")
@@ -1143,18 +1183,18 @@ model ObraProgressoHistorico {
 
 /// Bytes ficam em `arquivos` (banco próprio); apagar o arquivo apaga a foto.
 model ObraFoto {
-  id                 String   @id @default(cuid())
+  id                 String                  @id @default(cuid())
   obraId             String
-  obra               Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  arquivoId          String   @unique
-  arquivo            Arquivo  @relation(fields: [arquivoId], references: [id], onDelete: Cascade)
+  obra               Obra                    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  arquivoId          String                  @unique
+  arquivo            Arquivo                 @relation(fields: [arquivoId], references: [id], onDelete: Cascade)
   legenda            String?
   tiradaEm           DateTime
   medicaoId          String?
   medicao            ObraProgressoHistorico? @relation(fields: [medicaoId], references: [id], onDelete: SetNull)
-  incluirNoRelatorio Boolean  @default(true)
+  incluirNoRelatorio Boolean                 @default(true)
   enviadoPorId       String?
-  criadoEm           DateTime @default(now())
+  criadoEm           DateTime                @default(now())
 
   @@index([medicaoId])
   @@index([obraId, tiradaEm])
@@ -1268,56 +1308,62 @@ model ImovelFoto {
 
 /// Arquivo imutável: cada medição mantém a PCI que usou mesmo após uma substituição.
 model ObraPciVersao {
-  id         String @id @default(cuid())
-  obraId     String
-  obra       Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  hash       String @db.VarChar(64)
-  nome       String @db.VarChar(255)
-  dados      Bytes
-  tamanho    Int
-  parsed     Json @db.JsonB
+  id           String                   @id @default(cuid())
+  obraId       String
+  obra         Obra                     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  hash         String                   @db.VarChar(64)
+  nome         String                   @db.VarChar(255)
+  dados        Bytes
+  tamanho      Int
+  parsed       Json                     @db.JsonB
   enviadoPorId String?
-  criadoEm   DateTime @default(now())
-  atuais     ObraPci[]
-  medicoes   ObraProgressoHistorico[]
+  criadoEm     DateTime                 @default(now())
+  atuais       ObraPci[]
+  medicoes     ObraProgressoHistorico[]
+
   @@unique([obraId, hash])
   @@map("obra_pci_versoes")
 }
 
 model ObraPci {
-  obraId     String @id
-  obra       Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  versaoId   String
-  versao     ObraPciVersao @relation(fields: [versaoId], references: [id], onDelete: NoAction)
-  enviadaEm  DateTime @default(now())
-  vinculadaEm DateTime?
+  obraId         String        @id
+  obra           Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  versaoId       String
+  versao         ObraPciVersao @relation(fields: [versaoId], references: [id], onDelete: NoAction)
+  enviadaEm      DateTime      @default(now())
+  vinculadaEm    DateTime?
   vinculadaPorId String?
+
   @@map("obra_pci")
 }
 
 // Checklist pessoal do CRM; preferências existem mesmo antes da solicitação.
 model DocumentoCliente {
-  id String @id @default(cuid())
-  leadId String
-  tipo String
-  visivelCliente Boolean @default(true)
-  solicitadoEm DateTime?
+  id                String    @id @default(cuid())
+  leadId            String
+  tipo              String
+  visivelCliente    Boolean   @default(true)
+  solicitadoEm      DateTime?
   emailSolicitadoEm DateTime?
-  arquivoId String?
-  enviadoEm DateTime?
-  atualizadoEm DateTime @updatedAt
+  arquivoId         String?
+  enviadoEm         DateTime?
+  /// Etapa 6: documento copiado pelo "Duplicar lead" (mesmo arquivo do documento original).
+  copiadoDeId       String?
+  atualizadoEm      DateTime  @updatedAt
+
   @@unique([leadId, tipo])
   @@index([arquivoId])
   @@map("documentos_cliente")
 }
 
 model DocumentoClienteVersao {
-  id String @id @default(cuid())
-  leadId String
+  id            String   @id @default(cuid())
+  leadId        String
   tipoChecklist String
-  itemId String
-  arquivoId String @unique
-  enviadoEm DateTime @default(now())
-  @@index([leadId,itemId])
+  itemId        String
+  arquivoId     String   @unique
+  enviadoEm     DateTime @default(now())
+
+  @@index([leadId, itemId])
   @@map("documentos_cliente_versoes")
 }

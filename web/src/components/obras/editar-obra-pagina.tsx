@@ -7,6 +7,8 @@ import { OBRA_STATUS_SELECIONAVEIS, isObraStatusSelecionavel, obraStatusLabel, t
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 import { EditarObraClient } from "@/app/admin/obras/[id]/editar/_components/editar-obra-client";
+import { LocalizacaoPicker } from "@/app/admin/imoveis/_components/localizacao-picker";
+import { coordenadasSalvas } from "@/lib/obra-localizacao";
 
 /**
  * Painel "Editar Obra". A mesma tela serve o painel e o Portal do Empreiteiro
@@ -20,6 +22,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
     include: {
       leadVinculado: { select: { id: true, nome: true, telefone: true, email: true, corretor: { select: { nome: true } } } },
       servicoLead: { select: { servico: true } },
+      imovel: { select: { titulo: true, latitude: true, longitude: true } },
     },
   });
   if (!o) notFound();
@@ -36,6 +39,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
   ]);
   if (!resumo || !progresso) notFound();
   const tipoProjeto = tipoProjetoObra(o);
+  const pontoObra = coordenadasSalvas(o.imovel?.latitude, o.imovel?.longitude);
   const corretorNome = o.leadVinculado?.corretor?.nome?.trim() || null;
   const campoSomenteLeitura = "w-full border border-gray-100 px-3 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed";
 
@@ -113,6 +117,16 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Endereço *</label>
               <input name="endereco" type="text" required defaultValue={o.endereco ?? ""}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Localização exata</label>
+              <input type="hidden" name="localizacaoPresente" value="1" />
+              <LocalizacaoPicker nameLat="localizacaoLat" nameLng="localizacaoLng" defaultLat={pontoObra?.lat ?? null} defaultLng={pontoObra?.lng ?? null} />
+              <p className="text-[11px] text-gray-400 mt-1">
+                {o.imovel
+                  ? `Ponto guardado no imóvel vinculado "${o.imovel.titulo}" (aparece no Mapa Operacional).`
+                  : "Ao salvar, o ponto cria um imóvel vinculado à obra, não publicado no site, e aparece no Mapa Operacional."}
+              </p>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área (m²) *</label>

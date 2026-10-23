@@ -26,6 +26,7 @@ import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
 import { dataDoCard } from "@/lib/crm/vencimento-card";
+import { duplicarLeadNoBanco } from "@/lib/crm/lead-duplicar-db";
 
 /** Atualiza somente o prazo deste lead; visitas e tarefas mantêm seus próprios prazos. */
 export async function alterarVencimentoCard(leadId: string, date: string, atualizadoEm: string) {
@@ -446,3 +447,17 @@ export async function excluirLeadDefinitivamente(id: string): Promise<{ ok: true
 }
 
 class RecusaExclusaoLead extends Error {}
+
+/** Lote 23/10, etapa 6: "Duplicar lead" — lead novo com dados e documentos, sem serviços. */
+export async function duplicarLead(id: string) {
+  try {
+    const ator = await obterAtorCrm();
+    exigirAtorInterno(ator);
+    const r = await transacaoCRM((tx) => duplicarLeadNoBanco(tx, id, { id: ator.id, nome: ator.nome }));
+    revalidatePath("/admin/leads");
+    revalidatePath(`/admin/leads/${id}`);
+    return { ok: true as const, ...r };
+  } catch (e) {
+    return { ok: false as const, erro: e instanceof Error ? e.message : "Não foi possível duplicar o lead." };
+  }
+}

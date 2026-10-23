@@ -6,15 +6,20 @@ import { prisma } from "@/lib/db";
 import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import ProjetoDetailClient from "./_components/projeto-detail-client";
+import { exibirDiaPrazoProjeto } from "@/lib/projetos-prazo";
+import ProjetoRevisoes from "./_components/projeto-revisoes";
+import { lerEntregas } from "@/lib/projeto-revisao";
 
-interface PageProps { params: Promise<{ id: string }> }
+interface PageProps { params: Promise<{ id: string }>; searchParams?: Promise<{ solicitarRevisao?: string }> }
 
-export default async function ProjetoDetailPage({ params }: PageProps) {
+export default async function ProjetoDetailPage({ params, searchParams }: PageProps) {
   await exigirModuloPagina("projetos");
 
   const { id } = await params;
   const p = await prisma.projeto.findUnique({ where: { id } });
   if (!p) notFound();
+  const revisoes = await prisma.projetoRevisao.findMany({ where: { projetoId: id }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }] });
+  const abrirPedido = (await searchParams)?.solicitarRevisao === "1";
 
   const cfg = PROJETO_STATUS_CONFIG[p.status as keyof typeof PROJETO_STATUS_CONFIG] ?? {
     label: p.status,
@@ -74,6 +79,14 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             statusConfig={statusConfig}
           />
 
+          <ProjetoRevisoes
+            projetoId={p.id}
+            projetoNome={p.nome}
+            engenheiro={p.engenheiro}
+            abrirPedido={abrirPedido}
+            revisoes={revisoes.map(r => ({ id: r.id, texto: r.texto, status: r.status, solicitadoPorNome: r.solicitadoPorNome, criadoEm: r.criadoEm.toISOString(), situacaoNotificacao: r.situacaoNotificacao, situacaoEmail: r.situacaoEmail, entregas: lerEntregas(r.entregas) }))}
+          />
+
           {/* Description */}
           <div className="bg-white border border-gray-100 p-5">
             <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">Descrição</h2>
@@ -101,7 +114,7 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
               { label: "Tipo", value: `${tipo.icon} ${tipo.label}` },
               { label: "Engenheiro", value: p.engenheiro ?? "Pendente de configuração" },
               { label: "Habilitação técnica", value: p.engenheiroRegistro || "—" },
-              p.prazoEntrega ? { label: "Prazo de entrega", value: new Date(p.prazoEntrega).toLocaleDateString("pt-BR") } : null,
+              p.prazoEntrega ? { label: "Prazo de entrega", value: exibirDiaPrazoProjeto(p.prazoEntrega) } : null,
             ].filter(Boolean).map((item) => item && (
               <div key={item.label} className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0 gap-2">
                 <span className="text-xs text-gray-500 shrink-0">{item.label}</span>

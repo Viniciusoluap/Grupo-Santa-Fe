@@ -22,14 +22,24 @@ export async function GET(
   if (!arquivo) return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
 
   // Documentos de checklist exigem vínculo e visibilidade também pela URL legada.
-  const [pessoal, financiamento, historico] = await Promise.all([
-    prisma.documentoCliente.findFirst({where:{arquivoId:id},select:{id:true}}),
+  // Lote 23/10, etapa 6: o mesmo arquivo pode estar no lead original e no duplicado;
+  // basta o usuário ter acesso a um dos documentos que o usam.
+  const [pessoais, financiamento, historico] = await Promise.all([
+    prisma.documentoCliente.findMany({where:{arquivoId:id},select:{id:true}}),
     prisma.checklistItem.findFirst({where:{arquivoId:id},select:{id:true}}),
     prisma.documentoClienteVersao.findUnique({where:{arquivoId:id}}),
   ]);
-  if (pessoal || financiamento || historico) {
-    try { await obterItemDocumento(pessoal ? "crm" : financiamento ? "financiamento" : historico!.tipoChecklist === "crm" ? "crm" : "financiamento", (pessoal ?? financiamento)?.id ?? historico!.itemId); }
-    catch { return NextResponse.json({error:"Documento não disponível."},{status:403}); }
+  const candidatos: Array<["crm" | "financiamento", string]> = [
+    ...pessoais.map((p): ["crm", string] => ["crm", p.id]),
+    ...(financiamento ? [["financiamento", financiamento.id] as ["financiamento", string]] : []),
+    ...(historico ? [[historico.tipoChecklist === "crm" ? "crm" : "financiamento", historico.itemId] as ["crm" | "financiamento", string]] : []),
+  ];
+  if (candidatos.length) {
+    let autorizado = false;
+    for (const [tipo, itemId] of candidatos) {
+      try { await obterItemDocumento(tipo, itemId); autorizado = true; break; } catch { /* tenta o próximo vínculo */ }
+    }
+    if (!autorizado) return NextResponse.json({error:"Documento não disponível."},{status:403});
   }
 
   // Contratos gravados no Google Drive são lidos de lá; os demais, do banco.

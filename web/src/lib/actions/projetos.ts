@@ -9,6 +9,9 @@ import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { projectChecklist } from "@/lib/projeto-documentos";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { persistirDiaPrazoProjeto } from "@/lib/projetos-prazo";
+import { emailPedidoRevisao, mensagemPedidoSalvo, validarPedidoRevisao, type SituacaoCanal } from "@/lib/projeto-revisao";
+import { sendEmail } from "@/lib/email";
 
 export async function alterarStatusProjeto(id: string, status: string) {
   await exigirModuloAcao("projetos");
@@ -79,7 +82,7 @@ async function editarProjetoImpl(formData: FormData) {
         clienteTel: cliente.clienteTel,
         ...(await engenheiroDoFormulario(tx, formData, atual.engenheiro)),
         descricao: (formData.get("descricao") as string) || "",
-        prazoEntrega: (formData.get("prazoEntrega") as string) ? new Date(formData.get("prazoEntrega") as string) : null,
+        prazoEntrega: (formData.get("prazoEntrega") as string) ? persistirDiaPrazoProjeto(formData.get("prazoEntrega") as string) : null,
       },
     });
   });
@@ -107,4 +110,44 @@ async function engenheiroDoFormulario(tx: TransacaoCRM, formData: FormData, ante
   const legado = String(formData.get("engenheiro") ?? "").trim();
   if (anterior && legado && legado === anterior.trim()) return { engenheiroId: null, engenheiro: legado, engenheiroRegistro: registro };
   throw new Error("Escolha o engenheiro responsável entre os colaboradores cadastrados.");
+}
+
+/**
+ * Lote 23/10, etapa 2C: salva o pedido de revisão (autor, data, estado) e avisa o
+ * colaborador vinculado por notificação interna e e-mail. Cada canal registra a
+ * situação real — nunca "enviado" sem destinatário ou com falha no envio.
+ */
+export async function solicitarRevisaoProjeto(projetoId: string, textoBruto: string) {
+  return capturarErroAcao(async () => {
+    const usuario = await exigirModuloAcao("projetos", { somenteEquipe: true });
+    const texto = validarPedidoRevisao(textoBruto);
+    const projeto = await prisma.projeto.findUnique({ where: { id: projetoId }, select: { id: true, nome: true, clienteNome: true, engenheiroUsuario: { select: { id: true, nome: true, email: true, ativo: true } } } });
+    if (!projeto) throw new Error("Projeto não encontrado.");
+    const destinatario = projeto.engenheiroUsuario?.ativo ? projeto.engenheiroUsuario : null;
+    const autor = usuario.nome || `Usuário ${usuario.id}`;
+    const pedido = await prisma.projetoRevisao.create({
+      data: { projetoId, solicitadoPorId: usuario.id, solicitadoPorNome: autor, texto, status: "pendente", colaboradorId: destinatario?.id ?? null, situacaoNotificacao: "sem_destinatario", situacaoEmail: "sem_destinatario" },
+    });
+    const link = `/admin/projetos/${projetoId}`;
+    let notificacao: SituacaoCanal = "sem_destinatario";
+    let email: SituacaoCanal = "sem_destinatario";
+    if (destinatario) {
+      try {
+        await prisma.notificacao.create({ data: { usuarioId: destinatario.id, tipo: "projeto_revisao", titulo: `Revisão solicitada — ${projeto.nome}`, mensagem: `${autor}: ${texto.slice(0, 400)}`, link } });
+        notificacao = "enviado";
+      } catch (e) {
+        console.error("[solicitarRevisaoProjeto] notificação", e);
+        notificacao = "falhou";
+      }
+      const para = destinatario.email?.trim();
+      if (para) {
+        const origem = process.env.SITE_URL || "https://www.gruposantafee.com.br";
+        const msg = emailPedidoRevisao({ projeto: projeto.nome, cliente: projeto.clienteNome, autor, texto, link: `${origem}${link}` });
+        email = (await sendEmail({ to: para, subject: msg.subject, html: msg.html }).catch(() => false)) ? "enviado" : "falhou";
+      }
+    }
+    await prisma.projetoRevisao.update({ where: { id: pedido.id }, data: { situacaoNotificacao: notificacao, situacaoEmail: email } });
+    revalidatePath(link);
+    return { id: pedido.id, notificacao, email, mensagem: mensagemPedidoSalvo(notificacao, email) };
+  });
 }
