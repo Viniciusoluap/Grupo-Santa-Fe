@@ -127,6 +127,13 @@ model Lead {
   criadoEm             DateTime        @default(now())
   atualizadoEm         DateTime        @updatedAt
   contaCliente         Usuario?        @relation("UsuarioCliente")
+  /// Lote 23/10, etapa 6: origem da duplicação ("Duplicar lead").
+  duplicadoDeId        String?
+  duplicadoDe          Lead?           @relation("LeadDuplicado", fields: [duplicadoDeId], references: [id], onDelete: SetNull)
+  duplicatas           Lead[]          @relation("LeadDuplicado")
+  duplicadoEm          DateTime?
+  duplicadoPorId       String?
+  duplicadoPor         Usuario?        @relation("LeadDuplicadoPor", fields: [duplicadoPorId], references: [id], onDelete: SetNull)
 
   @@map("leads")
 }
@@ -763,6 +770,7 @@ model Usuario {
   revisoesSolicitadas         ProjetoRevisao[]      @relation("RevisaoSolicitante")
   revisoesComoColaborador     ProjetoRevisao[]      @relation("RevisaoColaborador")
   revisoesEntregues           ProjetoRevisao[]      @relation("RevisaoEntregador")
+  leadsDuplicados             Lead[]                @relation("LeadDuplicadoPor")
   nome                        String
   email                       String                @unique
   senha                       String
@@ -1339,6 +1347,8 @@ model DocumentoCliente {
   emailSolicitadoEm DateTime?
   arquivoId         String?
   enviadoEm         DateTime?
+  /// Etapa 6: documento copiado pelo "Duplicar lead" (mesmo arquivo do documento original).
+  copiadoDeId       String?
   atualizadoEm      DateTime  @updatedAt
 
   @@unique([leadId, tipo])

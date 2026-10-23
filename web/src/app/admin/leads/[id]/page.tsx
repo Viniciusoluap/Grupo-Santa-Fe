@@ -15,6 +15,7 @@ import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
 import { ConcluirServicoBotao } from "./concluir-servico-botao";
+import { DuplicarLeadBotao } from "./duplicar-lead-botao";
 import { podeConcluir } from "@/lib/crm/conclusao-servico";
 import { AdicionarOperacaoForm } from "./adicionar-operacao-form";
 import { LeadAgendarVisita } from "./lead-agendar-visita";
@@ -116,7 +117,14 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
           <p className="text-gray-600 text-sm mt-0.5">
             {servicosLead.join(", ")} · {lead.origem} · {lead.responsavel?.nome ?? "Sem responsável"}
           </p>
+          {lead.duplicadoDeId && (
+            <p className="text-xs text-gray-600 mt-0.5">
+              Duplicado do <Link href={`/admin/leads/${lead.duplicadoDeId}`} className="underline">lead de origem</Link>
+              {lead.duplicadoEm ? ` em ${lead.duplicadoEm.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}.
+            </p>
+          )}
         </div>
+        {interno && !lead.excluidoEm && <DuplicarLeadBotao leadId={lead.id} nome={lead.nome} />}
       </div>
 
       {falhasServicos.length > 0 && (

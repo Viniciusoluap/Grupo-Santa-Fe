@@ -20,7 +20,7 @@ Branch de trabalho (Claude): `claude/sync-mirrored-repos-bsqnz3`, recriada a par
 | 3 | Obras: Localização exata → imóvel vinculado → Mapa Operacional | ✅ Claude (código + testes; migração pendente em produção) |
 | 4 | Concluir serviço no CRM conclui o módulo (por ID) + caso Luciano Oliveira Leite | ✅ Claude (código + testes; reconciliação de 1 registro pendente no deploy) |
 | 5 | Financiamentos: "Liberado" → "Concluído"; "Crédito concluído" | Codex ✅ integrado |
-| 6 | Duplicar lead (novo ID, dados e documentos, sem serviços) | ⏳ Claude |
+| 6 | Duplicar lead (novo ID, dados e documentos, sem serviços) | ✅ Claude (código + testes; migração pendente em produção) |
 
 ## E0 — integração das etapas do Codex
 - Merges sem conflito nos dois repositórios.
@@ -147,11 +147,55 @@ Testes:
 - (c) produção: aplicar a reconciliação do serviço 67 e conferir no CRM e em Regularizações; clicar "Concluir" num
   serviço real de cada tipo. Sem migração de banco nesta etapa.
 
+## E6 — Duplicar lead (concluída em código)
+Requisitos: botão "Duplicar lead" no topo do lead; lead novo com ID próprio copiando dados, informações e documentos;
+sem serviços, processos, etapas, solicitações/entregas ou histórico transacional; documentos reaproveitam o arquivo
+do Drive com segurança; permissões e visibilidade do cliente respeitadas; atômico; origem registrada.
+
+Decisões:
+- Copia: dados cadastrais/renda/CPF/contatos, responsável, corretor, temperatura, observações (Prospecta: notes e
+  admin_notes; Santa Fé: notas, orçamento, valor aprovado, imóvel de interesse) e os documentos ativos.
+- Reinicia: etapa (Prospecta `lead_new`; Santa Fé `novo`, sem etapa operacional), motivo de recusa, follow-up, prazo do
+  card, arquivamento/exclusão. Santa Fé: lista de serviços do lead fica vazia e **senha/conta do portal não são copiadas**.
+- Não copia: serviços, processos (obra/financiamento/projeto/regularização/avaliação), tarefas, visitas, contratos,
+  versões antigas de documentos, datas de solicitação de documento, atividades/interações (só a nota de origem).
+- Documentos: registro novo apontando para o mesmo arquivo (Prospecta: mesmo `drive_file_id` e cópia dos bytes quando
+  o arquivo está no banco; Santa Fé: mesmo `arquivoId`). Nenhum fluxo apaga o arquivo do Drive de documento de lead
+  (exclusão é lógica; trocar documento cria arquivo novo), então editar/remover num lead não afeta o outro.
+  Prospecta: a organização automática de pastas do Drive ignora as cópias (`copied_from_document_id`), para o arquivo
+  não "pular" para a pasta do lead novo. Santa Fé: a rota `/api/arquivo/[id]` passou a autorizar se o usuário tiver
+  acesso a **qualquer** documento que use o arquivo (antes pegava só o primeiro), mantendo `visivelCliente`.
+- Visibilidade do cliente: o portal liga o cliente ao lead pela conta (`users.leadId` / `Usuario.leadId`); o lead
+  novo não ganha acesso de cliente automaticamente. `visivelCliente` dos documentos é copiado como está.
+- Atomicidade: Prospecta numa única instrução SQL (CTEs); Santa Fé numa transação Prisma.
+- Origem: Prospecta `leads.duplicated_from_lead_id/duplicated_at/duplicated_by_user_id` + nota nos dois leads; Santa Fé
+  `Lead.duplicadoDeId/duplicadoEm/duplicadoPorId` + interação nos dois. Selo "Duplicado do lead #X" no lead novo.
+- Permissão: Prospecta módulo CRM; Santa Fé equipe interna (admin/colaborador) com módulo Leads.
+
+Arquivos:
+- Prospecta: `drizzle/0068_lead_duplicacao.sql`, `drizzle/schema.ts`, `shared/lead-duplicar.ts`, `server/lead-duplicar.ts`,
+  `server/routers.ts` (`leads.duplicate`), `server/drive-documents.ts`, `client/src/pages/admin/AdminLeadDetail.tsx`,
+  `server/lead-duplicar.test.ts`.
+- Santa Fé: `prisma/schema.prisma`, `prisma/migrations/20261023140000_lead_duplicacao/migration.sql`,
+  `src/lib/crm/lead-duplicar.ts`, `src/lib/crm/lead-duplicar-db.ts`, `src/lib/actions/leads.ts` (`duplicarLead`),
+  `src/app/admin/leads/[id]/duplicar-lead-botao.tsx`, `src/app/admin/leads/[id]/page.tsx`, `src/app/api/arquivo/[id]/route.ts`,
+  `src/lib/__tests__/lead-duplicar.db.test.ts`.
+
+Testes:
+- (a) Prospecta `pnpm check` OK; suíte 962/962 (3 novos). **SQL real executado** na branch de teste Neon
+  `teste-migrations-0024-0026` (`br-cold-feather-an7ecnay`, NÃO é produção; recebeu colunas faltantes + 0068 para o
+  teste): lead 14 → lead 70; 2 documentos copiados (o excluído não), `service_id` nulo, arquivo do banco copiado com bytes
+  idênticos, 2 notas, lead de origem intacto. Santa Fé `tsc` OK, eslint sem erros, teste de banco 3/3 (cópia,
+  exclusões, troca de documento não afeta o original nem o arquivo, atomicidade com falha simulada, lead excluído).
+- Suíte Santa Fé completa (Postgres local) após as etapas 2C–6: 804 ok / 10 falhas — as mesmas 10 pré-existentes do
+  ambiente local registradas no E0 (eram 790 ok; +14 testes novos). Prospecta `pnpm build` OK.
+- (b) manuais: nenhum.
+- (c) produção: duplicar um lead real com documentos no Drive e abrir os documentos nos dois leads (e pelo portal do
+  cliente do lead original).
+
 ## Próximo passo exato
-Etapa 6 (Duplicar lead): botão "Duplicar lead" no topo do formulário do lead; cria lead novo (ID próprio) copiando
-dados, informações e documentos; NÃO copia serviços, processos, etapas, solicitações/entregas nem histórico
-transacional; documentos reaproveitam o arquivo do Drive com segurança (editar/remover num lead não apaga o arquivo
-do outro); respeita permissões e visibilidade do cliente; atômico; registra a origem da duplicação. Começar no
-Prospecta por `leads`/`leadDocuments` (schema e rotas de exclusão de documento que apagam no Drive). Depois Santa Fé.
-Em seguida: fechamento (QA, PR, migrações 0066/0067 + SF 20261023120000/20261023130000 em produção, reconciliação do
-serviço 67, merge, deploy, conferência).
+Fechamento do lote: (1) revisão @qa do diff completo dos dois repositórios; (2) atualizar a branch com `origin/main`;
+(3) abrir/atualizar PR de cada repositório e marcar pronto; (4) aplicar migrações aditivas em produção — Prospecta
+0066, 0067, 0068 (Neon `run_sql_transaction`) e Santa Fé `20261023120000_projeto_revisoes`,
+`20261023130000_obra_imovel_localizacao`, `20261023140000_lead_duplicacao` (Supabase `apply_migration`); (5) merge e
+deploy; (6) reconciliar o serviço 67/regularização 22 (etapa 4); (7) conferência em produção e relatório final (a)/(b)/(c).
