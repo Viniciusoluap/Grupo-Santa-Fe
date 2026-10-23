@@ -36,6 +36,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Painel administrativo: o fundo atrás da página acompanha o do painel, para o
+   "puxar" da tela no iPad (overscroll) não revelar uma faixa de outra cor. */
+html.area-admin,
+html.area-admin body {
+  background: var(--brand-gray-light);
+  overscroll-behavior-x: none;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

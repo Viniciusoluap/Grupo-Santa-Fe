@@ -33,6 +33,12 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
   const userName = session?.user?.name ?? "Usuário";
   const userRole = ((session?.user as { role?: UserRole })?.role) ?? "admin";
 
+  // Fundo atrás da página igual ao do painel (sem faixa branca no overscroll do iPad).
+  useEffect(() => {
+    document.documentElement.classList.add("area-admin");
+    return () => document.documentElement.classList.remove("area-admin");
+  }, []);
+
   // Fetch photo on mount
   useEffect(() => {
     fetch("/api/perfil/foto")
