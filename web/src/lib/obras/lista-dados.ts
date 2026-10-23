@@ -13,7 +13,7 @@ export async function carregarListaObras(where: Prisma.ObraWhereInput = {}): Pro
   const registros = await prisma.obra.findMany({
     where,
     orderBy: { criadoEm: "desc" },
-    include: { etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } }, empreiteiro: { select: { nome: true } }, leadVinculado: { select: { orcamento: true } } },
+    include: { pci: { select: { vinculadaEm: true } }, etapas: { orderBy: { ordem: "asc" } }, servicoLead: { select: { servico: true } }, empreiteiro: { select: { nome: true } }, leadVinculado: { select: { orcamento: true } } },
   });
   // Pedido de 18/10: medições aguardando o banco e já recebidas (filtro da lista).
   const medicoes = await prisma.obraProgressoHistorico.groupBy({
@@ -25,6 +25,8 @@ export async function carregarListaObras(where: Prisma.ObraWhereInput = {}): Pro
   return registros.map((o) => ({
     medicoesSolicitadas: porObra.get(o.id)?.solicitadas ?? 0,
     medicoesRecebidas: porObra.get(o.id)?.recebidas ?? 0,
+    // Pedido de 23/10 (H5): selo "PCI vinculada" no card.
+    pciVinculada: o.pci?.vinculadaEm != null,
     id: o.id, nome: o.nome, tipo: o.tipo, servicoLead: o.servicoLead, status: o.status,
     clienteNome: o.clienteNome, clienteTel: o.clienteTel, endereco: o.endereco, area: o.area,
     valorTotal: o.valorTotal, valorPago: o.valorPago, progresso: progressoDaObra(o.progressoMedido?.toString(), o.progresso), engenheiroResp: o.engenheiroResp,
