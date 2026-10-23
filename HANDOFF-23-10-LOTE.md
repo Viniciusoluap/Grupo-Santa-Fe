@@ -131,11 +131,12 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   protegida (redireciona ao login); nenhum erro de runtime nos dois nos 15 min após o deploy.
 
 ## Pendências
-- **Decisão do dono (H6)**: "Acumul. Aferido" fica em branco hoje. Manter assim ou criar campo "% aferido pela
-  CAIXA" informado ao confirmar o recebimento da medição?
+- ~~Decisão do dono (H6)~~ **Decidido em 23/10:** "Acumul. Aferido" fica em branco por enquanto (registrado no
+  ROADMAP da Prospecta).
 - (c) Validação em produção pelo usuário: iPad real (H1), card Negócio fechado (H2), selo PCI (H5), exclusão
   definitiva com lead de teste (H3), sino/Ver todas (H4), PLS com PCI real no SIOPI (H6).
-- Dívida técnica (QA 2, Prospecta): corrida residual na exclusão definitiva (transação serializável do driver Neon).
+- Dívida técnica (QA 2, Prospecta): corrida residual na exclusão definitiva — **mantida registrada por decisão do
+  dono** como DT-2026-10-23-01 em `Prospecta/docs/stories/epics/ROADMAP.md`, para corrigir se necessário.
 
 ## Próximo passo
-Aguardar retorno do usuário sobre o "Aferido" e a validação em produção (iPad e SIOPI).
+Lote concluído. Resta só a validação do usuário em produção (iPad e PLS no SIOPI).
