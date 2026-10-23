@@ -88,13 +88,29 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   3. **Início e término previsto** vêm do Editar Obra (Prospecta `start_date`/`estimated_end_date`; SF
      `dataInicio`/`dataPrevisaoFim`). Sem data na obra, vale a fórmula do modelo (contratação + 30 dias). XLS grava
      AL79/AL80; etapa da vistoria passa a contar do início real.
-  4. **Curva de Evolução** (`curvaDeEvolucao`): Acumul. PLS por etapa (medições), **Acumul. Aferido = medições com
-     recebimento confirmado pelo banco** (decisão a validar com o dono), Acumul. Adotado (aferido, senão PLS) e Mês
+  4. **Curva de Evolução** (`curvaDeEvolucao`): Acumul. PLS por etapa (medições), **Acumul. Aferido** fica em branco (ver QA, achado 6), Acumul. Adotado (aferido, senão PLS) e Mês
      referência (início + n meses). Linhas até o prazo/cronograma da PCI. XLS grava AF/AJ/AO/AT.
 - Testes: (a) `pls-fiel-pci.test.ts` 9/9 nos dois (coordenadas, pré-preenchimento, normalização/validação, XLS e PDF
   com contrato/valor/contratação, datas da obra, curva). Prospecta 932/932 + `pnpm check`; SF 782 ok (10 falhas
   pré-existentes do ambiente local) + `tsc`. PDF de exemplo conferido visualmente (pág. 1).
   (b) —. (c) **gerar PLS com uma PCI real em produção e conferir no SIOPI — aceitação só o usuário confirma.**
 
+## Revisão @qa (AIOX) — veredito CONCERNS, achados tratados
+- 1 MEDIUM (Prospecta): exclusão definitiva deixava tarefas (`tasks` related_type='lead') órfãs → agora apaga
+  junto (paridade com SF `tarefaCrm`). SQL revalidado em Postgres local; colunas conferidas em produção (leitura).
+- 3 LOW (Prospecta): documentos já excluídos (`deleted_at`) não bloqueiam mais e são apagados com o lead.
+- 4 LOW: título do resumo → "N cards com prazo até hoje" (inclui vencidos).
+- 5 MEDIUM: XLS gravava "Mês referência" em 73 linhas → limitado ao prazo/cronograma (igual ao PDF).
+- 6 MEDIUM (regra de negócio): "Acumul. Aferido" é o % medido pela CAIXA, que o sistema não tem → **coluna fica
+  em branco**; Adotado = PLS. **Pendente: decisão do dono** (manter em branco ou criar campo "% aferido pela CAIXA"
+  informado ao confirmar o recebimento).
+- 7 LOW: AL80 (término) só perde a fórmula quando vem do Editar Obra; senão só o cache é atualizado.
+- 8 LOW: com repactuação informada na PLS, término = início + etapas repactuadas (prevalece sobre o Editar Obra).
+- 9 LOW: sem ação — a Prospecta já filtra `measurement_type = 'pls'` (mesma regra do SF).
+- 2 LOW (Prospecta, **dívida técnica registrada**): corrida residual — se alguém criar obra para o lead arquivado
+  no mesmo instante da exclusão, a obra fica sem vínculo (SET NULL). Correção exige transação serializável do
+  driver Neon HTTP, não validável localmente; probabilidade muito baixa.
+- Testes após correções: Prospecta 933/933 + `pnpm check`; SF caixa/notificações 30/30 + `tsc`.
+
 ## Próximo passo
-Revisão @qa (AIOX) do lote inteiro nos dois repositórios → PRs → merge → deploy → conferência em produção.
+Merge dos PRs (Prospecta #155, SF #218) → deploy → conferência em produção (sem migração de banco).

@@ -155,7 +155,9 @@ export function calcularPls(e: EntradaMedicaoCaixa) {
   const inicio = inicioDaMedicao(e);
   const etapa = etapaDaData(inicio, e.dados.pls.dataLevantamento);
   const prazo = e.dados.pls.houveRepactuacao && e.dados.pls.etapasRepactuadas ? e.dados.pls.etapasRepactuadas : e.pci.prazoMeses;
-  const termino = e.obra?.termino ?? (inicio && prazo ? somarMeses(inicio, prazo) : null);
+  // Com repactuação informada na PLS, o término passa a ser início + etapas repactuadas.
+  const repactuada = e.dados.pls.houveRepactuacao && !!e.dados.pls.etapasRepactuadas;
+  const termino = (!repactuada ? e.obra?.termino : null) ?? (inicio && prazo ? somarMeses(inicio, prazo) : null);
   return { execucaoObra, acumulado, anterior, executadoEtapa: acumulado - anterior, inicio, etapa, prazo, termino, ...contrato };
 }
 
@@ -228,11 +230,14 @@ function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
   if (r.dataContratacao) pasta.escrever(ABA_PLS, "AL78", isoParaSerial(r.dataContratacao));
   if (r.inicio && e.obra?.inicio) escreverSobreFormula(pasta, "AL79", isoParaSerial(r.inicio));
   else if (r.inicio) pasta.gravarResultado(ABA_PLS, "AL79", isoParaSerial(r.inicio));
-  if (r.termino) escreverSobreFormula(pasta, "AL80", isoParaSerial(r.termino));
+  if (r.termino && e.obra?.termino && r.termino === e.obra.termino) escreverSobreFormula(pasta, "AL80", isoParaSerial(r.termino));
+  else if (r.termino) gravarSeFormula(pasta, "AL80", isoParaSerial(r.termino));
 
   // Curva de evolução: PLS, aferido (confirmado pelo banco) e mês de referência.
   if (r.etapa !== null) {
-    const curva = curvaDeEvolucao(r.inicio, [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }], 72);
+    // Mesmo limite do PDF: prazo (ou cronograma da PCI), sempre até a etapa atual.
+    const etapas = Math.min(72, Math.max(r.prazo ?? 0, e.pci.cronogramaProposto.length - 1, r.etapa));
+    const curva = curvaDeEvolucao(r.inicio, [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }], etapas);
     for (const l of curva) {
       const linha = 95 + l.etapa;
       if (l.pls !== null) pasta.escrever(ABA_PLS, `AF${linha}`, Number(l.pls.toFixed(2)));
@@ -241,6 +246,7 @@ function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
       if (l.adotado !== null) gravarSeFormula(pasta, `AO${linha}`, Number(l.adotado.toFixed(2)));
       if (l.mes) gravarSeFormula(pasta, `AT${linha}`, isoParaSerial(l.mes));
     }
+    for (let etapa = etapas + 1; etapa <= 72; etapa++) pasta.escrever(ABA_PLS, `AF${95 + etapa}`, null);
   }
 }
 

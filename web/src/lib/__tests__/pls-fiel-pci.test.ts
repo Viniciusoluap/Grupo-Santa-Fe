@@ -108,4 +108,12 @@ describe("4) curva de evolução preenchida", () => {
     expect(xls.ler("PLS", "AJ96")).toBe(10.1);
     expect(xls.ler("PLS", "AT96")).toBe(isoParaSerial("2026-06-04"));
   });
+  it("QA: mês de referência só até o prazo; término sem data da obra mantém a fórmula; repactuação prevalece", () => {
+    const xls = PastaBiff8.abrir(gerarXlsMedicao(MODELO, entrada({ obra: { inicio: "2026-05-04", termino: null } })));
+    expect(xls.ler("PLS", "AT101")).toBe(isoParaSerial("2026-11-04")); // etapa 6 = prazo
+    expect(xls.ler("PLS", "AT110")).not.toBe(isoParaSerial("2027-08-04"));
+    expect(xls.ehFormula("PLS", "AL80")).toBe(true);
+    const rep = calcularPls(entrada({ obra: { inicio: "2026-05-04", termino: "2026-11-30" } }, { houveRepactuacao: true, etapasRepactuadas: 9 }));
+    expect(rep.termino).toBe("2027-02-04");
+  });
 });

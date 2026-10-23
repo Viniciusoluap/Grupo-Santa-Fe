@@ -33,9 +33,10 @@ export async function gerarArquivoMedicao(medicaoId: string, formato: FormatoMed
   if (formato === "xls" && pci.formato !== "xls") return { ok: false, status: 400, error: "Para solicitar com PDF e XLS, use a PCI original em .xls. A PCI .xlsb permite PDF, mas não gera o XLS exigido para o envio." };
   const tipo = ehTipoMedicao(m.tipo) ? m.tipo : "pls";
   const dados = normalizarDadosMedicao(tipo, m.dadosCaixa);
-  const anterioresBrutas = await prisma.obraProgressoHistorico.findMany({ where: { obraId: m.obraId, OR: [{ criadoEm: { lt: m.criadoEm } }, { criadoEm: m.criadoEm, id: { lt: m.id } }] }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }], select: { progresso: true, criadoEm: true, dadosCaixa: true, recebidaEm: true } });
-  // H6: medição confirmada pelo banco = "Acumul. Aferido" da curva.
-  const anteriores: MedicaoHistorica[] = anterioresBrutas.map(a => ({ data: (a.dadosCaixa as { pls?: { dataLevantamento?: string } } | null)?.pls?.dataLevantamento || dataIso(a.criadoEm), progresso: Number(a.progresso), aferido: a.recebidaEm !== null }));
+  const anterioresBrutas = await prisma.obraProgressoHistorico.findMany({ where: { obraId: m.obraId, OR: [{ criadoEm: { lt: m.criadoEm } }, { criadoEm: m.criadoEm, id: { lt: m.id } }] }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }], select: { progresso: true, criadoEm: true, dadosCaixa: true } });
+  // H6: "Acumul. Aferido" é o % medido pela CAIXA — o sistema não o tem, então fica
+  // em branco (não preencher com o PLS). Aguarda decisão do dono.
+  const anteriores: MedicaoHistorica[] = anterioresBrutas.map(a => ({ data: (a.dadosCaixa as { pls?: { dataLevantamento?: string } } | null)?.pls?.dataLevantamento || dataIso(a.criadoEm), progresso: Number(a.progresso) }));
   // H6: início e término previsto vêm do Editar Obra (datas gravadas à meia-noite UTC).
   const datasObra = { inicio: m.obra.dataInicio ? m.obra.dataInicio.toISOString().slice(0, 10) : null, termino: m.obra.dataPrevisaoFim ? m.obra.dataPrevisaoFim.toISOString().slice(0, 10) : null };
   const porChave = new Map(itens.map(i => [i.chave, Number(i.execucao)]));

@@ -7,7 +7,7 @@ const antigos = Array.from({ length: 9 }, (_, i) => `CLIENTE ${i + 1} (2026-10-2
 describe("notificações padronizadas", () => {
   it("formato antigo (texto corrido) vira lista: título curto, ícone, data BR, e mais N, Ver no CRM", () => {
     const n = exibirNotificacao({ title: "9 cards precisam da sua atenção hoje", message: antigos, type: "system", actionUrl: "/admin/crm" });
-    expect(n).toMatchObject({ icone: "⏰", titulo: "9 cards com prazo para hoje", resumo: null, restantes: 4, acao: { rotulo: "Ver no CRM", url: "/admin/crm" } });
+    expect(n).toMatchObject({ icone: "⏰", titulo: "9 cards com prazo até hoje", resumo: null, restantes: 4, acao: { rotulo: "Ver no CRM", url: "/admin/crm" } });
     expect(n.itens).toEqual(["CLIENTE 1 — prazo 22/10/2026", "CLIENTE 2 — prazo 22/10/2026", "CLIENTE 3 — prazo 22/10/2026", "CLIENTE 4 — prazo 22/10/2026", "CLIENTE 5 — prazo 22/10/2026"]);
   });
 
@@ -16,7 +16,7 @@ describe("notificações padronizadas", () => {
     const n = exibirNotificacao({ title: tituloPrazosCards(2), message, type: "system", actionUrl: "/admin/crm" });
     expect(n.itens).toEqual(["ANA — prazo 22/10/2026", "BRUNO — prazo 21/10/2026"]);
     expect(n.restantes).toBe(0);
-    expect(tituloPrazosCards(1)).toBe("1 card com prazo para hoje");
+    expect(tituloPrazosCards(1)).toBe("1 card com prazo até hoje");
   });
 
   it("mensagem simples continua como resumo, com ícone pelo assunto e data BR", () => {

@@ -42,7 +42,7 @@ function itensDaMensagem(mensagem: string): string[] | null {
 
 /** Título antigo do resumo de prazos → título curto; títulos longos são abreviados. */
 export function tituloPrazosCards(n: number): string {
-  return `${n} card${n === 1 ? "" : "s"} com prazo para hoje`;
+  return `${n} card${n === 1 ? "" : "s"} com prazo até hoje`;
 }
 
 function tituloCurto(titulo: string): string {
