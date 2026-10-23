@@ -117,5 +117,12 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
 - Exclusão definitiva (Prospecta): documentos já excluídos COM arquivo no Drive não são mais apagados do banco
   (o arquivo continuaria no Drive sem referência); só os sem arquivo saem. No SF, documento com arquivo já bloqueia.
 
+## Revisão Codex (PR Santa Fé #218) — 3 achados P2 tratados
+- S51 (igual à Prospecta) — já corrigido.
+- PDF: a tabela da Curva de Evolução cortava etapas além de ~33; agora as linhas encolhem para caber até 48
+  etapas (nos dois). Teste com prazo 48 + conferência visual.
+- SF "Ver todas": passa a mostrar os mesmos alertas calculados do sino (cobrança BPO e prazo de obra próximos),
+  extraídos para `src/lib/notificacoes-calculadas.ts` e usados pela API do sino e pela página.
+
 ## Próximo passo
 Merge dos PRs (Prospecta #155, SF #218) → deploy → conferência em produção (sem migração de banco).

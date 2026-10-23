@@ -116,6 +116,12 @@ describe("4) curva de evolução preenchida", () => {
     const rep = calcularPls(entrada({ obra: { inicio: "2026-05-04", termino: "2026-11-30" } }, { houveRepactuacao: true, etapasRepactuadas: 9 }));
     expect(rep.termino).toBe("2027-02-04");
   });
+  it("Codex: PDF mostra a curva inteira mesmo com prazo de 48 etapas", () => {
+    const e = entrada({ obra: { inicio: "2026-05-04", termino: null } });
+    e.pci = { ...e.pci, prazoMeses: 48 };
+    const pdf = Buffer.from(gerarPdfMedicao(MODELO, e)).toString("latin1");
+    expect(pdf).toContain("04/05/2030"); // mês de referência da etapa 48
+  });
   it("Codex: sem nº de contrato válido, o placeholder do modelo é apagado do XLS", () => {
     const xls = PastaBiff8.abrir(gerarXlsMedicao(MODELO, entrada()));
     expect(xls.ler("PLS", "S51")).toBeNull();

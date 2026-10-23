@@ -393,7 +393,11 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   // H6: etapas pelo prazo (ou pelo cronograma da PCI), sempre até a etapa atual.
   const etapas = Math.max(r.prazo ?? 0, pci.cronogramaProposto.length - 1, etapa);
   const curva = curvaDeEvolucao(r.inicio, medicoes, etapas);
-  const linhas = Math.floor((285 - 12 - d) / 3.4);
+  // Todas as etapas cabem na página: com prazo longo (até 48) as linhas encolhem.
+  const espaco = 285 - 12 - d;
+  const linhas = Math.max(Math.floor(espaco / 3.4), curva.length);
+  const hLinha = Math.min(3.4, espaco / linhas);
+  const fonte = hLinha >= 3.2 ? 6 : Math.max(4.2, hLinha * 1.8);
   for (let k = 0; k < linhas; k++) {
     const l = curva[k];
     cx = X;
@@ -401,10 +405,10 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
       ? [String(k), l.pls === null ? "" : num(l.pls), l.aferido === null ? "" : num(l.aferido), l.adotado === null ? "" : num(l.adotado), l.mes ? dataBr(l.mes) : ""]
       : ["", "", "", "", ""];
     cab.forEach(([, w], i) => {
-      doc.celula(cx, d, w, 3.4, valores[i], { alinhar: "center", tamanho: 6, negrito: i === 1 || i === 3, fundo: i === 1 || i === 2 ? LILAS : i === 4 && l ? VERDE : undefined });
+      doc.celula(cx, d, w, hLinha, valores[i], { alinhar: "center", tamanho: fonte, negrito: i === 1 || i === 3, fundo: i === 1 || i === 2 ? LILAS : i === 4 && l ? VERDE : undefined });
       cx += w;
     });
-    d += 3.4;
+    d += hLinha;
   }
 
   // --- página 2: indicadores e gráfico
