@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { EditarProjetoForm } from "./_components/editar-projeto-form";
+import { diaPrazoProjeto } from "@/lib/projetos-prazo";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -24,7 +25,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
     select: { id: true, nome: true, papel: true }, orderBy: { nome: "asc" },
   });
 
-  const prazoValue = p.prazoEntrega ? new Date(p.prazoEntrega).toISOString().split("T")[0] : "";
+  const prazoValue = diaPrazoProjeto(p.prazoEntrega) ?? "";
 
   return (
     <div className="max-w-2xl space-y-5">

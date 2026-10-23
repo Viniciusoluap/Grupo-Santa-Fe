@@ -7,6 +7,7 @@ import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG, ProjetoStatus } from "@/lib
 import { formatCurrency } from "@/lib/utils";
 import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
 import { AcoesExcluir } from "@/components/admin/acoes-excluir";
+import { exibirDiaPrazoProjeto, ordenarProjetosPorPrazo } from "@/lib/projetos-prazo";
 
 interface Projeto {
   id: string;
@@ -62,14 +63,14 @@ export function ProjetosClient({ projetos }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjetoStatus | "todos">("todos");
 
-  const filtered = projetos.filter((p) => {
+  const filtered = ordenarProjetosPorPrazo(projetos.filter((p) => {
     const matchSearch = !search ||
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.clienteNome.toLowerCase().includes(search.toLowerCase()) ||
       p.engenheiro?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "todos" || p.status === statusFilter;
     return matchSearch && matchStatus;
-  });
+  }), p => p.prazoEntrega);
 
   const totalValue = projetos.reduce((s, p) => s + (p.valorProjeto ?? 0), 0);
   const emAndamento = projetos.filter((p) => p.status === "em_elaboracao" || p.status === "revisao").length;
@@ -167,7 +168,7 @@ export function ProjetosClient({ projetos }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-600 hidden md:table-cell">
-                      {p.prazoEntrega ? new Date(p.prazoEntrega).toLocaleDateString("pt-BR") : "—"}
+                      {exibirDiaPrazoProjeto(p.prazoEntrega)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <StatusSelectProjeto id={p.id} status={p.status} />

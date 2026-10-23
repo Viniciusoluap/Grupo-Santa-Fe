@@ -9,6 +9,7 @@ import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { projectChecklist } from "@/lib/projeto-documentos";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { persistirDiaPrazoProjeto } from "@/lib/projetos-prazo";
 
 export async function alterarStatusProjeto(id: string, status: string) {
   await exigirModuloAcao("projetos");
@@ -79,7 +80,7 @@ async function editarProjetoImpl(formData: FormData) {
         clienteTel: cliente.clienteTel,
         ...(await engenheiroDoFormulario(tx, formData, atual.engenheiro)),
         descricao: (formData.get("descricao") as string) || "",
-        prazoEntrega: (formData.get("prazoEntrega") as string) ? new Date(formData.get("prazoEntrega") as string) : null,
+        prazoEntrega: (formData.get("prazoEntrega") as string) ? persistirDiaPrazoProjeto(formData.get("prazoEntrega") as string) : null,
       },
     });
   });
