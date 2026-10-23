@@ -6,7 +6,7 @@ import { iniciarUploadProjetoDrive, enviarParteProjetoDrive } from "@/lib/incorp
 import { projectChecklist, validateProjectUpload, PROJECT_CHUNK_SIZE, type ProjectCheck } from "@/lib/projeto-documentos";
 import { PROJETO_TIPO_CONFIG } from "@/lib/types/projeto";
 export const runtime = "nodejs";
-type Session = { uid: string; projectId: string; itemId: string; kind: "editable" | "pdf"; name: string; mime: string; size: number; location: string; expires: number };
+type Session = { uid: string; projectId: string; revisionId?: string; itemId: string; kind: "editable" | "pdf"; name: string; mime: string; size: number; location: string; expires: number };
 const parseArray = <T,>(value: string | null): T[] => { try { const x = JSON.parse(value || "[]"); return Array.isArray(x) ? x : []; } catch { return []; } };
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +16,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const project = await prisma.projeto.findUnique({ where: { id: projectId } });
     if (!project) return NextResponse.json({ error: "Projeto não encontrado." }, { status: 404 });
     const body = await req.json();
+    if (body.action === "start" && body.revisionId != null) {
+      // Lote 23/10, etapa 2C: versão revisada entregue no próprio card do pedido.
+      validateProjectUpload(body.name, body.size, body.kind);
+      const revisionId = String(body.revisionId).slice(0, 40);
+      const pedido = await prisma.projetoRevisao.findFirst({ where: { id: revisionId, projetoId: projectId }, select: { id: true } });
+      if (!pedido) return NextResponse.json({ error: "Pedido de revisão não encontrado neste projeto." }, { status: 404 });
+      const mime = body.kind === "pdf" ? "application/pdf" : String(body.mime || "application/octet-stream").slice(0, 150);
+      const itemId = `revisao-${revisionId}`;
+      const location = await iniciarUploadProjetoDrive({ projectId, clientId: project.leadId || `projeto-${projectId}`, clientName: project.clienteNome, projectName: project.nome, itemId, itemName: `Revisão ${revisionId}`, kind: body.kind, name: body.name, mime, size: body.size });
+      const session: Session = { uid: user.id, projectId, revisionId, itemId, kind: body.kind, name: body.name, mime, size: body.size, location, expires: Date.now() + 24 * 60 * 60 * 1000 };
+      return NextResponse.json({ session: criptografarSegredo(JSON.stringify(session)), offset: 0 });
+    }
     if (body.action === "start") {
       validateProjectUpload(body.name, body.size, body.kind);
       const existing = parseArray<{id: string; texto: string; feito: boolean}>(project.checklist).map(c => ({ id: c.id, text: c.texto, done: c.feito }));
@@ -35,6 +47,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!Number.isSafeInteger(start) || start < 0 || bytes.length > PROJECT_CHUNK_SIZE || start + bytes.length > session.size || (bytes.length && start % (256 * 1024) !== 0)) return NextResponse.json({ error: "Parte de arquivo inválida." }, { status: 400 });
     const result = await enviarParteProjetoDrive(session.location, start, session.size, session.mime, bytes);
     if (!result.driveFileId) return NextResponse.json(result);
+    if (session.revisionId) {
+      const entrega = { nome: session.name, url: `https://drive.google.com/file/d/${result.driveFileId}/view`, driveFileId: result.driveFileId, tipo: session.kind, enviadoEm: new Date().toISOString(), enviadoPor: user.nome || `Usuário ${user.id}` };
+      // Acrescenta (nunca sobrescreve) e marca o pedido como entregue; idempotente por driveFileId.
+      await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM projeto_revisoes WHERE id = ${session.revisionId} FOR UPDATE`;
+        const atual = await tx.projetoRevisao.findFirstOrThrow({ where: { id: session.revisionId, projetoId: projectId } });
+        const entregas = parseArray<{ driveFileId?: string }>(atual.entregas);
+        if (!entregas.some(f => f.driveFileId === result.driveFileId)) await tx.projetoRevisao.update({ where: { id: atual.id }, data: { entregas: JSON.stringify([...entregas, entrega]), status: "entregue", entregueEm: new Date(), entreguePorId: user.id } });
+      });
+      return NextResponse.json({ ...result, entrega });
+    }
     const file = { nome: session.name, url: `https://drive.google.com/file/d/${result.driveFileId}/view`, itemId: session.itemId, kind: session.kind, driveFileId: result.driveFileId, data: new Date().toISOString() };
     await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM projetos WHERE id = ${projectId} FOR UPDATE`;

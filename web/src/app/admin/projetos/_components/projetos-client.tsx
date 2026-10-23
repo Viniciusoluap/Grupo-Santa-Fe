@@ -178,6 +178,9 @@ export function ProjetosClient({ projetos }: Props) {
                         <Link href={`/admin/projetos/${p.id}/editar`} className="p-1.5 text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-colors rounded" title="Editar">
                           <Pencil size={14} /> Editar
                         </Link>
+                        <Link href={`/admin/projetos/${p.id}?solicitarRevisao=1`} className="p-1.5 text-xs text-gray-600 hover:text-amber-700 hover:bg-amber-50 transition-colors rounded" title="Solicitar revisão">
+                          Solicitar revisão
+                        </Link>
                         <AcoesExcluir id={p.id} rotulo={p.nome} excluir={excluirProjeto} compacto />
                       </div>
                     </td>

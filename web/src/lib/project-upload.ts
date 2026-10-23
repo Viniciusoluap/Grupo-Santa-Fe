@@ -1,4 +1,4 @@
-export async function uploadProjectDocument(endpoint: string, file: File, itemId: string, kind: "editable" | "pdf", onProgress: (n: number) => void) {
+export async function uploadProjectDocument(endpoint: string, file: File, itemId: string, kind: "editable" | "pdf", onProgress: (n: number) => void, extra: Record<string, unknown> = {}) {
   if (!file.size || file.size > 300 * 1024 * 1024) throw new Error("Envie um arquivo de até 300 MB.");
   if (kind === "pdf" && !/\.pdf$/i.test(file.name)) throw new Error("Nesta opção envie um arquivo PDF.");
   async function post(body: object) {
@@ -7,7 +7,7 @@ export async function uploadProjectDocument(endpoint: string, file: File, itemId
     if (!res.ok) throw new Error(data.error || "Não foi possível enviar o arquivo.");
     return data;
   }
-  const start = await post({ action: "start", name: file.name, size: file.size, mime: file.type, itemId, kind });
+  const start = await post({ ...extra, action: "start", name: file.name, size: file.size, mime: file.type, itemId, kind });
   let offset = 0;
   let failures = 0;
   while (offset < file.size) {
@@ -19,10 +19,12 @@ export async function uploadProjectDocument(endpoint: string, file: File, itemId
       onProgress(Math.round(offset / file.size * 100));
       failures = 0;
       if (result.file) return result.file;
+      if (result.entrega) return result.entrega;
     } catch (error) {
       if (++failures > 3) throw error;
       const state = await post({ session: start.session, offset: 0, chunk: "" });
       if (state.file) return state.file;
+      if (state.entrega) return state.entrega;
       offset = state.offset;
     }
   }

@@ -7,15 +7,19 @@ import { PROJETO_STATUS_CONFIG, PROJETO_TIPO_CONFIG } from "@/lib/types/projeto"
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import ProjetoDetailClient from "./_components/projeto-detail-client";
 import { exibirDiaPrazoProjeto } from "@/lib/projetos-prazo";
+import ProjetoRevisoes from "./_components/projeto-revisoes";
+import { lerEntregas } from "@/lib/projeto-revisao";
 
-interface PageProps { params: Promise<{ id: string }> }
+interface PageProps { params: Promise<{ id: string }>; searchParams?: Promise<{ solicitarRevisao?: string }> }
 
-export default async function ProjetoDetailPage({ params }: PageProps) {
+export default async function ProjetoDetailPage({ params, searchParams }: PageProps) {
   await exigirModuloPagina("projetos");
 
   const { id } = await params;
   const p = await prisma.projeto.findUnique({ where: { id } });
   if (!p) notFound();
+  const revisoes = await prisma.projetoRevisao.findMany({ where: { projetoId: id }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }] });
+  const abrirPedido = (await searchParams)?.solicitarRevisao === "1";
 
   const cfg = PROJETO_STATUS_CONFIG[p.status as keyof typeof PROJETO_STATUS_CONFIG] ?? {
     label: p.status,
@@ -73,6 +77,14 @@ export default async function ProjetoDetailPage({ params }: PageProps) {
             arquivosJson={p.arquivos}
             status={p.status}
             statusConfig={statusConfig}
+          />
+
+          <ProjetoRevisoes
+            projetoId={p.id}
+            projetoNome={p.nome}
+            engenheiro={p.engenheiro}
+            abrirPedido={abrirPedido}
+            revisoes={revisoes.map(r => ({ id: r.id, texto: r.texto, status: r.status, solicitadoPorNome: r.solicitadoPorNome, criadoEm: r.criadoEm.toISOString(), situacaoNotificacao: r.situacaoNotificacao, situacaoEmail: r.situacaoEmail, entregas: lerEntregas(r.entregas) }))}
           />
 
           {/* Description */}

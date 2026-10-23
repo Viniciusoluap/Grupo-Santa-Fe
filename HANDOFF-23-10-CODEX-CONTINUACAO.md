@@ -16,7 +16,7 @@ Branch de trabalho (Claude): `claude/sync-mirrored-repos-bsqnz3`, recriada a par
 |---|---|---|
 | 1 | Regularizações: "Valor já recebido" e "Valor contratado" (itens próprios) | Codex ✅ integrado |
 | 2A/B | Projetos: prazo como data civil + ordenação por prazo | Codex ✅ integrado |
-| 2C | Projetos: Solicitar revisão (pedido, notificação, e-mail, entrega no card, histórico) | ⏳ Claude |
+| 2C | Projetos: Solicitar revisão (pedido, notificação, e-mail, entrega no card, histórico) | ✅ Claude (código + testes; migração pendente em produção) |
 | 3 | Obras: Localização exata → imóvel vinculado → Mapa Operacional | ⏳ Claude |
 | 4 | Concluir serviço no CRM conclui o módulo (por ID) + caso Luciano Oliveira Leite | ⏳ Claude |
 | 5 | Financiamentos: "Liberado" → "Concluído"; "Crédito concluído" | Codex ✅ integrado |
@@ -31,12 +31,42 @@ Branch de trabalho (Claude): `claude/sync-mirrored-repos-bsqnz3`, recriada a par
   idênticas sem as mudanças do lote.
 - (b) manuais: nenhum nesta etapa. (c) produção: nada publicado ainda (sem merge/deploy).
 
+## E2C — Projetos: Solicitar revisão (concluída em código)
+Requisitos: botão "Solicitar revisão" por projeto; modal com o texto; pedido salvo com autor, data e estado;
+notificação interna + e-mail ao colaborador vinculado; colaborador entrega a versão revisada no card; histórico
+de pedidos e entregas; sem colaborador/e-mail → aviso claro e nunca "enviado".
+
+Decisões:
+- Regras e textos em arquivo único espelhado: Prospecta `shared/projeto-revisao.ts` = Santa Fé
+  `web/src/lib/projeto-revisao.ts` (validação, limite 2000, rótulos, mensagem honesta, e-mail com HTML escapado).
+- Situação por canal: `enviado` | `sem_destinatario` | `falhou` (gravada no pedido). Colaborador inativo = sem destinatário.
+- Entrega: a mesma rota de upload resumível do Drive recebe `revisionId`; o arquivo vai para a pasta
+  `Clientes/<cliente>/Projetos/Portfólio/<projeto>/Revisão <id>` e é **acrescentado** em `deliveries`/`entregas`
+  do pedido (idempotente por driveFileId), marcando `entregue` + data/autor. Não altera os arquivos do checklist.
+- Link da notificação: Prospecta `/admin/projetos?projeto=<id>` (abre o card); Santa Fé `/admin/projetos/<id>`.
+- Excluir o projeto apaga os pedidos (FK ON DELETE CASCADE), coerente com a exclusão definitiva.
+
+Arquivos:
+- Prospecta: `drizzle/0066_project_revision_requests.sql`, `drizzle/schema.ts` (`projectRevisionRequests`),
+  `server/operacional-router.ts` (`projetos.revisoes`, `projetos.solicitarRevisao`), `server/routes/projeto-documentos.ts`,
+  `client/src/lib/project-upload.ts`, `client/src/pages/admin/ProjetoRevisoes.tsx`, `AdminProjetos.tsx`,
+  `server/projeto-revisao.test.ts`.
+- Santa Fé: `prisma/schema.prisma` (`ProjetoRevisao` → `projeto_revisoes`),
+  `prisma/migrations/20261023120000_projeto_revisoes/migration.sql` (com RLS), `src/lib/actions/projetos.ts`
+  (`solicitarRevisaoProjeto`), `src/app/api/projetos/[id]/documentos/route.ts`, `src/lib/project-upload.ts`,
+  `src/app/admin/projetos/[id]/_components/projeto-revisoes.tsx`, `[id]/page.tsx`, `_components/projetos-client.tsx`,
+  `src/lib/__tests__/projeto-revisao.db.test.ts`.
+
+Testes:
+- (a) Prospecta: `pnpm check` OK; suíte completa 945/945 (5 novos). Santa Fé: `tsc --noEmit` OK; eslint sem erros
+  nos arquivos alterados; `projeto-revisao.db.test.ts` 4/4 no Postgres local.
+- (b) manuais: nenhum ainda (UI não exercitada em navegador).
+- (c) produção: migrações **não aplicadas** (Prospecta 0066 via Neon; Santa Fé `20261023120000_projeto_revisoes`
+  via Supabase). Envio real de e-mail/Drive só validável em produção.
+
 ## Próximo passo exato
-Etapa 2C (Projetos — Solicitar revisão), começando pelo Prospecta:
-- já criados (ainda não commitados no momento deste registro, ver commits seguintes): `shared/projeto-revisao.ts`,
-  `drizzle/0066_project_revision_requests.sql` (NÃO aplicada em produção), tabela `projectRevisionRequests` em
-  `drizzle/schema.ts`;
-- faltam: procedures `revisoes`/`solicitarRevisao` em `projetosRouter` (`server/operacional-router.ts`), entrega
-  com `revisionId` em `server/routes/projeto-documentos.ts`, UI em `AdminProjetos.tsx`, testes; depois espelhar no
-  Santa Fé (model Prisma `ProjetoRevisao`/`projeto_revisoes` com RLS, actions, rota de upload, UI,
-  `src/lib/projeto-revisao.ts`).
+Etapa 3 (Obras — "Localização exata" na aba Informações, reaproveitando o campo e o botão "Marcar" de Imóveis;
+ao salvar, criar/vincular o imóvel da obra e mostrá-lo no Mapa Operacional, sem duplicar e sem publicar anúncio).
+Começar mapeando no Prospecta: campo de localização de Imóveis (`validCoordinates` em `shared/operacional.ts`),
+`mapaRouter` em `server/operacional-router.ts` e vínculo obra↔imóvel em `constructionProjects`. Depois espelhar no Santa Fé.
+Restam ainda as etapas 4 e 6 e o fechamento (QA, PR, migrações em produção, merge, deploy).
