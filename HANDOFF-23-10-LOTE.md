@@ -8,7 +8,7 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
 | # | História | Prospecta | Santa Fé |
 |---|----------|-----------|----------|
 | H1 | Fundo sem faixa branca no overscroll (iPad) | ✅ commit | ✅ commit |
-| H2 | 🤝 só depois do nome (Negócio fechado) | ⏳ | ⏳ |
+| H2 | 🤝 só depois do nome (Negócio fechado) | ✅ commit | ✅ commit |
 | H5 | Selo "PCI vinculada" no card da obra | ⏳ | ⏳ |
 | H3 | Excluir definitivamente lead arquivado | ⏳ | ⏳ |
 | H4 | Notificações padronizadas | ⏳ | ⏳ |
@@ -24,6 +24,11 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   1024×1366: html/body escuros (antes: body branco), documento sem rolagem horizontal, kanban rola internamente.
   (b) —. (c) Confirmar no iPad real após o deploy (efeito elástico do Safari não é reproduzível no Chromium).
 
+## H2 — concluído
+- Removido o 🤝 ANTES do nome nos cards do pipeline e na visão em lista do CRM (Prospecta `AdminCRM.tsx`;
+  SF `lead-kanban.tsx` e `leads-client.tsx`). Fica só o indicador de temperatura à direita/abaixo do nome.
+- Tela de detalhe do lead não foi alterada (fora do print).
+- Testes: (a) `pnpm check` / `tsc` OK. (b) —. (c) conferir card "Negócio fechado" em produção.
+
 ## Próximo passo
-H2: em `AdminCRM.tsx` (Prospecta) e no card do kanban do SF, remover o 🤝 antes do nome nos cards de
-"Negócio fechado", mantendo o que fica depois do nome.
+H5: selo "PCI vinculada" no card da obra (lista de Obras), perto do selo de situação, só quando a obra tem PCI.

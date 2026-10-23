@@ -43,7 +43,7 @@ export function LeadCard({ lead, podeMover = true }: { lead: KanbanLead; podeMov
   const today = diaEmImperatriz();
   return (
     <article className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
-      <Link href={`/admin/leads/${lead.id}`} className="block font-bold text-[var(--brand-dark)] text-sm leading-tight hover:underline">{lead.temperatura === "fechado" && <span className="mr-1" title="Negócio fechado">{LEAD_TEMPERATURA_CONFIG.fechado.emoji}</span>}{lead.nome}</Link>
+      <Link href={`/admin/leads/${lead.id}`} className="block font-bold text-[var(--brand-dark)] text-sm leading-tight hover:underline">{lead.nome}</Link>
       <p className={`text-[10px] font-bold mt-0.5 ${LEAD_TEMPERATURA_CONFIG[lead.temperatura as LeadTemperatura]?.color ?? "text-gray-500"}`}>{leadTemperaturaRotulo(lead.temperatura)}</p>
       <div className="flex flex-wrap gap-1 my-2">
         {parseServicosLead(lead.servico).map((s) => <span key={s} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded" title={s}>{s}</span>)}
