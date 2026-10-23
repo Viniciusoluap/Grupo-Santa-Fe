@@ -124,5 +124,18 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
 - SF "Ver todas": passa a mostrar os mesmos alertas calculados do sino (cobrança BPO e prazo de obra próximos),
   extraídos para `src/lib/notificacoes-calculadas.ts` e usados pela API do sino e pela página.
 
+## Publicação — 23/10
+- Merge: Prospecta #155 (`db765e4`), Santa Fé #218 (`35d158c`). Sem migração de banco.
+- Deploy de produção READY nos dois (Vercel `dpl_FLVhP4fGhiWwPjLgpa87TmAPB8Gf` e `dpl_Cq3Tzc1GNiuA9MXM7nNvDXeUA7Pa`).
+- Conferência: API da Prospecta respondendo (função carrega, sem erro de import ESM); SF `/admin/notificacoes`
+  protegida (redireciona ao login); nenhum erro de runtime nos dois nos 15 min após o deploy.
+
+## Pendências
+- **Decisão do dono (H6)**: "Acumul. Aferido" fica em branco hoje. Manter assim ou criar campo "% aferido pela
+  CAIXA" informado ao confirmar o recebimento da medição?
+- (c) Validação em produção pelo usuário: iPad real (H1), card Negócio fechado (H2), selo PCI (H5), exclusão
+  definitiva com lead de teste (H3), sino/Ver todas (H4), PLS com PCI real no SIOPI (H6).
+- Dívida técnica (QA 2, Prospecta): corrida residual na exclusão definitiva (transação serializável do driver Neon).
+
 ## Próximo passo
-Merge dos PRs (Prospecta #155, SF #218) → deploy → conferência em produção (sem migração de banco).
+Aguardar retorno do usuário sobre o "Aferido" e a validação em produção (iPad e SIOPI).
