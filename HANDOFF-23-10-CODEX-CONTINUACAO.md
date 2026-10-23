@@ -193,20 +193,35 @@ Testes:
 - (c) produção: duplicar um lead real com documentos no Drive e abrir os documentos nos dois leads (e pelo portal do
   cliente do lead original).
 
-## Estado atual (fim da implementação)
-- Todas as etapas (1, 2A/B, 2C, 3, 4, 5, 6) estão em código, testadas e no GitHub na branch `claude/sync-mirrored-repos-bsqnz3`.
-- PRs em rascunho: Prospecta **#160**, Santa Fé **#223** (contêm os PRs do Codex #157–#159 e #220–#222).
-- Builds: Prospecta `pnpm build` OK; Santa Fé `npm run build` OK (Postgres local).
-- `origin/main` não mudou desde o início do lote (Prospecta `c007757`, Santa Fé `793a4cb`): sem conflito.
-- **Nada aplicado em produção**: migrações, merge, deploy e a reconciliação do serviço 67 aguardam autorização expressa do dono.
+## Publicação (23/10, autorizada pelo dono: "Faz o merge e deploy")
+- Migrações aditivas aplicadas em produção antes do merge e conferidas:
+  - Prospecta (Neon `plain-cake-26372935`): 0066 `project_revision_requests`, 0067 `construction_projects.imovel_id` (+ índice
+    único parcial), 0068 `leads.duplicated_*` e `lead_documents.copied_from_document_id`.
+  - Santa Fé (Supabase `giulchozonhzyopmgmkv`, histórico de migrações do Supabase): `20261023120000_projeto_revisoes` (RLS
+    ativa), `20261023130000_obra_imovel_localizacao`, `20261023140000_lead_duplicacao`.
+- Merge: Prospecta #160 → `main` `4b509de`; Santa Fé #223 → `main` `00fa1a3`. Os PRs do Codex #157–#159 e #220–#222
+  foram marcados como mesclados automaticamente pelo GitHub (commits contidos).
+- Deploy de produção na Vercel: Prospecta `dpl_E5m6DWVs1MdVoeNghe8m1EMg1BFV` (READY, commit `4b509de`); Santa Fé
+  `dpl_Cr3jwM4Q577cKs4uMBpMVCcMQjcq` (READY, commit `00fa1a3`). Conferência: API da Prospecta responde 200; Santa Fé
+  /admin redireciona ao login; nenhum erro de execução nos 15 min após o deploy.
+- Reconciliação da etapa 4 aplicada: regularização 22 (serviço 67, DIMAS RODRIGUES INOCENSO LIMA) `em_andamento` →
+  `concluido` (só status, condicionado ao serviço concluído) + nota "Reconciliação…" no lead 67.
 
-## Próximo passo exato (após autorização do dono)
-1. Marcar #160 e #223 como prontos e conferir o preview da Vercel.
-2. Aplicar migrações aditivas em produção: Prospecta 0066, 0067, 0068 (Neon `run_sql_transaction`, projeto
-   `plain-cake-26372935`); Santa Fé `20261023120000_projeto_revisoes`, `20261023130000_obra_imovel_localizacao`,
-   `20261023140000_lead_duplicacao` (Supabase `apply_migration`, projeto `giulchozonhzyopmgmkv`).
-3. Merge dos dois PRs (merge commit) e acompanhar o deploy de produção na Vercel.
-4. Reconciliação da etapa 4: serviço 67 → regularização 22 para `concluido` (só status), com nota no lead.
-5. Conferência em produção por etapa e relatório final (a)/(b)/(c).
-6. Opcional: apagar/limpar a branch Neon de teste `teste-migrations-0024-0026` (recebeu colunas e um lead 70 de teste),
-   só com autorização.
+## Testes — resumo final
+- (a) Automáticos: Prospecta `pnpm check`, Vitest 962/962 e `pnpm build` OK. Santa Fé `tsc`, ESLint (sem erros), Vitest
+  804 ok / 10 falhas pré-existentes do ambiente local, `npm run build` OK. SQL da duplicação executado na branch Neon de teste.
+- (b) Manuais: nenhum em navegador com usuário real.
+- (c) Pendente em produção (fazer com usuário real): por etapa — 1 conferir os indicadores de um processo com recebimento
+  parcial; 2 prazo e ordem da lista, "Solicitar revisão" com e sem colaborador e a entrega no card; 3 marcar a localização
+  de uma obra e ver o ponto no Mapa Operacional (o imóvel não deve aparecer no site); 4 "Concluir" um serviço no CRM e ver
+  o módulo concluído; 5 financiamento antigo exibido como "Concluído"; 6 duplicar um lead com documentos e abrir os
+  documentos nos dois leads.
+
+## Pendências e riscos
+- Página pública de detalhe do imóvel (Prospecta `imoveis.getBySlug`, Santa Fé `(site)/imoveis/[id]`) não filtra
+  `publicadoSite` — pré-existente; imóveis de obra têm ID/slug aleatório e não aparecem em listagens públicas.
+- Branch Neon de teste `teste-migrations-0024-0026` recebeu colunas e o lead de teste 70: limpar só com autorização.
+- DT-2026-10-23-01 (corrida) e coluna "Acumul. Aferido" em branco seguem como decididos pelo dono.
+
+## Próximo passo exato
+Conferência manual em produção da lista (c) acima, com um usuário real; corrigir o que aparecer em nova branch a partir de `main`.
