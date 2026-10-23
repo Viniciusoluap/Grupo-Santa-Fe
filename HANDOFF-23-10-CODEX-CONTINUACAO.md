@@ -18,7 +18,7 @@ Branch de trabalho (Claude): `claude/sync-mirrored-repos-bsqnz3`, recriada a par
 | 2A/B | Projetos: prazo como data civil + ordenação por prazo | Codex ✅ integrado |
 | 2C | Projetos: Solicitar revisão (pedido, notificação, e-mail, entrega no card, histórico) | ✅ Claude (código + testes; migração pendente em produção) |
 | 3 | Obras: Localização exata → imóvel vinculado → Mapa Operacional | ✅ Claude (código + testes; migração pendente em produção) |
-| 4 | Concluir serviço no CRM conclui o módulo (por ID) + caso Luciano Oliveira Leite | ⏳ Claude |
+| 4 | Concluir serviço no CRM conclui o módulo (por ID) + caso Luciano Oliveira Leite | ✅ Claude (código + testes; reconciliação de 1 registro pendente no deploy) |
 | 5 | Financiamentos: "Liberado" → "Concluído"; "Crédito concluído" | Codex ✅ integrado |
 | 6 | Duplicar lead (novo ID, dados e documentos, sem serviços) | ⏳ Claude |
 
@@ -100,10 +100,58 @@ Risco registrado (pré-existente, fora do escopo): a página pública de detalhe
 Santa Fé `(site)/imoveis/[id]`) não filtra `publicadoSite`; quem tiver o link exato vê um imóvel não publicado. Os
 imóveis de obra têm slug/ID aleatório e não aparecem em nenhuma listagem pública.
 
+## E4 — Concluir no CRM conclui o módulo (concluída em código)
+Requisitos: "Concluir" de qualquer serviço vinculado no CRM conclui o registro operacional do módulo; vínculo pelo
+ID do serviço/processo (nunca nome/CPF); não apagar etapas, documentos, valores ou histórico; sem recursão; conferir
+o caso Luciano Oliveira Leite e todos os tipos; reconciliar divergências históricas com segurança.
+
+Decisões:
+- Status final por módulo — Prospecta: obras `completed`, projetos `entregue`, regularizações `concluido`,
+  financiamentos `liberado` (exibido "Concluído", etapa 5), avaliações `entregue`, tarefas `done`. Santa Fé: obra
+  `concluida`, projeto `entregue`, regularização `concluido`, financiamento `liberado`, avaliação `entregue`, tarefa
+  `concluida`.
+- Só o `status` (e a data de alteração) muda. Registro cancelado não é reaberto; já concluído não é regravado.
+- Prospecta: `leadServices.setStatus`/`update` com `completed` chamam `concluirRegistroDoServico` (UPDATE … WHERE
+  `lead_service_id` = id do serviço). O toast mostra o resultado real (concluído, já concluído, cancelado, sem registro).
+  Nova procedure `leadServices.reconcileConclusoes({ aplicar })` (lista por padrão; com `aplicar` corrige e registra
+  nota no histórico do lead).
+- Santa Fé: não existe status próprio no `ServicoLead` — o card "Serviços do Cliente" já mostra o status do registro
+  do módulo (fonte única, não diverge). Faltava o botão: novo "Concluir" no card (equipe interna, lead ativo, registro
+  não concluído/cancelado), que conclui o registro **pelo ID dele conferindo o `leadId`**; exige CRM + módulo.
+- Comissões, jurídico e BPO não têm vínculo por ID de serviço → não são tocados (nunca por nome).
+- Mão única CRM → módulo: nenhuma alteração no módulo volta a mexer no CRM (sem recursão).
+
+Caso Luciano Oliveira Leite (produção, consulta só leitura em 23/10):
+- Prospecta: lead 38; serviço 95 (financiamento_habitacional) `completed` → financiamento 10 com `lead_service_id` 95 e
+  status `liberado` (= "Concluído" após a etapa 5). Está coerente; nada a corrigir. Serviços 94 (obra 14) e 96
+  (regularização 19) seguem ativos. Santa Fé: não há lead com esse nome.
+
+Reconciliação histórica (Prospecta, consulta só leitura): 1 divergência — serviço 67 (lead 67, DIMAS RODRIGUES
+INOCENSO LIMA) concluído no CRM com regularização 22 em `em_andamento`. **Correção a aplicar no deploy** pela procedure
+`reconcileConclusoes({ aplicar: true })` ou SQL equivalente (`UPDATE regularizacoes SET status='concluido',
+updated_at=now() WHERE id=22 AND lead_service_id=67 AND status='em_andamento'`), só status, com nota no lead.
+Santa Fé: não há como divergir (fonte única).
+
+Arquivos:
+- Prospecta: `shared/conclusao-servico.ts`, `server/conclusao-servico.ts`, `server/lead-services-router.ts`,
+  `client/src/pages/admin/AdminLeadDetail.tsx`, `server/conclusao-servico.test.ts`.
+- Santa Fé: `src/lib/crm/conclusao-servico.ts`, `src/lib/crm/conclusao-servico-db.ts`,
+  `src/lib/actions/conclusao-servico.ts`, `src/app/admin/leads/[id]/concluir-servico-botao.tsx`,
+  `src/app/admin/leads/[id]/page.tsx`, `src/lib/__tests__/conclusao-servico.db.test.ts`.
+
+Testes:
+- (a) Prospecta `pnpm check` OK; suíte 959/959 (9 novos: os 6 módulos, já concluído, cancelado, sem registro, módulos sem
+  vínculo, reconciliação). Santa Fé `tsc` OK, eslint sem erros, teste de banco 3/3 (conclui mantendo dados, não
+  conclui registro de outro lead, não reabre cancelado).
+- (b) manuais: nenhum.
+- (c) produção: aplicar a reconciliação do serviço 67 e conferir no CRM e em Regularizações; clicar "Concluir" num
+  serviço real de cada tipo. Sem migração de banco nesta etapa.
+
 ## Próximo passo exato
-Etapa 4 (Concluir serviço no CRM conclui o registro do módulo pelo ID do serviço/processo, sem apagar etapas,
-documentos, valores ou histórico, sem recursão; conferir o caso de financiamento de Luciano Oliveira Leite e todos os
-tipos de serviço; reconciliar divergências históricas com segurança). Começar no Prospecta por
-`server/lead-services-router.ts` (ação de concluir e `attachCompletedProcess`) e pelo status de conclusão de cada
-módulo (obras, projetos, regularização, financiamentos, avaliações, comissões, agenda). Depois espelhar no Santa Fé.
-Restam ainda a etapa 6 e o fechamento (QA, PR, migrações em produção, merge, deploy).
+Etapa 6 (Duplicar lead): botão "Duplicar lead" no topo do formulário do lead; cria lead novo (ID próprio) copiando
+dados, informações e documentos; NÃO copia serviços, processos, etapas, solicitações/entregas nem histórico
+transacional; documentos reaproveitam o arquivo do Drive com segurança (editar/remover num lead não apaga o arquivo
+do outro); respeita permissões e visibilidade do cliente; atômico; registra a origem da duplicação. Começar no
+Prospecta por `leads`/`leadDocuments` (schema e rotas de exclusão de documento que apagam no Drive). Depois Santa Fé.
+Em seguida: fechamento (QA, PR, migrações 0066/0067 + SF 20261023120000/20261023130000 em produção, reconciliação do
+serviço 67, merge, deploy, conferência).
