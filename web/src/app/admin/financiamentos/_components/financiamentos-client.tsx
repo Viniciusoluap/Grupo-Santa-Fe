@@ -59,7 +59,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
 
   const totalFinanciado = financiamentos.reduce((s, f) => s + (f.valorFinanciado ?? 0), 0);
   const ativos = financiamentos.filter((f) => f.status !== "cancelado" && f.status !== "liberado").length;
-  const aprovados = financiamentos.filter((f) => f.status === "aprovado" || f.status === "liberado").length;
+  const concluidos = financiamentos.filter((f) => f.status === "liberado").length;
   const taxasInformadas = financiamentos.flatMap((f) => f.taxa == null ? [] : [f.taxa]);
   const taxaMedia = taxasInformadas.length
     ? `${(taxasInformadas.reduce((s, taxa) => s + taxa, 0) / taxasInformadas.length).toFixed(1)}%`
@@ -84,7 +84,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Em andamento", value: ativos, sub: "processos ativos" },
-          { label: "Aprovados/Liberados", value: aprovados, sub: "concluídos com êxito" },
+          { label: "Crédito concluído", value: concluidos, sub: "processos concluídos" },
           { label: "Volume Total", value: formatCurrency(totalFinanciado), sub: "total financiado" },
           { label: "Taxa média", value: taxasInformadas.length ? `${taxaMedia} a.a.` : taxaMedia, sub: "taxa de juros" },
         ].map(({ label, value, sub }) => (

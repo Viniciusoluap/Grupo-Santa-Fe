@@ -54,7 +54,8 @@ export const STATUS_CONFIG: Record<FinanciamentoStatus, { label: string; order: 
   aprovado: { label: "Aprovado", order: 4, bgColor: "bg-teal-100", color: "text-teal-700" },
   contrato: { label: "Contrato", order: 5, bgColor: "bg-purple-100", color: "text-purple-700" },
   registro: { label: "Registro", order: 6, bgColor: "bg-orange-100", color: "text-orange-600" },
-  liberado: { label: "Liberado", order: 7, bgColor: "bg-green-100", color: "text-green-700" },
+  // Valor persistido legado; apenas o nome operacional mudou.
+  liberado: { label: "Concluído", order: 7, bgColor: "bg-green-100", color: "text-green-700" },
   cancelado: { label: "Cancelado", order: 8, bgColor: "bg-red-100", color: "text-red-500" },
 };
 
