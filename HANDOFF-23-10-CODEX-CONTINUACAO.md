@@ -193,9 +193,20 @@ Testes:
 - (c) produção: duplicar um lead real com documentos no Drive e abrir os documentos nos dois leads (e pelo portal do
   cliente do lead original).
 
-## Próximo passo exato
-Fechamento do lote: (1) revisão @qa do diff completo dos dois repositórios; (2) atualizar a branch com `origin/main`;
-(3) abrir/atualizar PR de cada repositório e marcar pronto; (4) aplicar migrações aditivas em produção — Prospecta
-0066, 0067, 0068 (Neon `run_sql_transaction`) e Santa Fé `20261023120000_projeto_revisoes`,
-`20261023130000_obra_imovel_localizacao`, `20261023140000_lead_duplicacao` (Supabase `apply_migration`); (5) merge e
-deploy; (6) reconciliar o serviço 67/regularização 22 (etapa 4); (7) conferência em produção e relatório final (a)/(b)/(c).
+## Estado atual (fim da implementação)
+- Todas as etapas (1, 2A/B, 2C, 3, 4, 5, 6) estão em código, testadas e no GitHub na branch `claude/sync-mirrored-repos-bsqnz3`.
+- PRs em rascunho: Prospecta **#160**, Santa Fé **#223** (contêm os PRs do Codex #157–#159 e #220–#222).
+- Builds: Prospecta `pnpm build` OK; Santa Fé `npm run build` OK (Postgres local).
+- `origin/main` não mudou desde o início do lote (Prospecta `c007757`, Santa Fé `793a4cb`): sem conflito.
+- **Nada aplicado em produção**: migrações, merge, deploy e a reconciliação do serviço 67 aguardam autorização expressa do dono.
+
+## Próximo passo exato (após autorização do dono)
+1. Marcar #160 e #223 como prontos e conferir o preview da Vercel.
+2. Aplicar migrações aditivas em produção: Prospecta 0066, 0067, 0068 (Neon `run_sql_transaction`, projeto
+   `plain-cake-26372935`); Santa Fé `20261023120000_projeto_revisoes`, `20261023130000_obra_imovel_localizacao`,
+   `20261023140000_lead_duplicacao` (Supabase `apply_migration`, projeto `giulchozonhzyopmgmkv`).
+3. Merge dos dois PRs (merge commit) e acompanhar o deploy de produção na Vercel.
+4. Reconciliação da etapa 4: serviço 67 → regularização 22 para `concluido` (só status), com nota no lead.
+5. Conferência em produção por etapa e relatório final (a)/(b)/(c).
+6. Opcional: apagar/limpar a branch Neon de teste `teste-migrations-0024-0026` (recebeu colunas e um lead 70 de teste),
+   só com autorização.
