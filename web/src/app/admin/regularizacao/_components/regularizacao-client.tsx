@@ -46,6 +46,7 @@ interface Regularizacao {
 
 interface Props {
   regularizacoes: Regularizacao[];
+  indicadores: { contratado: number; recebido: number };
 }
 
 function StatusSelectReg({ id, status }: { id: string; status: string }) {
@@ -64,7 +65,7 @@ function StatusSelectReg({ id, status }: { id: string; status: string }) {
   );
 }
 
-export function RegularizacaoClient({ regularizacoes }: Props) {
+export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<RegStatus | "todos">("todos");
 
@@ -78,7 +79,6 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
   });
 
   const ativos = regularizacoes.filter((r) => r.status !== "concluido" && r.status !== "cancelado").length;
-  const totalValue = regularizacoes.reduce((s, r) => s + (r.valorServico ?? 0), 0);
 
   return (
     <div className="space-y-5">
@@ -94,8 +94,8 @@ export function RegularizacaoClient({ regularizacoes }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { label: "Em Andamento", value: ativos },
-          { label: "Concluídos", value: regularizacoes.filter((r) => r.status === "concluido").length },
-          { label: "Faturamento", value: formatCurrency(totalValue) },
+          { label: "Valor já recebido", value: formatCurrency(indicadores.recebido / 100) },
+          { label: "Valor contratado", value: formatCurrency(indicadores.contratado / 100) },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
