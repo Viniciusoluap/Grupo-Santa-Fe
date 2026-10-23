@@ -163,7 +163,7 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
 
   return (
     <div className="space-y-5">
-      {!!dados.fotosLegadas?.length && <section className="space-y-3"><h3>Fotos anteriores — sem medição vinculada</h3><FotosSalvas fotos={dados.fotosLegadas} ocupado={pendente}
+      {!!dados.fotosLegadas?.length && <section className="space-y-3 text-gray-900"><h3 className="font-semibold text-[var(--brand-dark)]">Fotos anteriores — sem medição vinculada</h3><FotosSalvas fotos={dados.fotosLegadas} ocupado={pendente}
         onSalvar={(id, legenda, incluir) => acao(() => atualizarFotoObra(id, legenda, incluir), "Foto atualizada.")}
         onExcluir={id => { if (confirm("Excluir esta foto anterior?")) acao(() => excluirFotoObra(id), "Foto excluída."); }} /></section>}
       <Toaster richColors />

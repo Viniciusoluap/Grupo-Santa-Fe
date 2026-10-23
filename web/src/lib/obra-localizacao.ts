@@ -34,3 +34,54 @@ export function imovelDaObra(obra: { id: number | string; titulo: string; endere
     estado: obra.estado?.trim().slice(0, 2) || null,
   };
 }
+
+/**
+ * Coordenada como vem da PCI da CAIXA → graus decimais. Aceita o número compacto
+ * da planilha ("52948 S" = 05°29'48" S), texto em graus/minutos/segundos
+ * (`5°30'29.0" S`, `05° 45' 22" S`, `5°32'06'' S`) e decimal (-5.5079).
+ * Sul/Oeste (S, W, O) ficam negativos. Valor ilegível ou zerado = null.
+ */
+export function coordenadaPciDecimal(valor: unknown): number | null {
+  const t = String(valor ?? "").trim().toUpperCase().replace(/,/g, ".");
+  if (!t) return null;
+  const hemisferio = /([NSEWLO])\s*$/.exec(t)?.[1] ?? "";
+  const sinal = hemisferio === "S" || hemisferio === "W" || hemisferio === "O" ? -1 : 1;
+  const corpo = t.replace(/[NSEWLO]\s*$/, "").trim();
+  let graus: number;
+  const compacto = /^(\d{5,7})(?:\.(\d+))?$/.exec(corpo);
+  const dms = /^(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['´’]\s*(\d{1,2}(?:\.\d+)?)\s*(?:"|''|”|′′)?$/.exec(corpo);
+  const decimal = /^-?\d{1,3}\.\d+$/.exec(corpo);
+  if (compacto) {
+    const dig = compacto[1].padStart(6, "0");
+    const g = Number(dig.slice(0, -4)), m = Number(dig.slice(-4, -2)), s = Number(`${dig.slice(-2)}.${compacto[2] ?? 0}`);
+    if (m >= 60 || s >= 60) return null;
+    graus = g + m / 60 + s / 3600;
+  } else if (dms) {
+    const g = Number(dms[1]), m = Number(dms[2]), s = Number(dms[3]);
+    if (m >= 60 || s >= 60) return null;
+    graus = g + m / 60 + s / 3600;
+  } else if (decimal) {
+    const v = Number(corpo);
+    return v === 0 ? null : (hemisferio ? sinal * Math.abs(v) : v);
+  } else return null;
+  return graus === 0 ? null : sinal * graus;
+}
+
+/** Par de coordenadas da identificação da PCI (latitude/longitude) → ponto válido ou null. */
+export function coordenadasDaPci(latitude: unknown, longitude: unknown): Coordenadas | null {
+  const lat = coordenadaPciDecimal(latitude);
+  const lng = coordenadaPciDecimal(longitude);
+  if (lat === null || lng === null) return null;
+  try { return normalizarCoordenadas({ lat, lng }); } catch { return null; }
+}
+
+/** Endereço em uma linha: partes preenchidas, sem repetição, separadas por vírgula. */
+export function enderecoCompleto(partes: Array<string | null | undefined>): string | null {
+  const vistas: string[] = [];
+  for (const p of partes) {
+    const t = (p ?? "").trim();
+    const palavraInteira = new RegExp(`(^|[\\s,.;-])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[\\s,.;-])`, "i");
+    if (t && !vistas.some(v => palavraInteira.test(v))) vistas.push(t);
+  }
+  return vistas.length ? vistas.join(", ") : null;
+}
