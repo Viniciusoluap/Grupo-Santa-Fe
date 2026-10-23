@@ -63,6 +63,17 @@ describe.skipIf(!url)("medições (banco real)", () => {
     expect((await dados.carregarProgressoObra(obraId))!.historico[0].situacao).toBe("recebida");
   });
 
+  it("selo PCI vinculada: só aparece com a PCI efetivamente vinculada (23/10, H5)", async () => {
+    expect((await lista.carregarListaObras({ id: obraId }))[0].pciVinculada).toBe(false);
+    const versao = await prisma.obraPciVersao.create({ data: { obraId, hash: "h5-teste", nome: "pci.xls", dados: Buffer.from([1]), tamanho: 1, parsed: {} } });
+    await prisma.obraPci.create({ data: { obraId, versaoId: versao.id } });
+    expect((await lista.carregarListaObras({ id: obraId }))[0].pciVinculada).toBe(false);
+    await prisma.obraPci.update({ where: { obraId }, data: { vinculadaEm: new Date() } });
+    expect((await lista.carregarListaObras({ id: obraId }))[0].pciVinculada).toBe(true);
+    await prisma.obraPci.delete({ where: { obraId } });
+    await prisma.obraPciVersao.delete({ where: { id: versao.id } });
+  });
+
   it("editar a medição vigente corrige o histórico e o progresso da obra", async () => {
     const [ultima] = (await dados.carregarProgressoObra(obraId))!.historico;
     expect((await acoes.editarMedicao(ultima.id, itens({ preliminares: "100", infraestrutura: "50" }))).ok).toBe(true);

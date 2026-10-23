@@ -24,7 +24,7 @@ const ROTULO = { pls: "PLS", repactuacao: "Repactuação de Prazo", alteracao: "
 
 /** Chamar só depois de autorizar o acesso à obra da medição. */
 export async function gerarArquivoMedicao(medicaoId: string, formato: FormatoMedicao): Promise<ArquivoMedicao> {
-  const m = await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, include: { pciVersao: true, obra: { select: { id: true, nome: true } }, fotos: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }], include: { arquivo: true } } } });
+  const m = await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, include: { pciVersao: true, obra: { select: { id: true, nome: true, dataInicio: true, dataPrevisaoFim: true } }, fotos: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }], include: { arquivo: true } } } });
   if (!m) return { ok: false, status: 404, error: "Medição não encontrada." };
   if (!m.pciVersao) return { ok: false, status: 409, error: "Esta medição não possui uma versão da PCI vinculada. Revise a medição antes de gerar os arquivos." };
   const pci = m.pciVersao.parsed as unknown as DadosPci;
@@ -34,10 +34,14 @@ export async function gerarArquivoMedicao(medicaoId: string, formato: FormatoMed
   const tipo = ehTipoMedicao(m.tipo) ? m.tipo : "pls";
   const dados = normalizarDadosMedicao(tipo, m.dadosCaixa);
   const anterioresBrutas = await prisma.obraProgressoHistorico.findMany({ where: { obraId: m.obraId, OR: [{ criadoEm: { lt: m.criadoEm } }, { criadoEm: m.criadoEm, id: { lt: m.id } }] }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }], select: { progresso: true, criadoEm: true, dadosCaixa: true } });
+  // H6: "Acumul. Aferido" é o % medido pela CAIXA — o sistema não o tem, então fica
+  // em branco (não preencher com o PLS). Aguarda decisão do dono.
   const anteriores: MedicaoHistorica[] = anterioresBrutas.map(a => ({ data: (a.dadosCaixa as { pls?: { dataLevantamento?: string } } | null)?.pls?.dataLevantamento || dataIso(a.criadoEm), progresso: Number(a.progresso) }));
+  // H6: início e término previsto vêm do Editar Obra (datas gravadas à meia-noite UTC).
+  const datasObra = { inicio: m.obra.dataInicio ? m.obra.dataInicio.toISOString().slice(0, 10) : null, termino: m.obra.dataPrevisaoFim ? m.obra.dataPrevisaoFim.toISOString().slice(0, 10) : null };
   const porChave = new Map(itens.map(i => [i.chave, Number(i.execucao)]));
   const fotos = m.fotos.slice(0, QUADROS_FOTO[tipo]).filter(f => f.arquivo.dados && ["image/jpeg", "image/png"].includes(f.arquivo.mime)).map(f => ({ dados: f.arquivo.dados!, tipo: f.arquivo.mime === "image/png" ? "png" as const : "jpeg" as const, legenda: f.legenda }));
-  const entrada = { tipo, pci, execucoes: SERVICOS_PROGRESSO.map(s => porChave.get(s.chave) ?? 0), progresso: Number(m.progresso), anteriores, dados, fotos };
+  const entrada = { tipo, pci, execucoes: SERVICOS_PROGRESSO.map(s => porChave.get(s.chave) ?? 0), progresso: Number(m.progresso), anteriores, dados, fotos, obra: datasObra };
   const bytes = formato === "xls" ? gerarXlsMedicao(m.pciVersao.dados, entrada) : gerarPdfMedicao(m.pciVersao.dados, entrada);
   // Mesmo padrão de nome da Prospecta: PLS_Obra_2026-08-25.xls
   const nome = `${SUFIXO[tipo]}_${m.obra.nome.replace(/\s+/g, "_")}_${dados.pls.dataLevantamento}.${formato}`;

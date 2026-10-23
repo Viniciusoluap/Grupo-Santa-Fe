@@ -1,4 +1,4 @@
-import { dadosPlsPadrao, datasAlvaraDeMedicoes, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
+import { dadosFixosDasMedicoes, dadosPlsPadrao, ehTipoMedicao, normalizarDadosMedicao, type DadosMedicaoCaixa, type DadosPls, type TipoMedicao } from "@/lib/medicao-caixa";
 import type { DadosPci } from "@/lib/caixa/pci";
 import { prisma } from "@/lib/db";
 import { calcularProgresso, mesclarComPadrao } from "@/lib/financeiro/progresso";
@@ -92,7 +92,11 @@ export async function carregarProgressoObra(obraId: string): Promise<ProgressoOb
     medido: obra.progressoItens.length > 0,
     pci: pci && parsed ? { arquivo: pci.versao.nome, enviadaEm: pci.enviadaEm.toISOString(), vinculadaEm: pci.vinculadaEm?.toISOString() ?? null, formato: parsed.formato, proponente: parsed.identificacao.proponente, prazoMeses: parsed.prazoMeses } : null,
     plsPadrao: dadosPlsPadrao({
-      ...datasAlvaraDeMedicoes(medicoesPls, parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia } : undefined),
+      // H6 (23/10): alvará, nº do contrato, valor do imóvel e contratação — informados 1x por obra.
+      ...dadosFixosDasMedicoes(
+        medicoesPls.filter((m) => m.tipo === "pls").map((m) => ({ pls: (m.dadosCaixa as DadosMedicaoCaixa | null)?.pls ?? null })),
+        parsed ? { alvaraEmissao: parsed.alvaraEmissao, alvaraVigencia: parsed.alvaraVigencia, contrato: parsed.contrato, valorImovel: parsed.valorImovel, dataContratacao: parsed.dataContratacao } : {},
+      ),
       seloCasaAzul: parsed?.seloCasaAzul,
     }),
     progressoLegado: obra.progresso,

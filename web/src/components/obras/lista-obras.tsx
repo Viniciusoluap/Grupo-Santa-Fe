@@ -45,6 +45,8 @@ export interface ObraDaLista {
   /** Pedido de 18/10: medições aguardando o banco e já recebidas. */
   medicoesSolicitadas: number;
   medicoesRecebidas: number;
+  /** Pedido de 23/10 (H5): a obra tem PCI da CAIXA vinculada. */
+  pciVinculada: boolean;
 }
 
 /** Código curto e estável exibido e pesquisável (o ID interno é longo). */
@@ -142,6 +144,7 @@ export function ListaObras({ obras, base, filtroResponsavel = true, podeExcluir 
                     <h3 className="font-bold text-[var(--brand-dark)]">{o.nome}</h3>
                     <span className="text-[10px] font-mono text-gray-400">{o.codigo}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+                    {o.pciVinculada && <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-emerald-50 text-emerald-700 border border-emerald-200" title="Esta obra tem a PCI da CAIXA vinculada">✓ PCI vinculada</span>}
                   </div>
                   <p className="text-gray-400 text-sm">{o.clienteNome} · {o.endereco}</p>
                   <p className="text-gray-400 text-xs mt-0.5">Resp.: {o.engenheiroResp} · {o.area} m²</p>

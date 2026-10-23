@@ -153,6 +153,44 @@ function cep(v: ValorCelula): string {
   return digitos(v).padStart(8, "0").replace(/(\d{5})(\d{3})/, "$1-$2");
 }
 
+/**
+ * Pedido de 23/10 (H6): coordenada exatamente como a PCI mostra — `05° 29' 18" S`.
+ * Na planilha o valor é um número (52918) exibido pelo formato 00°00'00"; aqui o
+ * número vira graus, minutos e segundos. Texto já formatado é só padronizado.
+ */
+export function formatarCoordenada(valor: ValorCelula, hemisferio = ""): string {
+  const h = String(hemisferio ?? "").trim().toUpperCase();
+  let graus: string, minutos: string, segundos: string;
+  if (typeof valor === "number" && Number.isFinite(valor)) {
+    const abs = Math.abs(valor);
+    const inteiro = Math.trunc(abs);
+    const fracao = abs - inteiro;
+    const dig = String(inteiro).padStart(6, "0");
+    graus = dig.slice(0, -4);
+    minutos = dig.slice(-4, -2);
+    const seg = Number(dig.slice(-2)) + fracao;
+    segundos = Number.isInteger(Math.round(seg * 100) / 100) ? String(Math.round(seg)).padStart(2, "0") : seg.toFixed(1).padStart(4, "0");
+  } else {
+    const t = String(valor ?? "").trim();
+    if (!t) return "";
+    const m = /^(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['´’]\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:"|''|”)?\s*([NSEWLO])?$/i.exec(t);
+    const soNumero = /^(\d{5,7})(?:[.,](\d+))?\s*([NSEWLO])?$/i.exec(t);
+    if (soNumero) return formatarCoordenada(Number(`${soNumero[1]}.${soNumero[2] ?? 0}`), soNumero[3] ?? h);
+    if (!m) return [t, h].filter(Boolean).join(" ");
+    if (/^0+$/.test(m[1]) && /^0+$/.test(m[2]) && Number(m[3].replace(",", ".")) === 0) return "";
+    graus = m[1]; minutos = m[2]; segundos = m[3].replace(",", ".");
+    const s = Number(segundos);
+    segundos = Number.isInteger(s) ? String(s).padStart(2, "0") : s.toFixed(1).padStart(4, "0");
+    return `${graus.padStart(2, "0")}° ${minutos.padStart(2, "0")}' ${segundos}"${(m[4] ?? h) ? " " + (m[4] ?? h).toUpperCase() : ""}`;
+  }
+  if (Number(graus) === 0 && Number(minutos) === 0 && Number(segundos) === 0) return "";
+  return `${graus.padStart(2, "0")}° ${minutos}' ${segundos}"${h ? " " + h : ""}`;
+}
+
+function coordenadaPci(valor: ValorCelula, hemisferio: ValorCelula, padrao: string): string {
+  return formatarCoordenada(valor, texto(hemisferio) || padrao);
+}
+
 function numero(v: ValorCelula): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string" && v.trim() && Number.isFinite(Number(v.replace(",", ".")))) return Number(v.replace(",", "."));
@@ -193,8 +231,8 @@ export function lerPci(arquivo: Uint8Array): DadosPci {
     uf: texto(p("AV56")),
     matricula: texto(p("G58")),
     cartorio: texto(p("M58")),
-    latitude: [texto(p("T58")), texto(p("X58"))].filter(Boolean).join(" "),
-    longitude: [texto(p("Y58")), "W"].filter(Boolean).join(" "),
+    latitude: coordenadaPci(p("T58"), p("X58"), "S"),
+    longitude: coordenadaPci(p("Y58"), p("AC58"), "W"),
     construtora: texto(p("AD58")),
     cnpjConstrutora: documento(p("AK58")),
     finalidade: texto(p("AQ58")),

@@ -9,13 +9,15 @@ import { jsPDF } from "jspdf";
 import type { DadosAlteracao, DadosRepactuacao } from "../medicao-caixa";
 import { PastaBiff8 } from "./biff8";
 import { dimensoesImagem, imagensDaAba, type FotoXls } from "./biff8-imagens";
-import { ABA_PLS, type DadosPci } from "./pci";
+import { ABA_PLS, formatarCoordenada, type DadosPci } from "./pci";
 import {
   acumuladoPorEtapa,
   calcularAlteracao,
   calcularPls,
+  curvaDeEvolucao,
+  dadosDoContrato,
   etapaDaData,
-  inicioDaObra,
+  inicioDaMedicao,
   localEData,
   somarMeses,
   type EntradaMedicaoCaixa,
@@ -182,7 +184,7 @@ class Documento {
     y = linha(y, [[10, 60, "Bairro", i.bairro], [70, 22, "CEP", i.cep], [92, 98, "Município", i.municipio], [190, 10, "UF", i.uf]]);
     if (completa) {
       y = linha(y, [
-        [10, 20, "Matrícula", i.matricula], [30, 30, "ORI (Regst. de Imóveis)", i.cartorio], [60, 36, "Coordenadas (Graus°, Min', S'')", `${i.latitude}  ${i.longitude}`],
+        [10, 20, "Matrícula", i.matricula], [30, 30, "ORI (Regst. de Imóveis)", i.cartorio], [60, 36, "Coordenadas (Graus°, Min', S'')", [formatarCoordenada(i.latitude), formatarCoordenada(i.longitude)].filter(Boolean).join("   ")],
         [96, 40, "Construtora (se houver)", i.construtora], [136, 30, "CNPJ", i.cnpjConstrutora], [166, 34, "Finalidade", i.finalidade],
       ]);
     }
@@ -337,7 +339,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   const X = 106;
   doc.celula(X, d, 44, 4, "DATAS & QUALIDADE", { negrito: true, tamanho: 7, cor: AZUL });
   doc.celula(X + 44, d, 22, 4, "Valor do imóvel", { tamanho: 6, alinhar: "right" });
-  doc.celula(X + 66, d, 28, 4, reais(pci.valorImovel), { negrito: true, alinhar: "right", fundo: VERDE, tamanho: 6.5 });
+  doc.celula(X + 66, d, 28, 4, reais(r.valorImovel), { negrito: true, alinhar: "right", fundo: VERDE, tamanho: 6.5 });
   d += 4;
   const linhaData = (rotulo: string, valor: string, extraRot?: string, extraVal?: string, fundo?: Cor) => {
     doc.celula(X, d, 30, 3.8, rotulo, { tamanho: 6.2 });
@@ -346,7 +348,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
     doc.celula(X + 82, d, 12, 3.8, extraVal ?? "", { negrito: true, alinhar: "center", tamanho: 6.3, fundo: extraVal ? VERDE : undefined });
     d += 3.8;
   };
-  linhaData("Contratação", dataBr(pci.dataContratacao), "Nº Etapas original", pci.prazoMeses ? String(pci.prazoMeses) : "", VERDE);
+  linhaData("Contratação", dataBr(r.dataContratacao), "Nº Etapas original", pci.prazoMeses ? String(pci.prazoMeses) : "", VERDE);
   linhaData("Data início de obra", dataBr(r.inicio));
   linhaData("Término Previsto", dataBr(r.termino));
   linhaData("Data do Levantamento", dataBr(p.dataLevantamento), "", "", VERDE);
@@ -386,27 +388,27 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
     cx += w;
   }
   d += 3.6;
-  const porEtapa = acumuladoPorEtapa(r.inicio, [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }]);
-  const etapas = Math.max(r.prazo ?? 0, etapa);
-  let adotado = 0;
-  const linhas = Math.floor((285 - 12 - d) / 3.4);
+  const medicoes = [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }];
+  const porEtapa = acumuladoPorEtapa(r.inicio, medicoes);
+  // H6: etapas pelo prazo (ou pelo cronograma da PCI), sempre até a etapa atual.
+  const etapas = Math.max(r.prazo ?? 0, pci.cronogramaProposto.length - 1, etapa);
+  const curva = curvaDeEvolucao(r.inicio, medicoes, etapas);
+  // Todas as etapas cabem na página: com prazo longo (até 48) as linhas encolhem.
+  const espaco = 285 - 12 - d;
+  const linhas = Math.max(Math.floor(espaco / 3.4), curva.length);
+  const hLinha = Math.min(3.4, espaco / linhas);
+  const fonte = hLinha >= 3.2 ? 6 : Math.max(4.2, hLinha * 1.8);
   for (let k = 0; k < linhas; k++) {
-    const mostraEtapa = k <= etapas;
-    const pls = porEtapa.get(k);
-    if (pls !== undefined) adotado = pls;
+    const l = curva[k];
     cx = X;
-    const valores = [
-      mostraEtapa ? String(k) : "",
-      mostraEtapa && pls !== undefined ? num(pls) : "",
-      "",
-      k <= etapa ? num(adotado) : num(adotado),
-      mostraEtapa && r.inicio ? dataBr(somarMeses(r.inicio, k)) : "",
-    ];
+    const valores = l
+      ? [String(k), l.pls === null ? "" : num(l.pls), l.aferido === null ? "" : num(l.aferido), l.adotado === null ? "" : num(l.adotado), l.mes ? dataBr(l.mes) : ""]
+      : ["", "", "", "", ""];
     cab.forEach(([, w], i) => {
-      doc.celula(cx, d, w, 3.4, valores[i], { alinhar: "center", tamanho: 6, negrito: i === 1 || i === 3, fundo: i === 1 || i === 2 ? LILAS : i === 4 && mostraEtapa ? VERDE : undefined });
+      doc.celula(cx, d, w, hLinha, valores[i], { alinhar: "center", tamanho: fonte, negrito: i === 1 || i === 3, fundo: i === 1 || i === 2 ? LILAS : i === 4 && l ? VERDE : undefined });
       cx += w;
     });
-    d += 3.4;
+    d += hLinha;
   }
 
   // --- página 2: indicadores e gráfico
@@ -425,7 +427,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
     }
     return maior >= 3;
   })();
-  const valor = pci.valorImovel ?? 0;
+  const valor = r.valorImovel ?? 0;
   const ultrapassa = (valor <= 264000 && r.executadoEtapa > 26) || (valor > 264000 && valor <= 500000 && r.executadoEtapa > 17) || (valor > 500000 && r.executadoEtapa > 14);
   const indicador = (texto: string, resposta: string, fundo: Cor) => {
     doc.celula(10, y2, 166, 4.5, texto, { tamanho: 6.8, cor: AZUL });
@@ -515,7 +517,7 @@ function gerarRepactuacao(doc: Documento, e: EntradaMedicaoCaixa, d: DadosRepact
   let y = doc.identificacao(43, pci, false) + 2;
   doc.faixa(y, "QUADRO RESUMO - REPACTUAÇÃO DE PRAZO");
   y += 6;
-  const inicio = inicioDaObra(pci.dataContratacao);
+  const inicio = inicioDaMedicao(e);
   const r = calcularPls(e);
   const real = acumuladoPorEtapa(inicio, [...e.anteriores, { data: e.dados.pls.dataLevantamento, progresso: r.acumulado }]);
   const [ai, mi] = (inicio ?? d.dataRepactuacao).split("-").map(Number);
@@ -531,7 +533,7 @@ function gerarRepactuacao(doc: Documento, e: EntradaMedicaoCaixa, d: DadosRepact
     doc.celula(x, y, wr, 4, rot, { tamanho: 6.3, fundo });
     doc.celula(x + wr, y, wv, 4, val, { negrito: true, alinhar: "center", tamanho: 6.5, fundo: fundo ?? LILAS });
   };
-  par(10, "Data Contratação", dataBr(pci.dataContratacao));
+  par(10, "Data Contratação", dataBr(r.dataContratacao));
   par(60, "Prazo Original", d.prazoOriginal ? String(d.prazoOriginal) : "");
   par(110, "Etapa Repactuação", String(etapaRepact), 30, 14, VERDE);
   par(156, "Executado acumulado", num(executado), 30, 14, VERDE);
@@ -708,7 +710,7 @@ const MODELOS = {
 export function gerarPdfMedicao(arquivoPci: Uint8Array | null, e: EntradaMedicaoCaixa): Uint8Array {
   const m = MODELOS[e.tipo];
   const logo = arquivoPci && e.pci.formato === "xls" ? logoDaPci(arquivoPci, m.aba) : null;
-  const doc = new Documento(m.titulo, "Construção em Terreno Próprio e Aquisição de Terreno e Construção", m.rodape, e.pci.contrato, logo);
+  const doc = new Documento(m.titulo, "Construção em Terreno Próprio e Aquisição de Terreno e Construção", m.rodape, dadosDoContrato(e).numeroContrato, logo);
   if (e.tipo === "repactuacao" && e.dados.repactuacao) gerarRepactuacao(doc, e, e.dados.repactuacao);
   else if (e.tipo === "alteracao" && e.dados.alteracao) gerarAlteracao(doc, e, e.dados.alteracao);
   else gerarPls(doc, e);

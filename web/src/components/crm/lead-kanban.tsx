@@ -43,7 +43,7 @@ export function LeadCard({ lead, podeMover = true }: { lead: KanbanLead; podeMov
   const today = diaEmImperatriz();
   return (
     <article className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
-      <Link href={`/admin/leads/${lead.id}`} className="block font-bold text-[var(--brand-dark)] text-sm leading-tight hover:underline">{lead.temperatura === "fechado" && <span className="mr-1" title="Negócio fechado">{LEAD_TEMPERATURA_CONFIG.fechado.emoji}</span>}{lead.nome}</Link>
+      <Link href={`/admin/leads/${lead.id}`} className="block font-bold text-[var(--brand-dark)] text-sm leading-tight hover:underline">{lead.nome}</Link>
       <p className={`text-[10px] font-bold mt-0.5 ${LEAD_TEMPERATURA_CONFIG[lead.temperatura as LeadTemperatura]?.color ?? "text-gray-500"}`}>{leadTemperaturaRotulo(lead.temperatura)}</p>
       <div className="flex flex-wrap gap-1 my-2">
         {parseServicosLead(lead.servico).map((s) => <span key={s} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded" title={s}>{s}</span>)}
@@ -98,7 +98,7 @@ export function LeadKanban({ leads }: { leads: KanbanLead[] }) {
       <p className="text-xs text-amber-800 mt-1 mb-3">Leads com status comercial original preservado. Selecione a etapa operacional após revisão.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">{semEtapa.map((lead) => <LeadCard key={lead.id} lead={lead} />)}</div>
     </section>}
-    <div className="flex gap-3 overflow-x-auto pb-4" aria-label="Pipeline de sete etapas">
+    <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-4" aria-label="Pipeline de sete etapas">
       {LEAD_STAGES.map((stage) => {
         const cfg = LEAD_STAGE_CONFIG[stage];
         const col = ativos.filter((lead) => etapaDoLead(lead) === stage).sort(porVencimento);

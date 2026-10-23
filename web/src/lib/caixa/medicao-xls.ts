@@ -21,6 +21,14 @@ export interface MedicaoHistorica {
   data: string;
   /** Mensurado acumulado (%). */
   progresso: number;
+  /** H6: medição confirmada pelo banco (recebida) — vira o "Acumul. Aferido". */
+  aferido?: boolean;
+}
+
+/** H6: datas do cadastro da obra (Editar Obra), em ISO. */
+export interface DatasObra {
+  inicio: string | null;
+  termino: string | null;
 }
 
 export interface EntradaMedicaoCaixa {
@@ -34,6 +42,8 @@ export interface EntradaMedicaoCaixa {
   anteriores: MedicaoHistorica[];
   dados: DadosMedicaoCaixa;
   fotos: FotoMedicao[];
+  /** H6: início e término previsto vêm do Editar Obra (reserva: contratação + 30 dias). */
+  obra?: DatasObra;
 }
 
 // ----- datas no padrão do modelo -----
@@ -141,11 +151,52 @@ export function calcularPls(e: EntradaMedicaoCaixa) {
   const execucaoObra = inc.map((i, k) => (i === 0 ? 0 : (i * (e.execucoes[k] ?? 0)) / 100));
   const acumulado = execucaoObra.reduce((s, v) => s + v, 0);
   const anterior = e.anteriores.length ? e.anteriores[e.anteriores.length - 1].progresso : 0;
-  const inicio = inicioDaObra(e.pci.dataContratacao);
+  const contrato = dadosDoContrato(e);
+  const inicio = inicioDaMedicao(e);
   const etapa = etapaDaData(inicio, e.dados.pls.dataLevantamento);
   const prazo = e.dados.pls.houveRepactuacao && e.dados.pls.etapasRepactuadas ? e.dados.pls.etapasRepactuadas : e.pci.prazoMeses;
-  const termino = inicio && prazo ? somarMeses(inicio, prazo) : null;
-  return { execucaoObra, acumulado, anterior, executadoEtapa: acumulado - anterior, inicio, etapa, prazo, termino };
+  // Com repactuação informada na PLS, o término passa a ser início + etapas repactuadas.
+  const repactuada = e.dados.pls.houveRepactuacao && !!e.dados.pls.etapasRepactuadas;
+  const termino = (!repactuada ? e.obra?.termino : null) ?? (inicio && prazo ? somarMeses(inicio, prazo) : null);
+  return { execucaoObra, acumulado, anterior, executadoEtapa: acumulado - anterior, inicio, etapa, prazo, termino, ...contrato };
+}
+
+/** H6: nº do contrato, valor e contratação informados na PLS; a PCI é a reserva. */
+export function dadosDoContrato(e: Pick<EntradaMedicaoCaixa, "pci" | "dados">) {
+  const p = e.dados.pls;
+  const contratoPci = e.pci.contrato && /[1-9]/.test(e.pci.contrato) ? e.pci.contrato : "";
+  return {
+    numeroContrato: p.numeroContrato?.trim() || contratoPci,
+    valorImovel: p.valorImovel ?? e.pci.valorImovel ?? null,
+    dataContratacao: p.dataContratacao ?? e.pci.dataContratacao ?? null,
+  };
+}
+
+/** H6: início da obra do Editar Obra; sem ele, a fórmula do modelo (contratação + 30 dias). */
+export function inicioDaMedicao(e: Pick<EntradaMedicaoCaixa, "pci" | "dados" | "obra">): string | null {
+  return e.obra?.inicio ?? inicioDaObra(dadosDoContrato(e).dataContratacao);
+}
+
+/**
+ * H6: curva de evolução etapa a etapa — "Acumul. PLS" (medições desta obra),
+ * "Acumul. Aferido" (medições confirmadas pelo banco), "Acumul. Adotado"
+ * (aferido quando houver, senão o PLS, mantido até a próxima medição) e o
+ * "Mês referência" (início + n meses).
+ */
+export function curvaDeEvolucao(inicio: string | null, medicoes: MedicaoHistorica[], etapas: number) {
+  const pls = acumuladoPorEtapa(inicio, medicoes);
+  const aferido = acumuladoPorEtapa(inicio, medicoes.filter((m) => m.aferido));
+  const linhas: { etapa: number; pls: number | null; aferido: number | null; adotado: number | null; mes: string | null }[] = [];
+  let adotado: number | null = null;
+  const ultima = Math.max(-1, ...Array.from(pls.keys()));
+  for (let k = 0; k <= etapas; k++) {
+    const vPls = pls.get(k) ?? null;
+    const vAf = aferido.get(k) ?? null;
+    if (vAf !== null) adotado = vAf;
+    else if (vPls !== null) adotado = vPls;
+    linhas.push({ etapa: k, pls: vPls, aferido: vAf, adotado: k <= ultima ? adotado ?? 0 : null, mes: inicio ? somarMeses(inicio, k) : null });
+  }
+  return linhas;
 }
 
 function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
@@ -173,24 +224,59 @@ function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
   pasta.escrever(ABA_PLS, "G113", textoOuNulo(p.observacoes));
   pasta.escrever(ABA_PLS, "H301", localEData(e.pci.identificacao.municipio, p.dataLevantamento));
 
-  // Curva de evolução: acumulado medido em cada etapa (anteriores + esta).
+  // H6: dados do contrato (perguntados 1x por obra) e datas do Editar Obra.
+  // Sem contrato válido, limpa o "0.00000000000-0" do modelo (o PDF também fica em branco).
+  pasta.escrever(ABA_PLS, "S51", r.numeroContrato || null);
+  if (r.valorImovel !== null) pasta.escrever(ABA_PLS, "AQ77", r.valorImovel);
+  if (r.dataContratacao) pasta.escrever(ABA_PLS, "AL78", isoParaSerial(r.dataContratacao));
+  if (r.inicio && e.obra?.inicio) escreverSobreFormula(pasta, "AL79", isoParaSerial(r.inicio));
+  else if (r.inicio) pasta.gravarResultado(ABA_PLS, "AL79", isoParaSerial(r.inicio));
+  if (r.termino && e.obra?.termino && r.termino === e.obra.termino) escreverSobreFormula(pasta, "AL80", isoParaSerial(r.termino));
+  else if (r.termino) gravarSeFormula(pasta, "AL80", isoParaSerial(r.termino));
+
+  // Curva de evolução: PLS, aferido (confirmado pelo banco) e mês de referência.
   if (r.etapa !== null) {
-    const porEtapa = acumuladoPorEtapa(r.inicio, [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }]);
-    for (let etapa = 0; etapa <= 72; etapa++) {
-      const celula = `AF${95 + etapa}`;
-      if (porEtapa.has(etapa)) pasta.escrever(ABA_PLS, celula, Number(porEtapa.get(etapa)!.toFixed(2)));
-      else if (etapa > r.etapa) pasta.escrever(ABA_PLS, celula, null);
+    // Mesmo limite do PDF: prazo (ou cronograma da PCI), sempre até a etapa atual.
+    const etapas = Math.min(72, Math.max(r.prazo ?? 0, e.pci.cronogramaProposto.length - 1, r.etapa));
+    const curva = curvaDeEvolucao(r.inicio, [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }], etapas);
+    for (const l of curva) {
+      const linha = 95 + l.etapa;
+      if (l.pls !== null) pasta.escrever(ABA_PLS, `AF${linha}`, Number(l.pls.toFixed(2)));
+      else if (l.etapa > r.etapa) pasta.escrever(ABA_PLS, `AF${linha}`, null);
+      if (l.aferido !== null) escreverSobreFormula(pasta, `AJ${linha}`, Number(l.aferido.toFixed(2)));
+      if (l.adotado !== null) gravarSeFormula(pasta, `AO${linha}`, Number(l.adotado.toFixed(2)));
+      if (l.mes) gravarSeFormula(pasta, `AT${linha}`, isoParaSerial(l.mes));
     }
+    for (let etapa = etapas + 1; etapa <= 72; etapa++) pasta.escrever(ABA_PLS, `AF${95 + etapa}`, null);
+  }
+}
+
+/** Grava o valor mesmo onde o modelo tem fórmula (quando o modelo permite). */
+function escreverSobreFormula(pasta: PastaBiff8, celula: string, valor: number) {
+  try {
+    pasta.escrever(ABA_PLS, celula, valor, { sobreFormula: true });
+  } catch {
+    gravarSeFormula(pasta, celula, valor);
+  }
+}
+
+/** Atualiza só o resultado em cache de uma fórmula (o Excel recalcula ao abrir). */
+function gravarSeFormula(pasta: PastaBiff8, celula: string, valor: number) {
+  try {
+    if (pasta.ehFormula(ABA_PLS, celula)) pasta.gravarResultado(ABA_PLS, celula, valor);
+  } catch {
+    // célula fora do modelo: segue sem o cache
   }
 }
 
 function preencherRepactuacao(pasta: PastaBiff8, e: EntradaMedicaoCaixa, d: DadosRepactuacao) {
   const A = ABA_REPACTUACAO;
-  if (e.pci.dataContratacao) pasta.escrever(A, "L57", isoParaSerial(e.pci.dataContratacao));
+  const contratacao = dadosDoContrato(e).dataContratacao;
+  if (contratacao) pasta.escrever(A, "L57", isoParaSerial(contratacao));
   pasta.escrever(A, "X57", d.prazoOriginal);
   pasta.escrever(A, "L59", isoParaSerial(d.dataRepactuacao));
   pasta.escrever(A, "X59", d.prazoProposto);
-  const inicio = inicioDaObra(e.pci.dataContratacao);
+  const inicio = inicioDaMedicao(e);
   const real = acumuladoPorEtapa(inicio, [...e.anteriores, { data: e.dados.pls.dataLevantamento, progresso: calcularPls(e).acumulado }]);
   const etapaRepact = etapaDaData(inicio, d.dataRepactuacao) ?? 0;
   for (let etapa = 0; etapa <= 24; etapa++) {
