@@ -225,7 +225,8 @@ function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
   pasta.escrever(ABA_PLS, "H301", localEData(e.pci.identificacao.municipio, p.dataLevantamento));
 
   // H6: dados do contrato (perguntados 1x por obra) e datas do Editar Obra.
-  if (r.numeroContrato) pasta.escrever(ABA_PLS, "S51", r.numeroContrato);
+  // Sem contrato válido, limpa o "0.00000000000-0" do modelo (o PDF também fica em branco).
+  pasta.escrever(ABA_PLS, "S51", r.numeroContrato || null);
   if (r.valorImovel !== null) pasta.escrever(ABA_PLS, "AQ77", r.valorImovel);
   if (r.dataContratacao) pasta.escrever(ABA_PLS, "AL78", isoParaSerial(r.dataContratacao));
   if (r.inicio && e.obra?.inicio) escreverSobreFormula(pasta, "AL79", isoParaSerial(r.inicio));

@@ -112,5 +112,10 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   driver Neon HTTP, não validável localmente; probabilidade muito baixa.
 - Testes após correções: Prospecta 933/933 + `pnpm check`; SF caixa/notificações 30/30 + `tsc`.
 
+## Revisão Codex (PR Prospecta #155) — 2 achados P2 tratados
+- S51: sem nº de contrato válido o XLS agora apaga o "0.00000000000-0" do modelo (antes ficava). Igual no SF.
+- Exclusão definitiva (Prospecta): documentos já excluídos COM arquivo no Drive não são mais apagados do banco
+  (o arquivo continuaria no Drive sem referência); só os sem arquivo saem. No SF, documento com arquivo já bloqueia.
+
 ## Próximo passo
 Merge dos PRs (Prospecta #155, SF #218) → deploy → conferência em produção (sem migração de banco).

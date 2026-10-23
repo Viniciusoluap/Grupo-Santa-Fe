@@ -116,4 +116,8 @@ describe("4) curva de evolução preenchida", () => {
     const rep = calcularPls(entrada({ obra: { inicio: "2026-05-04", termino: "2026-11-30" } }, { houveRepactuacao: true, etapasRepactuadas: 9 }));
     expect(rep.termino).toBe("2027-02-04");
   });
+  it("Codex: sem nº de contrato válido, o placeholder do modelo é apagado do XLS", () => {
+    const xls = PastaBiff8.abrir(gerarXlsMedicao(MODELO, entrada()));
+    expect(xls.ler("PLS", "S51")).toBeNull();
+  });
 });
