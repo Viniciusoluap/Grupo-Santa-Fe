@@ -50,6 +50,7 @@ model Imovel {
   contratos       Contrato[]
   visitas         Visita[]
   financiamentos  Financiamento[]      @relation("FinanciamentoImovel")
+  obraLocalizacao Obra?                @relation("ObraImovel")
   estudosIncorp   EstudoIncorporacao[]
   /// Pedido de 18/10 (itens 3 e 8, paridade com a Prospecta): cadastro feito pelo
   /// corretor entra "pendente" e só vai ao site depois da revisão da equipe.
@@ -348,6 +349,9 @@ model Obra {
   leadId                String?
   servicoLeadId         String?                  @unique
   servicoLead           ServicoLead?             @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  /// Lote 23/10, etapa 3: imóvel vinculado que guarda a "Localização exata" da obra (Mapa Operacional).
+  imovelId              String?                  @unique
+  imovel                Imovel?                  @relation("ObraImovel", fields: [imovelId], references: [id], onDelete: SetNull)
   leadVinculado         Lead?                    @relation(fields: [leadId], references: [id], onDelete: SetNull)
   latitude              Float?
   longitude             Float?

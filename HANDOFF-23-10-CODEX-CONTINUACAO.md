@@ -17,7 +17,7 @@ Branch de trabalho (Claude): `claude/sync-mirrored-repos-bsqnz3`, recriada a par
 | 1 | Regularizações: "Valor já recebido" e "Valor contratado" (itens próprios) | Codex ✅ integrado |
 | 2A/B | Projetos: prazo como data civil + ordenação por prazo | Codex ✅ integrado |
 | 2C | Projetos: Solicitar revisão (pedido, notificação, e-mail, entrega no card, histórico) | ✅ Claude (código + testes; migração pendente em produção) |
-| 3 | Obras: Localização exata → imóvel vinculado → Mapa Operacional | ⏳ Claude |
+| 3 | Obras: Localização exata → imóvel vinculado → Mapa Operacional | ✅ Claude (código + testes; migração pendente em produção) |
 | 4 | Concluir serviço no CRM conclui o módulo (por ID) + caso Luciano Oliveira Leite | ⏳ Claude |
 | 5 | Financiamentos: "Liberado" → "Concluído"; "Crédito concluído" | Codex ✅ integrado |
 | 6 | Duplicar lead (novo ID, dados e documentos, sem serviços) | ⏳ Claude |
@@ -64,9 +64,46 @@ Testes:
 - (c) produção: migrações **não aplicadas** (Prospecta 0066 via Neon; Santa Fé `20261023120000_projeto_revisoes`
   via Supabase). Envio real de e-mail/Drive só validável em produção.
 
+## E3 — Obras: Localização exata → imóvel vinculado → Mapa Operacional (concluída em código)
+Requisitos: campo "Localização exata" na aba Informações da obra, igual ao de Imóveis (coordenadas, links Google
+Maps/Waze/Apple Maps, Plus Code, botão "Marcar", mesma validação); ao salvar, criar ou vincular o imóvel e mostrá-lo
+no Mapa Operacional; atualizações mexem no mesmo ponto, sem duplicar; preservar vínculos e endereços; nunca publicar.
+
+Decisões:
+- Vínculo novo `construction_projects.imovel_id` (Prospecta) / `obras.imovelId` (Santa Fé), único e `ON DELETE SET NULL`.
+- Sem vínculo + ponto → cria **um** imóvel "Obra — <nome>" com o endereço da obra, preço 0, `publicadoSite`/portais =
+  false, revisão aprovada, slug aleatório `obra-<id>-<hex>`; status Prospecta `reservado`; Santa Fé não tem
+  "reservado" → fica no padrão `venda`, igualmente fora do site e portais (diferença só de vocabulário da stack).
+- Com vínculo → atualiza **só** latitude/longitude do mesmo imóvel (endereço, preço, publicação intactos).
+- "Remover" tira o ponto do mapa e mantém o vínculo. Obra antiga sem ponto: nada é criado.
+- Corrida: Prospecta (neon-http sem transação interativa) usa vínculo condicional `WHERE imovel_id IS NULL` + índice
+  único e apaga o imóvel perdedor; Santa Fé usa transação com `SELECT … FOR UPDATE` na obra.
+- Empreiteiro: só lê (Prospecta `obraLocalizacao.obter` liberado; aba Informações continua somente leitura).
+- Excluir a obra não apaga o imóvel (fica visível em Imóveis para decisão da equipe).
+
+Arquivos:
+- Prospecta: `drizzle/0067_obra_imovel_localizacao.sql`, `drizzle/schema.ts`, `shared/obra-localizacao.ts`,
+  `server/obra-localizacao.ts` (router `obraLocalizacao`), `server/routers.ts`, `server/_core/trpc.ts`,
+  `server/obra-acesso.ts`, `client/src/pages/AdminEditarObra.tsx`, `server/obra-localizacao.test.ts`.
+- Santa Fé: `prisma/schema.prisma`, `prisma/migrations/20261023130000_obra_imovel_localizacao/migration.sql`,
+  `src/lib/obra-localizacao.ts` (cópia do shared), `src/lib/obras/localizacao.ts`, `src/lib/actions/obras.ts`
+  (`editarObra`), `src/components/obras/editar-obra-pagina.tsx` (usa o `LocalizacaoPicker` de Imóveis),
+  `src/lib/__tests__/obra-localizacao.db.test.ts`.
+
+Testes:
+- (a) Prospecta `pnpm check` OK, suíte 950/950 (5 novos). Santa Fé `tsc` OK, eslint sem erros, teste de banco 4/4
+  (inclui gravações simultâneas sem duplicar).
+- (b) manuais: nenhum (UI não exercitada em navegador).
+- (c) produção: migrações pendentes (Prospecta 0067 via Neon; Santa Fé `20261023130000_obra_imovel_localizacao`).
+
+Risco registrado (pré-existente, fora do escopo): a página pública de detalhe do imóvel (Prospecta `imoveis.getBySlug`,
+Santa Fé `(site)/imoveis/[id]`) não filtra `publicadoSite`; quem tiver o link exato vê um imóvel não publicado. Os
+imóveis de obra têm slug/ID aleatório e não aparecem em nenhuma listagem pública.
+
 ## Próximo passo exato
-Etapa 3 (Obras — "Localização exata" na aba Informações, reaproveitando o campo e o botão "Marcar" de Imóveis;
-ao salvar, criar/vincular o imóvel da obra e mostrá-lo no Mapa Operacional, sem duplicar e sem publicar anúncio).
-Começar mapeando no Prospecta: campo de localização de Imóveis (`validCoordinates` em `shared/operacional.ts`),
-`mapaRouter` em `server/operacional-router.ts` e vínculo obra↔imóvel em `constructionProjects`. Depois espelhar no Santa Fé.
-Restam ainda as etapas 4 e 6 e o fechamento (QA, PR, migrações em produção, merge, deploy).
+Etapa 4 (Concluir serviço no CRM conclui o registro do módulo pelo ID do serviço/processo, sem apagar etapas,
+documentos, valores ou histórico, sem recursão; conferir o caso de financiamento de Luciano Oliveira Leite e todos os
+tipos de serviço; reconciliar divergências históricas com segurança). Começar no Prospecta por
+`server/lead-services-router.ts` (ação de concluir e `attachCompletedProcess`) e pelo status de conclusão de cada
+módulo (obras, projetos, regularização, financiamentos, avaliações, comissões, agenda). Depois espelhar no Santa Fé.
+Restam ainda a etapa 6 e o fechamento (QA, PR, migrações em produção, merge, deploy).
