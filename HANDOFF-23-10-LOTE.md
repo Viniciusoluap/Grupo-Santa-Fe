@@ -10,7 +10,7 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
 | H1 | Fundo sem faixa branca no overscroll (iPad) | ✅ commit | ✅ commit |
 | H2 | 🤝 só depois do nome (Negócio fechado) | ✅ commit | ✅ commit |
 | H5 | Selo "PCI vinculada" no card da obra | ✅ commit | ✅ commit |
-| H3 | Excluir definitivamente lead arquivado | ⏳ | ⏳ |
+| H3 | Excluir definitivamente lead arquivado | ✅ commit | ✅ commit |
 | H4 | Notificações padronizadas | ⏳ | ⏳ |
 | H6 | PLS fiel à PCI (coordenadas, dados 1x, datas da obra, curva) | ⏳ | ⏳ |
 
@@ -41,6 +41,26 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   local (gatilhos SQL/Drive ausentes no banco local; as mesmas 10 falham sem esta mudança).
   (b) —. (c) conferir na lista de Obras em produção.
 
+## H3 — concluído
+- Regra (igual nos dois): só **admin**, só lead **arquivado** (Prospecta: `deleted_at`; SF: `arquivadoEm` ou
+  `excluidoEm`), confirmação explícita e **bloqueio com aviso** quando há vínculos: obras (comissões vêm pela obra),
+  financiamentos, regularizações, projetos, avaliações, contratos, documentos enviados e conta de acesso.
+  Sem vínculos: apaga lead + histórico + follow-ups/tarefas + serviços + checklist/alertas + chat; visitas e
+  mensagens de WhatsApp ficam, só sem o vínculo. Arquivar/recuperar não mudou.
+- Prospecta: `shared/lead-exclusao-definitiva.ts`; `server/db.ts` (`getLeadVinculosExclusao`,
+  `excluirLeadArquivadoDefinitivamente` — uma única instrução SQL que rechecа as condições); `server/routers.ts`
+  (`leads.permanentDeletionContext`, `leads.permanentDelete`, com `exigirAdministrador`); botão
+  "Excluir definitivamente" ao lado de "Recuperar" na lista de arquivados (`AdminCRM.tsx`).
+- SF: `src/lib/crm/lead-exclusao-definitiva.ts` (mesmo texto); `actions/leads.ts`
+  (`consultarExclusaoDefinitivaLead`, `excluirLeadDefinitivamente`, transação serializável); botão no detalhe do
+  lead, junto de "Desarquivar" (`lead-status-picker.tsx`), só para admin.
+- FKs reais conferidas em produção (somente leitura) antes de escrever o SQL. Nenhum dado de produção foi apagado.
+- Testes: (a) Prospecta `server/lead-exclusao-definitiva.test.ts` 5/5 (colaborador barrado, ativo recusado,
+  vínculos bloqueiam, corrida devolve conflito); SQL real validado em Postgres local com as mesmas FKs (lead limpo
+  apagado com dependentes; ativo, com obra e com documento preservados); Playwright: admin vê botão/confirma/apaga,
+  bloqueado mostra aviso sem chamar a exclusão, colaborador não vê o botão. SF
+  `lead-exclusao-definitiva.db.test.ts` 4/4 com Postgres local. (b) —. (c) testar em produção com um lead de teste.
+
 ## Próximo passo
-H3: "Excluir definitivamente" ao lado de "Recuperar" em "Ver arquivados" (só admin, só arquivados, com confirmação,
-bloqueado se houver vínculos: obra, financiamento, comissões, documentos).
+H4: notificações padronizadas (título curto + ícone, um cliente por linha, datas BR, "e mais N", botão "Ver no
+CRM") no sino e em "Ver todas", nos dois sistemas.

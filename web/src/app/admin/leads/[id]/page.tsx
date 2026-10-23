@@ -345,7 +345,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
           {/* Alterar status */}
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Etapa operacional</p>
-            <LeadStatusPicker leadId={lead.id} statusAtual={lead.status} etapaOperacional={lead.etapaOperacional} atualizadoEm={lead.atualizadoEm.toISOString()} arquivadoEm={lead.arquivadoEm?.toISOString() ?? null} excluidoEm={lead.excluidoEm?.toISOString() ?? null} interno={interno} />
+            <LeadStatusPicker leadId={lead.id} statusAtual={lead.status} etapaOperacional={lead.etapaOperacional} atualizadoEm={lead.atualizadoEm.toISOString()} arquivadoEm={lead.arquivadoEm?.toISOString() ?? null} excluidoEm={lead.excluidoEm?.toISOString() ?? null} interno={interno} admin={ator.papel === "admin"} />
           </div>
 
           {/* Item 10 (18/10): agendamentos de visita do lead — os mesmos registros da Agenda. */}

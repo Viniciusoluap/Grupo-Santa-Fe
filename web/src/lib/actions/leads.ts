@@ -7,6 +7,8 @@ import { LEAD_STATUS_CONFIG, INTERACTION_CONFIG } from "@/lib/types/crm";
 
 import { prisma } from "@/lib/db";
 import { rotulo } from "@/lib/rotulos";
+import type { Prisma } from "@/generated/prisma/client";
+import { mensagemBloqueioExclusao, type VinculosLead } from "@/lib/crm/lead-exclusao-definitiva";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -382,3 +384,65 @@ export async function agendarVisitaDoLead(formData: FormData) {
   }
   await criarVisita(campos);
 }
+
+/** Pedido de 23/10 (H3): o que impede a exclusão definitiva (mesma regra da Prospecta). */
+async function vinculosDoLead(tx: Prisma.TransactionClient | typeof prisma, leadId: string): Promise<VinculosLead> {
+  const [obras, financiamentos, regularizacoes, projetos, avaliacoes, contratos, versoes, docsComArquivo, contas] = await Promise.all([
+    tx.obra.count({ where: { leadId } }),
+    tx.financiamento.count({ where: { leadId } }),
+    tx.regularizacao.count({ where: { leadId } }),
+    tx.projeto.count({ where: { leadId } }),
+    tx.avaliacao.count({ where: { leadId } }),
+    tx.contrato.count({ where: { leadId } }),
+    tx.documentoClienteVersao.count({ where: { leadId } }),
+    tx.documentoCliente.count({ where: { leadId, arquivoId: { not: null } } }),
+    tx.usuario.count({ where: { leadId } }),
+  ]);
+  return { obras, financiamentos, regularizacoes, projetos, avaliacoes, contratos, documentos: Math.max(versoes, docsComArquivo), contas };
+}
+
+async function exigirAdministradorCrm() {
+  const ator = await obterAtorCrm();
+  if (ator.papel !== "admin") throw new Error("Só o administrador pode excluir um lead definitivamente.");
+  return ator;
+}
+
+/** Vínculos para a tela avisar antes de pedir a confirmação. */
+export async function consultarExclusaoDefinitivaLead(id: string): Promise<{ bloqueio: string | null }> {
+  await exigirAdministradorCrm();
+  return { bloqueio: mensagemBloqueioExclusao(await vinculosDoLead(prisma, id)) };
+}
+
+/**
+ * Exclusão definitiva (H3): só admin, só lead arquivado/excluído da operação e
+ * sem vínculos. Leva junto histórico, tarefas, serviços, checklist, alertas e
+ * chat; visitas e mensagens de WhatsApp ficam, apenas sem o vínculo.
+ */
+export async function excluirLeadDefinitivamente(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  try {
+    await exigirAdministradorCrm();
+    await transacaoCRM(async (tx) => {
+      await bloquearLead(tx, id);
+      const lead = await tx.lead.findUnique({ where: { id }, select: { arquivadoEm: true, excluidoEm: true, status: true } });
+      if (!lead) throw new RecusaExclusaoLead("Lead não encontrado.");
+      const foraDaOperacao = !!lead.arquivadoEm || !!lead.excluidoEm || ["arquivado", "archived", "excluido", "deleted"].includes(lead.status);
+      if (!foraDaOperacao) throw new RecusaExclusaoLead("Só leads arquivados podem ser excluídos definitivamente. Arquive o lead primeiro.");
+      const bloqueio = mensagemBloqueioExclusao(await vinculosDoLead(tx, id));
+      if (bloqueio) throw new RecusaExclusaoLead(bloqueio);
+      await tx.tarefaCrm.deleteMany({ where: { leadId: id } });
+      await tx.servicoLead.deleteMany({ where: { leadId: id } });
+      await tx.documentoCliente.deleteMany({ where: { leadId: id } });
+      await tx.avisoVencimentoCard.deleteMany({ where: { leadId: id } });
+      await tx.visita.updateMany({ where: { leadId: id }, data: { leadId: null } });
+      await tx.mensagemWhatsapp.updateMany({ where: { leadId: id }, data: { leadId: null } });
+      await tx.lead.delete({ where: { id } });
+    });
+  } catch (e) {
+    if (e instanceof RecusaExclusaoLead || (e instanceof Error && e.message.startsWith("Só o administrador"))) return { ok: false, erro: e.message };
+    throw e;
+  }
+  revalidatePath("/admin/leads");
+  return { ok: true };
+}
+
+class RecusaExclusaoLead extends Error {}
