@@ -3,7 +3,7 @@
 ## Estado inicial e convivência
 - Prospecta: `main` / `origin/main` em `c0077571d208bfc30834bd0d0a1a11aa6ae97457`.
 - Grupo Santa Fé: `main` / `origin/main` em `793a4cbcc4a558bb8703e3b8330799db510dce7f`.
-- Commit da implementação Santa Fé: `5f18641904a14618eb1dab229faefb6207c697ea`.
+- Publicação Santa Fé na branch: commit remoto `18b18a651c79b8b74952ad3180645fb13cb187f9` (árvore de código e handoff via integração GitHub; commit Git local equivalente `5f18641904a14618eb1dab229faefb6207c697ea`). A branch foi conferida no GitHub.
 - Ambos foram clonados limpos neste workspace, sem modificações de outro agente. `git fetch` confirmou a base antes de criar a branch isolada `codex/regularizacoes-indicadores-20261023` em cada repo. Não havia PRs abertos. O lote anterior H1–H6 já estava no main e publicado; ler `HANDOFF-23-10-LOTE.md`.
 - Claude trabalha em paralelo: antes de integrar, fazer novo fetch, comparar main e branches/PRs recentes e preservar as duas linhas de trabalho.
 - Arquivos previstos da etapa 1: núcleo financeiro de indicadores, consulta da lista de regularizações e teste/handoff em cada repositório. Etapas 2–6 ficam em frentes próprias, após a publicação desta etapa.
