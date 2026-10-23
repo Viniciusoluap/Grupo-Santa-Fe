@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { SEPARADOR_ITENS, datasParaBR, linhaPrazoCard, tituloPrazosCards } from "@/lib/notificacao-formato";
 import { chaveDoCard, diaEmImperatriz } from "@/lib/crm/vencimento-card";
 
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, c => ({
@@ -36,8 +37,9 @@ export async function enviarAvisosVencimentoCards(now = new Date()) {
         const count = notice.length;
         await prisma.notificacao.create({ data: {
           usuarioId: recipient.id, tipo: "vencimento_card",
-          titulo: `${count} card${count === 1 ? "" : "s"} precisam da sua atenção hoje`,
-          mensagem: notice.map(card => `${card.nome} (${chaveDoCard(card.vencimentoCard)})`).join("; "),
+          // H4 (23/10): título curto e um cliente por linha, com data no padrão BR.
+          titulo: tituloPrazosCards(count),
+          mensagem: notice.map(card => linhaPrazoCard(card.nome, chaveDoCard(card.vencimentoCard))).join(SEPARADOR_ITENS),
           link: "/admin/leads",
         } });
         await prisma.avisoVencimentoCard.createMany({ skipDuplicates: true, data: notice.map(card => ({
@@ -47,9 +49,9 @@ export async function enviarAvisosVencimentoCards(now = new Date()) {
       }
       if (email.length) {
         const origin = process.env.SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-        const lines = email.map(card => `<li>${escapeHtml(card.nome)} — ${chaveDoCard(card.vencimentoCard)} — ${origin ? `<a href="${escapeHtml(origin)}/admin/leads/${card.id}">Abrir lead</a>` : "Abra o CRM"}</li>`).join("");
+        const lines = email.map(card => `<li>${escapeHtml(card.nome)} — prazo ${datasParaBR(chaveDoCard(card.vencimentoCard))} — ${origin ? `<a href="${escapeHtml(origin)}/admin/leads/${card.id}">Abrir lead</a>` : "Abra o CRM"}</li>`).join("");
         mailOk = await sendEmail({ to: recipient.email,
-          subject: `[CRM] ${email.length} card${email.length === 1 ? "" : "s"} precisam da sua atenção hoje`,
+          subject: `[CRM] ${tituloPrazosCards(email.length)}`,
           html: `<p>Estes cards precisam da sua atenção hoje:</p><ul>${lines}</ul>`,
         });
         if (mailOk) {

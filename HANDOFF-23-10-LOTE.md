@@ -11,7 +11,7 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
 | H2 | 🤝 só depois do nome (Negócio fechado) | ✅ commit | ✅ commit |
 | H5 | Selo "PCI vinculada" no card da obra | ✅ commit | ✅ commit |
 | H3 | Excluir definitivamente lead arquivado | ✅ commit | ✅ commit |
-| H4 | Notificações padronizadas | ⏳ | ⏳ |
+| H4 | Notificações padronizadas | ✅ commit | ✅ commit |
 | H6 | PLS fiel à PCI (coordenadas, dados 1x, datas da obra, curva) | ⏳ | ⏳ |
 
 ## H1 — concluído
@@ -61,6 +61,23 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   bloqueado mostra aviso sem chamar a exclusão, colaborador não vê o botão. SF
   `lead-exclusao-definitiva.db.test.ts` 4/4 com Postgres local. (b) —. (c) testar em produção com um lead de teste.
 
+## H4 — concluído
+- Formatador único (mesmo arquivo nos dois): Prospecta `shared/notificacao-formato.ts`, SF
+  `src/lib/notificacao-formato.ts` — ícone por tipo/assunto, título curto ("9 cards com prazo para hoje"),
+  um cliente por linha ("NOME — prazo 22/10/2026"), datas BR, "e mais N" (5 no sino, 10 em "Ver todas") e
+  botão de ação ("Ver no CRM", "Ver obra", "Abrir no portal"). Notificações antigas já gravadas no formato
+  corrido também passam a aparecer padronizadas (conversão na exibição; nenhum dado alterado).
+- Geração nova do resumo de prazos (Prospecta `lead-card-due-digest.ts`; SF `avisos-vencimento-card.ts`) já
+  grava uma linha por cliente; e-mail com data BR.
+- Prospecta: `NotificacaoConteudo.tsx` usado no sino (`Navbar.tsx`) e em `/notificacoes`.
+- SF: `components/notificacao-conteudo.tsx` no sino (`admin-shell.tsx`) + link "Ver todas as notificações" +
+  nova página `/admin/notificacoes` (não existia; paridade) com "marcar como lida" ao abrir e "Marcar todas".
+- Testes: (a) `notificacao-formato.test.ts` 3/3 nos dois; Prospecta suíte 923/923; SF 773 ok (as mesmas 10
+  falhas pré-existentes do ambiente local). Playwright Prospecta (iPad e celular, exemplo real de 9 cards):
+  título curto, 5 linhas + "e mais 4" no sino, 9 linhas na página, "Ver no CRM". (b) —.
+  (c) conferir sino e "Ver todas" nos dois em produção; tela nova do SF sem E2E local (exige login real).
+
 ## Próximo passo
-H4: notificações padronizadas (título curto + ícone, um cliente por linha, datas BR, "e mais N", botão "Ver no
-CRM") no sino e em "Ver todas", nos dois sistemas.
+H6: PLS fiel à PCI — (1) coordenadas `05° 29' 18" S` / `47° 27' 01" W`; (2) nº do contrato, valor do imóvel e
+data da contratação perguntados 1x e pré-preenchidos (editáveis); (3) início/término da obra vindos do Editar
+Obra; (4) Curva de Evolução pelas datas/cronograma da PCI + medições; (5) validar com PCI real.

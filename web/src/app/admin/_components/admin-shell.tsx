@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { Menu, Bell, X, Camera, User, ChevronRight } from "lucide-react";
+import { NotificacaoConteudo } from "@/components/notificacao-conteudo";
+import Link from "next/link";
+import { Menu, Bell, X, Camera, User } from "lucide-react";
 import { Sidebar } from "@/components/admin/sidebar";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/auth";
@@ -124,18 +126,6 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
 
   const unreadCount = notificacoes.filter((n) => !n.lida).length;
 
-  function tipoIcon(tipo: string) {
-    if (tipo === "novo_lead") return "👤";
-    if (tipo === "novo_imovel") return "🏠";
-    if (tipo === "novo_corretor") return "🤝";
-    if (tipo === "novo_financiamento") return "📋";
-    if (tipo === "nova_obra") return "🏗️";
-    if (tipo === "nova_regularizacao") return "📄";
-    if (tipo === "cobranca_vencendo") return "💰";
-    if (tipo === "prazo_obra") return "🏗️";
-    return "🔔";
-  }
-
   function tempoRelativo(dateStr: string) {
     const diff = agora - new Date(dateStr).getTime();
     const min = Math.floor(diff / 60000);
@@ -216,7 +206,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
 
               {/* Bell dropdown */}
               {bellOpen && (
-                <div className="absolute right-0 top-10 w-80 bg-white border border-gray-200 shadow-xl z-50">
+                <div className="absolute right-0 top-10 w-[22rem] max-w-[calc(100vw-1rem)] bg-white border border-gray-200 shadow-xl z-50">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                     <span className="font-black text-[var(--brand-dark)] text-xs uppercase tracking-wide">
                       Notificações {unreadCount > 0 && `(${unreadCount})`}
@@ -239,7 +229,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                     </div>
                   </div>
 
-                  <div className="max-h-80 overflow-y-auto">
+                  <div className="max-h-[420px] overflow-y-auto">
                     {notificacoes.length === 0 ? (
                       <div className="py-8 text-center">
                         <Bell size={24} className="text-gray-200 mx-auto mb-2" />
@@ -257,27 +247,14 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
                             setBellOpen(false);
                           }}
                         >
-                          <span className="text-base shrink-0 mt-0.5">
-                            {tipoIcon(n.tipo)}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-[var(--brand-dark)] leading-tight">
-                              {n.titulo}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">
-                              {n.mensagem}
-                            </p>
-                            <p className="text-[10px] text-gray-600 mt-1">
-                              {tempoRelativo(n.criadoEm)}
-                            </p>
-                          </div>
-                          {n.link && (
-                            <ChevronRight size={12} className="text-gray-500 shrink-0 mt-1" />
-                          )}
+                          <NotificacaoConteudo tipo={n.tipo} titulo={n.titulo} mensagem={n.mensagem} link={n.link} quando={tempoRelativo(n.criadoEm)} />
                         </div>
                       ))
                     )}
                   </div>
+                  <Link href="/admin/notificacoes" onClick={() => setBellOpen(false)} className="block text-center text-xs font-bold text-[var(--brand-dark)] hover:bg-gray-50 border-t border-gray-100 py-2.5">
+                    Ver todas as notificações
+                  </Link>
                 </div>
               )}
             </div>
