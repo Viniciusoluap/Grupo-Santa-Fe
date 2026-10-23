@@ -3,6 +3,7 @@
 ## Bases e isolamento
 - Prospecta: `origin/main` / `c0077571d208bfc30834bd0d0a1a11aa6ae97457`, branch `codex/projetos-prazo-revisao-20261023`, worktree isolada `prospecta-projetos`.
 - Santa Fé: `origin/main` / `793a4cbcc4a558bb8703e3b8330799db510dce7f`, mesma branch em `santa-fe-projetos`.
+- Subetapas A/B publicadas no GitHub: Prospecta `ee28bd4b0c78b9d68b0183c8a4b60971e5662918` PR #158; Santa Fé `84ccbe26d77548df4317a70f7af0e43e725df91b` PR #221. Ambos rascunhos. Commits Git locais equivalentes `747ece5` e `b62fdc4`.
 - Ambos limpos ao criar a worktree. Etapa 1 está em PRs separados Prospecta #157 e SF #220; não misturar branches. Claude pode avançar em paralelo. Novo fetch/revisão de PRs antes de integrar.
 
 ## Subetapa 2A/B — prazo civil e ordenação
