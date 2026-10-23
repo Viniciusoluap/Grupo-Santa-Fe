@@ -116,6 +116,10 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         ...plsPadraoAtual,
         alvaraEmissao: dadosCaixa.pls.alvaraEmissao ?? plsPadraoAtual.alvaraEmissao,
         alvaraVigencia: dadosCaixa.pls.alvaraVigencia ?? plsPadraoAtual.alvaraVigencia,
+        // H6: dados do contrato também passam para a próxima PLS.
+        numeroContrato: dadosCaixa.pls.numeroContrato ?? plsPadraoAtual.numeroContrato,
+        valorImovel: dadosCaixa.pls.valorImovel ?? plsPadraoAtual.valorImovel,
+        dataContratacao: dadosCaixa.pls.dataContratacao ?? plsPadraoAtual.dataContratacao,
       } : plsPadraoAtual;
       if (atualizaPadrao) setPlsPadraoAtual(novoPadrao);
       setFormularioAlterado(false);
@@ -142,7 +146,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
     setTipo(h.tipo ?? "pls");
     // Medição antiga sem dados CAIXA: levantamento = data da própria medição (igual à Prospecta).
     const padrao = dadosMedicaoPadrao(h.tipo ?? "pls", plsPadraoAtual, dados.pci?.prazoMeses ?? null);
-    setDadosCaixa(h.dadosCaixa ?? { ...padrao, pls: { ...padrao.pls, dataLevantamento: new Date(new Date(h.criadoEm).getTime() - 3 * 3600_000).toISOString().slice(0, 10) } });
+    // H6: medição antiga sem os dados do contrato recebe os da obra (só o que nunca foi informado).
+    setDadosCaixa(h.dadosCaixa ? { ...h.dadosCaixa, pls: { ...h.dadosCaixa.pls, numeroContrato: h.dadosCaixa.pls.numeroContrato ?? padrao.pls.numeroContrato, valorImovel: h.dadosCaixa.pls.valorImovel ?? padrao.pls.valorImovel, dataContratacao: h.dadosCaixa.pls.dataContratacao ?? padrao.pls.dataContratacao } } : { ...padrao, pls: { ...padrao.pls, dataLevantamento: new Date(new Date(h.criadoEm).getTime() - 3 * 3600_000).toISOString().slice(0, 10) } });
     setLinhas(h.itens);
     setMensagem(null);
     document.getElementById("medicao-por-servico")?.scrollIntoView({ behavior: "smooth" });

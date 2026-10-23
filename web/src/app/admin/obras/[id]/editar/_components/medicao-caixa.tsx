@@ -392,6 +392,20 @@ export function CamposMedicaoCaixa({ tipo, setTipo, dados, setDados, prazoPci, c
 
       <details className="rounded border border-gray-200 p-2" open={tipo === "pls"}>
         <summary className="cursor-pointer text-sm text-[var(--brand-dark)]">Dados da PLS (datas &amp; qualidade)</summary>
+        {/* H6 (23/10): dados do contrato que não vêm na PCI — informados uma vez e pré-preenchidos nas próximas PLS. */}
+        <div className="mt-3 rounded border border-[var(--brand-yellow)]/40 bg-[var(--brand-yellow)]/10 p-2">
+          <p className="text-xs text-gray-700 mb-2">Dados do contrato (não constam na PCI). Informe na primeira PLS; nas próximas eles já vêm preenchidos e podem ser corrigidos.</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Rotulo texto="Nº do contrato">
+              <Input aria-label="Nº do contrato" value={p.numeroContrato ?? ""} maxLength={60} onChange={(e) => setPls({ numeroContrato: e.target.value || null })} className={`h-9 ${campo}`} />
+            </Rotulo>
+            <CampoNumero rotulo="Valor do imóvel (R$)" valor={p.valorImovel ?? null} onChange={(v) => setPls({ valorImovel: v })} />
+            <Rotulo texto="Data da contratação">
+              <Input type="date" aria-label="Data da contratação" value={p.dataContratacao ?? ""} onChange={(e) => setPls({ dataContratacao: e.target.value || null })} className={`h-9 ${campo}`} />
+            </Rotulo>
+          </div>
+          <p className="text-[11px] text-gray-600 mt-2">Início e término previsto da obra vêm do Editar Obra (datas de início e de previsão de término).</p>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <SimNao rotulo="A execução está observando as condições contratadas?" valor={p.condicoesContratadas} onChange={(v) => setPls({ condicoesContratadas: v })} />
           <SimNao rotulo="A placa/adesivo CAIXA está afixada na obra?" valor={p.placaAfixada} onChange={(v) => setPls({ placaAfixada: v })} />

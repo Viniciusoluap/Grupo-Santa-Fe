@@ -12,7 +12,7 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
 | H5 | Selo "PCI vinculada" no card da obra | ✅ commit | ✅ commit |
 | H3 | Excluir definitivamente lead arquivado | ✅ commit | ✅ commit |
 | H4 | Notificações padronizadas | ✅ commit | ✅ commit |
-| H6 | PLS fiel à PCI (coordenadas, dados 1x, datas da obra, curva) | ⏳ | ⏳ |
+| H6 | PLS fiel à PCI (coordenadas, dados 1x, datas da obra, curva) | ✅ commit | ✅ commit |
 
 ## H1 — concluído
 - Prospecta: `AdminRoute` marca `<html class="area-escura">`; `index.css` deixa html/body `#0F1419` e
@@ -77,7 +77,24 @@ Ordem aprovada: H1 → H2 → H5 → H3 → H4 → H6. Merge e deploy autorizado
   título curto, 5 linhas + "e mais 4" no sino, 9 linhas na página, "Ver no CRM". (b) —.
   (c) conferir sino e "Ver todas" nos dois em produção; tela nova do SF sem E2E local (exige login real).
 
+## H6 — concluído
+- Núcleo CAIXA igual nos dois (Prospecta `server/caixa/*`, SF `src/lib/caixa/*`; só os imports diferem):
+  1. **Coordenadas**: `formatarCoordenada` — 52918 → `05° 29' 18" S`, 472701 → `47° 27' 01" W`; hemisfério lido da
+     própria PCI (X58/AC58). PCIs já enviadas (que guardaram "52918 S") saem certas no PDF (formatação na hora).
+  2. **Nº do contrato, valor do imóvel e data da contratação** (não estão na PCI): campos novos da PLS
+     (`numeroContrato`, `valorImovel`, `dataContratacao`), perguntados no formulário da PLS e pré-preenchidos
+     pelas medições seguintes da obra (`dadosFixosDasMedicoes`, campo a campo; PCI como reserva; contrato zerado do
+     modelo é ignorado). Editáveis. XLS grava S51/AQ77/AL78; PDF usa os mesmos valores.
+  3. **Início e término previsto** vêm do Editar Obra (Prospecta `start_date`/`estimated_end_date`; SF
+     `dataInicio`/`dataPrevisaoFim`). Sem data na obra, vale a fórmula do modelo (contratação + 30 dias). XLS grava
+     AL79/AL80; etapa da vistoria passa a contar do início real.
+  4. **Curva de Evolução** (`curvaDeEvolucao`): Acumul. PLS por etapa (medições), **Acumul. Aferido = medições com
+     recebimento confirmado pelo banco** (decisão a validar com o dono), Acumul. Adotado (aferido, senão PLS) e Mês
+     referência (início + n meses). Linhas até o prazo/cronograma da PCI. XLS grava AF/AJ/AO/AT.
+- Testes: (a) `pls-fiel-pci.test.ts` 9/9 nos dois (coordenadas, pré-preenchimento, normalização/validação, XLS e PDF
+  com contrato/valor/contratação, datas da obra, curva). Prospecta 932/932 + `pnpm check`; SF 782 ok (10 falhas
+  pré-existentes do ambiente local) + `tsc`. PDF de exemplo conferido visualmente (pág. 1).
+  (b) —. (c) **gerar PLS com uma PCI real em produção e conferir no SIOPI — aceitação só o usuário confirma.**
+
 ## Próximo passo
-H6: PLS fiel à PCI — (1) coordenadas `05° 29' 18" S` / `47° 27' 01" W`; (2) nº do contrato, valor do imóvel e
-data da contratação perguntados 1x e pré-preenchidos (editáveis); (3) início/término da obra vindos do Editar
-Obra; (4) Curva de Evolução pelas datas/cronograma da PCI + medições; (5) validar com PCI real.
+Revisão @qa (AIOX) do lote inteiro nos dois repositórios → PRs → merge → deploy → conferência em produção.

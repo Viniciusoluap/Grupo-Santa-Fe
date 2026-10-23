@@ -50,7 +50,21 @@ export interface DadosPls {
   alvaraVigencia: string | null;
   seloCasaAzul: boolean;
   observacoes: string;
+  /**
+   * Pedido de 23/10 (H6): dados do contrato que não vêm na PCI. Perguntados na
+   * primeira PLS da obra e pré-preenchidos (editáveis) nas seguintes.
+   */
+  numeroContrato?: string | null;
+  valorImovel?: number | null;
+  dataContratacao?: string | null;
 }
+
+/** Campos da PLS informados uma vez por obra e reaproveitados nas medições seguintes. */
+export type DadosFixosPls = Pick<DadosPls, "alvaraEmissao" | "alvaraVigencia"> & {
+  numeroContrato: string | null;
+  valorImovel: number | null;
+  dataContratacao: string | null;
+};
 
 /** Campos da aba Repactuação_Prazo. Percentuais por etapa (índice = nº da etapa). */
 export interface DadosRepactuacao {
@@ -112,7 +126,7 @@ export function hojeIso(agora = new Date()): string {
   return agora.toISOString().slice(0, 10);
 }
 
-export function dadosPlsPadrao(opcoes: { alvaraEmissao?: string | null; alvaraVigencia?: string | null; seloCasaAzul?: boolean } = {}): DadosPls {
+export function dadosPlsPadrao(opcoes: Partial<DadosFixosPls> & { seloCasaAzul?: boolean } = {}): DadosPls {
   return {
     dataLevantamento: hojeIso(),
     houveRepactuacao: false,
@@ -125,6 +139,39 @@ export function dadosPlsPadrao(opcoes: { alvaraEmissao?: string | null; alvaraVi
     alvaraVigencia: opcoes.alvaraVigencia ?? null,
     seloCasaAzul: opcoes.seloCasaAzul ?? false,
     observacoes: "",
+    numeroContrato: opcoes.numeroContrato ?? null,
+    valorImovel: opcoes.valorImovel ?? null,
+    dataContratacao: opcoes.dataContratacao ?? null,
+  };
+}
+
+/**
+ * Pedido de 23/10 (H6): nº do contrato, valor do imóvel, data da contratação e
+ * datas do alvará — o último valor válido salvo em uma PLS da obra (histórico em
+ * ordem decrescente), campo a campo; a PCI é a reserva quando ainda não houve PLS.
+ */
+export function dadosFixosDasMedicoes(
+  medicoes: ReadonlyArray<{ pls?: Partial<DadosPls> | null } | null>,
+  pci: Partial<DadosFixosPls> & { contrato?: string | null } = {},
+): DadosFixosPls {
+  const r: DadosFixosPls = { alvaraEmissao: null, alvaraVigencia: null, numeroContrato: null, valorImovel: null, dataContratacao: null };
+  for (const medicao of medicoes) {
+    const p = medicao?.pls;
+    if (!p) continue;
+    if (!r.alvaraEmissao && dataValida(p.alvaraEmissao)) r.alvaraEmissao = p.alvaraEmissao as string;
+    if (!r.alvaraVigencia && dataValida(p.alvaraVigencia)) r.alvaraVigencia = p.alvaraVigencia as string;
+    if (!r.dataContratacao && dataValida(p.dataContratacao)) r.dataContratacao = p.dataContratacao as string;
+    if (!r.numeroContrato && typeof p.numeroContrato === "string" && p.numeroContrato.trim()) r.numeroContrato = p.numeroContrato.trim();
+    if (r.valorImovel === null && typeof p.valorImovel === "number" && Number.isFinite(p.valorImovel) && p.valorImovel > 0) r.valorImovel = p.valorImovel;
+  }
+  const contratoPci = (pci.numeroContrato ?? pci.contrato ?? "").trim();
+  return {
+    alvaraEmissao: r.alvaraEmissao ?? pci.alvaraEmissao ?? null,
+    alvaraVigencia: r.alvaraVigencia ?? pci.alvaraVigencia ?? null,
+    // Modelo vazio traz "0.00000000000-0" no lugar do contrato: não é um contrato.
+    numeroContrato: r.numeroContrato ?? (contratoPci && /[1-9]/.test(contratoPci) ? contratoPci : null),
+    valorImovel: r.valorImovel ?? (pci.valorImovel && pci.valorImovel > 0 ? pci.valorImovel : null),
+    dataContratacao: r.dataContratacao ?? pci.dataContratacao ?? null,
   };
 }
 
@@ -205,6 +252,9 @@ export function validarDadosMedicao(tipo: TipoMedicao, d: DadosMedicaoCaixa): st
   for (const [rotulo, v] of [["Emissão do alvará", p.alvaraEmissao], ["Vigência do alvará", p.alvaraVigencia]] as const) {
     if (v !== null && !dataValida(v)) erros.push(`${rotulo}: data inválida.`);
   }
+  if (p.dataContratacao != null && !dataValida(p.dataContratacao)) erros.push("Data da contratação: data inválida.");
+  if (p.valorImovel != null && !(Number.isFinite(p.valorImovel) && p.valorImovel >= 0)) erros.push("Valor do imóvel inválido.");
+  if (p.numeroContrato != null && !textoAte(p.numeroContrato, 60)) erros.push("Nº do contrato muito longo.");
   if (p.houveRepactuacao && (p.etapasRepactuadas === null || !Number.isInteger(p.etapasRepactuadas) || p.etapasRepactuadas < 1 || p.etapasRepactuadas > MAX_ETAPAS)) {
     erros.push("Informe o total de etapas após a repactuação.");
   }
@@ -307,6 +357,9 @@ export function normalizarDadosMedicao(tipo: TipoMedicao, entrada: unknown): Dad
     alvaraVigencia: strOuNulo(p.alvaraVigencia),
     seloCasaAzul: bool(p.seloCasaAzul, false),
     observacoes: str(p.observacoes),
+    numeroContrato: strOuNulo(p.numeroContrato),
+    valorImovel: numOuNulo(p.valorImovel),
+    dataContratacao: strOuNulo(p.dataContratacao),
   };
   let repactuacao: DadosRepactuacao | null = null;
   if (tipo === "repactuacao") {
