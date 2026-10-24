@@ -4,6 +4,7 @@ import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
 import { financiamentoDoAtor } from "@/lib/crm/acesso-financiamento";
 import { DOCUMENTOS_CLIENTE } from "@/lib/documentos-cliente-padrao";
 import { sendEmail } from "@/lib/email";
+import { enviarParaLixeira } from "@/lib/incorporacao/registro-drive";
 
 export type TipoChecklist = "crm" | "financiamento";
 export async function autorizarClienteDocumentos(tipo: TipoChecklist, id: string) {
@@ -70,4 +71,38 @@ export async function solicitarItemDocumento(tipo: TipoChecklist, itemId: string
     else await prisma.checklistItem.update({where:{id:itemId},data:{emailSolicitadoEm:new Date()}});
   }
   return {ok:true,emailEnviado,jaSolicitado:!nova,aviso:emailEnviado?null:lead.email?"Solicitação registrada. O email falhou; clique Solicitar para tentar novamente.":"Solicitação registrada. Cadastre o email do cliente no CRM para enviar o aviso."};
+}
+
+/**
+ * Pedido de 24/10 — gêmeo de leadDocuments.excluirDefinitivo (Prospecta): documento anterior
+ * (tipo fora da lista atual) excluído de vez pela equipe. Apaga o registro, as versões e o
+ * arquivo; arquivo no Google Drive vai para a lixeira (30 dias), salvo se outro registro
+ * (ex.: lead duplicado) ainda usa o mesmo arquivo.
+ */
+export async function excluirDocumentoAnterior(itemId: string): Promise<{ aviso: string | null; leadId: string }> {
+  const { item, u, lead } = await obterItemDocumento("crm", itemId);
+  if (u.perfil === "cliente") throw new Error("Somente a equipe exclui documentos.");
+  if (!("leadId" in item) || DOCUMENTOS_CLIENTE.some(d => d.chave === item.tipo)) throw new Error("Somente documentos anteriores podem ser excluídos definitivamente.");
+  const versoes = await prisma.documentoClienteVersao.findMany({ where: { itemId: item.id }, select: { arquivoId: true } });
+  const arquivoIds = [...new Set([item.arquivoId, ...versoes.map(v => v.arquivoId)].filter((a): a is string => Boolean(a)))];
+  await prisma.$transaction([
+    prisma.documentoClienteVersao.deleteMany({ where: { itemId: item.id } }),
+    prisma.documentoCliente.delete({ where: { id: item.id } }),
+  ]);
+  let aviso: string | null = null;
+  for (const arquivoId of arquivoIds) {
+    const [docs, versoesUso, checklist] = await Promise.all([
+      prisma.documentoCliente.count({ where: { arquivoId } }),
+      prisma.documentoClienteVersao.count({ where: { arquivoId } }),
+      prisma.checklistItem.count({ where: { arquivoId } }),
+    ]);
+    if (docs + versoesUso + checklist > 0) continue;
+    const arquivo = await prisma.arquivo.delete({ where: { id: arquivoId }, select: { driveFileId: true } }).catch(() => null);
+    if (arquivo?.driveFileId) {
+      try { await enviarParaLixeira(arquivo.driveFileId); }
+      catch { aviso = "O registro foi excluído, mas o arquivo não pôde ser enviado à lixeira do Google Drive."; }
+    }
+  }
+  await prisma.interacao.create({ data: { leadId: lead.id, tipo: "documento", descricao: `Documento ${item.tipo} excluído definitivamente`, criadoPor: u.nome ?? u.id } });
+  return { aviso, leadId: lead.id };
 }
