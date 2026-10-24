@@ -42,7 +42,7 @@ export function LeadSelector({ leads, leadId, onChange, erro, titulo = "Cliente 
   return (
     <div>
       <input type="hidden" name="leadId" value={leadId} />
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">{titulo} *</p>
+      <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">{titulo} *</p>
 
       {selecionado ? (
         <div className="border border-[var(--brand-yellow)] bg-[var(--brand-yellow)]/5 p-4">
@@ -62,7 +62,7 @@ export function LeadSelector({ leads, leadId, onChange, erro, titulo = "Cliente 
             <button
               type="button"
               onClick={() => { onChange(""); setBusca(""); }}
-              className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-red-500 transition-colors"
+              className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-600 hover:text-red-500 transition-colors"
             >
               <X size={12} /> Trocar
             </button>
@@ -93,13 +93,13 @@ export function LeadSelector({ leads, leadId, onChange, erro, titulo = "Cliente 
                   className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0"
                 >
                   <span className="font-medium text-[var(--brand-dark)]">{l.nome}</span>
-                  <span className="text-gray-400 text-xs ml-2">{formatTelefone(l.telefone)}</span>
+                  <span className="text-gray-600 text-xs ml-2">{formatTelefone(l.telefone)}</span>
                 </button>
               ))}
             </div>
           )}
           {q && filtrados.length === 0 && (
-            <p className="text-xs text-gray-400 mt-1">Nenhum lead encontrado.</p>
+            <p className="text-xs text-gray-600 mt-1">Nenhum lead encontrado.</p>
           )}
           {erro && <p className="text-red-500 text-xs mt-1">Selecione o cliente no CRM para abrir o serviço.</p>}
           <Link

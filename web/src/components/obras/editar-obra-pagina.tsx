@@ -50,7 +50,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href={detalhesHref} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href={detalhesHref} className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> Obra
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar Obra</h1>
@@ -81,7 +81,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Projeto</label>
               <input type="text" readOnly aria-readonly="true" value={`${tipoProjeto.icon} ${tipoProjeto.label}`} className={campoSomenteLeitura} />
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-[11px] text-gray-600 mt-1">
                 {tipoProjeto.origem === "crm"
                   ? "Definido pelo serviço vinculado no CRM. Para alterar, edite o lead."
                   : "Obra sem serviço do CRM vinculado: valor antigo preservado. Vincule pelo CRM para regularizar."}
@@ -107,14 +107,14 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
                 <input type="text" readOnly aria-readonly="true" value={o.clienteNome} className={campoSomenteLeitura} />
                 <input type="hidden" name="clienteNome" value={o.clienteNome} />
                 <input type="hidden" name="clienteTel" value={o.clienteTel ?? ""} />
-                <p className="text-[11px] text-gray-400 mt-1">Obra sem lead vinculado: dados antigos preservados. Vincule pelo CRM para regularizar.</p>
+                <p className="text-[11px] text-gray-600 mt-1">Obra sem lead vinculado: dados antigos preservados. Vincule pelo CRM para regularizar.</p>
               </div>
             )}
             {corretorNome && (
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Corretor</label>
                 <input type="text" readOnly aria-readonly="true" value={corretorNome} className={campoSomenteLeitura} />
-                <p className="text-[11px] text-gray-400 mt-1">Corretor vinculado ao lead no CRM.</p>
+                <p className="text-[11px] text-gray-600 mt-1">Corretor vinculado ao lead no CRM.</p>
               </div>
             )}
             <div className="sm:col-span-2">
@@ -126,7 +126,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Localização exata</label>
               <input type="hidden" name="localizacaoPresente" value="1" />
               <LocalizacaoPicker nameLat="localizacaoLat" nameLng="localizacaoLng" defaultLat={pontoObra?.lat ?? null} defaultLng={pontoObra?.lng ?? null} />
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-[11px] text-gray-600 mt-1">
                 {o.imovel && pontoObra
                   ? `Ponto guardado no imóvel vinculado "${o.imovel.titulo}" (aparece no Mapa Operacional).`
                   : pontoPci

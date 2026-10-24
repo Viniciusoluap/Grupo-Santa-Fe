@@ -283,7 +283,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-[var(--brand-dark)] text-sm truncate">{c.usuarioNome}</p>
-                        {c.numero && <p className="text-xs text-gray-400">{c.numero}</p>}
+                        {c.numero && <p className="text-xs text-gray-600">{c.numero}</p>}
                       </div>
                       <StatusConexao status={c.status} />
                     </div>

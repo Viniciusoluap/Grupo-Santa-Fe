@@ -63,10 +63,10 @@ export function PropertyCard({ property }: { property: Property }) {
       </div>
 
       <CardContent className="pt-4">
-        <p className="text-[var(--brand-yellow)] font-black text-xl leading-none">
+        <p className="text-[var(--brand-dark)] font-black text-xl leading-none">
           {formatCurrency(property.price)}
           {property.priceNegotiable && (
-            <span className="text-gray-400 font-normal text-xs ml-1">
+            <span className="text-gray-600 font-normal text-xs ml-1">
               • negociável
             </span>
           )}
@@ -76,7 +76,7 @@ export function PropertyCard({ property }: { property: Property }) {
           {property.title}
         </h3>
 
-        <div className="flex items-center gap-1 text-gray-400 text-xs mb-4">
+        <div className="flex items-center gap-1 text-gray-600 text-xs mb-4">
           <MapPin size={11} />
           <span className="truncate">
             {property.address.neighborhood}, {property.address.city}

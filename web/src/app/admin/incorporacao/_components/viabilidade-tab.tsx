@@ -195,7 +195,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
       {/* ── Mix de produtos ── */}
       <div className="bg-white border border-gray-100 p-4">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Mix de produtos</p>
-        <p className="text-[11px] text-gray-400 mb-3">
+        <p className="text-[11px] text-gray-600 mb-3">
           Aqui você define o que vai ser vendido: só lotes, lotes + casas, área de prédio para apartamentos, comercial — qualquer combinação. Cada linha é um produto do mix (VGV = quantidade × área × preço/m²).
         </p>
         <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-600 uppercase tracking-wide px-0.5">
@@ -569,13 +569,13 @@ function Kpi({ label, valor, sub, destaque, negativo }: {
 }) {
   return (
     <div className={`border p-3 ${destaque ? "bg-[var(--brand-dark)] border-transparent" : "bg-white border-gray-100"}`}>
-      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${destaque ? "text-gray-400" : "text-gray-400"}`}>{label}</p>
+      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${destaque ? "text-gray-400" : "text-gray-600"}`}>{label}</p>
       <p className={`font-black text-base leading-tight ${
         destaque ? (negativo ? "text-red-400" : "text-[var(--brand-yellow)]") : negativo ? "text-red-500" : "text-[var(--brand-dark)]"
       }`}>
         {valor}
       </p>
-      {sub && <p className={`text-[10px] mt-0.5 ${destaque ? "text-gray-500" : "text-gray-400"}`}>{sub}</p>}
+      {sub && <p className={`text-[10px] mt-0.5 ${destaque ? "text-gray-400" : "text-gray-600"}`}>{sub}</p>}
     </div>
   );
 }

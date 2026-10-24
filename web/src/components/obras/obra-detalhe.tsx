@@ -55,7 +55,7 @@ export async function ObraDetalhe({ id, voltarHref = "/admin/obras", voltarRotul
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href={voltarHref} className="flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--brand-dark)]">
+        <Link href={voltarHref} className="flex items-center gap-1 text-sm text-gray-600 hover:text-[var(--brand-dark)]">
           <ArrowLeft size={14} /> {voltarRotulo}
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase">{o.nome}</h1>
@@ -85,22 +85,22 @@ export async function ObraDetalhe({ id, voltarHref = "/admin/obras", voltarRotul
               Etapas da Obra ({detalhe.estatisticas.etapasConcluidas}/{detalhe.estatisticas.totalEtapas})
             </h2>
             {detalhe.etapas.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">Nenhuma etapa com incidência no acompanhamento do progresso.</p>
+              <p className="text-sm text-gray-600 text-center py-4">Nenhuma etapa com incidência no acompanhamento do progresso.</p>
             ) : (
               <div className="space-y-3">
                 {detalhe.etapas.map((e, i) => {
-                  const statusColor = e.situacao === "concluida" ? "bg-green-500" : e.situacao === "em_andamento" ? "bg-[var(--brand-yellow)]" : "bg-gray-200";
-                  const labelColor = e.situacao === "concluida" ? "text-green-600" : e.situacao === "em_andamento" ? "text-[var(--brand-dark)]" : "text-gray-400";
+                  const statusColor = e.situacao === "concluida" ? "bg-green-700" : e.situacao === "em_andamento" ? "bg-[var(--brand-yellow)]" : "bg-gray-200";
+                  const labelColor = e.situacao === "concluida" ? "text-green-600" : e.situacao === "em_andamento" ? "text-[var(--brand-dark)]" : "text-gray-600";
                   return (
                     <div key={e.chave} className={`p-3 border ${e.situacao === "em_andamento" ? "border-[var(--brand-yellow)] bg-[var(--brand-yellow)]/5" : "border-gray-100"}`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <span className={`w-5 h-5 flex items-center justify-center text-xs font-black rounded-full text-white ${e.situacao === "concluida" ? "bg-green-500" : e.situacao === "em_andamento" ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-200 text-gray-400"}`}>
+                          <span className={`w-5 h-5 flex items-center justify-center text-xs font-black rounded-full text-white ${e.situacao === "concluida" ? "bg-green-700" : e.situacao === "em_andamento" ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-200 text-gray-700"}`}>
                             {e.situacao === "concluida" ? "✓" : i + 1}
                           </span>
                           <div>
                             <span className={`text-sm font-bold ${labelColor}`}>{e.nome}</span>
-                            <p className="text-[10px] text-gray-400">Incidência {formatarPercentual(e.incidencia)} · {formatarPercentual(e.execucaoObra)} da obra</p>
+                            <p className="text-[10px] text-gray-600">Incidência {formatarPercentual(e.incidencia)} · {formatarPercentual(e.execucaoObra)} da obra</p>
                           </div>
                         </div>
                         <span className="text-xs font-bold text-[var(--brand-dark)]">{formatarPercentual(e.execucao)}</span>

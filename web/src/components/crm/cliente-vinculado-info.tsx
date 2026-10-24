@@ -15,7 +15,7 @@ interface Props {
 export function ClienteVinculadoInfo({ lead, className = "" }: Props) {
   return (
     <div className={`border border-gray-100 bg-gray-50 px-4 py-3 ${className}`}>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Cliente (vinculado ao CRM)</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-1">Cliente (vinculado ao CRM)</p>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-sm font-bold text-[var(--brand-dark)]">

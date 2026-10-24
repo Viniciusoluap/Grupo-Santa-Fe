@@ -96,7 +96,7 @@ export function FornecedoresLancamentoTab({ estudo }: { estudo: EstudoData }) {
             {pending ? "Salvando..." : salvo ? "Salvo" : "Salvar"}
           </button>
         </div>
-        <p className="text-[11px] text-gray-400 max-w-xl">
+        <p className="text-[11px] text-gray-600 max-w-xl">
           Um fornecedor por linha. A etapa fica concluída quando todos os fornecedores cadastrados estiverem contratados.
         </p>
       </div>
@@ -157,7 +157,7 @@ export function FornecedoresLancamentoTab({ estudo }: { estudo: EstudoData }) {
 function Kpi({ label, valor, destaque }: { label: string; valor: string; destaque?: boolean }) {
   return (
     <div className={`border p-3 ${destaque ? "bg-[var(--brand-dark)] border-transparent" : "bg-white border-gray-100"}`}>
-      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-gray-400">{label}</p>
+      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${destaque ? "text-gray-400" : "text-gray-600"}`}>{label}</p>
       <p className={`font-black text-base leading-tight ${destaque ? "text-[var(--brand-yellow)]" : "text-[var(--brand-dark)]"}`}>{valor}</p>
     </div>
   );

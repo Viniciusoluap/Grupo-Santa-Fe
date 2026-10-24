@@ -46,7 +46,7 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
           className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 disabled:opacity-50">
           <Upload size={14} /> {busy ? "Processando..." : temTerreno ? "Trocar KML" : "Enviar KML do terreno"}
         </button>
-        <span className="text-xs text-gray-400">Formato .kml (polígono do terreno)</span>
+        <span className="text-xs text-gray-600">Formato .kml (polígono do terreno)</span>
       </form>
       {erro && <p className="text-xs text-red-500">{erro}</p>}
 

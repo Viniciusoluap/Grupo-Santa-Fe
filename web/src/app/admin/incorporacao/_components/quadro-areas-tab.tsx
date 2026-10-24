@@ -121,7 +121,7 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
             {pending ? "Salvando..." : salvo ? "Salvo" : "Salvar"}
           </button>
         </div>
-        <p className="text-[11px] text-gray-400 max-w-xl">
+        <p className="text-[11px] text-gray-600 max-w-xl">
           Um pavimento por linha. A área computável de cada pavimento é lançada por julgamento legal/municipal (nem sempre coincide com a área construída) — use as colunas de referência para decidir.
         </p>
       </div>
@@ -199,7 +199,7 @@ export function QuadroAreasTab({ estudo }: { estudo: EstudoData }) {
 function Kpi({ label, valor, destaque, negativo }: { label: string; valor: string; destaque?: boolean; negativo?: boolean }) {
   return (
     <div className={`border p-3 ${destaque ? "bg-[var(--brand-dark)] border-transparent" : "bg-white border-gray-100"}`}>
-      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-gray-400">{label}</p>
+      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${destaque ? "text-gray-400" : "text-gray-600"}`}>{label}</p>
       <p className={`font-black text-base leading-tight ${destaque ? "text-[var(--brand-yellow)]" : negativo ? "text-red-500" : "text-[var(--brand-dark)]"}`}>{valor}</p>
     </div>
   );

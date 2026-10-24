@@ -256,7 +256,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                   </select>
                 </label>
                 <button type="submit" disabled={isPending} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold px-3 py-1.5">Salvar perfil</button>
-                <button type="button" onClick={() => setPerfilId(null)} className="text-xs text-gray-400">Fechar</button>
+                <button type="button" onClick={() => setPerfilId(null)} className="text-xs text-gray-600">Fechar</button>
               </form>
             )}
 
@@ -308,7 +308,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <button type="submit" disabled={isPending} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold px-3 py-1.5 hover:bg-black">
                   Salvar
                 </button>
-                <button type="button" onClick={() => setResetId(null)} className="text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setResetId(null)} className="text-gray-500 hover:text-gray-600">
                   <X size={14} />
                 </button>
               </form>
@@ -323,7 +323,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
           <div className="bg-white w-full max-w-md p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Novo Usuário</h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-600"><X size={18} /></button>
             </div>
 
             <form onSubmit={handleCriar} className="space-y-3">

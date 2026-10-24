@@ -35,7 +35,7 @@ export function AcoesExcluir({ id, rotulo, excluir, compacto = false }: {
     });
   }
 
-  const estilo = compacto ? "p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+  const estilo = compacto ? "p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded"
     : "text-xs border border-red-200 hover:bg-red-50 text-red-500 hover:text-red-600 font-bold px-3 py-2 flex items-center gap-1";
 
   return (

@@ -98,7 +98,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
 
       {/* Status filters */}
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setStatusFilter("todos")} className={`px-3 py-1.5 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+        <button onClick={() => setStatusFilter("todos")} className={`px-3 py-1.5 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
           Todos ({financiamentos.length})
         </button>
         {(Object.entries(STATUS_CONFIG) as [FinanciamentoStatus, typeof STATUS_CONFIG[FinanciamentoStatus]][])
@@ -108,7 +108,7 @@ export function FinanciamentosClient({ financiamentos, podeArquivar }: Props) {
             // Pedido A9: as 8 etapas sempre aparecem (como na Prospecta); "Pendente de configuração" só quando houver.
             if (count === 0 && status === "aguardando_configuracao") return null;
             return (
-              <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+              <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
                 {cfg.label} ({count})
               </button>
             );

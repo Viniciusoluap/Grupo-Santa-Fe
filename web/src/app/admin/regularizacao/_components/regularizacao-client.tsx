@@ -120,7 +120,7 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
           />
         </div>
         <div className="flex flex-wrap gap-1">
-          <button onClick={() => setStatusFilter("todos")} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+          <button onClick={() => setStatusFilter("todos")} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
             Todos
           </button>
           {(Object.entries(REG_STATUS_CONFIG) as [RegStatus, typeof REG_STATUS_CONFIG[RegStatus]][])
@@ -129,7 +129,7 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
               const count = regularizacoes.filter((r) => r.status === status).length;
               if (count === 0) return null;
               return (
-                <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+                <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
                   {cfg.label} ({count})
                 </button>
               );

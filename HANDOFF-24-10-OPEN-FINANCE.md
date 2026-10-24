@@ -46,3 +46,7 @@ Prospecta `pluggy_settings`=0, `bank_accounts`=0, `bank_transactions`=0; Santa F
 ## Próximo passo exato
 Aguardando o dono: (a) autorizar a implementação do Pluggy Connect (itens 1–4) e (b) criar a conta Pluggy
 (sandbox) e salvar as credenciais na tela.
+
+## Atualização 24/10 (decisão do dono)
+Pluggy (R$ 2.500/mês) descartada por custo; teto R$ 50/mês. Proposta de integração direta por banco (Asaas/Inter via
+API, C6/Cora via importação OFX/CSV ou Cora via CoraPro R$ 44,90) em `HANDOFF-24-10-LIMPEZA-CONTRASTE.md`.

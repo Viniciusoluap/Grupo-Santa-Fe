@@ -150,7 +150,7 @@ describe("parseNumeroBR", () => {
     expect(parseNumeroBR("-1.234,56")).toBe(-1234.56);
   });
 
-  // Valores vindos de integrações externas (feeds XML de agregadores) podem
+  // Valores vindos de integrações externas (agregadores) podem
   // chegar no formato americano, sem vírgula — e precisam continuar corretos
   // (Lote 4: regressão encontrada ao corrigir o bug de preço do agregador).
   it("converts an American-format decimal with two fraction digits and no comma", () => {

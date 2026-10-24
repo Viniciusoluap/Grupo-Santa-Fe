@@ -81,13 +81,13 @@ export function currencyToFloat(masked: string): string {
  * "250" → 250. Diferente de `currencyToFloat` (que espera um valor já
  * mascarado em centavos), esta função aceita texto livre digitado pelo
  * usuário em campos numéricos comuns (áreas, percentuais, preços) — e também
- * valores vindos de integrações externas (feeds XML), que podem chegar no
+ * valores vindos de integrações externas (ex.: agregadores), que podem chegar no
  * formato americano.
  *
  * Quando a vírgula decimal está presente, qualquer "." é tratado como
  * separador de milhar (padrão BR). Sem vírgula, um único "." seguido de 1 ou
  * 2 dígitos finais é tratado como separador decimal — ex.: "350000.00" →
- * 350000, "120.5" → 120.5 (formato americano, comum em feeds externos) —
+ * 350000, "120.5" → 120.5 (formato americano, comum em integrações externas) —
  * enquanto um "." seguido de 3 dígitos (ou múltiplos pontos) continua sendo
  * tratado como separador de milhar — ex.: "1.234" → 1234.
  *

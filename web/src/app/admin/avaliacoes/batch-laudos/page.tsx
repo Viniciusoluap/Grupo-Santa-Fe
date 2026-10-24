@@ -235,7 +235,7 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
                   <p className="text-xs text-gray-500 uppercase tracking-widest">Imóveis · Projetos · Avaliações</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Laudo de Avaliação</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-600">Laudo de Avaliação</p>
                   <p className="font-black text-[#1A1A1A] text-lg">{a.numero}</p>
                   <p className="text-xs text-gray-500">{hoje}</p>
                 </div>
@@ -251,14 +251,14 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Solicitante</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-2">Solicitante</p>
                   <p className="font-bold text-[#1A1A1A]">{a.clienteNome}</p>
                   {a.clienteCpf && <p className="text-xs text-gray-500 mt-0.5">CPF: {a.clienteCpf}</p>}
                   <p className="text-xs text-gray-600 mt-0.5">{a.clienteTel}</p>
                   {a.clienteEmail && <p className="text-xs text-gray-600">{a.clienteEmail}</p>}
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Avaliador Responsável</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-2">Avaliador Responsável</p>
                   <p className="font-bold text-[#1A1A1A]">{a.avaliador}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{METODOLOGIA_LABELS[a.metodologia] ?? a.metodologia}</p>
                   {a.dataVistoria && <p className="text-xs text-gray-600 mt-0.5">Vistoria: {new Date(a.dataVistoria).toLocaleDateString("pt-BR")}</p>}
@@ -268,7 +268,7 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
 
               {/* Imóvel */}
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Imóvel Avaliado</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-2">Imóvel Avaliado</p>
                 <p className="font-bold text-[#1A1A1A]">{a.endereco}</p>
                 <p className="text-xs text-gray-500">{a.bairro} · {a.cidade}/{a.estado}</p>
                 <div className="flex gap-6 mt-2">
@@ -293,19 +293,19 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
 
               {/* Resumo */}
               <div className="break-inside-avoid">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Resumo da Avaliação</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-2">Resumo da Avaliação</p>
                 <p className="text-sm text-gray-700 leading-relaxed">{resumo}</p>
               </div>
 
               {/* Checklist */}
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-3">
                   Checklist de Vistoria — ABNT NBR 14653
                 </p>
                 <div className="flex gap-6 mb-4 text-sm">
-                  <div className="text-center"><p className="font-black text-xl text-[#1A1A1A]">{checkedItems}/{totalItems}</p><p className="text-[10px] text-gray-400 uppercase">Verificados</p></div>
-                  <div className="text-center"><p className="font-black text-xl text-green-600">{conformes}</p><p className="text-[10px] text-gray-400 uppercase">Conformes</p></div>
-                  <div className="text-center"><p className="font-black text-xl text-red-500">{naoConformes}</p><p className="text-[10px] text-gray-400 uppercase">Não conformes</p></div>
+                  <div className="text-center"><p className="font-black text-xl text-[#1A1A1A]">{checkedItems}/{totalItems}</p><p className="text-[10px] text-gray-600 uppercase">Verificados</p></div>
+                  <div className="text-center"><p className="font-black text-xl text-green-600">{conformes}</p><p className="text-[10px] text-gray-600 uppercase">Conformes</p></div>
+                  <div className="text-center"><p className="font-black text-xl text-red-500">{naoConformes}</p><p className="text-[10px] text-gray-600 uppercase">Não conformes</p></div>
                 </div>
 
                 {CHECKLIST_GROUPS.map((group) => {
@@ -329,13 +329,13 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
                           const isNC = it.state.ok === false;
                           return (
                             <div key={it.key} className="flex items-start gap-1.5 py-1 border-b border-gray-50">
-                              <span className={`mt-0.5 shrink-0 font-bold text-xs ${isConforme ? "text-green-600" : isNC ? "text-red-500" : "text-gray-300"}`}>
+                              <span className={`mt-0.5 shrink-0 font-bold text-xs ${isConforme ? "text-green-600" : isNC ? "text-red-500" : "text-gray-500"}`}>
                                 {isConforme ? "✓" : isNC ? "✗" : "—"}
                               </span>
                               <div>
-                                <p className={`text-xs ${isConforme ? "text-gray-700" : isNC ? "text-red-600" : "text-gray-400"}`}>{it.label}</p>
-                                {it.state.nota && <p className="text-[10px] text-gray-400 italic">{it.state.nota}</p>}
-                                {it.state.ok === null && <p className="text-[10px] text-gray-300 italic">Não verificado</p>}
+                                <p className={`text-xs ${isConforme ? "text-gray-700" : isNC ? "text-red-600" : "text-gray-600"}`}>{it.label}</p>
+                                {it.state.nota && <p className="text-[10px] text-gray-600 italic">{it.state.nota}</p>}
+                                {it.state.ok === null && <p className="text-[10px] text-gray-600 italic">Não verificado</p>}
                               </div>
                             </div>
                           );
@@ -349,7 +349,7 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
               {/* Observações */}
               {a.observacoes && (
                 <div className="break-inside-avoid">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Observações</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-2">Observações</p>
                   <p className="text-xs text-gray-600 whitespace-pre-line">{a.observacoes}</p>
                 </div>
               )}
@@ -357,32 +357,32 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
               {/* Análise de Mercado */}
               {sugestao && (
                 <div className="space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1">
                     Análise de Mercado — Referência Comparativa
                   </p>
                   {sugestao.metodologia && (
                     <div className="break-inside-avoid">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Metodologia Aplicada</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-1">Metodologia Aplicada</p>
                       <p className="text-sm text-gray-700 leading-relaxed">{sugestao.metodologia}</p>
                     </div>
                   )}
                   <div className="break-inside-avoid">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Indicadores de Mercado</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-2">Indicadores de Mercado</p>
                     <div className="grid grid-cols-4 gap-3">
                       <div className="bg-[#1A1A1A] text-white p-3 text-center">
                         <p className="text-[9px] text-gray-400 uppercase mb-1">Valor Sugerido</p>
                         <p className="text-sm font-black text-[#F5C400]">{formatValorBR(sugestao.valorSugerido)}</p>
                       </div>
                       <div className="bg-gray-50 border border-gray-200 p-3 text-center">
-                        <p className="text-[9px] text-gray-400 uppercase mb-1">Mínimo</p>
+                        <p className="text-[9px] text-gray-600 uppercase mb-1">Mínimo</p>
                         <p className="text-sm font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMin)}</p>
                       </div>
                       <div className="bg-gray-50 border border-gray-200 p-3 text-center">
-                        <p className="text-[9px] text-gray-400 uppercase mb-1">Máximo</p>
+                        <p className="text-[9px] text-gray-600 uppercase mb-1">Máximo</p>
                         <p className="text-sm font-black text-[#1A1A1A]">{formatValorBR(sugestao.valorMax)}</p>
                       </div>
                       <div className="bg-gray-50 border border-gray-200 p-3 text-center">
-                        <p className="text-[9px] text-gray-400 uppercase mb-1">Valor/m²</p>
+                        <p className="text-[9px] text-gray-600 uppercase mb-1">Valor/m²</p>
                         <p className="text-sm font-black text-[#1A1A1A]">{formatValorBR(sugestao.precoPorM2)}</p>
                       </div>
                     </div>
@@ -399,7 +399,7 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
                   </div>
                   {sugestao.comparaveis.length > 0 && (
                     <div className="break-inside-avoid">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-2">
                         Imóveis Comparáveis Pesquisados ({sugestao.comparaveis.length})
                       </p>
                       <table className="w-full text-xs border-collapse border border-gray-200">
@@ -426,13 +426,13 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
                   )}
                   {sugestao.observacoes && (
                     <div className="break-inside-avoid">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Análise e Observações</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-1">Análise e Observações</p>
                       <p className="text-sm text-gray-700 leading-relaxed">{sugestao.observacoes}</p>
                     </div>
                   )}
                   {sugestao.fontes.length > 0 && (
                     <div className="break-inside-avoid">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Fontes Consultadas</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-1">Fontes Consultadas</p>
                       <ul className="space-y-0.5">
                         {sugestao.fontes.map((fonte, i) => (
                           <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
@@ -449,14 +449,14 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
               {/* Documentos */}
               {documentos.length > 0 && (
                 <div className="break-inside-avoid">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-2">
                     Documentos Anexados ({documentos.length})
                   </p>
                   <div className="space-y-1">
                     {documentos.map((doc) => (
                       <div key={doc.id} className="flex items-center justify-between py-1 border-b border-gray-50 gap-3">
                         <p className="text-xs text-gray-700 flex-1 min-w-0 truncate">{doc.nome}</p>
-                        <span className="text-[10px] text-gray-400 shrink-0">{formatSize(doc.tamanho)}</span>
+                        <span className="text-[10px] text-gray-600 shrink-0">{formatSize(doc.tamanho)}</span>
                       </div>
                     ))}
                   </div>
@@ -466,7 +466,7 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
               {/* Fotos */}
               {checklist.fotos.length > 0 && (
                 <div className="print-break-before">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 border-b border-gray-200 pb-1 mb-3">
                     Registro Fotográfico ({checklist.fotos.length} fotos)
                   </p>
                   <div className="space-y-3">
@@ -478,7 +478,7 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
                             <div key={colIdx}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={src} alt={`Foto ${fotoNum}`} className="w-full aspect-[4/3] object-cover border border-gray-200" />
-                              <p className="text-[9px] text-gray-400 text-center mt-0.5">Foto {fotoNum}</p>
+                              <p className="text-[9px] text-gray-600 text-center mt-0.5">Foto {fotoNum}</p>
                             </div>
                           );
                         })}
@@ -492,26 +492,26 @@ export default async function BatchLaudosPage({ searchParams }: PageProps) {
               <div className="print-break-before" />
 
               <div className="print-break-inside-avoid pt-6 border-t-2 border-[#1A1A1A]">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8">Assinaturas</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-8">Assinaturas</p>
                 <div className="grid grid-cols-2 gap-12">
                   <div>
                     <div className="border border-dashed border-gray-300 mb-3 h-24 flex items-end justify-center pb-2">
-                      <span className="text-[9px] text-gray-300 uppercase tracking-widest">Assinar aqui</span>
+                      <span className="text-[9px] text-gray-500 uppercase tracking-widest">Assinar aqui</span>
                     </div>
                     <div className="border-b border-[#1A1A1A] mb-2" />
                     <p className="text-xs font-bold text-[#1A1A1A]">{a.avaliador || "—"}</p>
-                    <p className="text-[10px] text-gray-400">Avaliador Responsável</p>
+                    <p className="text-[10px] text-gray-600">Avaliador Responsável</p>
                   </div>
                   <div>
                     <div className="border border-dashed border-gray-300 mb-3 h-24 flex items-end justify-center pb-2">
-                      <span className="text-[9px] text-gray-300 uppercase tracking-widest">Assinar aqui</span>
+                      <span className="text-[9px] text-gray-500 uppercase tracking-widest">Assinar aqui</span>
                     </div>
                     <div className="border-b border-[#1A1A1A] mb-2" />
                     <p className="text-xs font-bold text-[#1A1A1A]">{a.clienteNome || "—"}</p>
-                    <p className="text-[10px] text-gray-400">Solicitante</p>
+                    <p className="text-[10px] text-gray-600">Solicitante</p>
                   </div>
                 </div>
-                <p className="text-[9px] text-gray-400 text-center mt-8">
+                <p className="text-[9px] text-gray-600 text-center mt-8">
                   Laudo emitido em {hoje} · Grupo Santa Fé · gruposantafee.com.br · {a.numero}
                 </p>
               </div>
