@@ -127,10 +127,14 @@ Sem migração de banco neste lote.
 - Testes: Prospecta 972/972, check e build OK; Santa Fé tsc OK, 811 passando + as mesmas 10 falhas
   pré-existentes, build OK. Sem migração.
 
+## Publicação 24/10 (autorizada: "Faz essa correção e depois faz merge e deploy")
+- Prospecta PR #163 → main `6f0189f`, deploy `dpl_AaEHzcjdGoAcHhTXoRJShsfs7GNr` **READY**.
+- Santa Fé PR #226 → main `5da52df`, deploy `dpl_EJwMrwGsXuqkMuSnf3LSkmMwyuh1` **READY**.
+- Sem erros de runtime nos 15 min seguintes (Vercel). Revisão do Codex no #163: sem apontamentos.
+
 ## Pendências / próximo passo exato
-1. Merge e deploy autorizados pelo dono em 24/10 ("Faz essa correção e depois faz merge e deploy")
-   para os PRs Prospecta #163 e Santa Fé #226 (correções do Codex + documentos anteriores).
-2. Depois do deploy: executar a lista (c) (mapa com as 4 obras e VGV simulado, legibilidade, colar
-   coordenada) e conferir o botão Remover em "Documentos anteriores" de um lead.
+1. Validação no site pelo dono (c): remover um item de "Documentos anteriores" de um lead; mapa com as
+   4 obras, VGV simulado e endereço; texto legível no fundo escuro; colar coordenada e ver salvar.
+2. O dono vai mandar novos pontos — abrir lote novo a partir da main.
 3. Sugestões do @ux ainda não feitas: seções mistas em `ProjetosOrcamentos.tsx`/`Portal.tsx` (Prospecta) e
    `text-gray-400` sobre branco em filtros do Santa Fé (ex.: `corretores-client.tsx:155`).
