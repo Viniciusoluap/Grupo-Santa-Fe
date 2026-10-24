@@ -30,6 +30,7 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
   const [parseError, setParseError] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState(false);
   const resolvendoRef = useRef(false);
+  const pasteInputRef = useRef<HTMLInputElement>(null);
 
   function placeMarker(lat: number, lng: number) {
     const L = leafletRef.current;
@@ -58,9 +59,12 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
       if (resolvendoRef.current) return;
       resolvendoRef.current = true;
       setResolvendo(true);
+      // Enquanto o link é aberto, o navegador não deixa salvar o formulário com o ponto antigo.
+      pasteInputRef.current?.setCustomValidity("Aguarde: a localização ainda está sendo lida do link do mapa.");
       const r = await resolverLinkCurtoAction(lido.linkCurto).finally(() => {
         resolvendoRef.current = false;
         setResolvendo(false);
+        pasteInputRef.current?.setCustomValidity("");
       });
       if (r.ok) {
         setParseError(null);
@@ -153,6 +157,7 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
         </label>
         <div className="flex gap-2">
           <input
+            ref={pasteInputRef}
             type="text"
             value={pasteValue}
             onChange={(e) => {

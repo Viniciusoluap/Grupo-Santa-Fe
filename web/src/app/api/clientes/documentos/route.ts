@@ -1,7 +1,7 @@
 import { NextRequest,NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { autorizarClienteDocumentos,garantirDocumentosCliente,obterItemDocumento,solicitarItemDocumento,type TipoChecklist } from "@/lib/documentos-cliente";
+import { autorizarClienteDocumentos,excluirDocumentoAnterior,garantirDocumentosCliente,obterItemDocumento,solicitarItemDocumento,type TipoChecklist } from "@/lib/documentos-cliente";
 import { DOCUMENTOS_CLIENTE,ordenarDocumentosFinanciamento } from "@/lib/documentos-cliente-padrao";
 import { atualizarChecklistFinanciamento } from "@/lib/crm/vinculo-lead";
 import { uploadDocumentoCliente } from "@/lib/incorporacao/registro-drive";
@@ -38,7 +38,9 @@ export async function GET(req:NextRequest) {
     if(tipo==="crm") {
       await garantirDocumentosCliente(lead.id);
       const docs=await prisma.documentoCliente.findMany({where:{leadId:lead.id,...(u.perfil==="cliente"?{visivelCliente:true}:{})}});
-      return NextResponse.json({items:DOCUMENTOS_CLIENTE.flatMap(d=>{const row=docs.find(x=>x.tipo===d.chave);return row?[{...row,nome:d.nome}]:[]}),interno:u.perfil!=="cliente"});
+      // Pedido de 24/10: documentos de tipos fora da lista atual aparecem à equipe em "Documentos anteriores".
+      const anteriores=u.perfil==="cliente"?[]:docs.filter(x=>x.arquivoId&&!DOCUMENTOS_CLIENTE.some(d=>d.chave===x.tipo)).map(x=>({...x,nome:x.tipo}));
+      return NextResponse.json({items:DOCUMENTOS_CLIENTE.flatMap(d=>{const row=docs.find(x=>x.tipo===d.chave);return row?[{...row,nome:d.nome}]:[]}),anteriores,interno:u.perfil!=="cliente"});
     }
     await atualizarChecklistFinanciamento(id);
     const docs=await prisma.checklistItem.findMany({where:{financiamentoId:id,legado:false,...(u.perfil==="cliente"?{visivelCliente:true}:{})}});
@@ -69,6 +71,12 @@ export async function POST(req:NextRequest) {
         if(tipo==="crm") await prisma.documentoCliente.update({where:{id:item.id},data:{visivelCliente:b.visivel}});
         else await prisma.checklistItem.update({where:{id:item.id},data:{visivelCliente:b.visivel}});
         return NextResponse.json({ok:true});
+      }
+      if(b.acao==="excluir_definitivo") {
+        if(tipo!=="crm") throw new Error("Ação inválida.");
+        const r=await excluirDocumentoAnterior(item.id);
+        revalidatePath(`/admin/leads/${r.leadId}`);
+        return NextResponse.json({ok:true,aviso:r.aviso});
       }
       if(b.acao!=="solicitar") throw new Error("Ação inválida.");
       return NextResponse.json(await solicitarItemDocumento(tipo,item.id));

@@ -93,9 +93,44 @@ Sem migração de banco neste lote.
 - Conferido em produção (leitura): as 18 PCIs (obras 13–36) continuam lidas com o parser novo.
 - Débito aceito: carregar o JSON `parsed` inteiro das PCIs no mapa (volume atual pequeno, 18 PCIs).
 
+## Publicação (24/10, autorizada pelo dono: "Pode fazer o merge e deploy")
+- Prospecta: PR #162 mesclado → main `439a10a`; deploy de produção `dpl_4isijxnwKZSmxzht6NqKv39nRupY`.
+- Santa Fé: PR #225 mesclado → main `e854433`; deploy de produção `dpl_AGFRhvpyc2KDwqbknKPpfXt7GMY3`.
+- Sem migração de banco.
+
+- Deploys conferidos em 24/10 00:50 UTC: os dois **READY**, aliases de produção ativos
+  (prospectaconstrucoes.com / gruposantafee.com.br), sem erros de runtime nos 15 min seguintes.
+
+## Revisão do Codex nos PRs #162/#225 (pós-merge) — corrigido no lote de acompanhamento
+- P2 (2 repos): o mapa usava `vgv → valor aprovado → simulação`. A regra canônica do financeiro da obra
+  (`carregarObra` na Prospecta, `carregarResumoObra`/`vgvSimuladoDoLead` no Santa Fé) é: obra do CRM (com lead)
+  = **VGV simulado do lead**; obra sem lead = VGV digitado. Valor aprovado é financiamento. Mapa alinhado.
+- P2: link curto colado + Salvar imediato salvava o ponto antigo. Prospecta: `CampoLocalizacao.onResolvendo`
+  bloqueia o salvar (AdminImovelForm, AdminEditarObra) com aviso. Santa Fé: o campo recebe
+  `setCustomValidity` enquanto o link é lido — o navegador não envia o formulário.
+- Testes: Prospecta 968/968, check e build OK; Santa Fé tsc OK, 807 passando + as mesmas 10 falhas
+  pré-existentes do ambiente, build OK.
+
+## Pedido de 24/10 — "Documentos anteriores" com botão Remover (exclusão definitiva)
+- Prospecta: `leadDocuments.excluirDefinitivo` (server/lead-documents-router.ts) apaga o registro
+  (bytes de `lead_document_file_data` saem em cascata); arquivo no Drive vai para a lixeira do Drive
+  (30 dias) se nenhum outro registro (lead duplicado) usar o mesmo `drive_file_id`; falha no Drive
+  vira aviso, não impede. Timeline: "Documento X (arquivo) excluído definitivamente".
+  Botão "Remover" (vermelho, com confirmação) em cada item de "Documentos anteriores"
+  (client/src/components/LeadDocuments.tsx). Teste: server/lead-documento-exclusao.test.ts (4).
+- Santa Fé: não tinha a seção. Criada (só para a equipe) com Consultar + Remover:
+  `excluirDocumentoAnterior` (web/src/lib/documentos-cliente.ts), ação `excluir_definitivo` em
+  /api/clientes/documentos, UI em components/documentos/checklist-documentos.tsx. Só tipos fora da
+  lista atual; apaga registro, versões e `Arquivo` sem outro uso; Drive → lixeira.
+  Produção do Santa Fé hoje não tem documentos de tipo antigo (consulta só leitura), então a seção
+  não aparece até existir algum. Teste: documento-anterior-exclusao.db.test.ts (4, banco real).
+- Testes: Prospecta 972/972, check e build OK; Santa Fé tsc OK, 811 passando + as mesmas 10 falhas
+  pré-existentes, build OK. Sem migração.
+
 ## Pendências / próximo passo exato
-1. Commit + push nos dois repositórios (branch acima) e PRs em rascunho.
-2. **Merge e deploy só com autorização expressa do dono.** Sem migração.
-3. Depois do deploy: executar a lista (c) acima.
-4. Sugestões do @ux ainda não feitas: seções mistas em `ProjetosOrcamentos.tsx`/`Portal.tsx` (Prospecta) e
+1. Merge e deploy autorizados pelo dono em 24/10 ("Faz essa correção e depois faz merge e deploy")
+   para os PRs Prospecta #163 e Santa Fé #226 (correções do Codex + documentos anteriores).
+2. Depois do deploy: executar a lista (c) (mapa com as 4 obras e VGV simulado, legibilidade, colar
+   coordenada) e conferir o botão Remover em "Documentos anteriores" de um lead.
+3. Sugestões do @ux ainda não feitas: seções mistas em `ProjetosOrcamentos.tsx`/`Portal.tsx` (Prospecta) e
    `text-gray-400` sobre branco em filtros do Santa Fé (ex.: `corretores-client.tsx:155`).

@@ -1,10 +1,11 @@
 // Pedido de 23/10 — Mapa Operacional: imóveis disponíveis + obras com ponto
 // conhecido. Gêmeo de mapaRouter.list (Prospecta/server/operacional-router.ts).
-// Imóvel vinculado a uma obra mostra o VGV e o endereço da obra; obra sem imóvel
+// Imóvel vinculado a uma obra mostra o VGV (simulado do lead, se houver) e o endereço da obra; obra sem imóvel
 // vinculado entra com as coordenadas da PCI da CAIXA, sem criar imóvel.
 // Coordenada ausente ou ilegível não é inventada.
 import { prisma } from "@/lib/db";
 import { coordenadasDaPci, enderecoCompleto } from "@/lib/obra-localizacao";
+import { vgvSimuladoDoLead } from "@/lib/financeiro/vgv-lead";
 
 export type PontoMapa = {
   key: string;
@@ -32,13 +33,15 @@ export async function pontosDoMapa(): Promise<PontoMapa[]> {
     }),
     prisma.obra.findMany({
       select: {
-        id: true, nome: true, endereco: true, vgv: true, imovelId: true,
-        leadVinculado: { select: { valorAprovado: true, orcamento: true } },
+        id: true, nome: true, endereco: true, vgv: true, imovelId: true, leadId: true,
+        leadVinculado: { select: { orcamento: true } },
         pci: { select: { versao: { select: { parsed: true } } } },
       },
     }),
   ]);
-  const vgvDaObra = (o: (typeof obras)[number]) => numero(o.vgv) ?? numero(o.leadVinculado?.valorAprovado) ?? numero(o.leadVinculado?.orcamento);
+  // Mesma regra do financeiro da obra (carregarResumoObra): obra do CRM usa o VGV simulado do
+  // lead; obra sem lead usa o VGV digitado. Valor aprovado é financiamento, não VGV.
+  const vgvDaObra = (o: (typeof obras)[number]) => numero(o.leadId ? vgvSimuladoDoLead(o.leadVinculado) : o.vgv);
   const obraDoImovel = new Map(obras.filter((o) => o.imovelId).map((o) => [o.imovelId!, o]));
   const pontoPciDaObra = (o: (typeof obras)[number]) => {
     const id = (o.pci?.versao.parsed as { identificacao?: { latitude?: unknown; longitude?: unknown } } | null)?.identificacao;
