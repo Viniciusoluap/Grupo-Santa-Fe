@@ -93,9 +93,13 @@ Sem migração de banco neste lote.
 - Conferido em produção (leitura): as 18 PCIs (obras 13–36) continuam lidas com o parser novo.
 - Débito aceito: carregar o JSON `parsed` inteiro das PCIs no mapa (volume atual pequeno, 18 PCIs).
 
+## Publicação (24/10, autorizada pelo dono: "Pode fazer o merge e deploy")
+- Prospecta: PR #162 mesclado → main `439a10a`; deploy de produção `dpl_4isijxnwKZSmxzht6NqKv39nRupY`.
+- Santa Fé: PR #225 mesclado → main `e854433`; deploy de produção `dpl_AGFRhvpyc2KDwqbknKPpfXt7GMY3`.
+- Sem migração de banco.
+
 ## Pendências / próximo passo exato
-1. Commit + push nos dois repositórios (branch acima) e PRs em rascunho.
-2. **Merge e deploy só com autorização expressa do dono.** Sem migração.
-3. Depois do deploy: executar a lista (c) acima.
+1. Conferir que os dois deploys acima ficaram READY (status registrado no próximo commit deste handoff).
+2. Executar a lista (c) acima no site.
 4. Sugestões do @ux ainda não feitas: seções mistas em `ProjetosOrcamentos.tsx`/`Portal.tsx` (Prospecta) e
    `text-gray-400` sobre branco em filtros do Santa Fé (ex.: `corretores-client.tsx:155`).
