@@ -36,6 +36,13 @@ e nenhum arquivo enviado.
 (c) Pendente em produção (após deploy autorizado): enviar um PDF e um arquivo editável num projeto e
     entregar uma versão no card "Solicitar revisão".
 
+## Publicação (24/10, autorizada pelo dono: "Pode fazer o merge e deploy")
+- Prospecta PR #164 → main `0209872`, deploy `dpl_4dKUWErdfVQ15Ae9D6DvMLimBjGK` **READY**.
+- Santa Fé PR #227 (só handoffs) → main `98f0dd0`, deploy `dpl_5sHUAC3ESibVoA65BFMkp5ZtRa3j` **READY**.
+- Sem erros de runtime nos 15 min seguintes. A chamada direta ao domínio não foi possível deste ambiente
+  (proxy bloqueia prospectaconstrucoes.com), então o teste real de envio fica para o dono (c).
+
 ## Próximo passo exato
-1. PR aberto; **merge e deploy aguardam autorização expressa do dono**. Sem migração.
-2. Após deploy: executar (c).
+1. Dono: em Projetos › Editar, "Enviar PDF" e "Enviar arquivo editável" num item salvo; e entregar uma versão
+   no card "Solicitar revisão". Se falhar, a mensagem agora mostra o código HTTP — usar isso no diagnóstico.
+2. Decisão pendente do dono: publicar também `imovel-feeds`, webhook do WhatsApp e webhook do Stripe.
