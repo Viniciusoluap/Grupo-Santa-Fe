@@ -98,8 +98,22 @@ Sem migração de banco neste lote.
 - Santa Fé: PR #225 mesclado → main `e854433`; deploy de produção `dpl_AGFRhvpyc2KDwqbknKPpfXt7GMY3`.
 - Sem migração de banco.
 
+- Deploys conferidos em 24/10 00:50 UTC: os dois **READY**, aliases de produção ativos
+  (prospectaconstrucoes.com / gruposantafee.com.br), sem erros de runtime nos 15 min seguintes.
+
+## Revisão do Codex nos PRs #162/#225 (pós-merge) — corrigido no lote de acompanhamento
+- P2 (2 repos): o mapa usava `vgv → valor aprovado → simulação`. A regra canônica do financeiro da obra
+  (`carregarObra` na Prospecta, `carregarResumoObra`/`vgvSimuladoDoLead` no Santa Fé) é: obra do CRM (com lead)
+  = **VGV simulado do lead**; obra sem lead = VGV digitado. Valor aprovado é financiamento. Mapa alinhado.
+- P2: link curto colado + Salvar imediato salvava o ponto antigo. Prospecta: `CampoLocalizacao.onResolvendo`
+  bloqueia o salvar (AdminImovelForm, AdminEditarObra) com aviso. Santa Fé: o campo recebe
+  `setCustomValidity` enquanto o link é lido — o navegador não envia o formulário.
+- Testes: Prospecta 968/968, check e build OK; Santa Fé tsc OK, 807 passando + as mesmas 10 falhas
+  pré-existentes do ambiente, build OK.
+
 ## Pendências / próximo passo exato
-1. Conferir que os dois deploys acima ficaram READY (status registrado no próximo commit deste handoff).
-2. Executar a lista (c) acima no site.
-4. Sugestões do @ux ainda não feitas: seções mistas em `ProjetosOrcamentos.tsx`/`Portal.tsx` (Prospecta) e
+1. PRs de acompanhamento (correções do Codex + handoff) abertos nos dois repos — **merge e deploy aguardam
+   autorização expressa do dono**.
+2. Depois do deploy: executar a lista (c) acima (mapa com as 4 obras e VGV simulado, legibilidade, colar coordenada).
+3. Sugestões do @ux ainda não feitas: seções mistas em `ProjetosOrcamentos.tsx`/`Portal.tsx` (Prospecta) e
    `text-gray-400` sobre branco em filtros do Santa Fé (ex.: `corretores-client.tsx:155`).
