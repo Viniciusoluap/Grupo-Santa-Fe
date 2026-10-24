@@ -33,7 +33,7 @@ import {
 // tipo da medição (PLS, Repactuação, Alteração de Projeto) com os campos de
 // cada modelo, fotos em lote da medição e os arquivos .xls/.pdf preenchidos.
 
-const campo = "bg-gray-50 border-gray-300 text-gray-900";
+const campo = "bg-gray-50 border-gray-300 text-gray-900 placeholder:text-gray-500";
 const caixaSelect = `h-9 w-full rounded-md border px-2 text-sm ${campo}`;
 
 function Rotulo({ texto, children }: { texto: string; children: ReactNode }) {
@@ -263,15 +263,15 @@ export function FotosSalvas({ fotos, onSalvar, onExcluir, ocupado }: {
   onExcluir?: (id: string) => void;
   ocupado?: boolean;
 }) {
-  return <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">{fotos.map(f => <li key={f.id} className="space-y-2 rounded border border-current/20 p-2">
+  return <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">{fotos.map(f => <li key={f.id} className="space-y-2 rounded border border-gray-300 bg-white p-2 text-gray-900">
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src={f.imageUrl} alt={f.caption || "Foto da obra"} loading="lazy" className="aspect-[4/3] w-full rounded object-cover" />
     <form key={`${f.id}:${f.caption}:${f.includeInReport}`} className="space-y-2" onSubmit={e => { e.preventDefault(); const valores = new FormData(e.currentTarget); onSalvar?.(f.id, String(valores.get("legenda") ?? "").trim() || null, valores.has("incluir")); }}>
-      <label className="block text-xs">Legenda<input name="legenda" defaultValue={f.caption ?? ""} maxLength={250} disabled={ocupado} className="mt-1 w-full rounded border border-current/30 bg-transparent px-2 py-1" /></label>
-      <label className="flex gap-2 items-center text-xs"><input type="checkbox" name="incluir" defaultChecked={f.includeInReport ?? true} disabled={ocupado} />No relatório executivo</label>
+      <label className="block text-xs text-gray-900">Legenda<input name="legenda" defaultValue={f.caption ?? ""} maxLength={250} disabled={ocupado} placeholder="Descrever foto" className="mt-1 w-full rounded border border-gray-300 bg-gray-50 px-2 py-1 text-gray-900 placeholder:text-gray-500" /></label>
+      <label className="flex gap-2 items-center text-xs text-gray-900"><input type="checkbox" name="incluir" defaultChecked={f.includeInReport ?? true} disabled={ocupado} className="accent-[var(--brand-dark)]" />No relatório executivo</label>
       <div className="flex flex-wrap gap-2">
         {onSalvar && <Button type="submit" size="sm" variant="outline" disabled={ocupado}>Salvar foto</Button>}
-        {onExcluir && <Button type="button" size="sm" variant="outline" disabled={ocupado} onClick={() => onExcluir(f.id)}>Excluir foto</Button>}
+        {onExcluir && <Button type="button" size="sm" variant="outline" disabled={ocupado} onClick={() => onExcluir(f.id)} className="border-red-700 text-red-700 hover:bg-red-700 hover:text-white">Excluir foto</Button>}
       </div>
     </form>
   </li>)}</ul>;
@@ -300,7 +300,7 @@ export function FotosMedicao({ tipo, fotos, setFotos, existentes, onExcluirExist
   return (
     <div className="space-y-2 rounded border border-dashed border-gray-300 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-gray-700">Relatório fotográfico da medição ({total} de {quadros} quadros do modelo da CAIXA)</p>
+        <p className="text-sm text-gray-900">Relatório fotográfico da medição ({total} de {quadros} quadros do modelo da CAIXA)</p>
         <Button type="button" size="sm" variant="outline" onClick={() => entrada.current?.click()} className="border-gray-400 bg-transparent text-[var(--brand-dark)] gap-1">
           <ImagePlus className="h-4 w-4" />Adicionar fotos (lote)
         </Button>

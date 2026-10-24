@@ -29,6 +29,7 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
   const [pasteValue, setPasteValue] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState(false);
+  const resolvendoRef = useRef(false);
 
   function placeMarker(lat: number, lng: number) {
     const L = leafletRef.current;
@@ -53,9 +54,14 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
       return;
     }
     if ("linkCurto" in lido) {
+      // Sair do campo e clicar em "Marcar" disparam juntos: o link curto é resolvido uma vez só.
+      if (resolvendoRef.current) return;
+      resolvendoRef.current = true;
       setResolvendo(true);
-      const r = await resolverLinkCurtoAction(lido.linkCurto);
-      setResolvendo(false);
+      const r = await resolverLinkCurtoAction(lido.linkCurto).finally(() => {
+        resolvendoRef.current = false;
+        setResolvendo(false);
+      });
       if (r.ok) {
         setParseError(null);
         setPasteValue("");
@@ -149,7 +155,15 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
           <input
             type="text"
             value={pasteValue}
-            onChange={(e) => { setPasteValue(e.target.value); setParseError(null); }}
+            onChange={(e) => {
+              const valor = e.target.value;
+              setPasteValue(valor);
+              setParseError(null);
+              // Pedido de 23/10: o ponto colado vale na hora, sem depender do botão "Marcar".
+              const lido = interpretarLocalizacao(valor);
+              if (lido.ok) placeMarker(lido.lat, lido.lng);
+            }}
+            onBlur={() => { if (pasteValue.trim() && !interpretarLocalizacao(pasteValue).ok) void handleApplyPaste(); }}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), void handleApplyPaste())}
             placeholder="Coordenadas, link do Google Maps, Waze, Apple Maps ou Plus Code"
             aria-label="Localização: coordenadas ou link do mapa"

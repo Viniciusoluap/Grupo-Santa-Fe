@@ -68,6 +68,8 @@ export function PropertyMap({
         popupAnchor: [0, -32],
       });
 
+      // Título, tipo e link vêm do cadastro (ex.: nome da obra): escapados antes de virar HTML.
+      const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
       pins.forEach((pin) => {
         const marker = L.marker([pin.lat, pin.lng], { icon: yellowIcon }).addTo(map);
 
@@ -76,17 +78,17 @@ export function PropertyMap({
           : "";
 
         const typeText = pin.type
-          ? `<span style="background:#F5C400;color:#1A1A1A;font-size:9px;font-weight:700;padding:2px 6px;text-transform:uppercase;letter-spacing:0.05em">${pin.type}</span>`
+          ? `<span style="background:#F5C400;color:#1A1A1A;font-size:9px;font-weight:700;padding:2px 6px;text-transform:uppercase;letter-spacing:0.05em">${esc(pin.type)}</span>`
           : "";
 
         const linkHtml = pin.href
-          ? `<a href="${pin.href}" style="display:block;margin-top:8px;background:#1A1A1A;color:#F5C400;font-weight:700;font-size:10px;text-align:center;padding:4px 8px;text-decoration:none;text-transform:uppercase;letter-spacing:0.05em">Ver imóvel →</a>`
+          ? `<a href="${esc(pin.href)}" style="display:block;margin-top:8px;background:#1A1A1A;color:#F5C400;font-weight:700;font-size:10px;text-align:center;padding:4px 8px;text-decoration:none;text-transform:uppercase;letter-spacing:0.05em">Ver imóvel →</a>`
           : "";
 
         marker.bindPopup(`
           <div style="font-family:sans-serif;min-width:160px">
             ${typeText}
-            <p style="font-weight:700;margin:6px 0 2px;color:#1A1A1A;font-size:13px">${pin.title}</p>
+            <p style="font-weight:700;margin:6px 0 2px;color:#1A1A1A;font-size:13px">${esc(pin.title)}</p>
             ${priceText}
             ${linkHtml}
           </div>
