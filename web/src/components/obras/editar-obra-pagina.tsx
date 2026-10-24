@@ -131,7 +131,9 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
                   ? `Ponto guardado no imóvel vinculado "${o.imovel.titulo}" (aparece no Mapa Operacional).`
                   : pontoPci
                     ? `Ponto lido da PCI da CAIXA: ${pontoPci.lat.toFixed(6)}, ${pontoPci.lng.toFixed(6)} (já aparece no Mapa Operacional). Para usar outro ponto, cole-o acima e salve.`
-                    : "Ao salvar, o ponto cria um imóvel vinculado à obra, não publicado no site, e aparece no Mapa Operacional."}
+                    : o.imovel
+                      ? `O imóvel vinculado "${o.imovel.titulo}" ainda não tem ponto. Cole a localização acima e salve para aparecer no Mapa Operacional.`
+                      : "Ao salvar, o ponto cria um imóvel vinculado à obra, não publicado no site, e aparece no Mapa Operacional."}
               </p>
             </div>
             <div>

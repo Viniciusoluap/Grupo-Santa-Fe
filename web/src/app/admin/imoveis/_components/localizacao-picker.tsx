@@ -29,6 +29,7 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
   const [pasteValue, setPasteValue] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState(false);
+  const resolvendoRef = useRef(false);
 
   function placeMarker(lat: number, lng: number) {
     const L = leafletRef.current;
@@ -53,9 +54,14 @@ export function LocalizacaoPicker({ nameLat, nameLng, defaultLat, defaultLng }: 
       return;
     }
     if ("linkCurto" in lido) {
+      // Sair do campo e clicar em "Marcar" disparam juntos: o link curto é resolvido uma vez só.
+      if (resolvendoRef.current) return;
+      resolvendoRef.current = true;
       setResolvendo(true);
-      const r = await resolverLinkCurtoAction(lido.linkCurto);
-      setResolvendo(false);
+      const r = await resolverLinkCurtoAction(lido.linkCurto).finally(() => {
+        resolvendoRef.current = false;
+        setResolvendo(false);
+      });
       if (r.ok) {
         setParseError(null);
         setPasteValue("");

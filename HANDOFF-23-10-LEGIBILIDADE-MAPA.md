@@ -68,6 +68,8 @@ Sem migração de banco neste lote.
   mesmas de antes deste lote); `npm run build` OK (com `DATABASE_URL` do banco local).
 - Novos: parser PCI (compacto/DMS/decimal/nulos), `enderecoCompleto`, mapa com imóvel + obra-PCI + VGV/endereço.
 - Revisão @qa (AIOX): ver seção "QA" abaixo.
+- Depois das correções do QA: Prospecta 968 testes passando, check e build OK; Santa Fé tsc OK,
+  vitest 806 passando + as mesmas 10 falhas pré-existentes, teste do mapa 3/3, build OK.
 
 (b) Manuais por mim
 - Conferência em produção (somente leitura) das obras 18/21/27/28 e das 18 obras com PCI legível.
@@ -77,6 +79,19 @@ Sem migração de banco neste lote.
 - Abrir /admin/mapa nos dois sites e conferir os 4 pontos (obras 18/21/27/28) com VGV e endereço.
 - Abrir uma medição CAIXA › Relatório fotográfico e o /admin: todo texto legível.
 - Colar coordenada no campo de localização e ver salvar sem clicar em "Marcar".
+
+## QA (@qa AIOX) — veredito CONCERNS, sem achado alto; corrigido no 2º commit
+- Médio: obra com imóvel vinculado **sem coordenadas** ou com imóvel **vendido/alugado** ficava fora do mapa
+  → agora usa o ponto da PCI nos dois casos (Prospecta `operacional-router.ts`, Santa Fé `mapa-operacional.ts`).
+- Médio: texto de ajuda do Editar Obra afirmava "aparece no mapa" sem ponto e divergia entre os repos
+  → condições alinhadas; novo texto "O imóvel vinculado X ainda não tem ponto…".
+- Segurança (Santa Fé): popup do mapa (`components/map/property-map.tsx`) montava HTML sem escapar → escapado.
+- Baixos corrigidos: `enderecoCompleto` perdia bairro presente no nome da rua (agora só compara com o último
+  trecho; produção tem "…, Imperatriz/MA" + cidade/UF); latitude/longitude trocadas viravam ponto no oceano
+  (agora lat só N/S e lng só L/E/O/W); formato compacto/DMS sem hemisfério → null; aceita ′ ″;
+  link curto resolvido 2× (blur + clique) → trava; `text-muted-foreground` no /admin → `text-gray-300/400`.
+- Conferido em produção (leitura): as 18 PCIs (obras 13–36) continuam lidas com o parser novo.
+- Débito aceito: carregar o JSON `parsed` inteiro das PCIs no mapa (volume atual pequeno, 18 PCIs).
 
 ## Pendências / próximo passo exato
 1. Commit + push nos dois repositórios (branch acima) e PRs em rascunho.

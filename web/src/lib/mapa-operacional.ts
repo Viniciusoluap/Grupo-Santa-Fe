@@ -40,9 +40,15 @@ export async function pontosDoMapa(): Promise<PontoMapa[]> {
   ]);
   const vgvDaObra = (o: (typeof obras)[number]) => numero(o.vgv) ?? numero(o.leadVinculado?.valorAprovado) ?? numero(o.leadVinculado?.orcamento);
   const obraDoImovel = new Map(obras.filter((o) => o.imovelId).map((o) => [o.imovelId!, o]));
+  const pontoPciDaObra = (o: (typeof obras)[number]) => {
+    const id = (o.pci?.versao.parsed as { identificacao?: { latitude?: unknown; longitude?: unknown } } | null)?.identificacao;
+    return id ? coordenadasDaPci(id.latitude, id.longitude) : null;
+  };
   const pontosImoveis: PontoMapa[] = imoveis.map((p) => {
     const obra = obraDoImovel.get(p.id);
     const valido = p.latitude !== null && p.longitude !== null && Math.abs(p.latitude) <= 90 && Math.abs(p.longitude) <= 180 && !(p.latitude === 0 && p.longitude === 0);
+    // Imóvel vinculado sem coordenadas usa o ponto da PCI da obra (sem gravar nada).
+    const pci = obra && !valido ? pontoPciDaObra(obra) : null;
     return {
       key: `imovel-${p.id}`,
       id: p.id,
@@ -53,14 +59,15 @@ export async function pontosDoMapa(): Promise<PontoMapa[]> {
       status: p.status,
       endereco: enderecoCompleto(obra ? [obra.endereco] : [p.rua, p.bairro, p.cidade, p.estado]),
       valor: obra ? vgvDaObra(obra) : p.preco,
-      latitude: valido ? p.latitude : null,
-      longitude: valido ? p.longitude : null,
+      latitude: valido ? p.latitude : (pci?.lat ?? null),
+      longitude: valido ? p.longitude : (pci?.lng ?? null),
       href: obra ? `/admin/obras/${obra.id}` : `/admin/imoveis/${p.slug}`,
     };
   });
-  const pontosObras: PontoMapa[] = obras.filter((o) => !o.imovelId).flatMap((o) => {
-    const id = (o.pci?.versao.parsed as { identificacao?: { latitude?: unknown; longitude?: unknown } } | null)?.identificacao;
-    const ponto = id ? coordenadasDaPci(id.latitude, id.longitude) : null;
+  // Obra sem imóvel na lista (sem vínculo, ou imóvel vendido/locado) entra pelo ponto da PCI.
+  const imoveisListados = new Set(imoveis.map((p) => p.id));
+  const pontosObras: PontoMapa[] = obras.filter((o) => !o.imovelId || !imoveisListados.has(o.imovelId)).flatMap((o) => {
+    const ponto = pontoPciDaObra(o);
     if (!ponto) return [];
     return [{
       key: `obra-${o.id}`,

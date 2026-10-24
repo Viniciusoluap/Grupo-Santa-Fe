@@ -41,16 +41,20 @@ export function imovelDaObra(obra: { id: number | string; titulo: string; endere
  * (`5°30'29.0" S`, `05° 45' 22" S`, `5°32'06'' S`) e decimal (-5.5079).
  * Sul/Oeste (S, W, O) ficam negativos. Valor ilegível ou zerado = null.
  */
-export function coordenadaPciDecimal(valor: unknown): number | null {
+export function coordenadaPciDecimal(valor: unknown, eixo?: "lat" | "lng"): number | null {
   const t = String(valor ?? "").trim().toUpperCase().replace(/,/g, ".");
   if (!t) return null;
   const hemisferio = /([NSEWLO])\s*$/.exec(t)?.[1] ?? "";
+  // Latitude só aceita N/S e longitude só L/E/O/W: campos trocados não viram ponto no oceano.
+  if (eixo === "lat" && hemisferio && !"NS".includes(hemisferio)) return null;
+  if (eixo === "lng" && hemisferio && !"EWLO".includes(hemisferio)) return null;
   const sinal = hemisferio === "S" || hemisferio === "W" || hemisferio === "O" ? -1 : 1;
   const corpo = t.replace(/[NSEWLO]\s*$/, "").trim();
   let graus: number;
   const compacto = /^(\d{5,7})(?:\.(\d+))?$/.exec(corpo);
-  const dms = /^(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['´’]\s*(\d{1,2}(?:\.\d+)?)\s*(?:"|''|”|′′)?$/.exec(corpo);
+  const dms = /^(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['´’′]\s*(\d{1,2}(?:\.\d+)?)\s*(?:"|''|”|″|′′)?$/.exec(corpo);
   const decimal = /^-?\d{1,3}\.\d+$/.exec(corpo);
+  if ((compacto || dms) && !hemisferio) return null; // sem N/S/L/O não dá para saber o sinal
   if (compacto) {
     const dig = compacto[1].padStart(6, "0");
     const g = Number(dig.slice(0, -4)), m = Number(dig.slice(-4, -2)), s = Number(`${dig.slice(-2)}.${compacto[2] ?? 0}`);
@@ -69,19 +73,27 @@ export function coordenadaPciDecimal(valor: unknown): number | null {
 
 /** Par de coordenadas da identificação da PCI (latitude/longitude) → ponto válido ou null. */
 export function coordenadasDaPci(latitude: unknown, longitude: unknown): Coordenadas | null {
-  const lat = coordenadaPciDecimal(latitude);
-  const lng = coordenadaPciDecimal(longitude);
+  const lat = coordenadaPciDecimal(latitude, "lat");
+  const lng = coordenadaPciDecimal(longitude, "lng");
   if (lat === null || lng === null) return null;
   try { return normalizarCoordenadas({ lat, lng }); } catch { return null; }
 }
 
-/** Endereço em uma linha: partes preenchidas, sem repetição, separadas por vírgula. */
+/**
+ * Endereço em uma linha: partes preenchidas, separadas por vírgula. Uma parte é omitida
+ * se for igual a outra já incluída ou se já estiver, como palavra inteira, no último trecho
+ * do endereço (ex.: "Morada do Bosque, Imperatriz/MA" + "Imperatriz" + "MA"). Bairro que só
+ * aparece no nome da rua ("Rua Centro, 10" + "Centro") é mantido.
+ */
 export function enderecoCompleto(partes: Array<string | null | undefined>): string | null {
   const vistas: string[] = [];
   for (const p of partes) {
     const t = (p ?? "").trim();
-    const palavraInteira = new RegExp(`(^|[\\s,.;-])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[\\s,.;-])`, "i");
-    if (t && !vistas.some(v => palavraInteira.test(v))) vistas.push(t);
+    if (!t) continue;
+    const ultimoTrecho = (vistas.join(", ").split(",").pop() ?? "").trim();
+    const palavraInteira = new RegExp(`(^|[\\s,./;-])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[\\s,./;-])`, "i");
+    const repetida = vistas.some(v => v.toLowerCase() === t.toLowerCase()) || palavraInteira.test(ultimoTrecho);
+    if (!repetida) vistas.push(t);
   }
   return vistas.length ? vistas.join(", ") : null;
 }
