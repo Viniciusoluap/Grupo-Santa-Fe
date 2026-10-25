@@ -1,5 +1,5 @@
 // Pedido de 25/10: extrato e saldo da conta Asaas pela API (sem custo), para o BPO › Bancos.
-// Gêmeo de Prospecta/server/_core/asaas-extrato.ts. Usa a chave da própria conta bancária cadastrada.
+// Gêmeo de Prospecta/server/_core/asaas-extrato.ts. Usa a chave da conta (ou a chave central de Integrações).
 const ASAAS_API = {
   production: "https://api.asaas.com/v3",
   sandbox: "https://sandbox.asaas.com/api/v3",
@@ -24,8 +24,16 @@ async function getAsaas<T>(apiKey: string, path: string, fetchImpl: Fetch): Prom
   const res = await fetchImpl(`${baseUrl(apiKey)}${path}`, {
     headers: { access_token: apiKey.trim(), "Content-Type": "application/json", "User-Agent": "GrupoSantaFe-BPO" },
   });
-  if (res.status === 401) throw new Error("O Asaas recusou a chave de API desta conta.");
-  if (!res.ok) throw new Error(`O Asaas não respondeu ao extrato (HTTP ${res.status}).`);
+  if (!res.ok) {
+    // LOTE D (25/10): mostrar o motivo exato devolvido pelo Asaas (ex.: chave inválida, IP não autorizado).
+    let detalhe = "";
+    try {
+      const corpo = (await res.json()) as { errors?: { code?: string; description?: string }[] };
+      detalhe = (corpo.errors ?? []).map((e) => e.description || e.code).filter(Boolean).join("; ");
+    } catch { /* corpo vazio */ }
+    const dica = res.status === 401 ? " Confira se a chave está ativa e se há restrição de IP no Asaas (Integrações › Chave de API)." : "";
+    throw new Error(`O Asaas recusou o acesso (HTTP ${res.status})${detalhe ? `: ${detalhe}` : ""}.${dica}`);
+  }
   return (await res.json()) as T;
 }
 

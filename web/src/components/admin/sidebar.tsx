@@ -23,6 +23,7 @@ import {
   Briefcase,
   ClipboardList,
   Mountain,
+  Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +112,12 @@ const navItems = [
     label: "Configurações",
     href: "/admin/configuracoes",
     icon: Settings,
+  },
+  {
+    // LOTE B (25/10): chaves do Asaas, Pluggy e WhatsApp num lugar só (só admin).
+    label: "Integrações",
+    href: "/admin/integracoes",
+    icon: Plug,
   },
 ];
 

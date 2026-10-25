@@ -104,3 +104,69 @@ Merge, deploy e migração em produção ainda dependem de autorização separad
 - Próximo passo exato: com autorização → aplicar `0069`/`0070` (Neon) e `20261025120000_bancos_provedores` (Supabase),
   merge + deploy, gravar chaves da Prospecta como `plain:` (Asaas na conta "Asaas"; Pluggy em `pluggy_settings`),
   clicar "Sincronizar"/"Testar conexão" e conferir; dono publica a Evolution no Railway e conecta o QR.
+
+## PUBLICADO EM PRODUÇÃO (25/10, autorizado: "Eu autorizo tudo")
+- Merge: Prospecta PR #166 → main `61c7f27` (deploy `dpl_EaLk3NYi2TXazXQDk1uNKcjeXwRx`);
+  Santa Fé PR #229 → main `b518061` (deploy `dpl_9PGXUEEieZqcTFHibEejHtm3XMTH`). Os deploys estavam BUILDING —
+  **conferir na Vercel se ficaram READY e sem erros de runtime** (projetos prj_hVT5OCL8S5GbJ5L0GArH9aDxbFHR /
+  prj_W8c9sow2dxFO5GDfqABwlKWodI1v, team team_0ACtTLoM4VLMrijmyLUPafHy).
+- Migrações aplicadas em produção (aditivas): Prospecta Neon `plain-cake-26372935` → 0069 + 0070;
+  Santa Fé Supabase `giulchozonhzyopmgmkv` → `bancos_provedores_20261025`.
+- Avisos em tempo real (no deploy):
+  - Prospecta: `server/pluggy-webhook.ts` (`/api/pluggy/webhook`, header `x-webhook-token` = HMAC do JWT_SECRET);
+    `server/asaas-webhook.ts` sincroniza as contas Asaas do BPO a cada evento autenticado; notificação no sistema para
+    admins quando entram movimentações novas; o webhook da Pluggy é registrado sozinho em "Testar conexão"/importar contas.
+  - Santa Fé: mesmas regras (`/api/pluggy/webhook`, novo `/api/asaas/webhook` com token salvo na tela do BPO ou env
+    `ASAAS_WEBHOOK_TOKEN`).
+- Chaves da Prospecta gravadas no Neon como `plain:` (recriptografadas no 1º uso):
+  - `pluggy_settings` (Client ID/Secret transcritos do print; se "Testar conexão" falhar, dono recola em BPO › Bancos › Pluggy).
+  - `payment_settings` (asaas, production): chave de API (estrutura conferida, íntegra) + token do webhook `whsec_…`
+    (transcrito do print; l/I podem ter saído trocados — se o Asaas acusar falha, recolar em Configurações › Pagamento).
+    Recriptografia de `payment_settings` ocorre no cron diário (11h UTC).
+- **NÃO criada** a conta Asaas no BPO: falta a **data inicial** (sem ela puxaria 12 meses e misturaria períodos).
+
+## PENDÊNCIAS — próximo passo exato (Claude ou Codex)
+1. Conferir os 2 deploys READY + erros de runtime. Se falhar: build log e corrigir na branch `claude/sync-mirrored-repos-bsqnz3`.
+2. Dono informar a **data inicial** de Asaas, C6 e Cora. Então: criar conta Asaas em BPO › Bancos (Nova conta › API do
+   Asaas) ou SQL em `bank_accounts` (provedor 'asaas', credencial_encrypted 'plain:<chave>', data_inicial).
+   C6: dono clica "Conectar banco (Meu Pluggy)". Cora: dono importa OFX/CSV em "Importar extrato".
+3. Dono clica "Testar conexão" (Pluggy) e "Sincronizar" (Asaas); registrar resultado (c) aqui.
+4. Asaas › Integrações › Webhooks: URL `https://www.prospectaconstrucoes.com/api/asaas/webhook`, token `whsec_…`, ativo.
+5. WhatsApp: dono publica a Evolution no Railway (railway.com/deploy/evolution-api-whatsapp; definir
+   `AUTHENTICATION_API_KEY`; Settings › Networking › Generate Domain), cola endereço + chave em Admin › WhatsApp ›
+   Conexão (Prospecta e Santa Fé), "Gerar QR code" e escaneia.
+6. Lógyca (WhatsApp oficial) só quando o dono avisar.
+
+## Testes — situação final
+(a) Automáticos: Prospecta 136 arquivos / 988 testes OK, check e build OK; Santa Fé 843 ok + 10 falhas pré-existentes
+    (drive-estrutura, exclusao-definitiva, medicao-drive, pci-upload, progresso-historico-janela, projeto-engenheiro),
+    tsc/eslint/build OK. APIs externas sempre simuladas.
+(b) Manuais: estrutura da chave Asaas conferida; migrações confirmadas por consulta.
+(c) Pendente em produção: sincronização real Asaas/Pluggy, webhooks reais, QR do WhatsApp (depende do Railway).
+
+## Conferência dos deploys (25/10 02:54 UTC)
+- Prospecta `dpl_EaLk3NYi2TXazXQDk1uNKcjeXwRx` e Santa Fé `dpl_9PGXUEEieZqcTFHibEejHtm3XMTH`: **READY**, sem erros de runtime nos 15 min seguintes. Item 1 das pendências concluído.
+
+## Lotes A–E (plano PLANO-25-10-BPO-WHATSAPP.md, autorizados pelo dono em 25/10)
+Branch: `claude/sync-mirrored-repos-bsqnz3` (nos 2 repos).
+- **Lote A — WhatsApp** (SF `80e0bec`; Prospecta `aa63c78`, `a928377`): variáveis preenchidas por destinatário
+  (`web/src/lib/whatsapp/variaveis.ts`), prévia e bloqueio; aba Conversas; webhook `/api/whatsapp/evolution-webhook`;
+  botão no lead. Migração `20261025190000_whatsapp_conversas`.
+- **Lote B+D — Integrações** (SF: commit deste passo): `/admin/integracoes` (só admin) com Asaas (chave central em
+  `configuracoes` `asaas.apiKey`/`asaas.webhookToken`, criptografadas), Pluggy e Evolution; status, erro real, `…XXXX`,
+  Testar/Trocar. Campos de chave saíram de BPO › Bancos e do QR do WhatsApp. Conta Asaas sem chave própria usa a central.
+  Env `ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN` passam a ter precedência sobre o banco (igual Prospecta; a tela avisa).
+  Configurações deixou de enviar segredos de `configuracoes` ao navegador.
+- **Lote C — Extrato → BPO**: lançamento 1:1 por movimentação (categorias aprovadas), transferência interna filtrada na
+  leitura, DRE calculado no servidor. Migração `20261025180000_bpo_extrato`.
+- **Lote E — publicar**: em andamento (PR, merge, migrações Supabase, deploy).
+
+### Próximo passo exato
+1. PR da branch → main, merge, conferir deploy READY.
+2. Aplicar no Supabase `giulchozonhzyopmgmkv`: `20261025180000_bpo_extrato` e `20261025190000_whatsapp_conversas` (aditivas).
+3. Dono: colar chaves em Admin › Integrações; Reprocessar movimentações em BPO › Bancos se houver extrato importado.
+
+### Testes
+(a) SF 899 ok + 10 falhas pré-existentes (drive-estrutura, exclusao-definitiva, medicao-drive, pci-upload,
+    progresso-historico-janela, projeto-engenheiro); tsc/eslint/build OK com `/admin/integracoes`. Serviços externos simulados.
+(b) Manuais: tela ainda não aberta no navegador. (c) Produção: chaves reais, webhook Asaas, QR.

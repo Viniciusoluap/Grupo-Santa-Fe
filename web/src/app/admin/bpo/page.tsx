@@ -2,7 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
-import { dataIsoDaConta, statusPluggy, URL_WEBHOOK_ASAAS, webhookAsaasConfigurado } from "@/lib/bancos";
+import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
+import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
+import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
 
 const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
@@ -12,6 +14,7 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
 
   const [
     lancamentos,
+    todosLancamentos,
     clientes,
     leads,
     contasRaw,
@@ -23,13 +26,16 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     totalFinanciamentos,
     corretores,
     pluggy,
-    asaasWebhookConfigurado,
   ] = await Promise.all([
+    // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
+      where: { OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
       orderBy: { vencimento: "desc" },
-      take: 300,
+      take: 2000,
       include: { cliente: { select: { razaoSocial: true } } },
     }),
+    // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
+    prisma.bpoLancamento.findMany({ select: { tipo: true, valor: true, competencia: true, pago: true, categoria: true } }),
     prisma.bpoCliente.findMany({
       where: { status: "ativo" },
       select: { id: true, razaoSocial: true },
@@ -57,7 +63,6 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       take: 10,
     }),
     statusPluggy(),
-    webhookAsaasConfigurado(),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
   const { aba } = await searchParams;
@@ -111,7 +116,12 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     { service: "Corretagem", receita: comissoesPagas.reduce((s, c) => s + c.valor, 0) },
   ];
 
+  const anoAtual = String(now.getFullYear());
+  const dre = montarDre(todosLancamentos);
+  const contabilidade = { ano: anoAtual, ...resumoContabil(todosLancamentos, `${anoAtual}-01`, `${anoAtual}-12`) };
+
   const relatoriosData = {
+    dreMensal: dreUltimos12Meses(todosLancamentos, now),
     totalImoveis,
     totalLeads,
     totalFinanciamentos,
@@ -135,6 +145,8 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     pagoEm: l.pagoEm?.toISOString() ?? null,
     competencia: l.competencia,
     centroCustos: l.centroCustos,
+    categoria: l.categoria,
+    doExtrato: Boolean(l.transacaoId),
   }));
 
   const contas = contasRaw.map((c) => ({
@@ -166,7 +178,8 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       externalId: t.externalId,
       origem: t.origem,
     })),
+    saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient lancamentos={mapped} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} webhookAsaas={{ url: URL_WEBHOOK_ASAAS(), configurado: asaasWebhookConfigurado }} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
 }

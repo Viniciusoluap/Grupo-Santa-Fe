@@ -5,25 +5,15 @@ import { prisma } from "@/lib/db";
 import { filtrarDestinatariosValidos } from "@/lib/whatsapp/validacao";
 import { enviarTextoEvolution } from "@/lib/evolution";
 import { configEvolution } from "@/lib/whatsapp/evolution-config";
+import { enviarWhatsappBusiness } from "@/lib/whatsapp/business";
+import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
+import { limparExtras, textosPorDestinatario } from "@/lib/whatsapp/variaveis";
 
 interface Destinatario {
   id: string;
   nome: string;
   telefone: string;
   leadId?: string;
-}
-
-async function enviarBusiness(token: string, phoneNumberId: string, numero: string, texto: string): Promise<string | null> {
-  const num = numero.replace(/\D/g, "");
-  const numFinal = num.startsWith("55") ? num : `55${num}`;
-  const res = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: numFinal, type: "text", text: { body: texto } }),
-  });
-  if (!res.ok) return null;
-  const data = await res.json() as { messages?: { id: string }[] };
-  return data.messages?.[0]?.id ?? null;
 }
 
 export async function POST(req: NextRequest) {
@@ -37,7 +27,10 @@ export async function POST(req: NextRequest) {
   const user = { id: usuario.id, corretorId: usuario.corretorId ?? undefined };
   const role = usuario.perfil ?? undefined;
 
-  const { mensagem, destinatarios } = await req.json() as { mensagem: string; destinatarios: Destinatario[] };
+  const { mensagem, destinatarios, extras } = await req.json() as { mensagem: string; destinatarios: Destinatario[]; extras?: Record<string, string> };
+  if (typeof mensagem !== "string" || !mensagem.trim() || !Array.isArray(destinatarios)) {
+    return NextResponse.json({ error: "Mensagem e destinatários são obrigatórios" }, { status: 400 });
+  }
 
   // O corpo da requisicao e' controlado pelo cliente - antes, telefone/nome/leadId
   // eram usados como vieram, sem checar se o leadId existe ou pertence ao corretor
@@ -85,27 +78,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Credenciais da Business API não configuradas" }, { status: 400 });
   }
   const conn = conexao;
-  const enviarUm = (telefone: string) => porQr
-    ? enviarTextoEvolution(evolution!, conn.instancia!, telefone, mensagem)
-    : enviarBusiness(conn.token!, conn.phoneNumberId!, telefone, mensagem);
+  const enviarUm = (telefone: string, texto: string) => porQr
+    ? enviarTextoEvolution(evolution!, conn.instancia!, telefone, texto)
+    : enviarWhatsappBusiness(conn.token!, conn.phoneNumberId!, telefone, texto);
 
   if (destinatariosValidados.length === 0) {
     return NextResponse.json({ error: "Nenhum destinatário válido (lead inexistente ou não pertence a você)" }, { status: 400 });
   }
 
+  // Pedido de 25/10: cada destinatário recebe o template já preenchido; nada sai com {{…}}.
+  const valores = await valoresDosLeads(destinatariosValidados.map((d) => d.leadId), usuario.nome ?? null);
+  const { textos, erro } = textosPorDestinatario(mensagem, destinatariosValidados.map((d) => d.leadId), valores, limparExtras(extras));
+  if (erro) return NextResponse.json({ error: erro }, { status: 400 });
+
   let enviadas = 0;
   let falhas = 0;
 
   for (const dest of destinatariosValidados) {
+    const texto = textos.get(dest.leadId)!;
     try {
-      const externalId = await enviarUm(dest.telefone);
+      const externalId = await enviarUm(dest.telefone, texto);
       await prisma.mensagemWhatsapp.create({
-        data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem, leadId: dest.leadId, externalId, status: externalId ? "enviada" : "falhou" },
+        data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem: texto, leadId: dest.leadId, externalId, status: externalId ? "enviada" : "falhou" },
       });
       if (externalId) enviadas++; else falhas++;
     } catch {
       await prisma.mensagemWhatsapp.create({
-        data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem, leadId: dest.leadId, status: "falhou", erroMsg: "Erro ao enviar" },
+        data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem: texto, leadId: dest.leadId, status: "falhou", erroMsg: "Erro ao enviar" },
       });
       falhas++;
     }

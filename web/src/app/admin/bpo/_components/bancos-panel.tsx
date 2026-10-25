@@ -4,6 +4,7 @@
 // extrato (planilha, OFX, PDF) com prévia, sempre respeitando a data inicial de cada conta.
 // Gêmeo de Prospecta/client/src/pages/admin/BancosPanel.tsx (visual do Santa Fé).
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Toaster, toast } from "sonner";
 import { Building2, FileUp, Link2, ListOrdered, Plus, RefreshCw, Trash2, X } from "lucide-react";
@@ -12,18 +13,18 @@ import { exigirResultado } from "@/lib/acao-resultado";
 import {
   atualizarContaBancaria,
   atualizarStatusTransacao,
+  classificarTransacaoAcao,
   confirmarImportacaoExtrato,
   criarContaBancaria,
   excluirContaBancaria,
   importarItemPluggy,
   listarTransacoesConta,
   previaImportacaoExtrato,
-  salvarCredenciaisPluggy,
-  salvarTokenWebhookAsaasAcao,
+  reprocessarMovimentacoesAcao,
   sincronizarContaBancaria,
-  testarPluggy,
   tokenConexaoPluggy,
 } from "@/lib/actions/banco";
+import { CATEGORIAS_BPO } from "@/lib/bpo-categorias";
 
 export interface ContaBancoPainel {
   id: string;
@@ -37,11 +38,13 @@ export interface ContaBancoPainel {
   dataInicial: string | null;
   ultimoErro: string | null;
   ultimaSincronizacao: string | null;
+  /** LOTE C: data do saldo informado pelo extrato importado (se houver). */
+  saldoExtratoData?: string | null;
 }
 
-type Transacao = { id: string; data: string; descricao: string; valor: number; tipo: string; categoria: string | null; status: string; origem: string };
+type Transacao = { id: string; data: string; descricao: string; valor: number; tipo: string; categoria: string | null; status: string; origem: string; clienteId: string | null };
 type LinhaPrevia = { data: string; descricao: string; valor: number; tipo: "credito" | "debito"; jaImportada: boolean };
-type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null };
+type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null; saldo: { valor: number; data: string | null } | null };
 
 const PROVEDOR: Record<string, string> = { asaas: "API do Asaas", pluggy: "Pluggy (Meu Pluggy)", manual: "Importação de extrato" };
 const dataBR = (d?: string | null) => (d ? d.split("-").reverse().join("/") : "—");
@@ -70,14 +73,14 @@ function Modal({ titulo, onClose, largo, children }: { titulo: string; onClose: 
 
 export function BancosPanel({
   contas,
+  clientes = [],
   pluggy,
-  webhookAsaas,
   abrirNovaConta = 0,
 }: {
   contas: ContaBancoPainel[];
+  /** LOTE C: clientes BPO para vincular a cada movimentação. */
+  clientes?: { id: string; razaoSocial: string }[];
   pluggy: { configured: boolean; active: boolean };
-  /** Avisos em tempo real do Asaas: URL a cadastrar no painel do Asaas e se já há token salvo. */
-  webhookAsaas: { url: string; configurado: boolean };
   /** Muda de valor quando o botão "Adicionar Conta" do topo do BPO é clicado. */
   abrirNovaConta?: number;
 }) {
@@ -92,8 +95,7 @@ export function BancosPanel({
     });
   }
 
-  // ── Pluggy ──
-  const [pluggyForm, setPluggyForm] = useState({ clientId: "", clientSecret: "" });
+  // ── Pluggy — LOTE B (25/10): Client ID/Secret ficam só em Configurações › Integrações. ──
   const [itemForm, setItemForm] = useState({ itemId: "", dataInicial: "" });
   function importarItem(itemId: string) {
     executar(async () => exigirResultado(await importarItemPluggy({ itemId, dataInicial: itemForm.dataInicial || null })), (r) => {
@@ -118,14 +120,14 @@ export function BancosPanel({
   }
 
   // ── Nova conta (Asaas ou importação) ──
-  const vazio = { provedor: "asaas" as "asaas" | "manual", banco: "Asaas", conta: "", descricao: "", apiKey: "", dataInicial: "" };
+  const vazio = { provedor: "asaas" as "asaas" | "manual", banco: "Asaas", conta: "", descricao: "", dataInicial: "" };
   const [novaOpen, setNovaOpen] = useState(false);
   const [nova, setNova] = useState(vazio);
   const [pedidoAtendido, setPedidoAtendido] = useState(abrirNovaConta);
   if (abrirNovaConta !== pedidoAtendido) { setPedidoAtendido(abrirNovaConta); setNovaOpen(true); }
 
-  // ── Ajustar data inicial / chave ──
-  const [edit, setEdit] = useState<{ id: string; dataInicial: string; apiKey: string; provedor: string; tokenWebhook: string } | null>(null);
+  // ── Ajustar data inicial (a chave do Asaas é a central, em Integrações) ──
+  const [edit, setEdit] = useState<{ id: string; dataInicial: string } | null>(null);
 
   // ── Movimentações ──
   const [verConta, setVerConta] = useState<string | null>(null);
@@ -133,6 +135,11 @@ export function BancosPanel({
   async function carregarTransacoes(contaId: string) {
     try { setTransacoes(exigirResultado(await listarTransacoesConta(contaId))); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao ler as movimentações."); }
+  }
+  /** LOTE C: categoria / cliente BPO da movimentação (atualiza o lançamento vinculado). */
+  function classificar(contaId: string, t: Transacao, input: { categoria?: string; clienteId?: string | null }) {
+    setTransacoes((ts) => ts.map((x) => (x.id === t.id ? { ...x, ...input } : x)));
+    executar(async () => exigirResultado(await classificarTransacaoAcao(t.id, input)), () => void carregarTransacoes(contaId));
   }
   function alternarMovimentacoes(contaId: string) {
     if (verConta === contaId) { setVerConta(null); return; }
@@ -166,7 +173,17 @@ export function BancosPanel({
       {/* Contas */}
       <div className="flex justify-between items-center gap-3 flex-wrap">
         <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Contas Bancárias ({contas.length})</h2>
-        <button onClick={() => setNovaOpen(true)} className={botaoPri}><Plus size={12} /> Conta Bancária</button>
+        <div className="flex gap-2 flex-wrap">
+          {/* LOTE C: gera no BPO os lançamentos que faltam (sem duplicar) e recalcula os saldos. */}
+          <button className={botaoSec} disabled={ocupado}
+            onClick={() => executar(async () => exigirResultado(await reprocessarMovimentacoesAcao()), (r) => {
+              toast.success(`${r.criados} lançamento(s) gerado(s) no BPO; ${r.categorizadas} movimentação(ões) categorizada(s).`);
+              if (verConta) void carregarTransacoes(verConta);
+            })}>
+            <RefreshCw size={11} /> Reprocessar movimentações
+          </button>
+          <button onClick={() => setNovaOpen(true)} className={botaoPri}><Plus size={12} /> Conta Bancária</button>
+        </div>
       </div>
 
       {contas.length === 0 ? (
@@ -189,7 +206,14 @@ export function BancosPanel({
                   </p>
                   {c.ultimoErro && <p className="text-xs text-red-700 font-medium mt-1">Último erro: {c.ultimoErro}</p>}
                 </div>
-                <span className={`font-black text-lg leading-none ${c.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-700"}`}>{formatCurrency(c.saldoAtual)}</span>
+                <div className="text-right">
+                  <span className={`font-black text-lg leading-none ${c.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-700"}`}>{formatCurrency(c.saldoAtual)}</span>
+                  {c.provedor === "manual" && (
+                    <p className="text-[10px] text-gray-700 mt-0.5">
+                      {c.saldoExtratoData ? `saldo do extrato em ${dataBR(c.saldoExtratoData)} + movimentações seguintes` : "soma das movimentações importadas"}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {(c.provedor === "asaas" || c.provedor === "pluggy") && (
@@ -203,8 +227,8 @@ export function BancosPanel({
                 )}
                 <button className={botaoSec} onClick={() => setImp({ contaId: c.id, nome: c.descricao || c.banco })}><FileUp size={11} /> Importar extrato</button>
                 <button className={botaoSec} onClick={() => alternarMovimentacoes(c.id)}><ListOrdered size={11} /> {verConta === c.id ? "Ocultar" : "Movimentações"}</button>
-                <button className={botaoSec} onClick={() => setEdit({ id: c.id, dataInicial: c.dataInicial ?? "", apiKey: "", provedor: c.provedor, tokenWebhook: "" })}>
-                  Data inicial{c.provedor === "asaas" ? " / chave" : ""}
+                <button className={botaoSec} onClick={() => setEdit({ id: c.id, dataInicial: c.dataInicial ?? "" })}>
+                  Data inicial
                 </button>
                 <button className="inline-flex items-center gap-1 text-xs font-bold border border-red-300 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50" disabled={ocupado}
                   onClick={() => confirm(`Remover a conta ${c.banco}? As movimentações já gravadas continuam no histórico.`)
@@ -221,6 +245,22 @@ export function BancosPanel({
                           <tr key={t.id}>
                             <td className="py-1.5 pr-2 text-gray-700 whitespace-nowrap">{new Date(t.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>
                             <td className="py-1.5 pr-2 text-[var(--brand-dark)]">{t.descricao}</td>
+                            <td className="py-1.5 pr-2">
+                              <select aria-label="Categoria" value={t.categoria ?? ""} disabled={ocupado}
+                                onChange={(e) => classificar(c.id, t, { categoria: e.target.value })}
+                                className="border border-gray-300 px-1.5 py-1 text-[11px] text-[var(--brand-dark)] bg-white max-w-[150px]">
+                                {!t.categoria && <option value="">Categoria…</option>}
+                                {CATEGORIAS_BPO.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                              </select>
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <select aria-label="Cliente BPO" value={t.clienteId ?? ""} disabled={ocupado}
+                                onChange={(e) => classificar(c.id, t, { clienteId: e.target.value || null })}
+                                className="border border-gray-300 px-1.5 py-1 text-[11px] text-[var(--brand-dark)] bg-white max-w-[150px]">
+                                <option value="">Sem cliente</option>
+                                {clientes.map((cl) => <option key={cl.id} value={cl.id}>{cl.razaoSocial}</option>)}
+                              </select>
+                            </td>
                             <td className={`py-1.5 pr-2 text-right whitespace-nowrap font-bold ${t.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
                               {t.tipo === "debito" ? "-" : ""}{formatCurrency(t.valor)}
                             </td>
@@ -252,25 +292,10 @@ export function BancosPanel({
       <div className="bg-white border border-gray-200 p-5 space-y-4">
         <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Pluggy — contas conectadas pelo Meu Pluggy (gratuito)</h2>
         <p className="text-sm text-gray-800">
-          {pluggy.configured ? "Credenciais da Pluggy salvas." : "Informe o Client ID e o Client Secret da aplicação criada no painel da Pluggy."}
+          {pluggy.configured ? "Client ID e Client Secret configurados em " : "Client ID e Client Secret ainda não configurados — informe em "}
+          <Link href="/admin/integracoes" className="underline font-bold text-[var(--brand-dark)]">Configurações › Integrações</Link>.
           {" "}As contas conectadas no Meu Pluggy são lidas sem custo e sincronizadas todo dia.
         </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div><label className={rotulo}>Client ID</label><input value={pluggyForm.clientId} onChange={(e) => setPluggyForm((f) => ({ ...f, clientId: e.target.value }))} className={campo} autoComplete="off" /></div>
-          <div><label className={rotulo}>Client Secret</label><input type="password" value={pluggyForm.clientSecret} onChange={(e) => setPluggyForm((f) => ({ ...f, clientSecret: e.target.value }))} className={campo} autoComplete="off" /></div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button className={botaoPri} disabled={!pluggyForm.clientId || !pluggyForm.clientSecret || ocupado}
-            onClick={() => executar(async () => exigirResultado(await salvarCredenciaisPluggy(pluggyForm)), () => {
-              toast.success("Credenciais da Pluggy salvas."); setPluggyForm({ clientId: "", clientSecret: "" });
-            })}>Salvar credenciais</button>
-          {pluggy.configured && (
-            <button className={botaoSec} disabled={ocupado}
-              onClick={() => executar(async () => exigirResultado(await testarPluggy()), (r) => (r.ok ? toast.success(r.mensagem) : toast.error(r.mensagem)))}>
-              Testar conexão
-            </button>
-          )}
-        </div>
         {pluggy.configured && (
           <div className="border-t border-gray-200 pt-4 space-y-3">
             <div className="grid sm:grid-cols-2 gap-3">
@@ -302,17 +327,19 @@ export function BancosPanel({
             <div><label className={rotulo}>Descrição</label><input value={nova.descricao} onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))} className={campo} placeholder="ex.: Conta PJ" /></div>
           </div>
           {nova.provedor === "asaas" && (
-            <div><label className={rotulo}>Chave de API do Asaas *</label><input type="password" value={nova.apiKey} onChange={(e) => setNova((n) => ({ ...n, apiKey: e.target.value }))} className={campo} autoComplete="off" placeholder="$aact_prod_..." /></div>
+            <p className={ajuda}>
+              Usa a chave do Asaas configurada em <Link href="/admin/integracoes" className="underline font-bold">Configurações › Integrações</Link>.
+            </p>
           )}
           <div>
             <label className={rotulo}>Considerar movimentações a partir de</label>
             <input type="date" value={nova.dataInicial} onChange={(e) => setNova((n) => ({ ...n, dataInicial: e.target.value }))} className={campo} />
             <p className={ajuda}>Movimentações anteriores a esta data não são gravadas (não pertencem a esta empresa).</p>
           </div>
-          <button className={`${botaoPri} w-full`} disabled={ocupado || !nova.banco || (nova.provedor === "asaas" && !nova.apiKey)}
+          <button className={`${botaoPri} w-full`} disabled={ocupado || !nova.banco}
             onClick={() => executar(async () => exigirResultado(await criarContaBancaria({
               provedor: nova.provedor, banco: nova.banco, conta: nova.conta || undefined, descricao: nova.descricao || undefined,
-              apiKey: nova.apiKey || undefined, dataInicial: nova.dataInicial || null,
+              dataInicial: nova.dataInicial || null,
             })), () => { toast.success("Conta cadastrada."); setNovaOpen(false); setNova(vazio); })}>
             {ocupado ? "Validando..." : "Cadastrar conta"}
           </button>
@@ -327,26 +354,8 @@ export function BancosPanel({
             <input type="date" value={edit.dataInicial} onChange={(e) => setEdit({ ...edit, dataInicial: e.target.value })} className={campo} />
             <p className={ajuda}>Vale para as próximas sincronizações e importações. O que já foi gravado continua.</p>
           </div>
-          {edit.provedor === "asaas" && (
-            <>
-              <div><label className={rotulo}>Nova chave de API (deixe em branco para manter)</label><input type="password" value={edit.apiKey} onChange={(e) => setEdit({ ...edit, apiKey: e.target.value })} className={campo} autoComplete="off" /></div>
-              <div>
-                <label className={rotulo}>Token do webhook do Asaas (opcional)</label>
-                <input type="password" value={edit.tokenWebhook} onChange={(e) => setEdit({ ...edit, tokenWebhook: e.target.value })} className={campo} autoComplete="off"
-                  placeholder={webhookAsaas.configurado ? "já configurado — deixe em branco para manter" : "o mesmo token cadastrado no Asaas"} />
-                <p className={ajuda}>
-                  Avisos em tempo real: no painel do Asaas (Integrações › Webhooks), cadastre a URL{" "}
-                  <code className="bg-gray-100 text-[var(--brand-dark)] px-1 break-all">{webhookAsaas.url}</code> com este mesmo token.
-                  Sem token, o extrato continua atualizando pela sincronização diária.
-                </p>
-              </div>
-            </>
-          )}
           <button className={`${botaoPri} w-full`} disabled={ocupado}
-            onClick={() => executar(async () => {
-              if (edit.tokenWebhook.trim()) exigirResultado(await salvarTokenWebhookAsaasAcao(edit.tokenWebhook));
-              return exigirResultado(await atualizarContaBancaria({ id: edit.id, dataInicial: edit.dataInicial || null, apiKey: edit.apiKey || undefined }));
-            },
+            onClick={() => executar(async () => exigirResultado(await atualizarContaBancaria({ id: edit.id, dataInicial: edit.dataInicial || null })),
               () => { toast.success("Conta atualizada."); setEdit(null); })}>Salvar</button>
         </Modal>
       )}
@@ -369,6 +378,7 @@ export function BancosPanel({
                 {previa.formato}: <b>{novas}</b> lançamento(s) novo(s){previa.linhas.length - novas ? `, ${previa.linhas.length - novas} já importado(s)` : ""}
                 {previa.antesDaDataInicial ? `, ${previa.antesDaDataInicial} anterior(es) a ${dataBR(previa.dataInicial)} (descartados)` : ""}
                 {previa.ignoradas ? `, ${previa.ignoradas} linha(s) não reconhecida(s)` : ""}.
+                {previa.saldo ? ` Saldo informado no arquivo: ${formatCurrency(previa.saldo.valor)}${previa.saldo.data ? ` em ${dataBR(previa.saldo.data)}` : ""}.` : " O arquivo não traz saldo: o saldo da conta será a soma das movimentações."}
               </p>
               <div className="max-h-96 overflow-y-auto border border-gray-200">
                 <table className="w-full text-xs">
@@ -391,7 +401,7 @@ export function BancosPanel({
                 <button className={botaoSec} onClick={() => setPrevia(null)}>Escolher outro arquivo</button>
                 <button className={botaoPri} disabled={!novas || ocupado}
                   onClick={() => executar(
-                    async () => exigirResultado(await confirmarImportacaoExtrato(imp.contaId, previa.linhas.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo })))),
+                    async () => exigirResultado(await confirmarImportacaoExtrato(imp.contaId, previa.linhas.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo })), previa.saldo)),
                     (r) => {
                       toast.success(`${r.novos} lançamento(s) importado(s).${r.recebidos - r.novos > 0 ? ` ${r.recebidos - r.novos} já existiam.` : ""}`);
                       if (verConta === imp.contaId) void carregarTransacoes(imp.contaId);

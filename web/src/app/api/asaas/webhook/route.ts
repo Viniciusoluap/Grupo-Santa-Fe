@@ -3,7 +3,7 @@ import { segredoConfere, sincronizarPorEvento, tokenWebhookAsaas } from "@/lib/b
 
 // Pedido de 25/10 (avisos em tempo real): qualquer evento autenticado do Asaas atualiza na hora o
 // extrato das contas Asaas do BPO (mesma regra de Prospecta/server/asaas-webhook.ts). O token vem da
-// configuração salva na tela (BPO › Bancos) ou da env ASAAS_WEBHOOK_TOKEN. Sem token: 401 (fechado).
+// env ASAAS_WEBHOOK_TOKEN (precedência) ou do salvo em Configurações › Integrações. Sem token: 401 (fechado).
 export async function POST(req: Request) {
   let esperado: string | null = null;
   try { esperado = await tokenWebhookAsaas(); } catch (e) { console.error("[Asaas Webhook] token", e instanceof Error ? e.message : e); }

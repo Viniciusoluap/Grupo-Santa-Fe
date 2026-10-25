@@ -108,10 +108,11 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
 
   it("erro da API fica registrado na conta e volta como mensagem (sem estourar)", async () => {
     const conta = await criarConta();
-    const r = await bancos.sincronizarConta(conta.id, vi.fn(() => resposta({}, 401)) as never);
+    // LOTE D (25/10): o motivo real do Asaas (errors[].description) + a dica de restrição de IP no 401.
+    const r = await bancos.sincronizarConta(conta.id, vi.fn(() => resposta({ errors: [{ code: "invalid_access_token", description: "A chave de API fornecida é inválida" }] }, 401)) as never);
     expect(r.ok).toBe(false);
-    expect(r.mensagem).toMatch(/recusou a chave/);
-    expect((await prisma.contaBancaria.findUniqueOrThrow({ where: { id: conta.id } })).ultimoErro).toMatch(/recusou a chave/);
+    expect(r.mensagem).toBe("O Asaas recusou o acesso (HTTP 401): A chave de API fornecida é inválida. Confira se a chave está ativa e se há restrição de IP no Asaas (Integrações › Chave de API).");
+    expect((await prisma.contaBancaria.findUniqueOrThrow({ where: { id: conta.id } })).ultimoErro).toMatch(/HTTP 401\): A chave de API fornecida é inválida/);
   });
 
   it("conta de importação não sincroniza por API; o cron diário só pega contas Asaas/Pluggy ativas", async () => {
@@ -182,7 +183,7 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
     // Chave recusada: erro em português, nada criado.
     vi.stubGlobal("fetch", vi.fn(() => resposta({}, 401)));
     const recusada = await acoes.criarContaBancaria({ provedor: "asaas", banco: `${MARCA} Asaas 2`, apiKey: "$aact_x" });
-    expect(recusada).toEqual({ erroAcao: "O Asaas recusou a chave de API desta conta." });
+    expect(recusada).toEqual({ erroAcao: expect.stringMatching(/^O Asaas recusou o acesso \(HTTP 401\)\. Confira se a chave está ativa e se há restrição de IP/) });
 
     // Remover só tira da lista (as movimentações continuam no histórico).
     expect(await acoes.excluirContaBancaria(r.id)).toEqual({ success: true });

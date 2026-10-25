@@ -2,14 +2,11 @@
 
 // Pedido de 25/10: conectar o WhatsApp escaneando um QR code (Evolution API no Railway).
 // Gêmeo de Prospecta/client/src/components/whatsapp/ConexaoQrCode.tsx.
+// LOTE B (25/10): endereço e chave do servidor ficam só em Configurações › Integrações.
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { QrCode, RefreshCw, Server } from "lucide-react";
-import {
-  conectarWhatsappQr, salvarServidorEvolution, statusServidorEvolution, statusWhatsappQr,
-} from "@/lib/actions/whatsapp";
-
-const campo = "w-full border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[var(--brand-yellow)] bg-white";
-const rotulo = "block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1";
+import { conectarWhatsappQr, statusServidorEvolution, statusWhatsappQr } from "@/lib/actions/whatsapp";
 
 export function ConexaoQrCode({ podeConfigurarServidor, onConectado, onAviso }: {
   podeConfigurarServidor: boolean;
@@ -17,9 +14,6 @@ export function ConexaoQrCode({ podeConfigurarServidor, onConectado, onAviso }: 
   onAviso: (msg: string, tipo: "success" | "error") => void;
 }) {
   const [servidor, setServidor] = useState<{ configurado: boolean; url: string | null } | null>(null);
-  const [url, setUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [editar, setEditar] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
@@ -34,17 +28,6 @@ export function ConexaoQrCode({ podeConfigurarServidor, onConectado, onAviso }: 
     }, 3000);
     return () => clearInterval(t);
   }, [qr, onConectado, onAviso]);
-
-  function salvar(e: React.FormEvent) {
-    e.preventDefault();
-    iniciar(async () => {
-      const r = await salvarServidorEvolution(url, apiKey);
-      if (r.erro) return onAviso(r.erro, "error");
-      onAviso("Servidor da Evolution conectado.", "success");
-      setApiKey(""); setEditar(false);
-      setServidor(await statusServidorEvolution());
-    });
-  }
 
   function gerar() {
     iniciar(async () => {
@@ -67,19 +50,16 @@ export function ConexaoQrCode({ podeConfigurarServidor, onConectado, onAviso }: 
         <p>Conexão não oficial: use com moderação (envios em massa podem levar a bloqueio do número).</p>
       </div>
 
-      {servidor && (!configurado || editar) && podeConfigurarServidor && (
-        <form onSubmit={salvar} className="space-y-3">
-          <p className="text-sm text-gray-800 font-bold flex items-center gap-2"><Server size={14} /> Servidor da Evolution (Railway)</p>
-          <div><label className={rotulo}>Endereço do servidor</label><input value={url} onChange={(e) => setUrl(e.target.value.trim())} placeholder="https://evolution-xxxx.up.railway.app" required className={campo} /></div>
-          <div><label className={rotulo}>Chave de acesso (AUTHENTICATION_API_KEY)</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required autoComplete="off" className={campo} /></div>
-          <button type="submit" disabled={pendente} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] font-bold text-xs uppercase tracking-wider px-5 py-3 disabled:opacity-50">
-            {pendente ? "Testando..." : "Salvar e testar servidor"}
-          </button>
-        </form>
+      {servidor && !configurado && (
+        <p className="text-sm text-amber-800 flex flex-wrap items-center gap-2">
+          <Server size={14} /> Servidor do WhatsApp não configurado.
+          {podeConfigurarServidor
+            ? <Link href="/admin/integracoes" className="underline font-bold">Configurar em Integrações</Link>
+            : " Peça ao administrador para configurar em Integrações."}
+        </p>
       )}
-      {servidor && !configurado && !podeConfigurarServidor && <p className="text-sm text-amber-800">A equipe ainda não configurou o servidor do WhatsApp.</p>}
 
-      {configurado && !editar && (
+      {configurado && (
         <div className="space-y-3">
           {src ? (
             <div className="flex flex-col items-center gap-3">
@@ -95,11 +75,11 @@ export function ConexaoQrCode({ podeConfigurarServidor, onConectado, onAviso }: 
               <QrCode size={14} /> {pendente ? "Gerando..." : "Gerar QR code"}
             </button>
           )}
-          {podeConfigurarServidor && (
-            <button type="button" onClick={() => setEditar(true)} className="block text-xs text-gray-700 underline">
-              Trocar servidor da Evolution{servidor?.url ? ` (${servidor.url})` : ""}
-            </button>
-          )}
+          <p className="text-xs text-gray-700">
+            Servidor configurado em{" "}
+            {podeConfigurarServidor ? <Link href="/admin/integracoes" className="underline font-bold">Integrações</Link> : "Integrações"}
+            {servidor?.url ? ` (${servidor.url})` : ""}.
+          </p>
         </div>
       )}
     </div>

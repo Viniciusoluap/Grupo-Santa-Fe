@@ -21,7 +21,7 @@
 
 ## Checkpoint lote 1 e lote 2 — 25/10
 - Lote 1: corrigidos filtros de data em `web/src/components/obras/lista-obras.tsx` e layout de medição em `web/src/app/admin/obras/[id]/editar/_components/progresso-obra.tsx`. 02, 08, 11, 12 e 14 já estavam ausentes das interfaces equivalentes; sem exclusão de rotas ou dados. 04 e 05 em validação visual manual.
-- Lote 2: campo total do Pró-Soluto, opção individual por obra para base do empreiteiro, padrão falso e migração aditiva `20261025180000_pro_soluto_base_empreiteiro`. Motor mantém fórmula do lucro da empresa e a base antiga quando desmarcado. Valor zero com dados válidos resulta zero, sem alterar a parcela Price legada. O sistema suporta um empreiteiro por obra.
+- Lote 2: campo total do Pró-Soluto, opção individual por obra para base do empreiteiro, padrão falso e migração aditiva `20261025200000_pro_soluto_base_empreiteiro`. Motor mantém fórmula do lucro da empresa e a base antiga quando desmarcado. Valor zero com dados válidos resulta zero, sem alterar a parcela Price legada. O sistema suporta um empreiteiro por obra.
 - Arquivos: `web/src/lib/financeiro/obra.ts`, `obra-dados.ts`, `actions/obra-financeiro.ts`, `web/src/app/admin/obras/[id]/editar/_components/financeiro-obra.tsx`, `editar-obra-client.tsx`, `web/prisma/schema.prisma`, a migração e `web/src/lib/__tests__/financeiro-obra.test.ts`, além dos dois componentes do lote 1.
 - Testes (a): Prisma generate, TypeScript, ESLint dos arquivos alterados e 22 testes financeiros passaram; 14 testes direcionados de filtros/medição passaram antes da mudança financeira. Build e suíte total pendentes. (b) inspeção visual Safari/iPad pendente. (c) produção e migração pendentes.
 - Banco: migração criada, **não aplicada**. Nenhum dado de produção alterado.
@@ -44,7 +44,7 @@
 
 ## Checkpoint lote 6 — 25/10
 - 13: formulários administrativo e do corretor separam cadastro de fotografias, enviam uma foto compactada por requisição com progresso individual e uma tentativa automática de repetição. Preservam fotos existentes, capa e ordem final. O seletor aceita até 40 fotos por padrão (`NEXT_PUBLIC_MAX_FOTOS_IMOVEL` permite 16–100); JPG é gerado no navegador, incluindo HEIC quando o navegador o decodifica. Imagens incompatíveis recebem erro visível.
-- Rota autenticada `/api/imoveis/[id]/fotos` aplica restrição de propriedade do corretor, limite, armazenamento inicial em banco e posterior Drive. Hash SHA-256 com índice único por imóvel torna reenvios idempotentes. Falha do Drive mantém bytes para a rotina de reenvio pendente já existente. Migração aditiva `20261025190000_fotos_imovel_idempotentes` **não aplicada**; deve entrar antes da rota em produção.
+- Rota autenticada `/api/imoveis/[id]/fotos` aplica restrição de propriedade do corretor, limite, armazenamento inicial em banco e posterior Drive. Hash SHA-256 com índice único por imóvel torna reenvios idempotentes. Falha do Drive mantém bytes para a rotina de reenvio pendente já existente. Migração aditiva `20261025210000_fotos_imovel_idempotentes` **não aplicada**; deve entrar antes da rota em produção.
 - Arquivos: `web/src/lib/imovel-fotos.ts`, `imovel-fotos-limites.ts`, `envio-fotos-imovel.ts`, `imoveis/salvar.ts`, `web/src/app/api/imoveis/[id]/fotos/route.ts`, `web/src/app/api/imoveis/salvar/route.ts`, `web/src/components/ui/form-com-envio.tsx`, `web/src/app/corretor/imoveis/imoveis-do-corretor.tsx`, `web/src/app/admin/imoveis/_components/foto-upload.tsx`, schema/migração, e teste `envio-fotos-imovel.test.ts`.
 - Testes: Prisma generate, TypeScript e ESLint dos arquivos alterados passaram; 26 testes dirigidos passaram. `next build` compilou e passou TypeScript, mas falhou no prerender da página inicial com `ECONNREFUSED` do PostgreSQL indisponível no ambiente. Teste de integração com Drive/banco, Safari/iPad e vários arquivos reais pendente. Sem merge, deploy ou atualização de dados.
 - Risco residual: verificar provedores e custos de armazenamento, extensão HEIC no Safari real, limites de duração do servidor e retenção de bytes caso o Drive permaneça indisponível. Para Claude: continuar sobre o SHA remoto desta branch, aplicar ambas as migrações somente em ambiente autorizado; conferir remotos e não refazer o envio sequencial.
@@ -58,3 +58,17 @@
 
 ## Revisão final da correção 02
 - A varredura transversal detectou o emoji 🤝 ainda no rótulo compartilhado `leadTemperaturaRotulo` e no cabeçalho do lead. Removido somente para `fechado`, mantendo o valor persistido `fechado`, os demais rótulos e filtros intactos. Agora o seletor da listagem e todos os componentes reutilizados mostram `Negócio fechado`. O teste legado de rótulo foi ajustado; não há atualização de registros.
+
+## Checkpoint QA com concorrência reduzida
+- A suíte completa foi repetida com um worker e maior limite de heap: **110 arquivos passaram, 15 foram pulados por dependência explícita de banco; 776 testes passaram e 89 foram pulados**. Não houve falha nem OOM. TypeScript, Prisma generate e lint direcionado já estavam aprovados.
+- O build continua limitado ao prerender por falta de conexão PostgreSQL no executor; compilação e TypeScript do build passaram. Nenhum dado, migração, merge ou deploy foi executado neste checkpoint.
+- Próximo passo: integrar `main` paralelo, renumerar as migrações AIOX que colidem com BPO/WhatsApp, validar novamente e publicar PR.
+
+## Checkpoint integração do main paralelo
+- `main` `a7f266895ec226b13ff192ebd0b82e864bc68f66` (BPO/Bancos/WhatsApp) foi incorporado sem conflito textual. Como esse trabalho usa `20261025180000` e `20261025190000`, as migrações AIOX foram renumeradas para `20261025200000_pro_soluto_base_empreiteiro` e `20261025210000_fotos_imovel_idempotentes`.
+- Próximo passo: executar Prisma generate, TypeScript, suíte completa e build/preview do SHA integrado; publicar PR e aplicar as duas migrações antes da liberação do código em produção.
+
+## Checkpoint validação integrada e banco de produção
+- Após integrar o `main`: Prisma Client gerado com a versão travada no `package-lock.json`; TypeScript passou; suíte completa passou com **113 arquivos aprovados, 18 pulados por dependências externas, 813 testes aprovados e 108 pulados**. Nenhuma falha e nenhum OOM.
+- Banco real identificado no Supabase `grupo-santa-fe` (`giulchozonhzyopmgmkv`); o Neon chamado `grupo-santa-fe-preview` não foi alterado. As duas mudanças aditivas foram aplicadas em transação e verificadas: `obras.incluir_pro_soluto_base_empreiteiro` é `NOT NULL DEFAULT false`; `imovel_fotos.sha256` e o índice único composto existem. Nenhum backfill ou registro histórico foi atualizado.
+- Próximo passo: publicar a árvore integrada, abrir PR, aguardar preview Vercel do SHA exato, fazer merge autorizado e validar o deployment de produção.

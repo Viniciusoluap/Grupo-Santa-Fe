@@ -9,7 +9,7 @@ import { WhatsAppClient } from "./_components/whatsapp-client";
 
 type SessionUser = { id?: string; role?: string; corretorId?: string };
 
-export default async function WhatsAppPage() {
+export default async function WhatsAppPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await exigirModuloPagina("whatsapp");
   const session = await auth();
   if (!session) redirect("/login");
@@ -62,8 +62,9 @@ export default async function WhatsAppPage() {
     }
   }
 
+  // Pedido de 25/10: o histórico mostra só as mensagens enviadas; as recebidas ficam na aba Conversas.
   const historicoRaw = await prisma.mensagemWhatsapp.findMany({
-    where: role === "admin" || role === "colaborador" ? {} : minhaConexao ? { conexaoId: minhaConexao.id } : { id: "none" },
+    where: role === "admin" || role === "colaborador" ? { direcao: "saida" } : minhaConexao ? { conexaoId: minhaConexao.id, direcao: "saida" } : { id: "none" },
     orderBy: { enviadaEm: "desc" },
     take: 100,
   });
@@ -73,8 +74,16 @@ export default async function WhatsAppPage() {
     mensagem: m.mensagem, status: m.status, enviadaEm: m.enviadaEm.toISOString(), erroMsg: m.erroMsg,
   }));
 
+  // Pedido de 25/10: ?aba=conversas&numero=… abre direto o chat (notificações e página do lead).
+  const sp = await searchParams;
+  const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+  const abaInicial = um(sp.aba) === "conversas" ? "conversas" : "conexao";
+  const numeroInicial = um(sp.numero)?.replace(/\D/g, "").slice(0, 20) || null;
+
   return (
     <WhatsAppClient
+      abaInicial={abaInicial}
+      numeroInicial={numeroInicial}
       leads={leads}
       minhaConexao={minhaConexao}
       conexoesCorretores={conexoesCorretores}
