@@ -12,18 +12,21 @@ import { exigirResultado } from "@/lib/acao-resultado";
 import {
   atualizarContaBancaria,
   atualizarStatusTransacao,
+  classificarTransacaoAcao,
   confirmarImportacaoExtrato,
   criarContaBancaria,
   excluirContaBancaria,
   importarItemPluggy,
   listarTransacoesConta,
   previaImportacaoExtrato,
+  reprocessarMovimentacoesAcao,
   salvarCredenciaisPluggy,
   salvarTokenWebhookAsaasAcao,
   sincronizarContaBancaria,
   testarPluggy,
   tokenConexaoPluggy,
 } from "@/lib/actions/banco";
+import { CATEGORIAS_BPO } from "@/lib/bpo-categorias";
 
 export interface ContaBancoPainel {
   id: string;
@@ -37,11 +40,13 @@ export interface ContaBancoPainel {
   dataInicial: string | null;
   ultimoErro: string | null;
   ultimaSincronizacao: string | null;
+  /** LOTE C: data do saldo informado pelo extrato importado (se houver). */
+  saldoExtratoData?: string | null;
 }
 
-type Transacao = { id: string; data: string; descricao: string; valor: number; tipo: string; categoria: string | null; status: string; origem: string };
+type Transacao = { id: string; data: string; descricao: string; valor: number; tipo: string; categoria: string | null; status: string; origem: string; clienteId: string | null };
 type LinhaPrevia = { data: string; descricao: string; valor: number; tipo: "credito" | "debito"; jaImportada: boolean };
-type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null };
+type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null; saldo: { valor: number; data: string | null } | null };
 
 const PROVEDOR: Record<string, string> = { asaas: "API do Asaas", pluggy: "Pluggy (Meu Pluggy)", manual: "Importação de extrato" };
 const dataBR = (d?: string | null) => (d ? d.split("-").reverse().join("/") : "—");
@@ -70,11 +75,14 @@ function Modal({ titulo, onClose, largo, children }: { titulo: string; onClose: 
 
 export function BancosPanel({
   contas,
+  clientes = [],
   pluggy,
   webhookAsaas,
   abrirNovaConta = 0,
 }: {
   contas: ContaBancoPainel[];
+  /** LOTE C: clientes BPO para vincular a cada movimentação. */
+  clientes?: { id: string; razaoSocial: string }[];
   pluggy: { configured: boolean; active: boolean };
   /** Avisos em tempo real do Asaas: URL a cadastrar no painel do Asaas e se já há token salvo. */
   webhookAsaas: { url: string; configurado: boolean };
@@ -134,6 +142,11 @@ export function BancosPanel({
     try { setTransacoes(exigirResultado(await listarTransacoesConta(contaId))); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao ler as movimentações."); }
   }
+  /** LOTE C: categoria / cliente BPO da movimentação (atualiza o lançamento vinculado). */
+  function classificar(contaId: string, t: Transacao, input: { categoria?: string; clienteId?: string | null }) {
+    setTransacoes((ts) => ts.map((x) => (x.id === t.id ? { ...x, ...input } : x)));
+    executar(async () => exigirResultado(await classificarTransacaoAcao(t.id, input)), () => void carregarTransacoes(contaId));
+  }
   function alternarMovimentacoes(contaId: string) {
     if (verConta === contaId) { setVerConta(null); return; }
     setVerConta(contaId); setTransacoes([]); void carregarTransacoes(contaId);
@@ -166,7 +179,17 @@ export function BancosPanel({
       {/* Contas */}
       <div className="flex justify-between items-center gap-3 flex-wrap">
         <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Contas Bancárias ({contas.length})</h2>
-        <button onClick={() => setNovaOpen(true)} className={botaoPri}><Plus size={12} /> Conta Bancária</button>
+        <div className="flex gap-2 flex-wrap">
+          {/* LOTE C: gera no BPO os lançamentos que faltam (sem duplicar) e recalcula os saldos. */}
+          <button className={botaoSec} disabled={ocupado}
+            onClick={() => executar(async () => exigirResultado(await reprocessarMovimentacoesAcao()), (r) => {
+              toast.success(`${r.criados} lançamento(s) gerado(s) no BPO; ${r.categorizadas} movimentação(ões) categorizada(s).`);
+              if (verConta) void carregarTransacoes(verConta);
+            })}>
+            <RefreshCw size={11} /> Reprocessar movimentações
+          </button>
+          <button onClick={() => setNovaOpen(true)} className={botaoPri}><Plus size={12} /> Conta Bancária</button>
+        </div>
       </div>
 
       {contas.length === 0 ? (
@@ -189,7 +212,14 @@ export function BancosPanel({
                   </p>
                   {c.ultimoErro && <p className="text-xs text-red-700 font-medium mt-1">Último erro: {c.ultimoErro}</p>}
                 </div>
-                <span className={`font-black text-lg leading-none ${c.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-700"}`}>{formatCurrency(c.saldoAtual)}</span>
+                <div className="text-right">
+                  <span className={`font-black text-lg leading-none ${c.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-700"}`}>{formatCurrency(c.saldoAtual)}</span>
+                  {c.provedor === "manual" && (
+                    <p className="text-[10px] text-gray-700 mt-0.5">
+                      {c.saldoExtratoData ? `saldo do extrato em ${dataBR(c.saldoExtratoData)} + movimentações seguintes` : "soma das movimentações importadas"}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {(c.provedor === "asaas" || c.provedor === "pluggy") && (
@@ -221,6 +251,22 @@ export function BancosPanel({
                           <tr key={t.id}>
                             <td className="py-1.5 pr-2 text-gray-700 whitespace-nowrap">{new Date(t.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>
                             <td className="py-1.5 pr-2 text-[var(--brand-dark)]">{t.descricao}</td>
+                            <td className="py-1.5 pr-2">
+                              <select aria-label="Categoria" value={t.categoria ?? ""} disabled={ocupado}
+                                onChange={(e) => classificar(c.id, t, { categoria: e.target.value })}
+                                className="border border-gray-300 px-1.5 py-1 text-[11px] text-[var(--brand-dark)] bg-white max-w-[150px]">
+                                {!t.categoria && <option value="">Categoria…</option>}
+                                {CATEGORIAS_BPO.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                              </select>
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <select aria-label="Cliente BPO" value={t.clienteId ?? ""} disabled={ocupado}
+                                onChange={(e) => classificar(c.id, t, { clienteId: e.target.value || null })}
+                                className="border border-gray-300 px-1.5 py-1 text-[11px] text-[var(--brand-dark)] bg-white max-w-[150px]">
+                                <option value="">Sem cliente</option>
+                                {clientes.map((cl) => <option key={cl.id} value={cl.id}>{cl.razaoSocial}</option>)}
+                              </select>
+                            </td>
                             <td className={`py-1.5 pr-2 text-right whitespace-nowrap font-bold ${t.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
                               {t.tipo === "debito" ? "-" : ""}{formatCurrency(t.valor)}
                             </td>
@@ -369,6 +415,7 @@ export function BancosPanel({
                 {previa.formato}: <b>{novas}</b> lançamento(s) novo(s){previa.linhas.length - novas ? `, ${previa.linhas.length - novas} já importado(s)` : ""}
                 {previa.antesDaDataInicial ? `, ${previa.antesDaDataInicial} anterior(es) a ${dataBR(previa.dataInicial)} (descartados)` : ""}
                 {previa.ignoradas ? `, ${previa.ignoradas} linha(s) não reconhecida(s)` : ""}.
+                {previa.saldo ? ` Saldo informado no arquivo: ${formatCurrency(previa.saldo.valor)}${previa.saldo.data ? ` em ${dataBR(previa.saldo.data)}` : ""}.` : " O arquivo não traz saldo: o saldo da conta será a soma das movimentações."}
               </p>
               <div className="max-h-96 overflow-y-auto border border-gray-200">
                 <table className="w-full text-xs">
@@ -391,7 +438,7 @@ export function BancosPanel({
                 <button className={botaoSec} onClick={() => setPrevia(null)}>Escolher outro arquivo</button>
                 <button className={botaoPri} disabled={!novas || ocupado}
                   onClick={() => executar(
-                    async () => exigirResultado(await confirmarImportacaoExtrato(imp.contaId, previa.linhas.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo })))),
+                    async () => exigirResultado(await confirmarImportacaoExtrato(imp.contaId, previa.linhas.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo })), previa.saldo)),
                     (r) => {
                       toast.success(`${r.novos} lançamento(s) importado(s).${r.recebidos - r.novos > 0 ? ` ${r.recebidos - r.novos} já existiam.` : ""}`);
                       if (verConta === imp.contaId) void carregarTransacoes(imp.contaId);

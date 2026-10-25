@@ -16,7 +16,8 @@ import {
   statusPluggy,
   tokenPluggy,
 } from "@/lib/bancos";
-import type { LinhaExtrato } from "@/lib/extrato-import";
+import { classificarTransacao, reprocessarMovimentacoes, vincularTransacoesAoBpo } from "@/lib/bancos/lancamentos-bpo";
+import type { LinhaExtrato, SaldoExtrato } from "@/lib/extrato-import";
 
 // Pedido de 25/10: BPO › Bancos — contas por API (Asaas, Pluggy/Meu Pluggy) e por importação de
 // extrato. Mesmas operações dos routers `bancario` e `pluggySettings` da Prospecta
@@ -222,9 +223,12 @@ export async function listarTransacoesConta(contaId: string) {
       where: { contaId: String(contaId) },
       orderBy: { data: "desc" },
       take: 300,
-      select: { id: true, data: true, descricao: true, valor: true, tipo: true, categoria: true, status: true, origem: true },
+      select: {
+        id: true, data: true, descricao: true, valor: true, tipo: true, categoria: true, status: true, origem: true,
+        lancamento: { select: { clienteId: true } },
+      },
     });
-    return t.map((x) => ({ ...x, data: x.data.toISOString() }));
+    return t.map(({ lancamento, ...x }) => ({ ...x, data: x.data.toISOString(), clienteId: lancamento?.clienteId ?? null }));
   });
 }
 
@@ -266,7 +270,32 @@ export async function salvarTransacoes(
     where: { id: contaId },
     data: { ultimaSincronizacao: new Date() },
   });
+  // LOTE C: toda movimentação gera o lançamento pago no BPO.
+  await vincularTransacoesAoBpo({ contaId });
   revalidatePath(BPO);
+}
+
+/** LOTE C: categoria e cliente BPO de uma movimentação (atualiza o lançamento vinculado). */
+export async function classificarTransacaoAcao(id: string, input: { categoria?: string; clienteId?: string | null }) {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("bpo");
+    const r = await classificarTransacao(String(id), {
+      ...(input?.categoria !== undefined ? { categoria: String(input.categoria) } : {}),
+      ...(input?.clienteId !== undefined ? { clienteId: input.clienteId ? String(input.clienteId) : null } : {}),
+    });
+    revalidatePath(BPO);
+    return r;
+  });
+}
+
+/** LOTE C: botão "Reprocessar movimentações" — gera os lançamentos que faltam (sem duplicar). */
+export async function reprocessarMovimentacoesAcao() {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("bpo");
+    const r = await reprocessarMovimentacoes();
+    revalidatePath(BPO);
+    return r;
+  });
 }
 
 // ── Importação de extrato ───────────────────────────────────────────────────
@@ -290,7 +319,7 @@ export async function previaImportacaoExtrato(formData: FormData) {
   });
 }
 
-export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaExtrato[]) {
+export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaExtrato[], saldo?: SaldoExtrato | null) {
   return capturarErroAcao(async () => {
     await exigirModuloAcao("bpo");
     if (!Array.isArray(linhas) || linhas.length < 1 || linhas.length > 20000) throw new Error("Nenhum lançamento para importar.");
@@ -301,7 +330,10 @@ export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaE
       }
       return { data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo };
     });
-    const r = await confirmarImportacao(String(contaId), validas);
+    const saldoValido = saldo && typeof saldo.valor === "number" && Number.isFinite(saldo.valor)
+      && (saldo.data === null || (typeof saldo.data === "string" && DATA_ISO.test(saldo.data)))
+      ? { valor: saldo.valor, data: saldo.data } : null;
+    const r = await confirmarImportacao(String(contaId), validas, saldoValido);
     revalidatePath(BPO);
     return r;
   });

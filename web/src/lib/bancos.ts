@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { criptografarSegredo, descriptografarSegredo, segredoEmTextoPuro } from "@/lib/segredo";
 import { authenticatePluggy, fetchPluggyAccountBalance, fetchPluggyTransactions, garantirWebhookPluggy } from "@/lib/bancos/pluggy";
 import { fetchAsaasExtrato, fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
+import { recalcularSaldoConta, vincularTransacoesAoBpo } from "@/lib/bancos/lancamentos-bpo";
 import {
   aplicarDataInicial,
   chavesImportacao,
@@ -15,6 +16,7 @@ import {
   lerTextoPdf,
   type LinhaExtrato,
   type ResultadoLeitura,
+  type SaldoExtrato,
 } from "@/lib/extrato-import";
 
 export type Provedor = "manual" | "asaas" | "pluggy";
@@ -93,7 +95,9 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
     });
     novos += r.count;
   }
-  return { novos, recebidos: movimentos.length, antesDaDataInicial };
+  // LOTE C: cada movimentação vira um lançamento pago no BPO (1:1, idempotente).
+  const bpo = await vincularTransacoesAoBpo({ contaId: conta.id });
+  return { novos, recebidos: movimentos.length, antesDaDataInicial, lancamentosCriados: bpo.criados };
 }
 
 export type ResultadoSync = { ok: boolean; mensagem: string; novos?: number; saldo?: number | null };
@@ -135,6 +139,8 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
 /** Sincronização diária (cron): todas as contas ativas ligadas a uma API. */
 export async function sincronizarTodasContas(fetchImpl: typeof fetch = fetch) {
   await recriptografarConfiguracaoAsaas().catch(() => undefined);
+  // LOTE C: rede de segurança diária — movimentação sem lançamento no BPO ganha o seu (idempotente).
+  await vincularTransacoesAoBpo().catch(() => undefined);
   const contas = await prisma.contaBancaria.findMany({
     where: { ativo: true, provedor: { in: ["asaas", "pluggy"] } },
     select: { id: true },
@@ -192,6 +198,8 @@ export type PreviaImportacao = {
   ignoradas: number;
   antesDaDataInicial: number;
   dataInicial: string | null;
+  /** LOTE C: saldo informado pelo arquivo (OFX LEDGERBAL, coluna Saldo, PDF), se houver. */
+  saldo: SaldoExtrato | null;
 };
 
 export async function previaImportacao(contaId: string, nome: string, conteudo: Buffer, anoPadrao?: number): Promise<PreviaImportacao> {
@@ -212,17 +220,20 @@ export async function previaImportacao(contaId: string, nome: string, conteudo: 
     ignoradas: lido.ignoradas,
     antesDaDataInicial,
     dataInicial,
+    saldo: lido.saldo ?? null,
   };
 }
 
-export async function confirmarImportacao(contaId: string, linhas: LinhaExtrato[]) {
+export async function confirmarImportacao(contaId: string, linhas: LinhaExtrato[], saldo?: SaldoExtrato | null) {
   const conta = await prisma.contaBancaria.findUnique({ where: { id: contaId }, select: { id: true, dataInicial: true } });
   if (!conta) throw new Error("Conta não encontrada.");
   // Mesmas chaves da prévia: filtra pela data inicial antes de numerar as ocorrências.
   const { mantidas, antesDaDataInicial } = aplicarDataInicial(linhas, dataIsoDaConta(conta.dataInicial));
   const chaves = chavesImportacao(conta.id, mantidas, sha);
   const r = await gravarMovimentos(conta, mantidas.map((l, i) => ({ ...l, externalId: chaves[i] })), "importacao");
-  return { ...r, antesDaDataInicial };
+  // LOTE C: saldo do arquivo (ou soma das movimentações) atualizado após importar.
+  const saldoAtual = await recalcularSaldoConta(conta.id, saldo);
+  return { ...r, antesDaDataInicial, saldoAtual };
 }
 
 // ── Avisos em tempo real (pedido de 25/10) ──────────────────────────────────
