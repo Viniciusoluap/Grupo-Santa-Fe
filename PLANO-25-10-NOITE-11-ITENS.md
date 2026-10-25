@@ -61,3 +61,17 @@ Lote 5 (BPO, maior impacto) → Lote 1 (WhatsApp) → Lotes 2, 3, 4 → Lote 6. 
 - Reimportar o extrato da Cora (mesmo arquivo) para trazer os nomes.
 - Classificar os titulares mais frequentes uma vez (o resto sai automático).
 - Conferir saldo da Cora no app.
+
+## REVISÃO 1 (25/10 20:35) — novos itens pedidos pelo dono (aguardando autorização)
+12. **Conexão do WhatsApp só em Integrações**: a aba "Conexão" da Central WhatsApp (Minha Conexão + QR + Remover conexão +
+    Conexões dos Corretores) sai da Central e passa para o bloco WhatsApp de Configurações › Integrações. A Central fica com
+    Conversas, Enviar mensagem, Templates e Histórico.
+    Ponto de atenção: Integrações é só do admin; hoje cada corretor conecta o próprio número pela Central.
+13. **Voltar de Integrações** leva ao **Painel** (/admin), não a Configurações.
+14. **Asaas "conectado" mas sem dados**: a chave central funciona (saldo R$ 0,00), mas não existe conta Asaas cadastrada no
+    BPO › Bancos — por isso nada é puxado. Correção: ao salvar/testar a chave em Integrações, o sistema **cria sozinho** a conta
+    "Asaas" no BPO › Bancos (data inicial = a mesma da Cora, 01/01/2026) e sincroniza o extrato → Cobranças/Despesas/DRE
+    (mesma regra do extrato da Cora). Também puxa as **cobranças emitidas no Asaas** (a receber/recebidas) para Cobranças.
+    Observação: com saldo R$ 0,00, se a conta Asaas não teve movimentação, nada vai aparecer — o sistema vai dizer isso.
+15. Pluggy: "client keys are invalid" (HTTP 401) — as chaves salvas estão erradas (provável erro de digitação/cópia);
+    o dono recola Client ID e Secret copiando direto do painel da Pluggy (meu.pluggy.ai › Aplicações). Sem mudança de código.
