@@ -3,7 +3,21 @@
 export type EvolutionConfig = { url: string; apiKey: string };
 type Fetch = typeof fetch;
 
-const base = (c: EvolutionConfig) => c.url.trim().replace(/\/+$/, "");
+/** Pedido de 25/10: o Railway só aceita https (http redireciona e o POST vira GET → 404) e /manager é o painel. */
+export function normalizarUrlEvolution(url: string): string {
+  let u = url.trim().replace(/\/+$/, "").replace(/\/manager$/i, "");
+  if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
+  return u.replace(/^http:\/\//i, "https://");
+}
+const base = (c: EvolutionConfig) => normalizarUrlEvolution(c.url);
+
+/** Motivo legível devolvido pela Evolution ({ response: { message: [...] } } ou { message }). */
+function motivo(data: unknown): string {
+  const d = data as { response?: { message?: unknown }; message?: unknown; error?: unknown } | null;
+  const m = d?.response?.message ?? d?.message ?? d?.error;
+  const t = Array.isArray(m) ? m.flat().join("; ") : typeof m === "string" ? m : "";
+  return t ? `: ${t.slice(0, 200)}` : "";
+}
 const headers = (c: EvolutionConfig) => ({ "Content-Type": "application/json", apikey: c.apiKey.trim() });
 
 async function chamar<T>(c: EvolutionConfig, caminho: string, init: RequestInit = {}, fetchImpl: Fetch = fetch): Promise<{ ok: boolean; status: number; data: T | null }> {
@@ -19,7 +33,8 @@ export async function testarEvolution(c: EvolutionConfig, fetchImpl: Fetch = fet
   try { r = await chamar(c, "/instance/fetchInstances", {}, fetchImpl); }
   catch { throw new Error("Não consegui falar com o servidor da Evolution. Confira o endereço."); }
   if (r.status === 401 || r.status === 403) throw new Error("A Evolution recusou a chave (AUTHENTICATION_API_KEY).");
-  if (!r.ok) throw new Error(`A Evolution respondeu com erro (HTTP ${r.status}).`);
+  if (!r.ok) throw new Error(`A Evolution respondeu com erro (HTTP ${r.status})${motivo(r.data)}.`);
+  if (!Array.isArray(r.data)) throw new Error("Esse endereço não é a API da Evolution (use o endereço do serviço, sem /manager).");
 }
 
 export type EstadoConexao = "open" | "connecting" | "close";
@@ -27,7 +42,7 @@ export type EstadoConexao = "open" | "connecting" | "close";
 export async function estadoInstancia(c: EvolutionConfig, instancia: string, fetchImpl: Fetch = fetch): Promise<EstadoConexao | "inexistente"> {
   const r = await chamar<{ instance?: { state?: string } }>(c, `/instance/connectionState/${encodeURIComponent(instancia)}`, {}, fetchImpl);
   if (r.status === 404) return "inexistente";
-  if (!r.ok) throw new Error(`A Evolution não informou o estado da conexão (HTTP ${r.status}).`);
+  if (!r.ok) throw new Error(`A Evolution não informou o estado da conexão (HTTP ${r.status})${motivo(r.data)}.`);
   const s = r.data?.instance?.state;
   return s === "open" ? "open" : s === "connecting" ? "connecting" : "close";
 }
@@ -41,11 +56,11 @@ export async function gerarQrCode(c: EvolutionConfig, instancia: string, fetchIm
       method: "POST",
       body: JSON.stringify({ instanceName: instancia, integration: "WHATSAPP-BAILEYS", qrcode: true }),
     }, fetchImpl);
-    if (!r.ok) throw new Error(`A Evolution não criou a conexão (HTTP ${r.status}).`);
+    if (!r.ok) throw new Error(`A Evolution não criou a conexão (HTTP ${r.status})${motivo(r.data)}.`);
     if (r.data?.qrcode?.base64) return { qrCode: r.data.qrcode.base64, estado: "connecting" };
   }
   const r = await chamar<{ base64?: string }>(c, `/instance/connect/${encodeURIComponent(instancia)}`, {}, fetchImpl);
-  if (!r.ok) throw new Error(`A Evolution não gerou o QR code (HTTP ${r.status}).`);
+  if (!r.ok) throw new Error(`A Evolution não gerou o QR code (HTTP ${r.status})${motivo(r.data)}.`);
   return { qrCode: r.data?.base64 ?? null, estado: "connecting" };
 }
 
@@ -70,4 +85,63 @@ export async function enviarTextoEvolution(c: EvolutionConfig, instancia: string
     body: JSON.stringify({ number: num.startsWith("55") ? num : `55${num}`, text: texto }),
   }, fetchImpl);
   return r.ok ? (r.data?.key?.id ?? null) : null;
+}
+
+/**
+ * Pedido de 25/10 (Conversas): a Evolution passa a avisar o sistema de mensagens recebidas, status de
+ * entrega/leitura e da conexão. Cabeçalho secreto para o sistema aceitar só avisos legítimos.
+ */
+export async function registrarWebhookEvolution(c: EvolutionConfig, instancia: string, url: string, segredo: string, fetchImpl: Fetch = fetch): Promise<void> {
+  const r = await chamar(c, `/webhook/set/${encodeURIComponent(instancia)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      webhook: {
+        enabled: true,
+        url,
+        headers: { "x-webhook-token": segredo },
+        byEvents: false,
+        base64: false,
+        events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+      },
+    }),
+  }, fetchImpl);
+  if (!r.ok) throw new Error(`A Evolution não aceitou o aviso de mensagens (HTTP ${r.status})${motivo(r.data)}.`);
+}
+
+type MensagemEvolution = {
+  conversation?: unknown;
+  extendedTextMessage?: { text?: string };
+  imageMessage?: { caption?: string };
+  videoMessage?: { caption?: string };
+  documentMessage?: { fileName?: string };
+  audioMessage?: unknown;
+  stickerMessage?: unknown;
+  locationMessage?: unknown;
+  contactMessage?: unknown;
+};
+
+/** Texto legível de uma mensagem recebida (texto, legenda ou tipo de mídia). */
+export function textoDaMensagem(message: MensagemEvolution | undefined | null): string {
+  if (!message) return "";
+  if (typeof message.conversation === "string") return message.conversation;
+  if (message.extendedTextMessage?.text) return message.extendedTextMessage.text;
+  if (message.imageMessage) return message.imageMessage.caption ? `[imagem] ${message.imageMessage.caption}` : "[imagem]";
+  if (message.videoMessage) return message.videoMessage.caption ? `[vídeo] ${message.videoMessage.caption}` : "[vídeo]";
+  if (message.documentMessage) return `[documento] ${message.documentMessage.fileName ?? ""}`.trim();
+  if (message.audioMessage) return "[áudio]";
+  if (message.stickerMessage) return "[figurinha]";
+  if (message.locationMessage) return "[localização]";
+  if (message.contactMessage) return "[contato]";
+  return "[mensagem]";
+}
+
+/** Mesmo telefone? Compara DDD + 8 últimos dígitos (o WhatsApp às vezes omite o 9º dígito). */
+export function mesmoTelefone(a: string | null | undefined, b: string | null | undefined): boolean {
+  const n = (x: string) => {
+    let d = (x ?? "").replace(/\D/g, "");
+    if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+    return d.length >= 10 ? `${d.slice(0, 2)}${d.slice(-8)}` : d;
+  };
+  const x = n(a ?? ""), y = n(b ?? "");
+  return Boolean(x) && x === y;
 }

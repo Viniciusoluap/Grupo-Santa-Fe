@@ -899,12 +899,17 @@ model MensagemWhatsapp {
   destinatario     String
   nomeDestinatario String?
   mensagem         String
-  status           String          @default("enviada") // enviada | entregue | lida | falhou
+  status           String          @default("enviada") // enviada | entregue | lida | falhou | recebida
   externalId       String?
   erroMsg          String?
+  // Pedido de 25/10 (Conversas): mensagens recebidas pelo webhook da Evolution ficam aqui também.
+  direcao          String          @default("saida") // saida | entrada
+  lida             Boolean         @default(true)
   enviadaEm        DateTime        @default(now())
   atualizadoEm     DateTime        @updatedAt
 
+  @@index([conexaoId, destinatario, enviadaEm])
+  @@index([externalId])
   @@map("mensagens_whatsapp")
 }
 

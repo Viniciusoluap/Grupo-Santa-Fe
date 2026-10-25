@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { criptografarSegredo, descriptografarSegredo, segredoEmTextoPuro } from "@/lib/segredo";
-import type { EvolutionConfig } from "@/lib/evolution";
+import { normalizarUrlEvolution, type EvolutionConfig } from "@/lib/evolution";
 
 // Pedido de 25/10: servidor da Evolution (QR code) salvo pela tela, na tabela de configurações
 // (chave criptografada). Variáveis EVOLUTION_API_URL/KEY ficam como reserva.
@@ -18,19 +18,20 @@ export async function configEvolution(): Promise<EvolutionConfig | null> {
     if (segredoEmTextoPuro(cifrada)) {
       await prisma.configuracao.update({ where: { chave: KEY_CHAVE }, data: { valor: criptografarSegredo(apiKey) } });
     }
-    return { url, apiKey };
+    return { url: normalizarUrlEvolution(url), apiKey };
   }
   const envUrl = process.env.EVOLUTION_API_URL, envKey = process.env.EVOLUTION_API_KEY;
-  return envUrl && envKey ? { url: envUrl, apiKey: envKey } : null;
+  return envUrl && envKey ? { url: normalizarUrlEvolution(envUrl), apiKey: envKey } : null;
 }
 
 export async function urlServidorEvolution(): Promise<string | null> {
   const l = await prisma.configuracao.findUnique({ where: { chave: URL_CHAVE } });
-  return l?.valor ?? (process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY ? process.env.EVOLUTION_API_URL : null);
+  const url = l?.valor ?? (process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY ? process.env.EVOLUTION_API_URL : null);
+  return url ? normalizarUrlEvolution(url) : null;
 }
 
 export async function salvarConfigEvolution(url: string, apiKey: string): Promise<void> {
-  const limpa = url.trim().replace(/\/+$/, "");
+  const limpa = normalizarUrlEvolution(url);
   await prisma.$transaction([
     prisma.configuracao.upsert({ where: { chave: URL_CHAVE }, create: { chave: URL_CHAVE, valor: limpa, grupo: "whatsapp" }, update: { valor: limpa } }),
     prisma.configuracao.upsert({
