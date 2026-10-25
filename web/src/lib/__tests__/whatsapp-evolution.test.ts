@@ -50,7 +50,7 @@ describe("cliente Evolution (QR code)", () => {
     });
     expect(await enviarTextoEvolution(cfg, "x", "(94) 98888-7777", "Olá", envio as never)).toBe("MSG1");
     expect(await enviarTextoEvolution(cfg, "x", "94988887777", "Olá", vi.fn(() => resp({}, 400)) as never)).toBeNull();
-    const rm = vi.fn(() => resp({}));
+    const rm = vi.fn((_url: string) => resp({}));
     await removerInstancia(cfg, "x", rm as never);
     expect(rm.mock.calls.map(c => String(c[0]))).toEqual(["https://evo.exemplo.app/instance/logout/x", "https://evo.exemplo.app/instance/delete/x"]);
   });

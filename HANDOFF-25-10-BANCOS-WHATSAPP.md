@@ -77,3 +77,12 @@ Merge, deploy e migração em produção ainda dependem de autorização separad
 1. Santa Fé: commitar Bancos (Etapa 4) junto com `segredo.ts`; WhatsApp por QR (ligar o `src/lib/evolution.ts` existente à tela).
 2. Passo a passo do Railway para o dono publicar a Evolution.
 3. Após autorização de deploy: aplicar 0069 em produção e gravar as chaves da Prospecta (`plain:` → recriptografadas no 1º uso).
+
+## Fechamento do lote (25/10)
+- Santa Fé: suíte completa 835 passando + as mesmas 10 falhas pré-existentes do ambiente local; tsc OK; build OK.
+  Corrigidos: tipo no teste do WhatsApp e `vi.mock("server-only")` em `api-acesso-modulos.test.ts`.
+- Prospecta: limite do arquivo de extrato alinhado à Vercel (3 MB na tela; base64 ≤ 4,3 MB no servidor). 984 testes OK.
+- PRs em rascunho abertos nos dois repositórios. Merge/deploy/migrações em produção aguardam autorização.
+- Próximo passo exato: com autorização → aplicar `0069`/`0070` (Neon) e `20261025120000_bancos_provedores` (Supabase),
+  merge + deploy, gravar chaves da Prospecta como `plain:` (Asaas na conta "Asaas"; Pluggy em `pluggy_settings`),
+  clicar "Sincronizar"/"Testar conexão" e conferir; dono publica a Evolution no Railway e conecta o QR.
