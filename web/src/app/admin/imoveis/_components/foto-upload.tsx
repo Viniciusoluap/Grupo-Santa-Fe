@@ -2,16 +2,17 @@
 
 import { useState, useRef, useCallback } from "react";
 import { ImagePlus, X } from "lucide-react";
+import { MAX_FOTOS_IMOVEL } from "@/lib/imovel-fotos-limites";
 
 const MIN_FOTOS = 5;
-const MAX_FOTOS = 15;
+const MAX_FOTOS = MAX_FOTOS_IMOVEL;
 
 function compressImage(file: File): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const MAX_DIM = 1200;
+      const MAX_DIM = 1600;
       let { width, height } = img;
       if (width > MAX_DIM || height > MAX_DIM) {
         if (width >= height) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
@@ -20,10 +21,17 @@ function compressImage(file: File): Promise<string> {
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
-      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error("Não foi possível processar a foto.")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+      for (const qualidade of [0.82, 0.68, 0.5]) {
+        const imagem = canvas.toDataURL("image/jpeg", qualidade);
+        if (imagem.length <= 3_300_000) { resolve(imagem); return; }
+      }
+      reject(new Error("Foto grande demais mesmo após otimização. Escolha uma versão menor."));
     };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Não foi possível ler ${file.name}. Use JPG, PNG, WebP ou uma foto HEIC compatível com este navegador.`)); };
     img.src = url;
   });
 }
@@ -38,12 +46,18 @@ export function FotoUpload({ name, defaultValue }: FotoUploadProps) {
     try { return defaultValue ? JSON.parse(defaultValue) : []; } catch { return []; }
   });
   const [drag, setDrag] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
-    const imgs = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    const compressed = await Promise.all(imgs.slice(0, MAX_FOTOS - fotos.length).map(compressImage));
-    setFotos((prev) => [...prev, ...compressed].slice(0, MAX_FOTOS));
+    const imgs = Array.from(files).filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+    setErro(null);
+    try {
+      const compressed = await Promise.all(imgs.slice(0, MAX_FOTOS - fotos.length).map(compressImage));
+      setFotos((prev) => [...prev, ...compressed].slice(0, MAX_FOTOS));
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Falha ao processar fotos.");
+    }
   }, [fotos.length]);
 
   const remove = (i: number) => setFotos((p) => p.filter((_, j) => j !== i));
@@ -77,9 +91,11 @@ export function FotoUpload({ name, defaultValue }: FotoUploadProps) {
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => e.target.files && addFiles(e.target.files)}
+          onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ""; }}
         />
       </div>
+
+      {erro && <p role="alert" className="mt-2 text-sm text-red-700">{erro}</p>}
 
       {fotos.length > 0 && fotos.length < MIN_FOTOS && (
         <p className="text-xs text-amber-600 mt-1.5 font-medium">

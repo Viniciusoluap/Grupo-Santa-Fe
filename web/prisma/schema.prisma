@@ -1321,12 +1321,14 @@ model ImovelFoto {
   imovel      Imovel   @relation(fields: [imovelId], references: [id], onDelete: Cascade)
   mime        String
   tamanho     Int
+  sha256      String?  @db.VarChar(64)
   driveFileId String?
   dados       Bytes?
   criadoPorId String?
   criadoEm    DateTime @default(now())
 
   @@index([imovelId])
+  @@unique([imovelId, sha256])
   @@map("imovel_fotos")
 }
 
