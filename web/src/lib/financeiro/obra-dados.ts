@@ -40,6 +40,7 @@ export type ResumoObra = {
     dataInicio: string | null;
     dataTerminoPrevista: string | null;
     percentualEmpreiteiro: string | null;
+    incluirProSolutoBaseEmpreiteiro: boolean;
     comissaoPercentual: string | null;
   };
   /** Corretor vem do lead no CRM (item 24), com a regra padrão de comissão. */
@@ -95,6 +96,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
     dataTerminoPrevista: paraData(obra.dataPrevisaoFim),
     investidores: obra.investidores.map((i) => ({ id: i.investidorId, percentual: i.percentual.toString() })),
     percentualEmpreiteiro: obra.empreiteiroId ? txt(obra.percentualEmpreiteiro) : null,
+    incluirProSolutoBaseEmpreiteiro: Boolean(obra.empreiteiroId) && obra.incluirProSolutoBaseEmpreiteiro,
     movimentos: obra.movimentos.map((m) => ({
       natureza: m.natureza as MovimentoResumo["natureza"],
       valorCentavos: centavosDe(m.valor.toString())!,
@@ -121,6 +123,7 @@ export async function carregarResumoObra(obraId: string): Promise<ResumoObra | n
       dataInicio: entradas.dataInicio,
       dataTerminoPrevista: entradas.dataTerminoPrevista,
       percentualEmpreiteiro: txt(obra.percentualEmpreiteiro),
+      incluirProSolutoBaseEmpreiteiro: obra.incluirProSolutoBaseEmpreiteiro,
       comissaoPercentual: txt(obra.comissaoPercentual),
     },
     corretor,

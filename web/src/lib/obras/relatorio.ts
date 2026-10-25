@@ -52,6 +52,7 @@ export interface DadosRelatorioObra {
     taxaMensalPct: string | null;
     parcelas: number | null;
     percentualEmpreiteiro: string | null;
+    incluirProSolutoBaseEmpreiteiro?: boolean;
   };
   calculo: ResultadoObra;
   empreiteiro: string | null;
@@ -73,7 +74,7 @@ export const CAMPOS_OBRIGATORIOS: Record<string, string[]> = {
   info: ["Obra", "Tipo de projeto", "Cliente", "Telefone do cliente", "E-mail do cliente", "Corretor", "Endereço", "Área total", "Status", "Escritório CEF", "Data de início", "Previsão de término", "Término real", "Observações"],
   operacao: [
     "VGV", "Financiamento CEF", "FGTS", "Subsídio", "Entrada total", "Entrada paga", "Saldo de entrada", "Recebido da CEF",
-    "A receber do banco", "Pró-soluto", "Taxa mensal", "Quantidade de parcelas", "Valor da parcela", "Dias de obra",
+    "A receber do banco", "Pró-soluto", "Taxa mensal", "Quantidade de parcelas", "Valor da parcela", "Valor total do Pró-Soluto", "Pró-Soluto na base do empreiteiro", "Base do empreiteiro", "Dias de obra",
     "PLS Real", "Custo de construção", "Gasto realizado na obra", "Lucro estimado", "Lucro dos investidores",
     "Lucro do empreiteiro", "Lucro da empresa",
   ],
@@ -195,6 +196,9 @@ export function montarRelatorioObra(d: DadosRelatorioObra): RelatorioObra {
       { rotulo: "Taxa mensal", valor: v.taxaMensalPct === null ? NAO_INFORMADO : pct(v.taxaMensalPct, 4) },
       { rotulo: "Quantidade de parcelas", valor: v.parcelas === null ? NAO_INFORMADO : String(v.parcelas) },
       { rotulo: "Valor da parcela", valor: ind(c.valorParcela) },
+      { rotulo: "Valor total do Pró-Soluto", valor: ind(c.valorTotalProSoluto) },
+      { rotulo: "Pró-Soluto na base do empreiteiro", valor: v.incluirProSolutoBaseEmpreiteiro ? "Sim" : "Não" },
+      { rotulo: "Base do empreiteiro", valor: ind(c.baseEmpreiteiro) },
       { rotulo: "Dias de obra", valor: c.diasObra.ok ? `${c.diasObra.dias} dias` : `Não calculado — ${c.diasObra.motivo}` },
       { rotulo: "Base do PLS", valor: ind(c.basePls) },
       { rotulo: "PLS Real", valor: c.plsReal.ok ? formatarPercentual(c.plsReal.percentual) : `Não calculado — ${c.plsReal.motivo}` },

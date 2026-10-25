@@ -13,6 +13,33 @@ export function coordenadasDoFormulario(fd: FormData): Coordenadas | null | unde
   return normalizarCoordenadas({ lat, lng });
 }
 
+/** Cadastro administrativo da obra: vínculo estável, sem tornar o imóvel público. */
+export async function sincronizarCatalogoObra(tx: TransacaoCRM, obraId: string, usuarioId: string | null) {
+  await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
+  const obra = await tx.obra.findUnique({ where: { id: obraId }, select: {
+    id: true, nome: true, endereco: true, area: true, vgv: true, imovelId: true,
+    imovel: { select: { slug: true } },
+  } });
+  if (!obra?.endereco?.trim()) return { imovelId: obra?.imovelId ?? null, criado: false };
+  const dados = imovelDaObra({ id: obra.id, titulo: obra.nome, endereco: obra.endereco, cidade: null, estado: null });
+  const automatico = obra.imovel?.slug.startsWith(`obra-${obra.id}-`) ?? false;
+  if (obra.imovelId) {
+    if (automatico) await tx.imovel.update({ where: { id: obra.imovelId }, data: {
+      titulo: dados.titulo, rua: dados.endereco ?? "", area: obra.area ?? 0,
+      ...(obra.vgv != null ? { preco: Number(obra.vgv) } : {}),
+    } });
+    return { imovelId: obra.imovelId, criado: false };
+  }
+  const imovel = await tx.imovel.create({ data: {
+    titulo: dados.titulo, descricao: dados.descricao, rua: dados.endereco ?? "", bairro: "",
+    cidade: dados.cidade, area: obra.area ?? 0, preco: obra.vgv == null ? 0 : Number(obra.vgv),
+    slug: `obra-${obra.id}-${randomBytes(4).toString("hex")}`, tipo: "casa", status: "venda",
+    publicadoSite: false, destaque: false, revisaoStatus: "aprovado", cadastradoPorId: usuarioId,
+  }, select: { id: true } });
+  await tx.obra.update({ where: { id: obra.id }, data: { imovelId: imovel.id } });
+  return { imovelId: imovel.id, criado: true };
+}
+
 /**
  * Grava o ponto da obra dentro da transação (obra travada com FOR UPDATE). Com
  * imóvel vinculado, só atualiza latitude/longitude dele; sem vínculo, cria um

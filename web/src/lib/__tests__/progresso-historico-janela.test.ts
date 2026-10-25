@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const { findUnique, findMany } = vi.hoisted(() => ({
   findUnique: vi.fn(), findMany: vi.fn().mockResolvedValue([]),
 }));
-vi.mock("@/lib/db", () => ({ prisma: { obra: { findUnique }, usuario: { findMany } } }));
+vi.mock("@/lib/db", () => ({ prisma: { obra: { findUnique }, usuario: { findMany }, obraProgressoHistorico: { findMany } } }));
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
 
 describe("janela do histórico de medições", () => {

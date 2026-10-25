@@ -30,10 +30,12 @@ export default async function AdminImoveisPage() {
   // O corretor usa a lista do Portal do Corretor (igual à Prospecta).
   if (usuario.perfil === "corretor") redirect("/corretor/imoveis");
 
-  const imoveis = await prisma.imovel.findMany({
-    orderBy: { criadoEm: "desc" },
-    include: { corretor: true },
-  });
+  const [imoveis, obrasSemImovel] = await Promise.all([
+    prisma.imovel.findMany({ orderBy: { criadoEm: "desc" }, include: { corretor: true } }),
+    prisma.obra.findMany({ where: { imovelId: null, endereco: { not: null } },
+      select: { id: true, nome: true, endereco: true, tipo: true, vgv: true }, orderBy: { criadoEm: "desc" } }),
+  ]);
+  const obrasComEndereco = obrasSemImovel.filter(o => o.endereco?.trim());
 
   return (
     <div className="space-y-5">
@@ -44,7 +46,7 @@ export default async function AdminImoveisPage() {
             Imóveis
           </h1>
           <p className="text-gray-600 text-sm mt-0.5">
-            {imoveis.length} imóveis cadastrados
+            {imoveis.length + obrasComEndereco.length} imóveis e obras com endereço no catálogo administrativo
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -154,6 +156,17 @@ export default async function AdminImoveisPage() {
                   <td className="px-4 py-3">
                     <ImovelAcoes id={imovel.id} titulo={imovel.titulo} />
                   </td>
+                </tr>
+              ))}
+              {obrasComEndereco.map((obra) => (
+                <tr key={`obra-${obra.id}`} className="bg-amber-50/40">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">OBRA-{obra.id.slice(-4).toUpperCase()}</td>
+                  <td className="px-4 py-3 font-medium text-[var(--brand-dark)]">{obra.nome}<p className="text-xs text-amber-800">Cadastro de obra · vínculo ao imóvel pendente</p></td>
+                  <td className="px-4 py-3 hidden md:table-cell">{obra.tipo ?? "Obra"}</td>
+                  <td className="px-4 py-3 hidden lg:table-cell">{obra.endereco}</td>
+                  <td className="px-4 py-3 text-right">{obra.vgv == null ? "Não informado" : formatCurrency(Number(obra.vgv))}</td>
+                  <td className="px-4 py-3 text-center hidden md:table-cell">Interno</td>
+                  <td className="px-4 py-3 text-center"><Link className="font-bold text-xs underline" href={`/admin/obras/${obra.id}/editar`}>Abrir obra</Link></td>
                 </tr>
               ))}
             </tbody>

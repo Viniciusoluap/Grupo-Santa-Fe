@@ -31,6 +31,7 @@ type VisitaData = {
   imovelId: string | null;
   imovel: ImovelItem | null;
   leadId: string | null;
+  responsavelLeadNome?: string | null;
 };
 
 interface Props {
@@ -38,8 +39,8 @@ interface Props {
   corretores: Corretor[];
   imoveis: ImovelItem[];
   leads: LeadItem[];
-  vencimentos: { id: string; nome: string; vencimentoCard: Date | string | null }[];
-  tarefas: { id: string; titulo: string; status: string; prazo: Date | string | null; leadId: string; lead: { nome: string } }[];
+  vencimentos: { id: string; nome: string; vencimentoCard: Date | string | null; responsavel?: { nome: string } | null }[];
+  tarefas: { id: string; titulo: string; status: string; prazo: Date | string | null; leadId: string; lead: { nome: string }; responsavelNome?: string | null }[];
   /** Pedido de 15/10: o corretor não escolhe corretor/colaborador (vem da sessão). */
   ehCorretor?: boolean;
 }
@@ -202,6 +203,7 @@ function VisitaCard({ v, onEdit }: { v: VisitaData; onEdit: () => void }) {
           <span className="flex items-center gap-1"><Clock size={10} />{dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
           {v.corretor && <span className="flex items-center gap-1"><User size={10} />Corretor: {v.corretor.nome}</span>}
           {v.colaboradorNome && <span className="flex items-center gap-1"><User size={10} />Colaborador: {v.colaboradorNome}</span>}
+          <span className="flex items-center gap-1"><User size={10} />Responsável: {v.leadId ? v.responsavelLeadNome ?? "Não atribuído" : v.colaboradorNome ?? v.corretor?.nome ?? "Não atribuído"}</span>
         </div>
 
         {v.notas && <p className="text-xs text-gray-600 mt-1 italic">{v.notas}</p>}
@@ -578,11 +580,13 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, vencimentos,
                 <div key={`lead-${registro.item.id}`} className="border border-gray-100 p-4 text-sm">
                   <p className="text-xs font-bold text-red-700 mb-1">Lead · {registro.dia.split("-").reverse().join("/")}</p>
                   <Link href={`/admin/leads/${registro.item.id}`} className="underline font-semibold text-[var(--brand-dark)]">{registro.item.nome}</Link>
+                  <p className="text-xs text-gray-600">Responsável: {registro.item.responsavel?.nome ?? "Não atribuído"}</p>
                 </div>
               ) : (
                 <div key={`tarefa-${registro.item.id}`} className="border border-gray-100 p-4 text-sm space-y-2">
                   <p className="text-xs font-bold text-blue-700">Tarefa · {registro.dia ? registro.dia.split("-").reverse().join("/") : "Sem prazo"}</p>
                   <Link href={`/admin/leads/${registro.item.leadId}`} className="block underline font-semibold text-[var(--brand-dark)]">{registro.item.titulo} · {registro.item.lead.nome}</Link>
+                  <p className="text-xs text-gray-600">Responsável: {registro.item.responsavelNome ?? "Não atribuído"}</p>
                   <div className="flex flex-wrap gap-2">
                     <select aria-label={`Status de ${registro.item.titulo}`} value={registro.item.status}
                       onChange={event => { editarTarefaCrm(registro.item.id, { status: event.target.value }).catch(error => alert(error.message)); }}

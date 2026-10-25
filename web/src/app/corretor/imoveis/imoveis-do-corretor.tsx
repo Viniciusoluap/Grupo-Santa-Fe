@@ -4,7 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { excluirImovel } from "@/lib/actions/imoveis";
-import { enviarFormComProgresso } from "@/lib/envio-progresso";
+import { enviarImovelComFotos } from "@/lib/envio-fotos-imovel";
 import { DIAS_AVISO_RECUSA, ROTULO_TIPO_IMOVEL, TIPOS_IMOVEL_CORRETOR } from "@/lib/portal-corretor";
 import { formatCurrency } from "@/lib/utils";
 import { FotoUpload } from "@/app/admin/imoveis/_components/foto-upload";
@@ -55,19 +55,11 @@ export function ImoveisDoCorretor({ imoveis }: { imoveis: ImovelDoPortal[] }) {
       setMsg({ ok: false, texto: "Informe o preço do imóvel." });
       return;
     }
-    let tamanhos: number[] = [];
-    try {
-      const lista = JSON.parse(String(dados.get("imagens") ?? "[]"));
-      if (Array.isArray(lista)) tamanhos = lista.filter((f): f is string => typeof f === "string" && f.startsWith("data:")).map((f) => f.length);
-    } catch {
-      tamanhos = [];
-    }
     if (editando) dados.set("id", editando.id);
     setEnviando(true);
     setMsg(null);
     try {
-      // Item 4 (18/10): progresso real do envio, foto a foto.
-      await enviarFormComProgresso("/api/imoveis/salvar", dados, { item: "foto", tamanhos });
+      await enviarImovelComFotos(dados);
       setMsg({ ok: true, texto: editando ? "Alterações enviadas para revisão." : "Imóvel enviado para revisão." });
       fechar();
       router.refresh();

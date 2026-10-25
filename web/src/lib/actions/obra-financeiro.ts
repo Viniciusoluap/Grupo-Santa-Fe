@@ -73,6 +73,7 @@ export interface ValoresObraInput {
   parcelas: number | null;
   empreiteiroId: string | null;
   percentualEmpreiteiro: string | null;
+  incluirProSolutoBaseEmpreiteiro?: boolean;
   escritorioCef: string | null;
 }
 
@@ -134,6 +135,7 @@ export async function salvarValoresObra(input: ValoresObraInput): Promise<Result
         qtdeParcelas: input.parcelas,
         empreiteiroId: input.empreiteiroId || null,
         percentualEmpreiteiro: input.empreiteiroId ? percentual(input.percentualEmpreiteiro, "Participação do empreiteiro") : null,
+        incluirProSolutoBaseEmpreiteiro: input.empreiteiroId ? input.incluirProSolutoBaseEmpreiteiro === true : false,
         escritorioCef: input.escritorioCef?.trim() || null,
       },
     });

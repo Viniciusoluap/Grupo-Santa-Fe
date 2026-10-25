@@ -9,9 +9,8 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const dados = await req.formData();
-    if (dados.get("id")) await editarImovelCore(dados);
-    else await criarImovelCore(dados);
-    return NextResponse.json({ ok: true });
+    const id = dados.get("id") ? await editarImovelCore(dados) : await criarImovelCore(dados);
+    return NextResponse.json({ ok: true, id });
   } catch (e) {
     const mensagem = e instanceof Error ? e.message : "Falha ao salvar o imóvel.";
     const status = /autoriza|permiss/i.test(mensagem) ? 403 : 400;

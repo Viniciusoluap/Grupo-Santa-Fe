@@ -37,6 +37,7 @@ export interface FormFinanceiro {
   parcelas: number | null;
   empreiteiroId: string | null;
   percentualEmpreiteiro: string | null;
+  incluirProSolutoBaseEmpreiteiro: boolean;
   investidores: { investidorId: string; nome: string; percentual: string }[];
 }
 
@@ -47,6 +48,7 @@ export function formInicial(resumo: ResumoObra): FormFinanceiro {
     custoTerreno: v.custoTerreno, comissao: v.comissao, comissaoPercentual: v.comissaoPercentual, orcamentoPrevisto: v.orcamentoPrevisto,
     taxaMensalPct: v.taxaMensalPct, parcelas: v.parcelas,
     empreiteiroId: resumo.empreiteiro?.id ?? null, percentualEmpreiteiro: v.percentualEmpreiteiro,
+    incluirProSolutoBaseEmpreiteiro: v.incluirProSolutoBaseEmpreiteiro,
     investidores: resumo.investidores.map((i) => ({ ...i })),
   };
 }
@@ -69,6 +71,7 @@ export function calcularAoVivo(form: FormFinanceiro, resumo: ResumoObra, datas: 
     dataInicio: datas.inicio || null, dataTerminoPrevista: datas.termino || null,
     investidores: form.investidores.map((i) => ({ id: i.investidorId, percentual: i.percentual })),
     percentualEmpreiteiro: form.empreiteiroId ? form.percentualEmpreiteiro : null,
+    incluirProSolutoBaseEmpreiteiro: Boolean(form.empreiteiroId) && form.incluirProSolutoBaseEmpreiteiro,
     movimentos: resumo.movimentos.map((m) => ({ natureza: m.natureza, valorCentavos: centavosDe(m.valor)!, status: m.status })),
   });
 }
@@ -446,9 +449,14 @@ export function ValoresOperacao({ resumo, form, setForm, calculo, empreiteiroNom
               ? <CampoDecimal valor={form.percentualEmpreiteiro} onChange={set("percentualEmpreiteiro")} casas={6} sufixo="%" placeholder="0" ariaLabel="Participação do Empreiteiro" />
               : <div className={leituraCls}>—</div>}
           </div>
-          <Calculado label="Base do Empreiteiro" indicador={calculo.baseEmpreiteiro} ajuda="Lucro Estimado − Lucro dos Investidores" />
+          <Calculado label="Base do Empreiteiro" indicador={calculo.baseEmpreiteiro} ajuda={form.incluirProSolutoBaseEmpreiteiro ? "Lucro Estimado − Lucro dos Investidores + Valor Total do Pró-Soluto" : "Lucro Estimado − Lucro dos Investidores"} />
           <Calculado label="Lucro do Empreiteiro" indicador={calculo.lucroEmpreiteiro} />
         </div>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={form.incluirProSolutoBaseEmpreiteiro} disabled={!form.empreiteiroId}
+            onChange={(e) => setForm({ ...form, incluirProSolutoBaseEmpreiteiro: e.target.checked })} />
+          Incluir Valor Total do Pró-Soluto na Base do Empreiteiro
+        </label>
         <Calculado label="Lucro Grupo Santa Fé" indicador={calculo.lucroEmpresa} destaque ajuda="Lucro Estimado − Lucro dos Investidores − Lucro do Empreiteiro" />
       </Secao>
       <Secao titulo="Pró-Soluto" formula="Pró-Soluto = Saldo da Entrada · Parcela pelo sistema Price (equivalente à HP 12C, modo END)">
@@ -461,6 +469,7 @@ export function ValoresOperacao({ resumo, form, setForm, calculo, empreiteiroNom
               onChange={(e) => { const t = e.target.value.replace(/\D/g, ""); setForm({ ...form, parcelas: t ? Number(t) : null }); }} />
           </div>
           <Calculado label="Valor da Parcela" indicador={calculo.valorParcela} destaque />
+          <Calculado label="Valor Total do Pró-Soluto" indicador={calculo.valorTotalProSoluto} />
         </div>
       </Secao>
       <Secao titulo="Prazo">

@@ -129,6 +129,42 @@ describe("Teste C — Distribuição dos lucros", () => {
   });
 });
 
+describe("Pró-Soluto na base do empreiteiro", () => {
+  const cents = (i: Indicador) => i.ok ? i.centavos : NaN;
+  const entradas = obra({ taxaMensalPct: "0", parcelas: 2, percentualEmpreiteiro: "20" });
+  it("mantém a regra anterior por padrão e aumenta apenas a base quando marcado", () => {
+    const anterior = calcularObra(entradas);
+    const marcado = calcularObra({ ...entradas, incluirProSolutoBaseEmpreiteiro: true });
+    expect(cents(marcado.valorTotalProSoluto)).toBe(cents(marcado.valorParcela) * 2);
+    expect(cents(anterior.baseEmpreiteiro)).toBe(R("45000"));
+    expect(cents(marcado.baseEmpreiteiro)).toBe(R("45000") + cents(marcado.valorTotalProSoluto));
+    expect(cents(marcado.lucroEmpreiteiro) - cents(anterior.lucroEmpreiteiro)).toBe(
+      aplicarPercentual(cents(marcado.valorTotalProSoluto) as number, percentualMicro("20")!),
+    );
+    expect(cents(anterior.lucroEmpresa) - cents(marcado.lucroEmpresa)).toBe(
+      cents(marcado.lucroEmpreiteiro) - cents(anterior.lucroEmpreiteiro),
+    );
+    expect(cents(marcado.lucroEstimado)).toBe(cents(anterior.lucroEstimado));
+  });
+
+  it("reflete alterações de parcelas e pagamento; desmarcar restaura o lucro", () => {
+    const primeiro = calcularObra({ ...entradas, incluirProSolutoBaseEmpreiteiro: true });
+    const pago = calcularObra({ ...entradas, incluirProSolutoBaseEmpreiteiro: true, movimentos: [mov("entrada", "1000")] });
+    expect(cents(pago.valorTotalProSoluto)).toBeLessThan(cents(primeiro.valorTotalProSoluto));
+    expect(cents(pago.lucroEmpresa)).toBeGreaterThan(cents(primeiro.lucroEmpresa));
+    const desmarcado = calcularObra({ ...entradas, movimentos: [mov("entrada", "1000")] });
+    expect(cents(desmarcado.baseEmpreiteiro)).toBe(R("45000"));
+  });
+
+  it("não converte dados ausentes ou parcelas inválidas em zero e aceita saldo zero", () => {
+    expect(calcularObra({ ...entradas, parcelas: null, incluirProSolutoBaseEmpreiteiro: true }).baseEmpreiteiro.ok).toBe(false);
+    expect(calcularObra({ ...entradas, parcelas: 0, incluirProSolutoBaseEmpreiteiro: true }).valorTotalProSoluto.ok).toBe(false);
+    const zero = calcularObra({ ...entradas, movimentos: [mov("entrada", "21766")], incluirProSolutoBaseEmpreiteiro: true });
+    expect(cents(zero.valorTotalProSoluto)).toBe(0);
+    expect(cents(zero.baseEmpreiteiro)).toBe(R("45000"));
+  });
+});
+
 describe("Teste D — HP 12C (Price, modo END)", () => {
   it("PV 12.000,00, 1,50% a.m., 20 parcelas → R$ 698,95", () => {
     expect(valor(parcelaPrice(R("12000"), 1.5, 20))).toBe(R("698.95"));
