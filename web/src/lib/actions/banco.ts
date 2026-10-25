@@ -4,19 +4,20 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { criptografarSegredo } from "@/lib/segredo";
-import { authenticatePluggy, createPluggyConnectToken, fetchPluggyItemAccounts, fetchPluggyItemConnector } from "@/lib/bancos/pluggy";
+import { createPluggyConnectToken, fetchPluggyItemAccounts, fetchPluggyItemConnector } from "@/lib/bancos/pluggy";
 import { fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
+import { chaveAsaasCentral } from "@/lib/bancos/asaas-central";
 import {
   confirmarImportacao,
   dataDaConta,
   previaImportacao,
   registrarWebhookPluggy,
-  salvarTokenWebhookAsaas,
   sincronizarConta,
   statusPluggy,
   tokenPluggy,
 } from "@/lib/bancos";
-import type { LinhaExtrato } from "@/lib/extrato-import";
+import { classificarTransacao, reprocessarMovimentacoes, vincularTransacoesAoBpo } from "@/lib/bancos/lancamentos-bpo";
+import type { LinhaExtrato, SaldoExtrato } from "@/lib/extrato-import";
 
 // Pedido de 25/10: BPO › Bancos — contas por API (Asaas, Pluggy/Meu Pluggy) e por importação de
 // extrato. Mesmas operações dos routers `bancario` e `pluggySettings` da Prospecta
@@ -39,18 +40,8 @@ export async function statusPluggyAcao() {
   return capturarErroAcao(async () => { await exigirModuloAcao("bpo"); return statusPluggy(); });
 }
 
-export async function salvarCredenciaisPluggy(input: { clientId: string; clientSecret: string }) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("bpo", { somenteEquipe: true });
-    const clientId = texto(input?.clientId), clientSecret = texto(input?.clientSecret);
-    if (!clientId || !clientSecret) throw new Error("Informe o Client ID e o Client Secret.");
-    const token = await authenticatePluggy(clientId, clientSecret);
-    if (!token) throw new Error("Credenciais Pluggy inválidas ou API indisponível");
-    const dados = { clientIdEncrypted: criptografarSegredo(clientId), clientSecretEncrypted: criptografarSegredo(clientSecret), isActive: true };
-    await prisma.configuracaoPluggy.upsert({ where: { id: 1 }, create: { id: 1, ...dados }, update: dados });
-    return { success: true };
-  });
-}
+// LOTE B (25/10): Client ID/Secret da Pluggy são salvos só em Configurações › Integrações
+// (lib/actions/integracoes.ts → salvarPluggyIntegracao).
 
 export async function testarPluggy() {
   return capturarErroAcao(async () => {
@@ -108,17 +99,7 @@ export async function importarItemPluggy(input: { itemId: string; dataInicial?: 
   });
 }
 
-// ── Webhook do Asaas (avisos em tempo real) ─────────────────────────────────
-
-export async function salvarTokenWebhookAsaasAcao(token: string) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("bpo", { somenteEquipe: true });
-    const t = texto(token);
-    if (t.length < 8 || t.length > 255) throw new Error("Token do webhook do Asaas inválido (mínimo de 8 caracteres).");
-    await salvarTokenWebhookAsaas(t);
-    return { success: true };
-  });
-}
+// LOTE B (25/10): o token do webhook do Asaas é salvo só em Configurações › Integrações.
 
 // ── Contas ──────────────────────────────────────────────────────────────────
 
@@ -142,8 +123,14 @@ export async function criarContaBancaria(input: {
     const dataInicial = dataIsoOpcional(input?.dataInicial);
     let saldo = Number.isFinite(input?.saldoAtual) ? Number(input.saldoAtual) : 0;
     if (provedor === "asaas") {
-      if (!apiKey) throw new Error("Informe a chave de API do Asaas.");
-      saldo = await fetchAsaasSaldo(apiKey);
+      // LOTE B (25/10): sem chave própria, valida e usa a chave central (Integrações).
+      let chave = apiKey;
+      if (!chave) {
+        const central = await chaveAsaasCentral().catch(() => null);
+        if (!central) throw new Error("Cadastre a chave do Asaas em Configurações › Integrações.");
+        chave = central.apiKey;
+      }
+      saldo = await fetchAsaasSaldo(chave);
     }
     const conta = await prisma.contaBancaria.create({
       data: {
@@ -222,9 +209,12 @@ export async function listarTransacoesConta(contaId: string) {
       where: { contaId: String(contaId) },
       orderBy: { data: "desc" },
       take: 300,
-      select: { id: true, data: true, descricao: true, valor: true, tipo: true, categoria: true, status: true, origem: true },
+      select: {
+        id: true, data: true, descricao: true, valor: true, tipo: true, categoria: true, status: true, origem: true,
+        lancamento: { select: { clienteId: true } },
+      },
     });
-    return t.map((x) => ({ ...x, data: x.data.toISOString() }));
+    return t.map(({ lancamento, ...x }) => ({ ...x, data: x.data.toISOString(), clienteId: lancamento?.clienteId ?? null }));
   });
 }
 
@@ -266,7 +256,32 @@ export async function salvarTransacoes(
     where: { id: contaId },
     data: { ultimaSincronizacao: new Date() },
   });
+  // LOTE C: toda movimentação gera o lançamento pago no BPO.
+  await vincularTransacoesAoBpo({ contaId });
   revalidatePath(BPO);
+}
+
+/** LOTE C: categoria e cliente BPO de uma movimentação (atualiza o lançamento vinculado). */
+export async function classificarTransacaoAcao(id: string, input: { categoria?: string; clienteId?: string | null }) {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("bpo");
+    const r = await classificarTransacao(String(id), {
+      ...(input?.categoria !== undefined ? { categoria: String(input.categoria) } : {}),
+      ...(input?.clienteId !== undefined ? { clienteId: input.clienteId ? String(input.clienteId) : null } : {}),
+    });
+    revalidatePath(BPO);
+    return r;
+  });
+}
+
+/** LOTE C: botão "Reprocessar movimentações" — gera os lançamentos que faltam (sem duplicar). */
+export async function reprocessarMovimentacoesAcao() {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("bpo");
+    const r = await reprocessarMovimentacoes();
+    revalidatePath(BPO);
+    return r;
+  });
 }
 
 // ── Importação de extrato ───────────────────────────────────────────────────
@@ -290,7 +305,7 @@ export async function previaImportacaoExtrato(formData: FormData) {
   });
 }
 
-export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaExtrato[]) {
+export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaExtrato[], saldo?: SaldoExtrato | null) {
   return capturarErroAcao(async () => {
     await exigirModuloAcao("bpo");
     if (!Array.isArray(linhas) || linhas.length < 1 || linhas.length > 20000) throw new Error("Nenhum lançamento para importar.");
@@ -301,7 +316,10 @@ export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaE
       }
       return { data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo };
     });
-    const r = await confirmarImportacao(String(contaId), validas);
+    const saldoValido = saldo && typeof saldo.valor === "number" && Number.isFinite(saldo.valor)
+      && (saldo.data === null || (typeof saldo.data === "string" && DATA_ISO.test(saldo.data)))
+      ? { valor: saldo.valor, data: saldo.data } : null;
+    const r = await confirmarImportacao(String(contaId), validas, saldoValido);
     revalidatePath(BPO);
     return r;
   });

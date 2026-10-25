@@ -17,6 +17,8 @@ import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
+import { ehDespesa } from "@/lib/bpo-categorias";
+import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
 
 export interface LancamentoComCliente {
   id: string;
@@ -31,6 +33,9 @@ export interface LancamentoComCliente {
   pagoEm: string | null;
   competencia: string;
   centroCustos: string | null;
+  /** LOTE C: categoria padrão e se o lançamento veio do extrato bancário. */
+  categoria: string | null;
+  doExtrato: boolean;
 }
 
 export interface TransacaoBancariaData {
@@ -62,10 +67,13 @@ export interface ContaBancariaData {
   dataInicial: string | null;
   ultimoErro: string | null;
   temCredencial: boolean;
+  saldoExtratoData: string | null;
   transacoes: TransacaoBancariaData[];
 }
 
 interface RelatoriosData {
+  /** LOTE C: DRE mensal (lançamentos do BPO, inclusive os do extrato), últimos 12 meses. */
+  dreMensal: (LinhaDre & { mes: string })[];
   totalImoveis: number;
   totalLeads: number;
   totalFinanciamentos: number;
@@ -78,11 +86,12 @@ interface RelatoriosData {
 
 interface Props {
   lancamentos: LancamentoComCliente[];
+  dre: LinhaDre[];
+  contabilidade: ResumoContabil & { ano: string };
   clientes: { id: string; razaoSocial: string }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
   pluggy: { configured: boolean; active: boolean };
-  webhookAsaas: { url: string; configurado: boolean };
   abaInicial?: "bancos";
   relatorios: RelatoriosData;
 }
@@ -106,8 +115,13 @@ function fmt(v: number) {
   return `R$ ${v}`;
 }
 
+// LOTE C: o cursor padrão do Tooltip do recharts em gráfico de barras é um retângulo cinza
+// (#ccc) do tamanho da faixa; com poucas categorias ele cobre o gráfico inteiro ("bloco cinza").
+const CURSOR_BARRA = { fill: "rgba(245, 196, 0, 0.08)" };
+
 function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
-  const { totalImoveis, totalLeads, totalFinanciamentos, monthlySales, propertyTypeData, leadFunnelData, corretorRanking, serviceRevenue } = relatorios;
+  const { totalImoveis, totalLeads, totalFinanciamentos, monthlySales, propertyTypeData, leadFunnelData, corretorRanking, serviceRevenue, dreMensal } = relatorios;
+  const dreTemDados = dreMensal.some((m) => m.receitas || m.despesas);
   const totalReceita = monthlySales.reduce((s, m) => s + m.receita, 0);
   const totalVendas = monthlySales.reduce((s, m) => s + m.vendas, 0);
   const ticketMedio = totalVendas > 0 ? Math.round(totalReceita / totalVendas) : 0;
@@ -144,6 +158,27 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
         ))}
       </div>
 
+      {/* LOTE C: DRE mensal a partir dos lançamentos do BPO (inclusive os gerados pelo extrato). */}
+      <div className="bg-white border border-gray-100 p-5">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">DRE Mensal — Receitas x Despesas (R$)</p>
+        {!dreTemDados ? (
+          <p className="text-gray-600 text-sm text-center py-8">Nenhum lançamento nos últimos 12 meses.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={dreMensal} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="mes" tick={{ fontSize: 10 }} tickLine={false} />
+              <YAxis tickFormatter={fmt} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={60} />
+              <Tooltip cursor={CURSOR_BARRA} formatter={(v, nome) => [formatCurrency(Number(v ?? 0)), String(nome)]} />
+              <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="receitas" name="Receitas" fill="#16A34A" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="despesas" name="Despesas" fill="#DC2626" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="resultado" name="Resultado" fill="#F5C400" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
       <div className="bg-white border border-gray-100 p-5">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Receita Mensal (R$)</p>
         <ResponsiveContainer width="100%" height={220}>
@@ -171,7 +206,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" tick={{ fontSize: 9 }} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip />
+              <Tooltip cursor={CURSOR_BARRA} />
               <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="leads" name="Leads" fill="#D1D5DB" radius={[2, 2, 0, 0]} />
               <Bar dataKey="vendas" name="Vendas" fill="#F5C400" radius={[2, 2, 0, 0]} />
@@ -257,7 +292,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
             <XAxis type="number" tickFormatter={fmt} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
             <YAxis type="category" dataKey="service" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={80} />
-            <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), "Receita"]} />
+            <Tooltip cursor={CURSOR_BARRA} formatter={(v) => [formatCurrency(Number(v ?? 0)), "Receita"]} />
             <Bar dataKey="receita" fill="#F5C400" radius={[0, 2, 2, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -266,7 +301,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhookAsaas, abaInicial, relatorios }: Props) {
+export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -285,7 +320,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
   const [isPending, startTransition] = useTransition();
 
   // KPIs cobranças
-  const cobracasAll = lancamentos.filter((l) => l.tipo !== "despesa");
+  const cobracasAll = lancamentos.filter((l) => !ehDespesa(l.tipo));
   const totalEsperado = cobracasAll.reduce((s, l) => s + l.valor, 0);
   const recebido = cobracasAll.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
   const pendente = cobracasAll.filter(isPendente).reduce((s, l) => s + l.valor, 0);
@@ -305,7 +340,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
     });
   }
 
-  const cobracasBase = lancamentos.filter((l) => l.tipo !== "despesa");
+  const cobracasBase = lancamentos.filter((l) => !ehDespesa(l.tipo));
   const cobracasFiltered = filterByCommon(cobracasBase).filter((l) => {
     if (statusFilter === "pendentes") return isPendente(l);
     if (statusFilter === "pagas") return l.pago;
@@ -316,11 +351,11 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
     if (tipoFilter === "todos") return true;
     if (tipoFilter === "honorario") return l.tipo === "honorario";
     if (tipoFilter === "reembolso") return l.tipo === "reembolso";
-    if (tipoFilter === "outros") return l.tipo !== "honorario" && l.tipo !== "reembolso" && l.tipo !== "despesa";
+    if (tipoFilter === "outros") return l.tipo !== "honorario" && l.tipo !== "reembolso" && !ehDespesa(l.tipo);
     return true;
   });
 
-  const despesasBase = lancamentos.filter((l) => l.tipo === "despesa");
+  const despesasBase = lancamentos.filter((l) => ehDespesa(l.tipo));
   const despesasFiltered = filterByCommon(despesasBase).filter((l) => {
     if (statusFilter === "pendentes") return isPendente(l);
     if (statusFilter === "pagas") return l.pago;
@@ -333,14 +368,8 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
   const despesaPendente = despesasBase.filter(isPendente).reduce((s, l) => s + l.valor, 0);
   const despesaVencida = despesasBase.filter(isVencido).reduce((s, l) => s + l.valor, 0);
 
-  const dreMap = new Map<string, { cobracas: number; despesas: number }>();
-  lancamentos.forEach((l) => {
-    const entry = dreMap.get(l.competencia) ?? { cobracas: 0, despesas: 0 };
-    if (l.tipo === "despesa") entry.despesas += l.valor;
-    else entry.cobracas += l.valor;
-    dreMap.set(l.competencia, entry);
-  });
-  const dreRows = [...dreMap.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  // LOTE C: DRE calculado no servidor sobre todos os lançamentos (sem transferências internas).
+  const dreRows = dre.map((l) => [l.competencia, { cobracas: l.receitas, despesas: l.despesas }] as const);
   const dreTotalCobracas = dreRows.reduce((s, [, v]) => s + v.cobracas, 0);
   const dreTotalDespesas = dreRows.reduce((s, [, v]) => s + v.despesas, 0);
 
@@ -413,7 +442,12 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
               ) : items.map((l) => (
                 <tr key={l.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3"><p className="font-medium text-[var(--brand-dark)] text-xs">{l.clienteNome}</p></td>
-                  <td className="px-4 py-3 hidden md:table-cell"><p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p></td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p>
+                    {(l.categoria || l.doExtrato) && (
+                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoria ?? ""}{l.doExtrato ? `${l.categoria ? " · " : ""}extrato bancário` : ""}</p>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500 hidden sm:table-cell">{l.competencia}</td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500">{new Date(l.vencimento).toLocaleDateString("pt-BR")}</td>
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)] text-xs">{formatCurrency(l.valor)}</td>
@@ -690,7 +724,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
           </div>
 
           {/* Pedido de 25/10: contas por API (Asaas, Meu Pluggy) e importação de extrato. */}
-          <BancosPanel contas={contas} pluggy={pluggy} webhookAsaas={webhookAsaas} abrirNovaConta={abrirNovaConta} />
+          <BancosPanel contas={contas} clientes={clientes} pluggy={pluggy} abrirNovaConta={abrirNovaConta} />
         </div>
       )}
 
@@ -915,6 +949,31 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhoo
       {aba === "contabilidade" && (
         <div className="space-y-6">
           <p className="text-xs text-gray-600">Dados fiscais e controle de impostos · Grupo Santa Fé</p>
+
+          {/* LOTE C: realizado no ano a partir dos lançamentos do BPO (inclusive os do extrato bancário). */}
+          <div className="bg-white border border-gray-100 p-6">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Realizado em {contabilidade.ano} (lançamentos pagos, sem transferências internas)</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Receita realizada</p><p className="font-black text-green-700 text-lg leading-none">{formatCurrency(contabilidade.receitaRealizada)}</p></div>
+              <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Despesas pagas</p><p className="font-black text-red-700 text-lg leading-none">{formatCurrency(contabilidade.despesasPagas)}</p></div>
+              <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Impostos pagos</p><p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(contabilidade.impostosPagos)}</p></div>
+              <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Resultado</p><p className={`font-black text-lg leading-none ${contabilidade.resultado >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(contabilidade.resultado)}</p></div>
+            </div>
+            {contabilidade.porCategoria.length > 0 && (
+              <table className="w-full text-xs mt-4">
+                <thead><tr className="text-gray-700 text-left"><th className="py-1.5">Categoria</th><th className="py-1.5 text-right">Receitas</th><th className="py-1.5 text-right">Despesas</th></tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {contabilidade.porCategoria.map((c) => (
+                    <tr key={c.categoria}>
+                      <td className="py-1.5 text-[var(--brand-dark)]">{c.categoria}</td>
+                      <td className="py-1.5 text-right text-green-700 font-bold">{c.receitas ? formatCurrency(c.receitas) : "—"}</td>
+                      <td className="py-1.5 text-right text-red-700 font-bold">{c.despesas ? formatCurrency(c.despesas) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
           {/* Nota Fiscal */}
           <div className="bg-white border border-gray-100 p-6">

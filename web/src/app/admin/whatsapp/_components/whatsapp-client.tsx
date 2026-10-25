@@ -5,8 +5,11 @@ import {
   MessageCircle, CheckCircle2, Clock, AlertCircle, Wifi, WifiOff,
   Search, X, Send, Smartphone, Plus, Eye, Users,
 } from "lucide-react";
-import { salvarConexaoBusiness } from "@/lib/actions/whatsapp";
+import { previaEnvioWhatsapp, salvarConexaoBusiness } from "@/lib/actions/whatsapp";
+import { VARIAVEIS_TEMPLATE, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
+import { parseServicosLead } from "@/lib/crm/servicos-lead";
 import { ConexaoQrCode } from "./conexao-qr-code";
+import { ConversasWhatsApp } from "./conversas-whatsapp";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -30,7 +33,12 @@ interface Props {
   historico: MensagemData[];
   role: string;
   usuarioId: string;
+  abaInicial?: "conexao" | "conversas";
+  numeroInicial?: string | null;
 }
+
+type Aba = "conexao" | "conversas" | "enviar" | "templates" | "historico";
+type Previa = { id: string; texto: string; faltando: string[] };
 
 // ─── Templates ────────────────────────────────────────────────────────────────
 
@@ -80,8 +88,9 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId }: Props) {
-  const [activeTab, setActiveTab] = useState<"conexao" | "enviar" | "templates" | "historico">("conexao");
+export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, abaInicial = "conexao", numeroInicial = null }: Props) {
+  // Pedido de 25/10: ?aba=conversas&numero=… abre direto o chat (notificações e página do lead).
+  const [activeTab, setActiveTab] = useState<Aba>(abaInicial);
   const [minhaConexao, setMinhaConexao] = useState<ConexaoData | null>(initialConexao);
   const [businessToken, setBusinessToken] = useState("");
   const [businessPhoneId, setBusinessPhoneId] = useState("");
@@ -95,6 +104,23 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
   const [mensagem, setMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  // Pedido de 25/10: variáveis do template preenchidas por destinatário, com prévia e campos para o que faltar.
+  const [extras, setExtras] = useState<Record<string, string>>({});
+  const [previa, setPrevia] = useState<Previa[]>([]);
+  const usaVariaveis = variaveisDoTexto(mensagem).length > 0;
+  const calcularPrevia = usaVariaveis && selectedLeads.length > 0 && mensagem.trim().length > 0;
+  useEffect(() => {
+    if (!calcularPrevia) return;
+    let ativo = true;
+    const t = setTimeout(async () => {
+      const r = await previaEnvioWhatsapp(mensagem, selectedLeads, extras).catch(() => null);
+      if (ativo && r && !r.erro) setPrevia(r.itens);
+    }, 300);
+    return () => { ativo = false; clearTimeout(t); };
+  }, [calcularPrevia, mensagem, selectedLeads, extras]);
+  const previaAtual = calcularPrevia ? previa.filter((p) => selectedLeads.includes(p.id)) : [];
+  const faltando = Array.from(new Set(previaAtual.flatMap((p) => p.faltando)));
 
   // ─── KPIs ─────────────────────────────────────────────────────────────────
 
@@ -140,20 +166,21 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
 
   async function handleEnviar() {
     if (!mensagem.trim() || selectedLeads.length === 0) return;
+    if (faltando.length) { setToast({ msg: "Preencha os campos destacados antes de enviar.", type: "error" }); return; }
     setEnviando(true);
     try {
       const destinatarios = leads.filter((l) => selectedLeads.includes(l.id)).map((l) => ({ id: l.id, nome: l.nome, telefone: l.telefone, leadId: l.id }));
       const res = await fetch("/api/whatsapp/enviar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensagem, destinatarios }),
+        body: JSON.stringify({ mensagem, destinatarios, extras }),
       });
       const data = await res.json() as { ok?: boolean; error?: string; enviadas?: number; falhas?: number };
       if (data.error) {
         setToast({ msg: data.error, type: "error" });
       } else {
         setToast({ msg: `${data.enviadas ?? 0} enviada(s)${(data.falhas ?? 0) > 0 ? `, ${data.falhas} falha(s)` : ""}`, type: (data.falhas ?? 0) > 0 ? "error" : "success" });
-        setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null);
+        setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setPrevia([]);
       }
     } catch { setToast({ msg: "Erro ao enviar mensagens", type: "error" }); }
     finally { setEnviando(false); }
@@ -192,6 +219,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       <div className="flex border-b border-gray-200 overflow-x-auto">
         {([
           { key: "conexao" as const, label: "Conexão", icon: Smartphone },
+          { key: "conversas" as const, label: "Conversas", icon: Users },
           { key: "enviar" as const, label: "Enviar Mensagem", icon: Send },
           { key: "templates" as const, label: "Templates", icon: MessageCircle },
           { key: "historico" as const, label: "Histórico", icon: Clock },
@@ -202,6 +230,9 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
           </button>
         ))}
       </div>
+
+      {/* ── Tab: Conversas (pedido de 25/10) ─────────────────────────────────── */}
+      {activeTab === "conversas" && <ConversasWhatsApp numeroInicial={numeroInicial} onAviso={aviso} />}
 
       {/* ── Tab: Conexão ────────────────────────────────────────────────────── */}
       {activeTab === "conexao" && (
@@ -234,7 +265,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               {/* Not connected: QR code (Evolution) e, como alternativa, a API oficial */}
               {!conexaoAtiva && (
                 <div className="space-y-5">
-                  <ConexaoQrCode podeConfigurarServidor={role !== "corretor"} onConectado={aoConectarQr} onAviso={aviso} />
+                  <ConexaoQrCode podeConfigurarServidor={role === "admin"} onConectado={aoConectarQr} onAviso={aviso} />
                   <details className="border-t border-gray-100 pt-3">
                   <summary className="cursor-pointer text-xs text-gray-700 font-bold">Usar a API oficial do WhatsApp Business (Meta)</summary>
                   <div className="space-y-5 mt-3">
@@ -346,7 +377,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                         className="accent-[var(--brand-yellow)]" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{l.nome}</p>
-                        <p className="text-xs text-gray-600">{l.telefone} · {l.servico}</p>
+                        <p className="text-xs text-gray-600">{l.telefone}{parseServicosLead(l.servico).length ? ` · ${parseServicosLead(l.servico).join(", ")}` : ""}</p>
                       </div>
                     </label>
                   );
@@ -380,7 +411,31 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 resize-none font-mono" />
                 <p className="text-xs text-gray-600 mt-1">{mensagem.length} caracteres</p>
               </div>
-              {mensagem && (
+              {usaVariaveis && selectedLeads.length > 0 && (
+                <div className="space-y-3 border-t border-gray-100 pt-3">
+                  {faltando.length > 0 && (
+                    <div className="space-y-2 border border-yellow-200 bg-yellow-50 p-3">
+                      <p className="text-xs font-bold text-yellow-900">Alguns destinatários não têm estes dados no cadastro. Informe para enviar:</p>
+                      {faltando.map((v) => (
+                        <div key={v}>
+                          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">{VARIAVEIS_TEMPLATE[v] ?? v}</label>
+                          <input type="text" value={extras[v] ?? ""} onChange={(e) => setExtras((x) => ({ ...x, [v]: e.target.value }))}
+                            className="w-full border border-yellow-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Prévia (como cada contato vai receber)</p>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {previaAtual.slice(0, 20).map((p) => (
+                      <div key={p.id} className="bg-gray-50 border border-gray-100 p-2 text-xs text-gray-900 whitespace-pre-wrap">
+                        <b className="text-[var(--brand-dark)]">{leads.find((l) => l.id === p.id)?.nome}: </b>{p.texto}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {mensagem && !usaVariaveis && (
                 <div className="bg-[#ECE5DD] p-4">
                   <p className="text-[10px] font-bold text-gray-500 mb-2 uppercase">Prévia</p>
                   <div className="bg-white p-3 shadow-sm max-w-xs">
@@ -389,7 +444,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                   </div>
                 </div>
               )}
-              <button onClick={handleEnviar} disabled={enviando || selectedLeads.length === 0 || !mensagem.trim()}
+              <button onClick={handleEnviar} disabled={enviando || selectedLeads.length === 0 || !mensagem.trim() || faltando.length > 0}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider px-5 py-2.5 transition-colors">
                 <Send size={13} /> {enviando ? "Enviando..." : `Enviar para ${selectedLeads.length} contato${selectedLeads.length !== 1 ? "s" : ""}`}
               </button>

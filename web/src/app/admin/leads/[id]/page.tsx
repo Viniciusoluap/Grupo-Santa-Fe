@@ -87,6 +87,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
 
   const usuarioSessao = await usuarioAtual();
   const podeJuridico = !!usuarioSessao && podeAcessarModulo(usuarioSessao, "juridico");
+  const podeWhatsapp = !!usuarioSessao && podeAcessarModulo(usuarioSessao, "whatsapp");
   // Documentos vinculados a este lead via Jurídico (contratos gerados/assinados/anexos).
   const contratosComDocumentos = await prisma.contrato.findMany({
     where: { leadId: id },
@@ -194,6 +195,13 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 <div>
                   <p className="text-xs text-gray-600">Telefone</p>
                   <p className="text-sm font-medium">{formatTelefone(lead.telefone)}</p>
+                  {/* Pedido de 25/10: abre o chat deste lead na Central WhatsApp (aba Conversas). */}
+                  {podeWhatsapp && lead.telefone.replace(/\D/g, "").length >= 8 && (
+                    <Link href={`/admin/whatsapp?aba=conversas&numero=${lead.telefone.replace(/\D/g, "")}`}
+                      className="inline-flex items-center gap-1 mt-1 border border-green-600 text-green-800 hover:bg-green-50 font-bold text-[11px] uppercase px-2 py-1">
+                      <MessageSquare size={11} /> Conversa no WhatsApp
+                    </Link>
+                  )}
                 </div>
               </div>
               <div className="flex items-start gap-2">

@@ -713,6 +713,11 @@ model BpoLancamento {
   pagoEm                    DateTime?
   competencia               String // "2026-06"
   centroCustos              String?
+  /// LOTE C (25/10): categoria padrão (src/lib/bpo-categorias.ts) e vínculo 1:1 com a
+  /// movimentação bancária que gerou este lançamento (extrato alimentando o BPO).
+  categoria                 String?
+  transacaoId               String?                    @unique
+  transacao                 TransacaoBancaria?         @relation(fields: [transacaoId], references: [id], onDelete: Cascade)
   criadoEm                  DateTime                   @default(now())
 
   @@map("bpo_lancamentos")
@@ -821,6 +826,10 @@ model ContaBancaria {
   credencialEncrypted String?
   dataInicial         DateTime?           @db.Date
   ultimoErro          String?
+  /// LOTE C (25/10): saldo informado pelo próprio extrato (OFX LEDGERBAL, coluna Saldo, PDF) e a
+  /// data a que ele se refere; o saldo atual = este saldo + movimentações posteriores.
+  saldoExtrato        Float?
+  saldoExtratoData    DateTime?           @db.Date
   transacoes          TransacaoBancaria[]
   criadoEm            DateTime            @default(now())
 
@@ -840,6 +849,8 @@ model TransacaoBancaria {
   externalId String?       @unique
   /// Pedido de 25/10: asaas | pluggy | importacao | manual.
   origem     String        @default("manual")
+  /// LOTE C (25/10): lançamento pago gerado no BPO (Cobranças/Despesas/DRE), 1:1.
+  lancamento BpoLancamento?
   criadoEm   DateTime      @default(now())
 
   @@map("transacoes_bancarias")
@@ -888,12 +899,17 @@ model MensagemWhatsapp {
   destinatario     String
   nomeDestinatario String?
   mensagem         String
-  status           String          @default("enviada") // enviada | entregue | lida | falhou
+  status           String          @default("enviada") // enviada | entregue | lida | falhou | recebida
   externalId       String?
   erroMsg          String?
+  // Pedido de 25/10 (Conversas): mensagens recebidas pelo webhook da Evolution ficam aqui também.
+  direcao          String          @default("saida") // saida | entrada
+  lida             Boolean         @default(true)
   enviadaEm        DateTime        @default(now())
   atualizadoEm     DateTime        @updatedAt
 
+  @@index([conexaoId, destinatario, enviadaEm])
+  @@index([externalId])
   @@map("mensagens_whatsapp")
 }
 
