@@ -3,6 +3,8 @@ import { usuarioAtual } from "@/lib/auth/modulos";
 import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 import { filtrarDestinatariosValidos } from "@/lib/whatsapp/validacao";
+import { enviarTextoEvolution } from "@/lib/evolution";
+import { configEvolution } from "@/lib/whatsapp/evolution-config";
 
 interface Destinatario {
   id: string;
@@ -70,12 +72,22 @@ export async function POST(req: NextRequest) {
   }
 
   if (!conexao || conexao.status !== "conectado") {
-    return NextResponse.json({ error: "Nenhuma conexão WhatsApp Business ativa" }, { status: 400 });
+    return NextResponse.json({ error: "Nenhuma conexão WhatsApp ativa" }, { status: 400 });
   }
 
-  if (!conexao.token || !conexao.phoneNumberId) {
+  // Pedido de 25/10: conexão por QR code (Evolution) ou API oficial do WhatsApp Business.
+  const porQr = conexao.provedor === "evolution";
+  const evolution = porQr ? await configEvolution() : null;
+  if (porQr && (!evolution || !conexao.instancia)) {
+    return NextResponse.json({ error: "Servidor da Evolution (QR code) não configurado" }, { status: 400 });
+  }
+  if (!porQr && (!conexao.token || !conexao.phoneNumberId)) {
     return NextResponse.json({ error: "Credenciais da Business API não configuradas" }, { status: 400 });
   }
+  const conn = conexao;
+  const enviarUm = (telefone: string) => porQr
+    ? enviarTextoEvolution(evolution!, conn.instancia!, telefone, mensagem)
+    : enviarBusiness(conn.token!, conn.phoneNumberId!, telefone, mensagem);
 
   if (destinatariosValidados.length === 0) {
     return NextResponse.json({ error: "Nenhum destinatário válido (lead inexistente ou não pertence a você)" }, { status: 400 });
@@ -86,11 +98,11 @@ export async function POST(req: NextRequest) {
 
   for (const dest of destinatariosValidados) {
     try {
-      const externalId = await enviarBusiness(conexao.token, conexao.phoneNumberId, dest.telefone, mensagem);
+      const externalId = await enviarUm(dest.telefone);
       await prisma.mensagemWhatsapp.create({
-        data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem, leadId: dest.leadId, externalId, status: "enviada" },
+        data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem, leadId: dest.leadId, externalId, status: externalId ? "enviada" : "falhou" },
       });
-      enviadas++;
+      if (externalId) enviadas++; else falhas++;
     } catch {
       await prisma.mensagemWhatsapp.create({
         data: { conexaoId: conexao.id, destinatario: dest.telefone, nomeDestinatario: dest.nome, mensagem, leadId: dest.leadId, status: "falhou", erroMsg: "Erro ao enviar" },
