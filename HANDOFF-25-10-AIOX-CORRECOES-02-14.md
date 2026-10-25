@@ -72,3 +72,10 @@
 - Após integrar o `main`: Prisma Client gerado com a versão travada no `package-lock.json`; TypeScript passou; suíte completa passou com **113 arquivos aprovados, 18 pulados por dependências externas, 813 testes aprovados e 108 pulados**. Nenhuma falha e nenhum OOM.
 - Banco real identificado no Supabase `grupo-santa-fe` (`giulchozonhzyopmgmkv`); o Neon chamado `grupo-santa-fe-preview` não foi alterado. As duas mudanças aditivas foram aplicadas em transação e verificadas: `obras.incluir_pro_soluto_base_empreiteiro` é `NOT NULL DEFAULT false`; `imovel_fotos.sha256` e o índice único composto existem. Nenhum backfill ou registro histórico foi atualizado.
 - Próximo passo: publicar a árvore integrada, abrir PR, aguardar preview Vercel do SHA exato, fazer merge autorizado e validar o deployment de produção.
+
+
+## Checkpoint final — merge e produção
+- PR #232 integrado em `main` no SHA `d8773064246ea9887cb285c5297eb10f3097e350`. Deployment Vercel de produção `dpl_GpFRC2v4pMPbM7tfavRVXvqaKZK4` ficou READY.
+- Smoke test em `https://grupo-santa-f.vercel.app/`: HTTP 200. Varredura de erros de runtime após o deploy: nenhum erro encontrado.
+- Banco real Supabase: as duas alterações aditivas foram aplicadas e verificadas antes do merge. Nenhum backfill histórico 09/10 executado. A correção 01 permaneceu intocada.
+- Entrega: código, banco aditivo, merge e deploy concluídos. Pendências de homologação humana: Safari/iPad, comparação visual de um PDF/Excel real, upload real com Drive e aprovação específica para backfill histórico.
