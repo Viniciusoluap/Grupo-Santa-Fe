@@ -108,7 +108,6 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase break-words">
-              {lead.temperatura === "fechado" && <span className="mr-2" title="Negócio fechado">{LEAD_TEMPERATURA_CONFIG.fechado.emoji}</span>}
               {lead.nome}
             </h1>
             <span className={`text-xs font-bold ${LEAD_TEMPERATURA_CONFIG[lead.temperatura as LeadTemperatura]?.color ?? "text-gray-500"}`}>{leadTemperaturaRotulo(lead.temperatura)}</span>

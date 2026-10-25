@@ -46,7 +46,7 @@ beforeEach(() => {
 describe("item 05 — temperatura do lead (mesmas opções da Prospecta)", () => {
   it("acrescenta Negócio fechado preservando Frio/Morno/Quente", () => {
     expect(LEAD_TEMPERATURAS).toEqual(["frio", "morno", "quente", "fechado"]);
-    expect(leadTemperaturaRotulo("fechado")).toBe("🤝 Negócio fechado");
+    expect(leadTemperaturaRotulo("fechado")).toBe("Negócio fechado");
     expect(leadTemperaturaRotulo(undefined)).toBe("❄️ Frio");
   });
 
