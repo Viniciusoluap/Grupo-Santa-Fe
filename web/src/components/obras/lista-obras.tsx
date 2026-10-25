@@ -199,9 +199,9 @@ function IntervaloDatas({ titulo, de, ate, onDe, onAte }: { titulo: string; de: 
   return (
     <fieldset className="min-w-0 text-xs font-bold text-gray-500 uppercase">
       <legend>{titulo}</legend>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-600">De<input type="date" aria-label={`${titulo}: de`} value={de} onChange={(e) => onDe(e.target.value)} className={campo} /></label>
-        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-600">Até<input type="date" aria-label={`${titulo}: até`} value={ate} onChange={(e) => onAte(e.target.value)} className={campo} /></label>
+      <div className="grid min-w-0 grid-cols-1 gap-2 2xl:grid-cols-2">
+        <label className="block min-w-0 text-[11px] font-normal normal-case text-gray-600">De<input type="date" aria-label={`${titulo}: de`} value={de} onChange={(e) => onDe(e.target.value)} className={campo} /></label>
+        <label className="block min-w-0 text-[11px] font-normal normal-case text-gray-600">Até<input type="date" aria-label={`${titulo}: até`} value={ate} onChange={(e) => onAte(e.target.value)} className={campo} /></label>
       </div>
     </fieldset>
   );
