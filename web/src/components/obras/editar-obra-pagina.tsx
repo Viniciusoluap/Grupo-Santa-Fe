@@ -23,7 +23,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
       leadVinculado: { select: { id: true, nome: true, telefone: true, email: true, corretor: { select: { nome: true } } } },
       servicoLead: { select: { servico: true } },
       imovel: { select: { titulo: true, latitude: true, longitude: true } },
-      pci: { select: { versao: { select: { parsed: true } } } },
+      pci: { select: { vinculadaEm: true, versao: { select: { parsed: true } } } },
     },
   });
   if (!o) notFound();
@@ -43,7 +43,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
   const pontoObra = coordenadasSalvas(o.imovel?.latitude, o.imovel?.longitude);
   // Pedido de 23/10: sem ponto próprio, a obra aparece no mapa pelo ponto da PCI da CAIXA.
   const identificacaoPci = (o.pci?.versao.parsed as { identificacao?: { latitude?: unknown; longitude?: unknown } } | null)?.identificacao;
-  const pontoPci = !pontoObra && identificacaoPci ? coordenadasDaPci(identificacaoPci.latitude, identificacaoPci.longitude) : null;
+  const pontoPci = !pontoObra && o.pci?.vinculadaEm && identificacaoPci ? coordenadasDaPci(identificacaoPci.latitude, identificacaoPci.longitude) : null;
   const corretorNome = o.leadVinculado?.corretor?.nome?.trim() || null;
   const campoSomenteLeitura = "w-full border border-gray-100 px-3 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed";
 
@@ -125,12 +125,12 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Localização exata</label>
               <input type="hidden" name="localizacaoPresente" value="1" />
-              <LocalizacaoPicker nameLat="localizacaoLat" nameLng="localizacaoLng" defaultLat={pontoObra?.lat ?? null} defaultLng={pontoObra?.lng ?? null} />
+              <LocalizacaoPicker nameLat="localizacaoLat" nameLng="localizacaoLng" defaultLat={pontoObra?.lat ?? pontoPci?.lat ?? null} defaultLng={pontoObra?.lng ?? pontoPci?.lng ?? null} />
               <p className="text-[11px] text-gray-600 mt-1">
                 {o.imovel && pontoObra
                   ? `Ponto guardado no imóvel vinculado "${o.imovel.titulo}" (aparece no Mapa Operacional).`
                   : pontoPci
-                    ? `Ponto lido da PCI da CAIXA: ${pontoPci.lat.toFixed(6)}, ${pontoPci.lng.toFixed(6)} (já aparece no Mapa Operacional). Para usar outro ponto, cole-o acima e salve.`
+                    ? `Ponto preenchido pela PCI vinculada à obra: ${pontoPci.lat.toFixed(6)}, ${pontoPci.lng.toFixed(6)}. Confira e salve para persistir no imóvel do catálogo.`
                     : o.imovel
                       ? `O imóvel vinculado "${o.imovel.titulo}" ainda não tem ponto. Cole a localização acima e salve para aparecer no Mapa Operacional.`
                       : "Ao salvar, o ponto cria um imóvel vinculado à obra, não publicado no site, e aparece no Mapa Operacional."}

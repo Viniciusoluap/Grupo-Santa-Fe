@@ -27,3 +27,11 @@
 - Banco: migração criada, **não aplicada**. Nenhum dado de produção alterado.
 - Riscos: deploy deve aplicar migração antes de expor o campo; verificar base e residual numa obra real sem atualizar pagamentos. Conferir novas mudanças paralelas do Claude antes do merge.
 - Próximo passo exato: implementar responsável do lead na Agenda (07), depois inventário e sincronização obras/imóveis (09/10), relatórios (06), fotos (13). Executar build e validação cruzada após esses lotes.
+
+## Checkpoint lotes 3 e 4 — 25/10
+- 07: Agenda consulta responsável atual do lead para visitas e vencimentos; tarefa com responsável próprio tem precedência. Exibe “Não atribuído” só quando aplicável. Arquivos `web/src/app/admin/agenda/page.tsx` e `_components/agenda-client.tsx`.
+- 09: tela de edição pré-preenche coordenadas da PCI **vinculada à própria obra**, somente quando não há ponto já salvo, e persiste após salvar. `web/src/components/obras/editar-obra-pagina.tsx`. Não houve atualização retroativa no banco.
+- 10: edição de obra com endereço válido cria/atualiza imóvel interno privado com vínculo estável; imóvel manual vinculado conserva seus atributos comerciais. O catálogo administrativo lista também obras legadas com endereço sem imóvel como “vínculo pendente”, com link à obra; não as publica no site. Arquivos `web/src/lib/obras/localizacao.ts`, `web/src/lib/actions/obras.ts`, `web/src/app/admin/imoveis/page.tsx`.
+- Banco: nenhuma migração adicional. Para backfill persistente histórico 09/10, ainda falta inventário dos bancos de produção (IDs, conflitos, contagem, plano reversível) e aprovação específica. Não presumir que a linha legada de catálogo é um imóvel já vinculado.
+- Testes (a): TypeScript e ESLint dos arquivos alterados; 7 testes de Agenda passaram. Teste de localização com banco real foi pulado sem `TEST_DATABASE_URL` (4 casos), 2 testes de renderização de Agenda passaram na rodada posterior. (b) inspeção manual de UI pendente. (c) produção pendente.
+- Próximo passo exato: Excel a partir do mesmo modelo do PDF (06), depois upload individual de fotos (13). Rever preservação de publicação e permissões no catálogo durante QA.
