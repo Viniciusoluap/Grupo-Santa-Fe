@@ -268,9 +268,11 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
     alertas.push("Percentual do empreiteiro inválido (use de 0% a 100%)");
   } else lucroEmpreiteiro = baseEmpreiteiro.ok ? ok(aplicarPercentual(baseEmpreiteiro.centavos, pEmp)) : baseEmpreiteiro;
 
-  const lucroEmpresa = lucroEstimado.ok && lucroInvestidores.ok && lucroEmpreiteiro.ok
-    ? ok(lucroEstimado.centavos - lucroInvestidores.centavos - lucroEmpreiteiro.centavos)
-    : primeiraFalha(lucroEstimado, lucroInvestidores, lucroEmpreiteiro);
+  // Pedido do dono (25/10): lucro da empresa = Base do Empreiteiro − Lucro do Empreiteiro.
+  // Sem o Pró-Soluto na base é o mesmo que Lucro Estimado − Investidores − Empreiteiro.
+  const lucroEmpresa = baseEmpreiteiro.ok && lucroEmpreiteiro.ok
+    ? ok(baseEmpreiteiro.centavos - lucroEmpreiteiro.centavos)
+    : primeiraFalha(baseEmpreiteiro, lucroEmpreiteiro);
 
   return {
     entradaTotal,

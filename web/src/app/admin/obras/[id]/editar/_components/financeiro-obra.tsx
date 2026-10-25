@@ -457,7 +457,7 @@ export function ValoresOperacao({ resumo, form, setForm, calculo, empreiteiroNom
             onChange={(e) => setForm({ ...form, incluirProSolutoBaseEmpreiteiro: e.target.checked })} />
           Incluir Valor Total do Pró-Soluto na Base do Empreiteiro
         </label>
-        <Calculado label="Lucro Grupo Santa Fé" indicador={calculo.lucroEmpresa} destaque ajuda="Lucro Estimado − Lucro dos Investidores − Lucro do Empreiteiro" />
+        <Calculado label="Lucro Grupo Santa Fé" indicador={calculo.lucroEmpresa} destaque ajuda="Base do Empreiteiro − Lucro do Empreiteiro" />
       </Secao>
       <Secao titulo="Pró-Soluto" formula="Pró-Soluto = Saldo da Entrada · Parcela pelo sistema Price (equivalente à HP 12C, modo END)">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
