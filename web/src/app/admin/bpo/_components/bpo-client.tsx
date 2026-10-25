@@ -3,9 +3,9 @@
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  FileText, Plus, Upload, RefreshCw, Wrench, CheckCircle2, Clock,
+  FileText, Plus, Upload, Wrench, CheckCircle2, Clock,
   AlertCircle, Search, X, Building2, ArrowUpRight, ArrowDownRight,
-  Wifi, WifiOff, Landmark, Trash2, BarChart2,
+  Landmark, BarChart2,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { criarCobranca, pagarLancamento } from "@/lib/actions/bpo";
-import { criarContaBancaria, excluirContaBancaria, atualizarStatusTransacao } from "@/lib/actions/banco";
+import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
@@ -42,6 +42,7 @@ export interface TransacaoBancariaData {
   categoria: string | null;
   status: string;
   externalId: string | null;
+  origem: string;
 }
 
 export interface ContaBancariaData {
@@ -57,6 +58,10 @@ export interface ContaBancariaData {
   pluggyAccountId: string | null;
   webhookUrl: string | null;
   ultimaSincronizacao: string | null;
+  provedor: string;
+  dataInicial: string | null;
+  ultimoErro: string | null;
+  temCredencial: boolean;
   transacoes: TransacaoBancariaData[];
 }
 
@@ -76,23 +81,13 @@ interface Props {
   clientes: { id: string; razaoSocial: string }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
+  pluggy: { configured: boolean; active: boolean };
   relatorios: RelatoriosData;
 }
 
 type Aba = "cobracas" | "despesas" | "dre" | "bancos" | "relatorios" | "contabilidade";
 type StatusFilter = "todas" | "pendentes" | "pagas" | "vencidas" | "parciais";
 type TipoFilter = "todos" | "honorario" | "reembolso" | "outros";
-
-const BANCOS_BR = ["Banco do Brasil", "Caixa Econômica Federal", "Bradesco", "Itaú", "Santander", "Nubank", "Inter", "Sicredi", "Sicoob", "BTG Pactual", "Safra", "C6 Bank", "PagBank", "Mercado Pago", "Outro"];
-const BANCO_CORES: Record<string, string> = {
-  "Nubank": "bg-purple-100 text-purple-700",
-  "Itaú": "bg-orange-100 text-orange-700",
-  "Bradesco": "bg-red-100 text-red-700",
-  "Banco do Brasil": "bg-yellow-100 text-yellow-700",
-  "Caixa Econômica Federal": "bg-blue-100 text-blue-700",
-  "Santander": "bg-red-100 text-red-600",
-  "Inter": "bg-orange-100 text-orange-600",
-};
 
 const nowDate = () => new Date();
 
@@ -269,7 +264,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ lancamentos, clientes, leads, contas: initialContas, relatorios }: Props) {
+export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, relatorios }: Props) {
   const [aba, setAba] = useState<Aba>("cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -282,14 +277,10 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
   const [leadSearch, setLeadSearch] = useState("");
   const [leadSelectedId, setLeadSelectedId] = useState("");
   const [leadSelectedNome, setLeadSelectedNome] = useState("");
-  const [showAddConta, setShowAddConta] = useState(false);
-  const [showSetupPluggy, setShowSetupPluggy] = useState(false);
-  const [contaExpandida, setContaExpandida] = useState<string | null>(null);
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [syncMsg, setSyncMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
+  // Pedido de 25/10: o botão "Adicionar Conta" do topo abre o cadastro dentro do BancosPanel.
+  const [abrirNovaConta, setAbrirNovaConta] = useState(0);
   const [modalFeedback, setModalFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [contas, setContas] = useState<ContaBancariaData[]>(initialContas);
 
   // KPIs cobranças
   const cobracasAll = lancamentos.filter((l) => l.tipo !== "despesa");
@@ -378,54 +369,6 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
       setModalFeedback(modalTipo === "despesa" ? "Despesa registrada!" : "Cobrança criada com sucesso!");
       setTimeout(() => setModalFeedback(null), 3000);
     });
-  }
-
-  async function handleAdicionarConta(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    startTransition(async () => {
-      await criarContaBancaria(formData);
-      setShowAddConta(false);
-      setModalFeedback("Conta bancária adicionada!");
-      setTimeout(() => setModalFeedback(null), 3000);
-    });
-  }
-
-  async function handleSincronizar(contaId: string) {
-    setSyncingId(contaId);
-    setSyncMsg(null);
-    try {
-      const res = await fetch("/api/banco/sincronizar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contaId }),
-      });
-      const data = await res.json() as { ok: boolean; configurado?: boolean; mensagem?: string; sincronizados?: number; saldo?: number };
-      if (data.ok) {
-        setSyncMsg({ id: contaId, msg: `${data.sincronizados} transações sincronizadas. Saldo: ${formatCurrency(data.saldo ?? 0)}`, ok: true });
-      } else if (data.configurado === false) {
-        setShowSetupPluggy(true);
-      } else {
-        setSyncMsg({ id: contaId, msg: "Erro ao sincronizar. Tente novamente.", ok: false });
-      }
-    } catch {
-      setSyncMsg({ id: contaId, msg: "Erro de conexão.", ok: false });
-    } finally {
-      setSyncingId(null);
-      setTimeout(() => setSyncMsg(null), 5000);
-    }
-  }
-
-  async function handleExcluirConta(id: string, banco: string) {
-    if (!confirm(`Excluir a conta "${banco}"? Todas as transações vinculadas serão removidas.`)) return;
-    startTransition(async () => {
-      await excluirContaBancaria(id);
-      setContas((prev) => prev.filter((c) => c.id !== id));
-    });
-  }
-
-  async function handleConciliar(txId: string, status: string) {
-    startTransition(async () => { await atualizarStatusTransacao(txId, status); });
   }
 
   const currentMonth = (() => {
@@ -517,7 +460,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
           <Upload size={13} /> Importar Histórico
         </button>
-        <button onClick={() => { setAba("bancos"); setShowAddConta(true); }}
+        <button onClick={() => { setAba("bancos"); setAbrirNovaConta((n) => n + 1); }}
           className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
           <Landmark size={13} /> Adicionar Conta
         </button>
@@ -744,159 +687,8 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
             </div>
           </div>
 
-          {/* Pluggy setup banner */}
-          {contas.some((c) => !c.pluggyAccountId) && (
-            <div className="bg-blue-50 border border-blue-200 px-4 py-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <WifiOff size={14} className="text-blue-500 shrink-0" />
-                <p className="text-xs text-blue-700 font-medium">
-                  Sincronização automática via Open Finance (Pluggy). Configure <code className="bg-blue-100 px-1">PLUGGY_CLIENT_ID</code> e <code className="bg-blue-100 px-1">PLUGGY_CLIENT_SECRET</code> nas variáveis de ambiente da Vercel.
-                </p>
-              </div>
-              <button onClick={() => setShowSetupPluggy(true)} className="text-xs font-bold text-blue-700 hover:underline whitespace-nowrap">Como configurar</button>
-            </div>
-          )}
-
-          {/* Add Conta button */}
-          <div className="flex justify-between items-center">
-            <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Contas Cadastradas</h2>
-            <button onClick={() => setShowAddConta(true)}
-              className="flex items-center gap-1.5 bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-3 py-2 hover:bg-[var(--brand-yellow-dark)] transition-colors">
-              <Plus size={12} /> Adicionar Conta
-            </button>
-          </div>
-
-          {/* Account cards */}
-          {contas.length === 0 ? (
-            <div className="bg-gray-50 border border-dashed border-gray-200 p-12 text-center">
-              <Building2 size={32} className="text-gray-500 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">Nenhuma conta bancária cadastrada</p>
-              <p className="text-gray-600 text-sm mt-1">Adicione uma conta para acompanhar extratos e sincronizar transações</p>
-              <button onClick={() => setShowAddConta(true)}
-                className="mt-4 inline-flex items-center gap-2 bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase px-4 py-2">
-                <Plus size={12} /> Adicionar Conta
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {contas.map((conta) => {
-                const isExpanded = contaExpandida === conta.id;
-                const corBanco = BANCO_CORES[conta.banco] ?? "bg-gray-100 text-gray-700";
-                const txPendentes = conta.transacoes.filter((t) => t.status === "pendente");
-                const isSyncing = syncingId === conta.id;
-
-                return (
-                  <div key={conta.id} className="bg-white border border-gray-100 overflow-hidden">
-                    <div className="p-4 flex items-center gap-4 flex-wrap">
-                      <div className={`px-2 py-1 text-[10px] font-black uppercase rounded-sm ${corBanco}`}>{conta.banco}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[var(--brand-dark)] text-sm">
-                          {conta.descricao ?? `${conta.tipo.charAt(0).toUpperCase() + conta.tipo.slice(1)} — Ag. ${conta.agencia ?? "—"} / C. ${conta.conta}`}
-                        </p>
-                        <p className="text-xs text-gray-600">{conta.banco} · Ag. {conta.agencia ?? "—"} · {conta.conta} · {conta.tipo}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-black text-lg leading-none ${conta.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-600"}`}>
-                          {formatCurrency(conta.saldoAtual)}
-                        </p>
-                        {conta.ultimaSincronizacao && (
-                          <p className="text-[10px] text-gray-600 mt-0.5 flex items-center justify-end gap-0.5">
-                            <Wifi size={9} className="text-green-500" /> Sync {new Date(conta.ultimaSincronizacao).toLocaleDateString("pt-BR")}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleSincronizar(conta.id)} disabled={isSyncing}
-                          title="Sincronizar transações"
-                          className="flex items-center gap-1 text-xs font-bold border border-gray-200 text-gray-600 px-3 py-1.5 hover:bg-gray-50 transition-colors disabled:opacity-50">
-                          <RefreshCw size={11} className={isSyncing ? "animate-spin" : ""} />
-                          {isSyncing ? "Sync..." : "Sincronizar"}
-                        </button>
-                        <button onClick={() => setContaExpandida(isExpanded ? null : conta.id)}
-                          className="text-xs font-bold border border-gray-200 text-gray-600 px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                          {isExpanded ? "Ocultar" : `Extratos (${conta.transacoes.length})`}
-                          {txPendentes.length > 0 && <span className="ml-1 bg-yellow-100 text-yellow-700 px-1 rounded-sm text-[9px]">{txPendentes.length}</span>}
-                        </button>
-                        <button onClick={() => handleExcluirConta(conta.id, conta.banco)} disabled={isPending}
-                          className="text-gray-500 hover:text-red-500 transition-colors p-1 disabled:opacity-30">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Sync feedback */}
-                    {syncMsg?.id === conta.id && (
-                      <div className={`px-4 py-2 text-xs font-medium border-t ${syncMsg.ok ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-600"}`}>
-                        {syncMsg.msg}
-                      </div>
-                    )}
-
-                    {/* Transactions */}
-                    {isExpanded && (
-                      <div className="border-t border-gray-100">
-                        {conta.transacoes.length === 0 ? (
-                          <p className="text-sm text-gray-600 text-center py-6">Nenhuma transação. Clique em Sincronizar para buscar do banco.</p>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                              <thead className="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                  <th className="px-4 py-2 text-left font-bold text-gray-600 uppercase tracking-wide">Data</th>
-                                  <th className="px-4 py-2 text-left font-bold text-gray-600 uppercase tracking-wide">Descrição</th>
-                                  <th className="px-4 py-2 text-left font-bold text-gray-600 uppercase tracking-wide hidden md:table-cell">Categoria</th>
-                                  <th className="px-4 py-2 text-right font-bold text-gray-600 uppercase tracking-wide">Valor</th>
-                                  <th className="px-4 py-2 text-center font-bold text-gray-600 uppercase tracking-wide">Status</th>
-                                  <th className="px-4 py-2 text-center font-bold text-gray-600 uppercase tracking-wide">Ação</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-50">
-                                {conta.transacoes.slice(0, 50).map((tx) => (
-                                  <tr key={tx.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 text-gray-500">{new Date(tx.data).toLocaleDateString("pt-BR")}</td>
-                                    <td className="px-4 py-2 text-[var(--brand-dark)] font-medium max-w-xs truncate">{tx.descricao}</td>
-                                    <td className="px-4 py-2 text-gray-600 hidden md:table-cell">{tx.categoria ?? "—"}</td>
-                                    <td className={`px-4 py-2 text-right font-bold ${tx.tipo === "credito" ? "text-green-600" : "text-red-600"}`}>
-                                      {tx.tipo === "credito" ? "+" : "-"}{formatCurrency(tx.valor)}
-                                    </td>
-                                    <td className="px-4 py-2 text-center">
-                                      {tx.status === "conciliado" ? (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-green-100 text-green-700 uppercase">Conciliado</span>
-                                      ) : tx.status === "ignorado" ? (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-gray-100 text-gray-500 uppercase">Ignorado</span>
-                                      ) : (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-yellow-100 text-yellow-700 uppercase">Pendente</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2 text-center">
-                                      {tx.status === "pendente" && (
-                                        <div className="flex items-center justify-center gap-1">
-                                          <button onClick={() => handleConciliar(tx.id, "conciliado")}
-                                            className="text-[9px] font-bold px-2 py-0.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
-                                            ✓ Conciliar
-                                          </button>
-                                          <button onClick={() => handleConciliar(tx.id, "ignorado")}
-                                            className="text-[9px] font-bold px-2 py-0.5 bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200 transition-colors">
-                                            Ignorar
-                                          </button>
-                                        </div>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            {conta.transacoes.length > 50 && (
-                              <p className="text-center text-xs text-gray-600 py-3">Mostrando 50 de {conta.transacoes.length} transações</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* Pedido de 25/10: contas por API (Asaas, Meu Pluggy) e importação de extrato. */}
+          <BancosPanel contas={contas} pluggy={pluggy} abrirNovaConta={abrirNovaConta} />
         </div>
       )}
 
@@ -1112,86 +904,6 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
         </div>
       )}
 
-      {/* ─── MODAL: Adicionar Conta Bancária ─── */}
-      {showAddConta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Adicionar Conta Bancária</h2>
-              <button onClick={() => setShowAddConta(false)} className="text-gray-500 hover:text-gray-700"><X size={18} /></button>
-            </div>
-            <form onSubmit={handleAdicionarConta} className="px-6 py-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Banco *</label>
-                <select name="banco" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                  <option value="">Selecionar banco...</option>
-                  {BANCOS_BR.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de conta *</label>
-                <select name="tipo" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                  <option value="corrente">Conta Corrente</option>
-                  <option value="poupanca">Poupança</option>
-                  <option value="pagamento">Conta de Pagamento</option>
-                  <option value="investimento">Investimento</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Agência</label>
-                  <input name="agencia" type="text" placeholder="Ex: 0001"
-                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Conta *</label>
-                  <input name="conta" type="text" required placeholder="Ex: 12345-6"
-                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Apelido da conta</label>
-                <input name="descricao" type="text" placeholder="Ex: Conta principal"
-                  className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Saldo atual (R$)</label>
-                <CurrencyInput name="saldoAtual" defaultValue={0}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3">Integração / Open Finance (opcional)</p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">ID da Conta na API (Pluggy Account ID)</label>
-                    <input name="pluggyAccountId" type="text" placeholder="Ex: a1b2c3d4-e5f6-..."
-                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 font-mono text-xs" />
-                    <p className="text-[10px] text-gray-600 mt-1">ID retornado pelo Pluggy após conectar o banco. Habilita sincronização automática.</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">URL do Webhook</label>
-                    <input name="webhookUrl" type="url" placeholder="https://seusite.com/api/banco/webhook"
-                      className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 font-mono text-xs" />
-                    <p className="text-[10px] text-gray-600 mt-1">URL que receberá notificações do banco em tempo real. Registre no painel do Pluggy.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowAddConta(false)}
-                  className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Cancelar</button>
-                <button type="submit" disabled={isPending}
-                  className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
-                  {isPending ? "Salvando..." : "Adicionar Conta"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL: Setup Pluggy ─── */}
       {/* ─── RELATÓRIOS ─── */}
       {aba === "relatorios" && (
         <BpoRelatorios relatorios={relatorios} />
@@ -1271,34 +983,6 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
         </div>
       )}
 
-      {showSetupPluggy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-lg mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Configurar Open Finance</h2>
-              <button onClick={() => setShowSetupPluggy(false)} className="text-gray-500 hover:text-gray-700"><X size={18} /></button>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-gray-600">Para sincronização automática com seu banco, configure a integração via <strong>Pluggy</strong> — plataforma Open Finance homologada pelo Banco Central.</p>
-              <div className="bg-gray-50 border border-gray-200 p-4 space-y-3 text-sm">
-                <p className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">Passo a passo:</p>
-                <ol className="space-y-2 text-gray-600 text-xs list-decimal list-inside">
-                  <li>Acesse <strong>dashboard.pluggy.ai</strong> e crie sua conta</li>
-                  <li>Crie um aplicativo e copie o <code className="bg-gray-100 px-1">Client ID</code> e <code className="bg-gray-100 px-1">Client Secret</code></li>
-                  <li>No painel da Vercel, vá em <strong>Settings → Environment Variables</strong></li>
-                  <li>Adicione <code className="bg-gray-100 px-1">PLUGGY_CLIENT_ID</code> e <code className="bg-gray-100 px-1">PLUGGY_CLIENT_SECRET</code></li>
-                  <li>Faça um novo deploy e volte aqui para sincronizar</li>
-                </ol>
-              </div>
-              <p className="text-xs text-gray-600">Suporta Itaú, Bradesco, Nubank, Caixa, Banco do Brasil, Santander e +200 instituições financeiras brasileiras.</p>
-              <button onClick={() => setShowSetupPluggy(false)}
-                className="w-full bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-[var(--brand-yellow-dark)] transition-colors">
-                Entendi
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

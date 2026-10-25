@@ -16,7 +16,15 @@ export function criptografarSegredo(valor: string): string {
   return [iv, cipher.getAuthTag(), dados].map((p) => p.toString("base64url")).join(".");
 }
 
+// Pedido de 25/10 (gêmeo da Prospecta): credenciais gravadas pela equipe direto no banco
+// (sem acesso à chave do servidor) entram como "plain:<valor>" e são recriptografadas no 1º uso.
+const TEXTO_PURO = "plain:";
+export function segredoEmTextoPuro(valor: string | null | undefined): boolean {
+  return Boolean(valor?.startsWith(TEXTO_PURO));
+}
+
 export function descriptografarSegredo(valor: string): string {
+  if (valor.startsWith(TEXTO_PURO)) return valor.slice(TEXTO_PURO.length);
   const [iv, tag, dados] = valor.split(".").map((p) => Buffer.from(p, "base64url"));
   if (!iv || !tag || !dados) throw new Error("Segredo criptografado inválido.");
   const decipher = createDecipheriv("aes-256-gcm", chave(), iv);

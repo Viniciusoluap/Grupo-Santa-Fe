@@ -814,6 +814,13 @@ model ContaBancaria {
   pluggyAccountId     String?
   webhookUrl          String?
   ultimaSincronizacao DateTime?
+  /// Pedido de 25/10 (paridade Prospecta): de onde vêm as movimentações (asaas | pluggy |
+  /// manual = importação de extrato), chave da API da própria conta (criptografada), data a
+  /// partir da qual as movimentações pertencem a esta empresa e o último erro de sincronização.
+  provedor            String              @default("manual")
+  credencialEncrypted String?
+  dataInicial         DateTime?           @db.Date
+  ultimoErro          String?
   transacoes          TransacaoBancaria[]
   criadoEm            DateTime            @default(now())
 
@@ -831,9 +838,24 @@ model TransacaoBancaria {
   categoria  String?
   status     String        @default("pendente") // pendente, conciliado, ignorado
   externalId String?       @unique
+  /// Pedido de 25/10: asaas | pluggy | importacao | manual.
+  origem     String        @default("manual")
   criadoEm   DateTime      @default(now())
 
   @@map("transacoes_bancarias")
+}
+
+/// Pedido de 25/10: credenciais da Pluggy (Meu Pluggy) gravadas pela tela do BPO › Bancos.
+/// Linha única (id = 1); Client ID e Secret criptografados (ou "plain:" até o 1º uso).
+model ConfiguracaoPluggy {
+  id                    Int      @id @default(1)
+  clientIdEncrypted     String   @map("client_id_encrypted")
+  clientSecretEncrypted String   @map("client_secret_encrypted")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("pluggy_settings")
 }
 
 // ─── CONTABILIDADE ────────────────────────────────────────────────────────────

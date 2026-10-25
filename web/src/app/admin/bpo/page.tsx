@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
+import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { BpoClient } from "./_components/bpo-client";
 
 const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
@@ -21,6 +22,7 @@ export default async function BpoPage() {
     imoveisPorTipo,
     totalFinanciamentos,
     corretores,
+    pluggy,
   ] = await Promise.all([
     prisma.bpoLancamento.findMany({
       orderBy: { vencimento: "desc" },
@@ -53,6 +55,7 @@ export default async function BpoPage() {
       include: { comissoes: { where: { status: "paga" } } },
       take: 10,
     }),
+    statusPluggy(),
   ]);
 
   // Build monthly commissions data (last 12 months)
@@ -143,6 +146,11 @@ export default async function BpoPage() {
     pluggyAccountId: c.pluggyAccountId,
     webhookUrl: c.webhookUrl,
     ultimaSincronizacao: c.ultimaSincronizacao?.toISOString() ?? null,
+    // Pedido de 25/10: provedor, data inicial e último erro; a chave da API nunca vai para a tela.
+    provedor: c.provedor,
+    dataInicial: dataIsoDaConta(c.dataInicial),
+    ultimoErro: c.ultimoErro,
+    temCredencial: Boolean(c.credencialEncrypted),
     transacoes: c.transacoes.map((t) => ({
       id: t.id,
       data: t.data.toISOString(),
@@ -152,8 +160,9 @@ export default async function BpoPage() {
       categoria: t.categoria,
       status: t.status,
       externalId: t.externalId,
+      origem: t.origem,
     })),
   }));
 
-  return <BpoClient lancamentos={mapped} clientes={clientes} leads={leads} contas={contas} relatorios={relatoriosData} />;
+  return <BpoClient lancamentos={mapped} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} relatorios={relatoriosData} />;
 }
