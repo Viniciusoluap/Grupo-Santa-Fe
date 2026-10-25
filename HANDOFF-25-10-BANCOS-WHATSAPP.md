@@ -170,3 +170,15 @@ Branch: `claude/sync-mirrored-repos-bsqnz3` (nos 2 repos).
 (a) SF 899 ok + 10 falhas pré-existentes (drive-estrutura, exclusao-definitiva, medicao-drive, pci-upload,
     progresso-historico-janela, projeto-engenheiro); tsc/eslint/build OK com `/admin/integracoes`. Serviços externos simulados.
 (b) Manuais: tela ainda não aberta no navegador. (c) Produção: chaves reais, webhook Asaas, QR.
+
+## Lote E — publicado (25/10 ~17:35 UTC)
+- PR #230 mesclado (main `a7f2668`); deploy de produção READY; sem erros de runtime.
+- Migrações aplicadas no Supabase `giulchozonhzyopmgmkv`: `bpo_extrato_20261025` e `whatsapp_conversas_20261025` — colunas conferidas.
+- Prospecta: PR #167 (main `00f397b`), deploy READY, migrações 0071/0072 no Neon.
+### Falta (dono)
+1. Admin › Integrações: colar as chaves próprias do Santa Fé (Asaas, Pluggy, Evolution) e Testar.
+   Não consegui listar as envs da Vercel (403): se existir `ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN` lá, elas vencem — a tela avisa.
+2. BPO › Bancos › "Reprocessar movimentações" se houver extrato importado.
+3. WhatsApp › Conversas: abrir uma vez para registrar o webhook.
+### Testes
+(a) 899 ok + 10 falhas pré-existentes; tsc/eslint/build OK. (b) Colunas conferidas em produção. (c) Itens 1–3 acima.
