@@ -35,3 +35,9 @@
 - Banco: nenhuma migração adicional. Para backfill persistente histórico 09/10, ainda falta inventário dos bancos de produção (IDs, conflitos, contagem, plano reversível) e aprovação específica. Não presumir que a linha legada de catálogo é um imóvel já vinculado.
 - Testes (a): TypeScript e ESLint dos arquivos alterados; 7 testes de Agenda passaram. Teste de localização com banco real foi pulado sem `TEST_DATABASE_URL` (4 casos), 2 testes de renderização de Agenda passaram na rodada posterior. (b) inspeção manual de UI pendente. (c) produção pendente.
 - Próximo passo exato: Excel a partir do mesmo modelo do PDF (06), depois upload individual de fotos (13). Rever preservação de publicação e permissões no catálogo durante QA.
+
+## Checkpoint lote 5 — 25/10
+- 06: exportação Excel deriva do mesmo objeto `RelatorioObra` que alimenta o PDF, com aba de resumo, uma aba por seção e referências fotográficas. Campos, tabelas e gráficos são transcritos sem números inventados. O PDF anterior permanece disponível. Campos financeiros de Pró-Soluto/base do empreiteiro incluídos no modelo comum.
+- Arquivos: `web/src/lib/obras/relatorio.ts`, `web/src/lib/obras/relatorio-excel.ts`, `web/src/app/admin/obras/[id]/editar/_components/relatorio-obra-botao.tsx`, `web/src/lib/__tests__/relatorio-excel.test.ts`.
+- Testes: TypeScript, ESLint dos arquivos alterados, 8 testes de relatório existentes e um teste de equivalência de campos/tabela/foto passaram. Comparação de uma obra real PDF/Excel e inspeção visual continuam pendentes por falta de dados de ambiente.
+- Banco/infra: nenhuma alteração neste lote. Sem merge, deploy ou migração. Próximo passo: fotos por envio individual, seguido de build, QA integral e revisão remota.
