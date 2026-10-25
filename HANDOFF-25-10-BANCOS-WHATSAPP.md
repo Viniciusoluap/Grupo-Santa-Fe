@@ -143,3 +143,6 @@ Merge, deploy e migração em produção ainda dependem de autorização separad
     tsc/eslint/build OK. APIs externas sempre simuladas.
 (b) Manuais: estrutura da chave Asaas conferida; migrações confirmadas por consulta.
 (c) Pendente em produção: sincronização real Asaas/Pluggy, webhooks reais, QR do WhatsApp (depende do Railway).
+
+## Conferência dos deploys (25/10 02:54 UTC)
+- Prospecta `dpl_EaLk3NYi2TXazXQDk1uNKcjeXwRx` e Santa Fé `dpl_9PGXUEEieZqcTFHibEejHtm3XMTH`: **READY**, sem erros de runtime nos 15 min seguintes. Item 1 das pendências concluído.
