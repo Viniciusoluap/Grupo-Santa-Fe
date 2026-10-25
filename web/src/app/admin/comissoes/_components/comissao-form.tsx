@@ -139,7 +139,7 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
           <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
             {isEdit ? "Editar Comissão" : "Nova Comissão"}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
         </div>

@@ -232,7 +232,7 @@ export function MortgageSimulator() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               {form.system === "price"
                 ? "Parcelas iguais do início ao fim"
                 : "Parcelas decrescentes — paga menos ao longo do tempo"}
@@ -246,7 +246,7 @@ export function MortgageSimulator() {
         {result.loanAmount <= 0 ? (
           <div className="bg-white border border-gray-100 p-8 text-center">
             <Calculator size={40} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-400">
+            <p className="text-gray-600">
               A entrada informada cobre o valor total do imóvel.
             </p>
           </div>
@@ -256,7 +256,7 @@ export function MortgageSimulator() {
             <div className="bg-white border border-gray-100 p-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-bold text-[var(--brand-dark)] text-sm">Sua simulação está pronta</p>
-                <p className="text-gray-400 text-xs mt-0.5">
+                <p className="text-gray-600 text-xs mt-0.5">
                   Gere um PDF com os resultados e o comparativo de taxas dos principais bancos.
                 </p>
               </div>
@@ -298,7 +298,7 @@ export function MortgageSimulator() {
               </div>
               {form.system === "sac" && (
                 <div className="bg-white border border-gray-100 p-5">
-                  <p className="text-gray-400 text-xs uppercase tracking-wide">
+                  <p className="text-gray-600 text-xs uppercase tracking-wide">
                     Última Parcela
                   </p>
                   <p className="text-[var(--brand-dark)] font-black text-2xl mt-1 flex items-center gap-1">
@@ -308,7 +308,7 @@ export function MortgageSimulator() {
                 </div>
               )}
               <div className={`bg-white border border-gray-100 p-5 ${form.system !== "sac" ? "col-span-2" : ""}`}>
-                <p className="text-gray-400 text-xs uppercase tracking-wide">
+                <p className="text-gray-600 text-xs uppercase tracking-wide">
                   Total Pago
                 </p>
                 <p className="text-[var(--brand-dark)] font-black text-2xl mt-1">
@@ -380,7 +380,7 @@ export function MortgageSimulator() {
                   Comparativo de Taxas — Principais Bancos
                 </p>
               </div>
-              <p className="text-xs text-gray-400 mb-4">
+              <p className="text-xs text-gray-600 mb-4">
                 Taxas de referência pesquisadas no mercado em {BANK_RATES_REFERENCE_DATE}. A parcela estimada usa o
                 mesmo valor financiado, prazo e sistema de amortização desta simulação — apenas trocando a taxa de
                 juros pela de cada banco. Os valores finais variam conforme análise de crédito, renda e
@@ -408,13 +408,13 @@ export function MortgageSimulator() {
                           {formatCurrency(b.installment)}
                         </td>
                         <td className="px-4 py-2 text-gray-500">{b.index}</td>
-                        <td className="px-4 py-2 text-gray-400">{b.notes}</td>
+                        <td className="px-4 py-2 text-gray-600">{b.notes}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-gray-400 mt-3">
+              <p className="text-xs text-gray-600 mt-3">
                 * Comparativo meramente informativo. Parcela estimada calculada com base no valor financiado, prazo e
                 sistema de amortização desta simulação. Confirme sempre as condições atualizadas diretamente com cada banco.
               </p>
@@ -426,7 +426,7 @@ export function MortgageSimulator() {
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                   Tabela de Amortização
                 </p>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-600">
                   {form.termMonths} parcelas
                 </span>
               </div>
@@ -482,7 +482,7 @@ export function MortgageSimulator() {
             </div>
 
             {/* Disclaimer */}
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-xs text-gray-600 leading-relaxed">
               * Simulação meramente ilustrativa. Valores de seguro estimados (MIP + DFI).
               Taxas e condições sujeitas à análise de crédito.
               Consulte um de nossos especialistas para uma proposta personalizada.

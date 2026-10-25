@@ -119,9 +119,9 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
           >
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
               <p className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">
-                Editar contrato <span className="font-mono text-gray-400">{contrato.numero}</span>
+                Editar contrato <span className="font-mono text-gray-600">{contrato.numero}</span>
               </p>
-              <button type="button" onClick={() => setAberto(false)} className="text-gray-400 hover:text-gray-700">
+              <button type="button" onClick={() => setAberto(false)} className="text-gray-500 hover:text-gray-700">
                 <X size={18} />
               </button>
             </div>

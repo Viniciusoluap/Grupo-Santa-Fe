@@ -12,7 +12,7 @@ export function BackButton({ className }: BackButtonProps) {
   return (
     <button
       onClick={() => router.back()}
-      className={`inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-[var(--brand-dark)] transition-colors group ${className ?? ""}`}
+      className={`inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-[var(--brand-dark)] transition-colors group ${className ?? ""}`}
     >
       <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
       Voltar

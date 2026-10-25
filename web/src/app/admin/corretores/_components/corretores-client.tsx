@@ -152,7 +152,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 text-xs font-bold uppercase transition-colors capitalize ${
-                filter === f ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "text-gray-400 hover:bg-gray-50"
+                filter === f ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               {f}
@@ -211,7 +211,7 @@ export function CorretoresClient({ corretores }: CorretoresClientProps) {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="text-center p-2 bg-gray-50">
                   <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{c.leads.length}</p>
-                  <p className="text-gray-400 text-[10px] mt-0.5">Leads</p>
+                  <p className="text-gray-600 text-[10px] mt-0.5">Leads</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50">
                   <p className="font-black text-[var(--brand-dark)] text-lg leading-none">

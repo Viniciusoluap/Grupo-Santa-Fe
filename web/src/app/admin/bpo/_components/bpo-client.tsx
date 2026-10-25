@@ -438,7 +438,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
   const tipoTabClass = (t: TipoFilter) =>
     `px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${tipoFilter === t ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "text-gray-500 hover:bg-gray-100"}`;
   const abaClass = (a: Aba) =>
-    `px-5 py-2.5 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${aba === a ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "border-transparent text-gray-400 hover:text-[var(--brand-dark)]"}`;
+    `px-5 py-2.5 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${aba === a ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "border-transparent text-gray-600 hover:text-[var(--brand-dark)]"}`;
 
   function getStatusBadge(l: LancamentoComCliente) {
     if (l.pago) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-green-100 text-green-700 uppercase"><CheckCircle2 size={10} /> Pago</span>;
@@ -692,7 +692,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {dreRows.length === 0 ? (
-                    <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">Nenhum lançamento para consolidar.</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento para consolidar.</td></tr>
                   ) : (<>
                     {dreRows.map(([comp, vals]) => {
                       const resultado = vals.cobracas - vals.despesas;
@@ -908,7 +908,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
                 {modalTipo === null ? "Novo Lançamento" : modalTipo === "cobranca" ? "Nova Cobrança" : "Nova Despesa"}
               </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700"><X size={18} /></button>
             </div>
 
             {/* Step 1: type selection */}
@@ -1118,7 +1118,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Adicionar Conta Bancária</h2>
-              <button onClick={() => setShowAddConta(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+              <button onClick={() => setShowAddConta(false)} className="text-gray-500 hover:text-gray-700"><X size={18} /></button>
             </div>
             <form onSubmit={handleAdicionarConta} className="px-6 py-5 space-y-4">
               <div>
@@ -1276,7 +1276,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas: initialContas,
           <div className="bg-white w-full max-w-lg mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">Configurar Open Finance</h2>
-              <button onClick={() => setShowSetupPluggy(false)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+              <button onClick={() => setShowSetupPluggy(false)} className="text-gray-500 hover:text-gray-700"><X size={18} /></button>
             </div>
             <div className="px-6 py-5 space-y-4">
               <p className="text-sm text-gray-600">Para sincronização automática com seu banco, configure a integração via <strong>Pluggy</strong> — plataforma Open Finance homologada pelo Banco Central.</p>

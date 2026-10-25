@@ -392,7 +392,7 @@ export function ChecklistVistoria({ avaliacaoId, initialData }: Props) {
           </button>
         </div>
         {data.tipoChecklist === "terreno" && (
-          <p className="text-[10px] text-gray-400 mt-2">
+          <p className="text-[10px] text-gray-600 mt-2">
             Checklist específico para avaliação de terrenos — ABNT NBR 14653-2
           </p>
         )}

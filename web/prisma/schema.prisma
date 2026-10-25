@@ -41,6 +41,7 @@ model Imovel {
   destaque        Boolean              @default(false)
   badge           String?
   publicadoSite   Boolean              @default(true)
+  /// Colunas legadas dos feeds XML (retirados); mantidas no banco, sem uso.
   publicadoZap    Boolean              @default(false)
   publicadoOlx    Boolean              @default(false)
   publicadoViva   Boolean              @default(false)

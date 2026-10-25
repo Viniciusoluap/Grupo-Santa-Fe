@@ -358,7 +358,7 @@ function VisitaModal({
           <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
             {isEdit ? "Editar Visita" : "Nova Visita"}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 transition-colors">
             <XCircle size={20} />
           </button>
         </div>

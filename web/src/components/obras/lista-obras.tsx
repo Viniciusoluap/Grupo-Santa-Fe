@@ -142,16 +142,16 @@ export function ListaObras({ obras, base, filtroResponsavel = true, podeExcluir 
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-lg" title={tipo.label}>{tipo.icon}</span>
                     <h3 className="font-bold text-[var(--brand-dark)]">{o.nome}</h3>
-                    <span className="text-[10px] font-mono text-gray-400">{o.codigo}</span>
+                    <span className="text-[10px] font-mono text-gray-600">{o.codigo}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
                     {o.pciVinculada && <span className="text-[10px] font-bold px-2 py-0.5 uppercase bg-emerald-50 text-emerald-700 border border-emerald-200" title="Esta obra tem a PCI da CAIXA vinculada">✓ PCI vinculada</span>}
                   </div>
-                  <p className="text-gray-400 text-sm">{o.clienteNome} · {o.endereco}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">Resp.: {o.engenheiroResp} · {o.area} m²</p>
+                  <p className="text-gray-600 text-sm">{o.clienteNome} · {o.endereco}</p>
+                  <p className="text-gray-600 text-xs mt-0.5">Resp.: {o.engenheiroResp} · {o.area} m²</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-black text-[var(--brand-dark)] text-lg">{o.vgv == null ? "VGV não informado" : formatCurrency(o.vgv)}</p>
-                  {o.vgv == null && o.valorTotal != null && <p className="text-xs text-gray-400">Valor total (legado): {formatCurrency(o.valorTotal)}</p>}
+                  {o.vgv == null && o.valorTotal != null && <p className="text-xs text-gray-600">Valor total (legado): {formatCurrency(o.valorTotal)}</p>}
                   {/* Mesmo campo "Orçamento Previsto" do editor da obra (Valores da Operação/Custos). */}
                   <p className="text-xs text-gray-500">{o.orcamentoPrevisto == null ? "Orçamento não informado" : `Orçamento ${formatCurrency(o.orcamentoPrevisto)}`}</p>
                 </div>
@@ -159,7 +159,7 @@ export function ListaObras({ obras, base, filtroResponsavel = true, podeExcluir 
 
               <div className="mt-4 grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Progresso geral</p>
+                  <p className="text-xs text-gray-600 mb-1">Progresso geral</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-gray-100 overflow-hidden">
                       <div className={`h-full ${o.progresso >= 100 ? "bg-green-500" : "bg-[var(--brand-yellow)]"}`} style={{ width: `${Math.min(100, o.progresso)}%` }} />
@@ -168,11 +168,11 @@ export function ListaObras({ obras, base, filtroResponsavel = true, podeExcluir 
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Etapas</p>
+                  <p className="text-xs text-gray-600 mb-1">Etapas</p>
                   <p className="text-sm font-bold text-[var(--brand-dark)]">{etapasFeitas}/{o.etapas.length} concluídas</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Diário</p>
+                  <p className="text-xs text-gray-600 mb-1">Diário</p>
                   <p className="text-sm font-bold text-[var(--brand-dark)]">—</p>
                 </div>
               </div>
@@ -200,8 +200,8 @@ function IntervaloDatas({ titulo, de, ate, onDe, onAte }: { titulo: string; de: 
     <fieldset className="min-w-0 text-xs font-bold text-gray-500 uppercase">
       <legend>{titulo}</legend>
       <div className="grid grid-cols-2 gap-2">
-        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-400">De<input type="date" aria-label={`${titulo}: de`} value={de} onChange={(e) => onDe(e.target.value)} className={campo} /></label>
-        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-400">Até<input type="date" aria-label={`${titulo}: até`} value={ate} onChange={(e) => onAte(e.target.value)} className={campo} /></label>
+        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-600">De<input type="date" aria-label={`${titulo}: de`} value={de} onChange={(e) => onDe(e.target.value)} className={campo} /></label>
+        <label className="min-w-0 text-[11px] font-normal normal-case text-gray-600">Até<input type="date" aria-label={`${titulo}: até`} value={ate} onChange={(e) => onAte(e.target.value)} className={campo} /></label>
       </div>
     </fieldset>
   );

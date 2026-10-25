@@ -116,7 +116,7 @@ export function ProjetosClient({ projetos }: Props) {
           />
         </div>
         <div className="flex flex-wrap gap-1">
-          <button onClick={() => setStatusFilter("todos")} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+          <button onClick={() => setStatusFilter("todos")} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
             Todos
           </button>
           {(Object.entries(PROJETO_STATUS_CONFIG) as [ProjetoStatus, typeof PROJETO_STATUS_CONFIG[ProjetoStatus]][])
@@ -125,7 +125,7 @@ export function ProjetosClient({ projetos }: Props) {
               const count = projetos.filter((p) => p.status === status).length;
               if (count === 0) return null;
               return (
-                <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+                <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
                   {cfg.label} ({count})
                 </button>
               );

@@ -153,7 +153,7 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
 
       {/* Atributos + nota do novo empreendimento */}
       <div>
-        <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide px-0.5">
+        <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-600 uppercase tracking-wide px-0.5">
           <span className="col-span-6">Atributo</span>
           <span className="col-span-2">Peso (0–3)</span>
           <span className="col-span-3">Nota do seu empreendimento</span>
@@ -228,11 +228,11 @@ export function PrecificacaoComparaveis({ estudo }: { estudo: EstudoData }) {
           </p>
         </div>
         <div className="border border-gray-100 p-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Nota ponderada — você</p>
+          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Nota ponderada — você</p>
           <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{resultado.notaPonderadaNovo.toFixed(2)}</p>
         </div>
         <div className="border border-gray-100 p-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Nota ponderada média — mercado</p>
+          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Nota ponderada média — mercado</p>
           <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{resultado.notaPonderadaMediaComparaveis.toFixed(2)}</p>
         </div>
         <div className="border border-gray-100 p-3">

@@ -70,7 +70,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
           {busy ? "Pesquisando (até 1 min)..." : cidade ? "Refazer pesquisa (IA)" : "Pesquisar cidade + mercado (IA)"}
         </button>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-600">
           IBGE, prefeitura e portais imobiliários de {estudo.municipio}/{estudo.estado}
         </span>
         {cidade && <Save size={13} className="text-green-500" />}

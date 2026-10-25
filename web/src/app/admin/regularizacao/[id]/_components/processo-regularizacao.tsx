@@ -208,7 +208,7 @@ export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, rec
                       <td className="p-2 text-[var(--brand-dark)]">{l.nome}</td>
                       <td className="p-2 text-right whitespace-nowrap">{brl(l.previsto)}</td>
                       <td className="p-2 text-right whitespace-nowrap text-green-700">{brl(l.recebido)}</td>
-                      <td className={`p-2 text-right whitespace-nowrap font-bold ${l.recebidoAMaior ? "text-red-600" : l.saldo > 0 ? "text-orange-500" : "text-gray-400"}`} title={l.recebidoAMaior ? "Recebido acima do previsto" : undefined}>{brl(l.saldo)}</td>
+                      <td className={`p-2 text-right whitespace-nowrap font-bold ${l.recebidoAMaior ? "text-red-600" : l.saldo > 0 ? "text-orange-500" : "text-gray-600"}`} title={l.recebidoAMaior ? "Recebido acima do previsto" : undefined}>{brl(l.saldo)}</td>
                       <td className="p-2 text-right whitespace-nowrap text-gray-500">
                         <button type="button" className="p-1" aria-label={`Editar ${l.nome}`} onClick={() => { setErro(null); setItem({ id: String(l.id), nome: l.nome, grupo: l.grupo, previsto: (l.previsto / 100).toFixed(2) }); }}><Pencil size={14} /></button>
                         <button type="button" className="p-1 text-red-400 disabled:opacity-30" aria-label={`Excluir ${l.nome}`} disabled={pendente || comRecebimento}

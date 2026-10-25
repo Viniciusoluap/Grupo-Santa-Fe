@@ -60,7 +60,7 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
         <div className="bg-white border border-gray-100 p-12 text-center">
           <Mountain size={32} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Nenhum estudo de incorporação ainda</p>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-600 text-sm mt-1">
             Crie um estudo, envie o KML do terreno e gere a viabilidade completa.
           </p>
           <Link

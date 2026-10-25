@@ -33,7 +33,7 @@ describe.skipIf(!url)("obra — localização exata → imóvel vinculado (banco
     const r1 = await salvar(id, { lat: -6.4975, lng: -49.8761 });
     expect(r1.criado).toBe(true);
     const im = await prisma.imovel.findUniqueOrThrow({ where: { id: r1.imovelId! } });
-    expect(im).toMatchObject({ titulo: "Obra — Casa Maria", rua: "Rua A, 10", latitude: -6.4975, longitude: -49.8761, publicadoSite: false, publicadoZap: false, publicadoOlx: false, publicadoViva: false, destaque: false });
+    expect(im).toMatchObject({ titulo: "Obra — Casa Maria", rua: "Rua A, 10", latitude: -6.4975, longitude: -49.8761, publicadoSite: false, destaque: false });
     const r2 = await salvar(id, { lat: -6.5, lng: -49.88 });
     expect(r2).toMatchObject({ imovelId: r1.imovelId, criado: false });
     expect(await prisma.imovel.count({ where: { slug: { startsWith: `obra-${id}-` } } })).toBe(1);

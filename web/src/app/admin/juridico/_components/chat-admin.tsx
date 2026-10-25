@@ -158,7 +158,7 @@ export function ChatAdmin({ leads }: Props) {
                   }`}
                 >
                   <p>{m.texto}</p>
-                  <p className={`text-[9px] mt-1 ${m.remetente === "corretor" ? "text-gray-400" : "text-gray-400"}`}>
+                  <p className={`text-[9px] mt-1 ${m.remetente === "corretor" ? "text-gray-400" : "text-gray-600"}`}>
                     {new Date(m.criadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
