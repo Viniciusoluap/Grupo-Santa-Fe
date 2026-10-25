@@ -3,6 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { enviarFormComProgresso } from "@/lib/envio-progresso";
+import { enviarImovelComFotos } from "@/lib/envio-fotos-imovel";
 
 /**
  * Formulário que envia arquivos com progresso real (pedido de 18/10, item 4):
@@ -37,7 +38,8 @@ export function FormComEnvio({ acao, destino, campoFotos, item = "foto", classNa
     setErro(null);
     setEnviando(true);
     try {
-      await enviarFormComProgresso(acao, dados, { item, tamanhos });
+      if (campoFotos && acao === "/api/imoveis/salvar") await enviarImovelComFotos(dados, campoFotos);
+      else await enviarFormComProgresso(acao, dados, { item, tamanhos });
       router.push(destino);
       router.refresh();
     } catch (falha) {

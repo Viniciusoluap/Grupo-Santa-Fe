@@ -40,6 +40,7 @@ export interface EntradasObra {
   dataTerminoPrevista: string | null;
   investidores: ParticipacaoInvestidor[];
   percentualEmpreiteiro: number | string | null;
+  incluirProSolutoBaseEmpreiteiro?: boolean;
   movimentos: MovimentoCalculo[];
 }
 
@@ -55,6 +56,7 @@ export interface ResultadoObra {
   saldoEntrada: Indicador;
   proSoluto: Indicador;
   valorParcela: Indicador;
+  valorTotalProSoluto: Indicador;
   recebidoCef: Indicador;
   receberBanco: Indicador;
   basePls: Indicador;
@@ -200,6 +202,12 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
   if (entradaTotal.ok && entradaTotal.centavos < 0) alertas.push("Entrada total negativa: financiamento + FGTS + subsídio superam o VGV.");
   const proSoluto = saldoEntrada;
   const valorParcela = parcelaPrice(proSoluto.ok ? proSoluto.centavos : null, e.taxaMensalPct, e.parcelas);
+  const totalCalculado = valorParcela.ok && e.parcelas !== null ? valorParcela.centavos * e.parcelas : null;
+  const zeroInformado = proSoluto.ok && proSoluto.centavos === 0 && e.parcelas !== null && Number.isInteger(e.parcelas)
+    && e.parcelas > 0 && percentualMicro(e.taxaMensalPct) !== null;
+  const valorTotalProSoluto: Indicador = zeroInformado ? ok(0) : !valorParcela.ok ? valorParcela
+    : totalCalculado !== null && Number.isSafeInteger(totalCalculado) ? ok(totalCalculado)
+    : falta("Valor total do Pró-Soluto fora do limite permitido");
 
   const recebidoCef = ok(somar(e.movimentos, "recebimento_cef"));
   const faltaBanco = exigir({ "Financiamento CEF": e.financiamento, "Subsídio": e.subsidio, FGTS: e.fgts, "Custo do Terreno": e.custoTerreno });
@@ -242,9 +250,16 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
       ? ok(investidores.reduce((acc, i) => acc + (i.lucro.ok ? i.lucro.centavos : 0), 0))
       : falta(lucroEstimado.motivo);
 
-  const baseEmpreiteiro = lucroEstimado.ok && lucroInvestidores.ok
+  const baseAtualEmpreiteiro = lucroEstimado.ok && lucroInvestidores.ok
     ? ok(lucroEstimado.centavos - lucroInvestidores.centavos)
     : primeiraFalha(lucroEstimado, lucroInvestidores);
+  const baseEmpreiteiro = e.incluirProSolutoBaseEmpreiteiro
+    ? baseAtualEmpreiteiro.ok && valorTotalProSoluto.ok
+      ? Number.isSafeInteger(baseAtualEmpreiteiro.centavos + valorTotalProSoluto.centavos)
+        ? ok(baseAtualEmpreiteiro.centavos + valorTotalProSoluto.centavos)
+        : falta("Base do empreiteiro fora do limite permitido")
+      : primeiraFalha(baseAtualEmpreiteiro, valorTotalProSoluto)
+    : baseAtualEmpreiteiro;
   const pEmp = percentualMicro(e.percentualEmpreiteiro);
   let lucroEmpreiteiro: Indicador;
   if (pEmp === null) lucroEmpreiteiro = ok(0);
@@ -263,6 +278,7 @@ export function calcularObra(e: EntradasObra): ResultadoObra {
     saldoEntrada,
     proSoluto,
     valorParcela,
+    valorTotalProSoluto,
     recebidoCef,
     receberBanco,
     basePls,

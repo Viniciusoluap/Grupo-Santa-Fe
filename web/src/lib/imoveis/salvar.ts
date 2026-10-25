@@ -114,6 +114,7 @@ export async function criarImovelCore(formData: FormData) {
 
   revalidatePath("/admin/imoveis");
   revalidatePath("/corretor/imoveis");
+  return criado.id;
 }
 
 export async function editarImovelCore(formData: FormData) {
@@ -172,5 +173,6 @@ export async function editarImovelCore(formData: FormData) {
   revalidatePath("/admin/imoveis");
   revalidatePath(`/admin/imoveis/${id}/editar`);
   revalidatePath("/corretor/imoveis");
+  return id;
 }
 

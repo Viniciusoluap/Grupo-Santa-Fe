@@ -8,7 +8,7 @@ export const LEAD_TEMPERATURA_CONFIG: Record<LeadTemperatura, { label: string; e
   frio: { label: "Frio", emoji: "❄️", color: "text-blue-600" },
   morno: { label: "Morno", emoji: "🌡️", color: "text-yellow-700" },
   quente: { label: "Quente", emoji: "🔥", color: "text-red-600" },
-  fechado: { label: "Negócio fechado", emoji: "🤝", color: "text-green-700" },
+  fechado: { label: "Negócio fechado", emoji: "", color: "text-green-700" },
 };
 
 export function isLeadTemperatura(valor: unknown): valor is LeadTemperatura {
@@ -17,7 +17,7 @@ export function isLeadTemperatura(valor: unknown): valor is LeadTemperatura {
 
 export function leadTemperaturaRotulo(temperatura: string | null | undefined): string {
   const cfg = LEAD_TEMPERATURA_CONFIG[(temperatura ?? "frio") as LeadTemperatura];
-  return cfg ? `${cfg.emoji} ${cfg.label}` : String(temperatura);
+  return cfg ? [cfg.emoji, cfg.label].filter(Boolean).join(" ") : String(temperatura);
 }
 
 /** Valor do formulário; ausente mantém o padrão, inválido é recusado. */

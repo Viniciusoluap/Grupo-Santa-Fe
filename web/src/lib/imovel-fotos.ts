@@ -1,6 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { createHash } from "node:crypto";
 import { driveRegistroConfigurado, enviarParaLixeira, organizarFotosImovel, uploadFotosImovel } from "@/lib/incorporacao/registro-drive";
+import { MAX_FOTOS_IMOVEL } from "@/lib/imovel-fotos-limites";
 
 // Pedido de 15/10: fotos de imóveis ficam no Google Drive em
 // Imóveis/<Título (nº)>/01 - Fotos. O anúncio guarda só /api/imovel-foto/<id>.
@@ -8,7 +10,7 @@ import { driveRegistroConfigurado, enviarParaLixeira, organizarFotosImovel, uplo
 // as pendentes depois — o envio nunca se perde. Gêmeo de server/imovel-fotos.ts
 // da Prospecta.
 
-export const MAX_FOTOS_IMOVEL = 15;
+export { MAX_FOTOS_IMOVEL };
 const URL_FOTO = /^\/api\/imovel-foto\/([a-z0-9]{1,40})$/;
 export const urlFotoImovel = (id: string) => `/api/imovel-foto/${id}`;
 
@@ -89,6 +91,41 @@ export async function aplicarFotosImovel(imovelId: string, fotos: string[], usua
   await prisma.imovel.update({ where: { id: imovelId }, data: { imagens: JSON.stringify(final) } });
   await organizarFotos(imovelId).catch((erro) => console.error("[imovel-fotos] organização:", erro instanceof Error ? erro.message : "erro"));
   return final;
+}
+
+/** Acrescenta uma foto de modo atômico; uma repetição do mesmo envio devolve a URL anterior. */
+export async function acrescentarFotoImovel(imovelId: string, dataUrl: string, usuarioId: string): Promise<string> {
+  const foto = lerDataUrl(dataUrl);
+  if (!foto || foto.bytes.length > 2_500_000) throw new Error("Envie uma foto JPG, PNG ou WebP de até 2,5 MB por vez.");
+  const hash = createHash("sha256").update(foto.bytes).digest("hex");
+  const resultado = await prisma.$transaction(async (tx) => {
+    // Serializa uploads simultâneos e a verificação do limite por imóvel.
+    await tx.$executeRaw`SELECT id FROM imoveis WHERE id = ${imovelId} FOR UPDATE`;
+    const imovel = await tx.imovel.findUnique({ where: { id: imovelId }, select: { imagens: true } });
+    if (!imovel) throw new Error("Imóvel não encontrado.");
+    const anterior = await tx.imovelFoto.findUnique({ where: { imovelId_sha256: { imovelId, sha256: hash } }, select: { id: true } });
+    if (anterior) return { url: urlFotoImovel(anterior.id), nova: false };
+    const imagens = lerFotos(imovel.imagens);
+    if (imagens.length >= MAX_FOTOS_IMOVEL) throw new Error(`Máximo de ${MAX_FOTOS_IMOVEL} fotos por imóvel.`);
+    const criada = await tx.imovelFoto.create({ data: { imovelId, mime: foto.mime, tamanho: foto.bytes.length, sha256: hash, dados: new Uint8Array(foto.bytes), criadoPorId: usuarioId }, select: { id: true } });
+    const url = urlFotoImovel(criada.id);
+    await tx.imovel.update({ where: { id: imovelId }, data: { imagens: JSON.stringify([...imagens, url]) } });
+    return { url, nova: true };
+  });
+  if (resultado.nova) {
+    // Primeiro persistimos os bytes; falha no Drive preserva a foto no banco.
+    if (await driveRegistroConfigurado()) {
+      try {
+        const imovel = await prisma.imovel.findUniqueOrThrow({ where: { id: imovelId }, select: { id: true, titulo: true, imagens: true } });
+        const [driveFileId] = await uploadFotosImovel(imovel, [{ ordem: lerFotos(imovel.imagens).length, mime: foto.mime, bytes: foto.bytes }]);
+        await prisma.imovelFoto.update({ where: { id: resultado.url.split("/").pop()! }, data: { driveFileId, dados: null } });
+      } catch (erro) {
+        console.error("[imovel-fotos] Drive indisponível; foto preservada no banco:", erro instanceof Error ? erro.message : "erro");
+      }
+    }
+    await organizarFotos(imovelId).catch(() => undefined);
+  }
+  return resultado.url;
 }
 
 /** Numeração "Foto 01, 02…" na ordem do anúncio e pasta com o título atual. */

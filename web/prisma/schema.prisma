@@ -380,6 +380,7 @@ model Obra {
   empreiteiroId         String?
   empreiteiro           Usuario?                 @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
   percentualEmpreiteiro Decimal?                 @db.Decimal(9, 6)
+  incluirProSolutoBaseEmpreiteiro Boolean          @default(false) @map("incluir_pro_soluto_base_empreiteiro")
   /// EPIC-020 Lote 3: percentual de comissão próprio da obra (prevalece sobre o do corretor).
   comissaoPercentual    Decimal?                 @db.Decimal(7, 4)
   /// EPIC-020 Lote 4: Progresso Geral medido (soma incidência × execução), 6 casas.
@@ -1336,12 +1337,14 @@ model ImovelFoto {
   imovel      Imovel   @relation(fields: [imovelId], references: [id], onDelete: Cascade)
   mime        String
   tamanho     Int
+  sha256      String?  @db.VarChar(64)
   driveFileId String?
   dados       Bytes?
   criadoPorId String?
   criadoEm    DateTime @default(now())
 
   @@index([imovelId])
+  @@unique([imovelId, sha256])
   @@map("imovel_fotos")
 }
 

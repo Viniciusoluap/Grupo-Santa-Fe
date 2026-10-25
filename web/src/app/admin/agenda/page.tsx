@@ -14,7 +14,7 @@ export default async function AgendaPage() {
 
   const visitasRaw = await prisma.visita.findMany({
     where: isCorretor && corretorId ? { corretorId } : {},
-    include: { corretor: true, imovel: true },
+    include: { corretor: true, imovel: true, lead: { select: { responsavel: { select: { nome: true } } } } },
     orderBy: { agendadaPara: "asc" },
   });
 
@@ -28,19 +28,24 @@ export default async function AgendaPage() {
   });
 
   const leads = await prisma.lead.findMany({
-    select: { id: true, nome: true, telefone: true },
+    select: { id: true, nome: true, telefone: true, responsavel: { select: { nome: true } } },
     orderBy: { nome: "asc" },
   });
   const vencimentos = isCorretor ? [] : await prisma.lead.findMany({
     where: { vencimentoCard: { not: null }, excluidoEm: null, arquivadoEm: null,
       NOT: { etapaOperacional: "finalizado" } },
-    select: { id: true, nome: true, vencimentoCard: true },
+    select: { id: true, nome: true, vencimentoCard: true, responsavel: { select: { nome: true } } },
   });
   const tarefas = isCorretor ? [] : await prisma.tarefaCrm.findMany({
     where: { lead: { excluidoEm: null, arquivadoEm: null } },
-    select: { id: true, titulo: true, status: true, prazo: true, leadId: true,
-      lead: { select: { nome: true } } }, orderBy: { criadoEm: "desc" },
+    select: { id: true, titulo: true, status: true, prazo: true, leadId: true, responsavelId: true,
+      lead: { select: { nome: true, responsavel: { select: { nome: true } } } } }, orderBy: { criadoEm: "desc" },
   });
+  const responsaveisTarefas = await prisma.usuario.findMany({
+    where: { id: { in: tarefas.flatMap(t => t.responsavelId ? [t.responsavelId] : []) } },
+    select: { id: true, nome: true },
+  });
+  const nomeResponsavelTarefa = new Map(responsaveisTarefas.map(u => [u.id, u.nome]));
 
   const visitas = visitasRaw.map((v) => ({
     id: v.id,
@@ -56,6 +61,7 @@ export default async function AgendaPage() {
     imovelId: v.imovelId,
     imovel: v.imovel ? { id: v.imovel.id, titulo: v.imovel.titulo } : null,
     leadId: v.leadId ?? null,
+    responsavelLeadNome: v.lead?.responsavel?.nome ?? null,
   }));
 
   return (
@@ -65,7 +71,7 @@ export default async function AgendaPage() {
       imoveis={imoveis}
       leads={leads}
       vencimentos={vencimentos}
-      tarefas={tarefas}
+      tarefas={tarefas.map(t => ({ ...t, responsavelNome: (t.responsavelId ? nomeResponsavelTarefa.get(t.responsavelId) : null) ?? t.lead.responsavel?.nome ?? null }))}
       ehCorretor={isCorretor}
     />
   );

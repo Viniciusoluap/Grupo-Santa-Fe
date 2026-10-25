@@ -61,6 +61,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
       custoTerreno: form.custoTerreno, comissao: form.comissao, comissaoPercentual: form.comissaoPercentual, orcamentoPrevisto: form.orcamentoPrevisto,
       taxaMensalPct: form.taxaMensalPct, parcelas: form.parcelas,
       empreiteiroId: form.empreiteiroId, percentualEmpreiteiro: form.percentualEmpreiteiro,
+      incluirProSolutoBaseEmpreiteiro: form.incluirProSolutoBaseEmpreiteiro,
       escritorioCef: escritorio || null,
     });
     if (!valores.ok) { setErro(valores.erro); return; }

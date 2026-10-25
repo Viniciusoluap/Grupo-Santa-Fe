@@ -1,5 +1,5 @@
 "use server";
-import { coordenadasDoFormulario, salvarLocalizacaoObra } from "@/lib/obras/localizacao";
+import { coordenadasDoFormulario, salvarLocalizacaoObra, sincronizarCatalogoObra } from "@/lib/obras/localizacao";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { OBRA_STATUS_CONFIG, validarMudancaStatusObra } from "@/lib/types/obra";
 import { textoObrigatorio, opcaoObrigatoria, numeroObrigatorio } from "@/lib/crm/configuracao-servico";
@@ -73,6 +73,7 @@ export async function editarObra(formData: FormData) {
       },
     });
     if (coords !== undefined) await salvarLocalizacaoObra(tx, id, coords, usuario.id);
+    await sincronizarCatalogoObra(tx, id, usuario.id);
   });
   revalidatePath("/admin/obras");
   revalidatePath("/admin/mapa");
