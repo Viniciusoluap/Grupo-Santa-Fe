@@ -1,0 +1,410 @@
+"use client";
+
+// Pedido de 25/10: BPO › Bancos — contas por API (Asaas, Pluggy/Meu Pluggy) e importação de
+// extrato (planilha, OFX, PDF) com prévia, sempre respeitando a data inicial de cada conta.
+// Gêmeo de Prospecta/client/src/pages/admin/BancosPanel.tsx (visual do Santa Fé).
+import React, { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Toaster, toast } from "sonner";
+import { Building2, FileUp, Link2, ListOrdered, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { exigirResultado } from "@/lib/acao-resultado";
+import {
+  atualizarContaBancaria,
+  atualizarStatusTransacao,
+  confirmarImportacaoExtrato,
+  criarContaBancaria,
+  excluirContaBancaria,
+  importarItemPluggy,
+  listarTransacoesConta,
+  previaImportacaoExtrato,
+  salvarCredenciaisPluggy,
+  salvarTokenWebhookAsaasAcao,
+  sincronizarContaBancaria,
+  testarPluggy,
+  tokenConexaoPluggy,
+} from "@/lib/actions/banco";
+
+export interface ContaBancoPainel {
+  id: string;
+  banco: string;
+  agencia: string | null;
+  conta: string;
+  tipo: string;
+  descricao: string | null;
+  saldoAtual: number;
+  provedor: string;
+  dataInicial: string | null;
+  ultimoErro: string | null;
+  ultimaSincronizacao: string | null;
+}
+
+type Transacao = { id: string; data: string; descricao: string; valor: number; tipo: string; categoria: string | null; status: string; origem: string };
+type LinhaPrevia = { data: string; descricao: string; valor: number; tipo: "credito" | "debito"; jaImportada: boolean };
+type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null };
+
+const PROVEDOR: Record<string, string> = { asaas: "API do Asaas", pluggy: "Pluggy (Meu Pluggy)", manual: "Importação de extrato" };
+const dataBR = (d?: string | null) => (d ? d.split("-").reverse().join("/") : "—");
+// Vercel aceita até 4,5 MB por requisição; extratos costumam ter bem menos.
+const LIMITE_ENVIO = 4 * 1024 * 1024;
+
+const campo = "w-full border border-gray-300 px-3 py-2 text-sm text-[var(--brand-dark)] bg-white focus:outline-none focus:border-[var(--brand-yellow)]";
+const rotulo = "block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1";
+const ajuda = "text-[11px] text-gray-700 mt-1";
+const botaoPri = "inline-flex items-center justify-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2 transition-colors disabled:opacity-50";
+const botaoSec = "inline-flex items-center gap-1 text-xs font-bold border border-gray-300 text-gray-800 px-3 py-1.5 hover:bg-gray-50 transition-colors disabled:opacity-50";
+
+function Modal({ titulo, onClose, largo, children }: { titulo: string; onClose: () => void; largo?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className={`bg-white w-full ${largo ? "max-w-3xl" : "max-w-md"} mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">{titulo}</h2>
+          <button onClick={onClose} className="text-gray-700 hover:text-[var(--brand-dark)]" aria-label="Fechar"><X size={18} /></button>
+        </div>
+        <div className="px-6 py-5 space-y-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function BancosPanel({
+  contas,
+  pluggy,
+  webhookAsaas,
+  abrirNovaConta = 0,
+}: {
+  contas: ContaBancoPainel[];
+  pluggy: { configured: boolean; active: boolean };
+  /** Avisos em tempo real do Asaas: URL a cadastrar no painel do Asaas e se já há token salvo. */
+  webhookAsaas: { url: string; configurado: boolean };
+  /** Muda de valor quando o botão "Adicionar Conta" do topo do BPO é clicado. */
+  abrirNovaConta?: number;
+}) {
+  const router = useRouter();
+  const [ocupado, startTransition] = useTransition();
+  const atualizar = () => router.refresh();
+  /** Executa uma action, mostra o erro em português e atualiza a tela. */
+  function executar<T>(fn: () => Promise<T>, ok?: (r: T) => void) {
+    startTransition(async () => {
+      try { const r = await fn(); ok?.(r); atualizar(); }
+      catch (e) { toast.error(e instanceof Error ? e.message : "Operação falhou."); }
+    });
+  }
+
+  // ── Pluggy ──
+  const [pluggyForm, setPluggyForm] = useState({ clientId: "", clientSecret: "" });
+  const [itemForm, setItemForm] = useState({ itemId: "", dataInicial: "" });
+  function importarItem(itemId: string) {
+    executar(async () => exigirResultado(await importarItemPluggy({ itemId, dataInicial: itemForm.dataInicial || null })), (r) => {
+      toast.success(`${r.encontradas} conta(s) encontrada(s), ${r.criadas} cadastrada(s).`);
+      setItemForm({ itemId: "", dataInicial: "" });
+    });
+  }
+  async function conectarMeuPluggy() {
+    try {
+      const { accessToken } = exigirResultado(await tokenConexaoPluggy());
+      const { PluggyConnect } = await import("pluggy-connect-sdk");
+      const pc = new PluggyConnect({
+        connectToken: accessToken,
+        includeSandbox: false,
+        onSuccess: ({ item }) => importarItem(item.id),
+        onError: (e) => { toast.error(e.message); },
+      });
+      await pc.init();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível abrir a Pluggy.");
+    }
+  }
+
+  // ── Nova conta (Asaas ou importação) ──
+  const vazio = { provedor: "asaas" as "asaas" | "manual", banco: "Asaas", conta: "", descricao: "", apiKey: "", dataInicial: "" };
+  const [novaOpen, setNovaOpen] = useState(false);
+  const [nova, setNova] = useState(vazio);
+  const [pedidoAtendido, setPedidoAtendido] = useState(abrirNovaConta);
+  if (abrirNovaConta !== pedidoAtendido) { setPedidoAtendido(abrirNovaConta); setNovaOpen(true); }
+
+  // ── Ajustar data inicial / chave ──
+  const [edit, setEdit] = useState<{ id: string; dataInicial: string; apiKey: string; provedor: string; tokenWebhook: string } | null>(null);
+
+  // ── Movimentações ──
+  const [verConta, setVerConta] = useState<string | null>(null);
+  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
+  async function carregarTransacoes(contaId: string) {
+    try { setTransacoes(exigirResultado(await listarTransacoesConta(contaId))); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao ler as movimentações."); }
+  }
+  function alternarMovimentacoes(contaId: string) {
+    if (verConta === contaId) { setVerConta(null); return; }
+    setVerConta(contaId); setTransacoes([]); void carregarTransacoes(contaId);
+  }
+
+  // ── Importação ──
+  const [imp, setImp] = useState<{ contaId: string; nome: string } | null>(null);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [anoPadrao, setAnoPadrao] = useState("");
+  const [previa, setPrevia] = useState<Previa | null>(null);
+  function fecharImportacao() { setImp(null); setArquivo(null); setPrevia(null); setAnoPadrao(""); }
+  function lerArquivo() {
+    if (!imp || !arquivo) return;
+    if (arquivo.size > LIMITE_ENVIO) { toast.error("Arquivo acima de 4 MB. Exporte um período menor (ou prefira OFX/CSV)."); return; }
+    const fd = new FormData();
+    fd.set("contaId", imp.contaId);
+    fd.set("arquivo", arquivo);
+    if (anoPadrao) fd.set("anoPadrao", anoPadrao);
+    startTransition(async () => {
+      try { setPrevia(exigirResultado(await previaImportacaoExtrato(fd))); }
+      catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível ler o arquivo."); }
+    });
+  }
+  const novas = previa?.linhas.filter((l) => !l.jaImportada).length ?? 0;
+
+  return (
+    <div className="space-y-5">
+      <Toaster richColors position="top-right" />
+
+      {/* Contas */}
+      <div className="flex justify-between items-center gap-3 flex-wrap">
+        <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Contas Bancárias ({contas.length})</h2>
+        <button onClick={() => setNovaOpen(true)} className={botaoPri}><Plus size={12} /> Conta Bancária</button>
+      </div>
+
+      {contas.length === 0 ? (
+        <div className="bg-white border border-dashed border-gray-300 p-12 text-center">
+          <Building2 size={32} className="text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-800 font-medium">Nenhuma conta bancária cadastrada</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {contas.map((c) => (
+            <div key={c.id} className="bg-white border border-gray-200 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="font-bold text-[var(--brand-dark)] text-sm">
+                    {c.banco}{c.descricao ? ` — ${c.descricao}` : ""}{c.conta && c.conta !== "—" ? ` • ${c.conta}` : ""}
+                  </p>
+                  <p className="text-xs text-gray-700">
+                    {PROVEDOR[c.provedor] ?? c.provedor} • a partir de {dataBR(c.dataInicial)}
+                    {c.ultimaSincronizacao ? ` • última sinc. ${new Date(c.ultimaSincronizacao).toLocaleString("pt-BR")}` : ""}
+                  </p>
+                  {c.ultimoErro && <p className="text-xs text-red-700 font-medium mt-1">Último erro: {c.ultimoErro}</p>}
+                </div>
+                <span className={`font-black text-lg leading-none ${c.saldoAtual >= 0 ? "text-[var(--brand-dark)]" : "text-red-700"}`}>{formatCurrency(c.saldoAtual)}</span>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {(c.provedor === "asaas" || c.provedor === "pluggy") && (
+                  <button className={botaoSec} disabled={ocupado}
+                    onClick={() => executar(async () => exigirResultado(await sincronizarContaBancaria(c.id)), (r) => {
+                      if (r.ok) toast.success(r.mensagem); else toast.error(r.mensagem);
+                      if (verConta === c.id) void carregarTransacoes(c.id);
+                    })}>
+                    <RefreshCw size={11} className={ocupado ? "animate-spin" : ""} /> Sincronizar
+                  </button>
+                )}
+                <button className={botaoSec} onClick={() => setImp({ contaId: c.id, nome: c.descricao || c.banco })}><FileUp size={11} /> Importar extrato</button>
+                <button className={botaoSec} onClick={() => alternarMovimentacoes(c.id)}><ListOrdered size={11} /> {verConta === c.id ? "Ocultar" : "Movimentações"}</button>
+                <button className={botaoSec} onClick={() => setEdit({ id: c.id, dataInicial: c.dataInicial ?? "", apiKey: "", provedor: c.provedor, tokenWebhook: "" })}>
+                  Data inicial{c.provedor === "asaas" ? " / chave" : ""}
+                </button>
+                <button className="inline-flex items-center gap-1 text-xs font-bold border border-red-300 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50" disabled={ocupado}
+                  onClick={() => confirm(`Remover a conta ${c.banco}? As movimentações já gravadas continuam no histórico.`)
+                    && executar(async () => exigirResultado(await excluirContaBancaria(c.id)), () => toast.success("Conta removida."))}>
+                  <Trash2 size={11} /> Remover
+                </button>
+              </div>
+              {verConta === c.id && (
+                <div className="max-h-80 overflow-y-auto border-t border-gray-200 pt-2">
+                  {transacoes.length === 0 ? <p className="text-xs text-gray-700">Nenhuma movimentação.</p> : (
+                    <table className="w-full text-xs">
+                      <tbody className="divide-y divide-gray-100">
+                        {transacoes.map((t) => (
+                          <tr key={t.id}>
+                            <td className="py-1.5 pr-2 text-gray-700 whitespace-nowrap">{new Date(t.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>
+                            <td className="py-1.5 pr-2 text-[var(--brand-dark)]">{t.descricao}</td>
+                            <td className={`py-1.5 pr-2 text-right whitespace-nowrap font-bold ${t.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
+                              {t.tipo === "debito" ? "-" : ""}{formatCurrency(t.valor)}
+                            </td>
+                            <td className="py-1.5 text-right whitespace-nowrap">
+                              {t.status === "pendente" ? (
+                                <span className="inline-flex gap-1">
+                                  <button className="text-[10px] font-bold px-2 py-0.5 bg-green-50 text-green-800 border border-green-300 hover:bg-green-100"
+                                    onClick={() => executar(() => atualizarStatusTransacao(t.id, "conciliado"), () => void carregarTransacoes(c.id))}>Conciliar</button>
+                                  <button className="text-[10px] font-bold px-2 py-0.5 bg-white text-gray-800 border border-gray-300 hover:bg-gray-50"
+                                    onClick={() => executar(() => atualizarStatusTransacao(t.id, "ignorado"), () => void carregarTransacoes(c.id))}>Ignorar</button>
+                                </span>
+                              ) : (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 uppercase ${t.status === "conciliado" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{t.status}</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pluggy */}
+      <div className="bg-white border border-gray-200 p-5 space-y-4">
+        <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Pluggy — contas conectadas pelo Meu Pluggy (gratuito)</h2>
+        <p className="text-sm text-gray-800">
+          {pluggy.configured ? "Credenciais da Pluggy salvas." : "Informe o Client ID e o Client Secret da aplicação criada no painel da Pluggy."}
+          {" "}As contas conectadas no Meu Pluggy são lidas sem custo e sincronizadas todo dia.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div><label className={rotulo}>Client ID</label><input value={pluggyForm.clientId} onChange={(e) => setPluggyForm((f) => ({ ...f, clientId: e.target.value }))} className={campo} autoComplete="off" /></div>
+          <div><label className={rotulo}>Client Secret</label><input type="password" value={pluggyForm.clientSecret} onChange={(e) => setPluggyForm((f) => ({ ...f, clientSecret: e.target.value }))} className={campo} autoComplete="off" /></div>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button className={botaoPri} disabled={!pluggyForm.clientId || !pluggyForm.clientSecret || ocupado}
+            onClick={() => executar(async () => exigirResultado(await salvarCredenciaisPluggy(pluggyForm)), () => {
+              toast.success("Credenciais da Pluggy salvas."); setPluggyForm({ clientId: "", clientSecret: "" });
+            })}>Salvar credenciais</button>
+          {pluggy.configured && (
+            <button className={botaoSec} disabled={ocupado}
+              onClick={() => executar(async () => exigirResultado(await testarPluggy()), (r) => (r.ok ? toast.success(r.mensagem) : toast.error(r.mensagem)))}>
+              Testar conexão
+            </button>
+          )}
+        </div>
+        {pluggy.configured && (
+          <div className="border-t border-gray-200 pt-4 space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div><label className={rotulo}>Considerar movimentações a partir de</label><input type="date" value={itemForm.dataInicial} onChange={(e) => setItemForm((f) => ({ ...f, dataInicial: e.target.value }))} className={campo} /></div>
+              <div><label className={rotulo}>ID da conexão (itemId), se já tiver</label><input value={itemForm.itemId} onChange={(e) => setItemForm((f) => ({ ...f, itemId: e.target.value.trim() }))} className={campo} placeholder="opcional" /></div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button className={botaoSec} disabled={ocupado} onClick={conectarMeuPluggy}><Link2 size={11} /> Conectar banco (Meu Pluggy)</button>
+              <button className={botaoSec} disabled={itemForm.itemId.length < 8 || ocupado} onClick={() => importarItem(itemForm.itemId)}>Buscar contas deste ID</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nova conta */}
+      {novaOpen && (
+        <Modal titulo="Nova conta bancária" onClose={() => setNovaOpen(false)}>
+          <div>
+            <label className={rotulo}>Como as movimentações chegam</label>
+            <select value={nova.provedor} onChange={(e) => { const v = e.target.value as "asaas" | "manual"; setNova((n) => ({ ...n, provedor: v, banco: v === "asaas" ? "Asaas" : "" })); }} className={campo}>
+              <option value="asaas">API do Asaas (automático)</option>
+              <option value="manual">Importação de extrato (Cora, C6, Inter ou outro)</option>
+            </select>
+            <p className={ajuda}>Contas do Meu Pluggy entram pelo quadro &quot;Pluggy&quot; abaixo.</p>
+          </div>
+          <div><label className={rotulo}>Banco *</label><input value={nova.banco} onChange={(e) => setNova((n) => ({ ...n, banco: e.target.value }))} className={campo} placeholder="ex.: Cora" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={rotulo}>Conta</label><input value={nova.conta} onChange={(e) => setNova((n) => ({ ...n, conta: e.target.value }))} className={campo} /></div>
+            <div><label className={rotulo}>Descrição</label><input value={nova.descricao} onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))} className={campo} placeholder="ex.: Conta PJ" /></div>
+          </div>
+          {nova.provedor === "asaas" && (
+            <div><label className={rotulo}>Chave de API do Asaas *</label><input type="password" value={nova.apiKey} onChange={(e) => setNova((n) => ({ ...n, apiKey: e.target.value }))} className={campo} autoComplete="off" placeholder="$aact_prod_..." /></div>
+          )}
+          <div>
+            <label className={rotulo}>Considerar movimentações a partir de</label>
+            <input type="date" value={nova.dataInicial} onChange={(e) => setNova((n) => ({ ...n, dataInicial: e.target.value }))} className={campo} />
+            <p className={ajuda}>Movimentações anteriores a esta data não são gravadas (não pertencem a esta empresa).</p>
+          </div>
+          <button className={`${botaoPri} w-full`} disabled={ocupado || !nova.banco || (nova.provedor === "asaas" && !nova.apiKey)}
+            onClick={() => executar(async () => exigirResultado(await criarContaBancaria({
+              provedor: nova.provedor, banco: nova.banco, conta: nova.conta || undefined, descricao: nova.descricao || undefined,
+              apiKey: nova.apiKey || undefined, dataInicial: nova.dataInicial || null,
+            })), () => { toast.success("Conta cadastrada."); setNovaOpen(false); setNova(vazio); })}>
+            {ocupado ? "Validando..." : "Cadastrar conta"}
+          </button>
+        </Modal>
+      )}
+
+      {/* Ajustar conta */}
+      {edit && (
+        <Modal titulo="Ajustar conta" onClose={() => setEdit(null)}>
+          <div>
+            <label className={rotulo}>Considerar movimentações a partir de</label>
+            <input type="date" value={edit.dataInicial} onChange={(e) => setEdit({ ...edit, dataInicial: e.target.value })} className={campo} />
+            <p className={ajuda}>Vale para as próximas sincronizações e importações. O que já foi gravado continua.</p>
+          </div>
+          {edit.provedor === "asaas" && (
+            <>
+              <div><label className={rotulo}>Nova chave de API (deixe em branco para manter)</label><input type="password" value={edit.apiKey} onChange={(e) => setEdit({ ...edit, apiKey: e.target.value })} className={campo} autoComplete="off" /></div>
+              <div>
+                <label className={rotulo}>Token do webhook do Asaas (opcional)</label>
+                <input type="password" value={edit.tokenWebhook} onChange={(e) => setEdit({ ...edit, tokenWebhook: e.target.value })} className={campo} autoComplete="off"
+                  placeholder={webhookAsaas.configurado ? "já configurado — deixe em branco para manter" : "o mesmo token cadastrado no Asaas"} />
+                <p className={ajuda}>
+                  Avisos em tempo real: no painel do Asaas (Integrações › Webhooks), cadastre a URL{" "}
+                  <code className="bg-gray-100 text-[var(--brand-dark)] px-1 break-all">{webhookAsaas.url}</code> com este mesmo token.
+                  Sem token, o extrato continua atualizando pela sincronização diária.
+                </p>
+              </div>
+            </>
+          )}
+          <button className={`${botaoPri} w-full`} disabled={ocupado}
+            onClick={() => executar(async () => {
+              if (edit.tokenWebhook.trim()) exigirResultado(await salvarTokenWebhookAsaasAcao(edit.tokenWebhook));
+              return exigirResultado(await atualizarContaBancaria({ id: edit.id, dataInicial: edit.dataInicial || null, apiKey: edit.apiKey || undefined }));
+            },
+              () => { toast.success("Conta atualizada."); setEdit(null); })}>Salvar</button>
+        </Modal>
+      )}
+
+      {/* Importação */}
+      {imp && (
+        <Modal titulo={`Importar extrato — ${imp.nome}`} onClose={fecharImportacao} largo>
+          {!previa ? (
+            <>
+              <p className="text-sm text-gray-800">Aceita planilha (CSV, Excel), OFX ou PDF. Prefira OFX ou CSV quando o banco oferecer: a leitura é mais precisa que a do PDF.</p>
+              <input type="file" accept=".csv,.txt,.xlsx,.xls,.ofx,.pdf" onChange={(e) => { setArquivo(e.target.files?.[0] ?? null); setPrevia(null); }} className={campo} />
+              {arquivo?.name.toLowerCase().endsWith(".pdf") && (
+                <div><label className={rotulo}>Ano do extrato (se as datas do PDF vierem sem ano)</label><input type="number" value={anoPadrao} onChange={(e) => setAnoPadrao(e.target.value)} className={campo} placeholder={String(new Date().getFullYear())} /></div>
+              )}
+              <button className={botaoPri} disabled={!arquivo || ocupado} onClick={lerArquivo}>{ocupado ? "Lendo..." : "Ler arquivo e mostrar prévia"}</button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-800">
+                {previa.formato}: <b>{novas}</b> lançamento(s) novo(s){previa.linhas.length - novas ? `, ${previa.linhas.length - novas} já importado(s)` : ""}
+                {previa.antesDaDataInicial ? `, ${previa.antesDaDataInicial} anterior(es) a ${dataBR(previa.dataInicial)} (descartados)` : ""}
+                {previa.ignoradas ? `, ${previa.ignoradas} linha(s) não reconhecida(s)` : ""}.
+              </p>
+              <div className="max-h-96 overflow-y-auto border border-gray-200">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-[var(--brand-dark)]">
+                    <tr className="text-white"><th className="text-left p-2">Data</th><th className="text-left p-2">Descrição</th><th className="text-right p-2">Valor</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {previa.linhas.slice(0, 500).map((l, i) => (
+                      <tr key={i} className={l.jaImportada ? "bg-gray-100" : ""}>
+                        <td className="p-2 whitespace-nowrap text-gray-800">{dataBR(l.data)}</td>
+                        <td className="p-2 text-[var(--brand-dark)]">{l.descricao}{l.jaImportada ? <span className="text-gray-700 italic"> (já importado)</span> : ""}</td>
+                        <td className={`p-2 text-right whitespace-nowrap font-bold ${l.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>{l.tipo === "debito" ? "-" : ""}{formatCurrency(l.valor)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {previa.linhas.length > 500 && <p className="text-xs text-gray-700">Mostrando 500 de {previa.linhas.length}; todos serão importados.</p>}
+              <div className="flex gap-2 flex-wrap">
+                <button className={botaoSec} onClick={() => setPrevia(null)}>Escolher outro arquivo</button>
+                <button className={botaoPri} disabled={!novas || ocupado}
+                  onClick={() => executar(
+                    async () => exigirResultado(await confirmarImportacaoExtrato(imp.contaId, previa.linhas.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo })))),
+                    (r) => {
+                      toast.success(`${r.novos} lançamento(s) importado(s).${r.recebidos - r.novos > 0 ? ` ${r.recebidos - r.novos} já existiam.` : ""}`);
+                      if (verConta === imp.contaId) void carregarTransacoes(imp.contaId);
+                      fecharImportacao();
+                    },
+                  )}>
+                  {ocupado ? "Importando..." : `Importar ${novas} lançamento(s)`}
+                </button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+    </div>
+  );
+}

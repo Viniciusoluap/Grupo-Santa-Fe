@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   conexao: vi.fn(),
   usuarioAdmin: vi.fn(),
 }));
+vi.mock("server-only", () => ({}));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({
   prisma: {

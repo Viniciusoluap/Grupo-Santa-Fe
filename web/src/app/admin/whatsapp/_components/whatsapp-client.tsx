@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import {
   MessageCircle, CheckCircle2, Clock, AlertCircle, Wifi, WifiOff,
   Search, X, Send, Smartphone, Plus, Eye, Users,
 } from "lucide-react";
 import { salvarConexaoBusiness } from "@/lib/actions/whatsapp";
+import { ConexaoQrCode } from "./conexao-qr-code";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface ConexaoData {
-  id: string; usuarioId: string; numero: string | null; status: string;
+  id: string; usuarioId: string; numero: string | null; status: string; provedor?: string;
 }
 
 interface ConexaoCorretor {
@@ -118,6 +119,11 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
     });
   }
 
+  const aoConectarQr = useCallback((numero: string | null) => {
+    setMinhaConexao({ id: "", usuarioId, numero, status: "conectado", provedor: "evolution" });
+  }, [usuarioId]);
+  const aviso = useCallback((msg: string, type: "success" | "error") => setToast({ msg, type }), []);
+
   async function handleDesconectar() {
     setDesconectando(true);
     try {
@@ -205,7 +211,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
           {(role === "admin" || role === "colaborador" || role === "corretor") && (
             <div className="bg-white border border-gray-100 p-5">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
-                {role === "corretor" ? "Minha Conexão WhatsApp" : "Conexão WhatsApp Business da empresa"}
+                {role === "corretor" ? "Minha Conexão WhatsApp" : "Conexão WhatsApp da empresa"}
               </h2>
 
               {/* Connected */}
@@ -214,7 +220,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                   <div className="flex items-center gap-3 p-3 bg-green-50">
                     <CheckCircle2 size={20} className="text-green-600" />
                     <div>
-                      <p className="font-bold text-green-700 text-sm">Conectado via WhatsApp Business API</p>
+                      <p className="font-bold text-green-700 text-sm">{minhaConexao?.provedor === "evolution" ? "Conectado pelo QR code" : "Conectado via WhatsApp Business API"}</p>
                       {minhaConexao?.numero && <p className="text-xs text-gray-500 mt-0.5">{minhaConexao.numero}</p>}
                     </div>
                   </div>
@@ -225,9 +231,13 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 </div>
               )}
 
-              {/* Not connected: Business API form */}
+              {/* Not connected: QR code (Evolution) e, como alternativa, a API oficial */}
               {!conexaoAtiva && (
                 <div className="space-y-5">
+                  <ConexaoQrCode podeConfigurarServidor={role !== "corretor"} onConectado={aoConectarQr} onAviso={aviso} />
+                  <details className="border-t border-gray-100 pt-3">
+                  <summary className="cursor-pointer text-xs text-gray-700 font-bold">Usar a API oficial do WhatsApp Business (Meta)</summary>
+                  <div className="space-y-5 mt-3">
                   <div className="border border-blue-100 bg-blue-50 p-4 text-xs text-blue-700 space-y-1">
                     <p className="font-bold">WhatsApp Business API (Meta Cloud API)</p>
                     <p>Gratuito até 1.000 conversas/mês. Requer conta Meta Business verificada.</p>
@@ -261,6 +271,8 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                       <CheckCircle2 size={14} /> Salvar e Conectar
                     </button>
                   </form>
+                  </div>
+                  </details>
                 </div>
               )}
             </div>
@@ -302,7 +314,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
             <div className="flex items-center gap-3 border border-yellow-200 bg-yellow-50 p-4">
               <AlertCircle size={18} className="text-yellow-600 shrink-0" />
               <p className="text-sm text-yellow-800">
-                Configure sua conexão WhatsApp Business na aba Conexão.
+                Conecte o WhatsApp (QR code ou API oficial) na aba Conexão.
               </p>
             </div>
           )}
