@@ -1,10 +1,10 @@
 // Pedido de 25/10: contas bancárias do BPO por API (Asaas, Pluggy/Meu Pluggy) e por importação
 // de extrato (planilha, OFX, PDF), com data inicial por conta. Gêmeo de Prospecta/server/bancos.ts
 // (mesma regra de negócio; aqui com Prisma).
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { criptografarSegredo, descriptografarSegredo, segredoEmTextoPuro } from "@/lib/segredo";
-import { authenticatePluggy, fetchPluggyAccountBalance, fetchPluggyTransactions } from "@/lib/bancos/pluggy";
+import { authenticatePluggy, fetchPluggyAccountBalance, fetchPluggyTransactions, garantirWebhookPluggy } from "@/lib/bancos/pluggy";
 import { fetchAsaasExtrato, fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
 import {
   aplicarDataInicial,
@@ -119,6 +119,7 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
       return { ok: false, mensagem: "Esta conta é alimentada por importação de extrato (botão Importar extrato)." };
     }
     const r = await gravarMovimentos(conta, movimentos, conta.provedor);
+    if (r.novos > 0) await avisarNovasMovimentacoes(conta, r.novos).catch(() => undefined);
     await prisma.contaBancaria.update({
       where: { id: conta.id },
       data: { ultimaSincronizacao: new Date(), ultimoErro: null, ...(saldo !== null ? { saldoAtual: saldo } : {}) },
@@ -133,6 +134,7 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
 
 /** Sincronização diária (cron): todas as contas ativas ligadas a uma API. */
 export async function sincronizarTodasContas(fetchImpl: typeof fetch = fetch) {
+  await recriptografarConfiguracaoAsaas().catch(() => undefined);
   const contas = await prisma.contaBancaria.findMany({
     where: { ativo: true, provedor: { in: ["asaas", "pluggy"] } },
     select: { id: true },
@@ -221,4 +223,94 @@ export async function confirmarImportacao(contaId: string, linhas: LinhaExtrato[
   const chaves = chavesImportacao(conta.id, mantidas, sha);
   const r = await gravarMovimentos(conta, mantidas.map((l, i) => ({ ...l, externalId: chaves[i] })), "importacao");
   return { ...r, antesDaDataInicial };
+}
+
+// ── Avisos em tempo real (pedido de 25/10) ──────────────────────────────────
+// Gêmeo do final de Prospecta/server/bancos.ts. O Santa Fé não tem configuração de cobranças do
+// Asaas: o token do webhook do Asaas fica na tabela `configuracoes` (chave "asaas.webhookToken").
+
+const SITE = () => (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.gruposantafee.com.br").replace(/\/+$/, "");
+export const URL_WEBHOOK_PLUGGY = () => `${SITE()}/api/pluggy/webhook`;
+export const URL_WEBHOOK_ASAAS = () => `${SITE()}/api/asaas/webhook`;
+const CHAVE_TOKEN_ASAAS = "asaas.webhookToken";
+
+/** Segredo do webhook da Pluggy, derivado do segredo do servidor (nada a configurar). */
+export function segredoWebhookPluggy(): string {
+  if (!process.env.AUTH_SECRET) throw new Error("AUTH_SECRET ausente.");
+  return createHmac("sha256", process.env.AUTH_SECRET).update("pluggy-webhook").digest("hex");
+}
+
+export async function registrarWebhookPluggy(fetchImpl: typeof fetch = fetch) {
+  return garantirWebhookPluggy(await tokenPluggy(fetchImpl), URL_WEBHOOK_PLUGGY(), segredoWebhookPluggy(), fetchImpl);
+}
+
+/** Comparação em tempo constante de um cabeçalho recebido com o segredo esperado. */
+export function segredoConfere(recebido: unknown, esperado: string | null | undefined): boolean {
+  if (typeof recebido !== "string" || !esperado) return false;
+  const a = Buffer.from(recebido), b = Buffer.from(esperado);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Notificação no sistema para os administradores quando entram movimentações novas. */
+async function avisarNovasMovimentacoes(conta: { id: string; banco: string; descricao: string | null }, novos: number) {
+  const admins = await prisma.usuario.findMany({ where: { papel: "admin", ativo: true }, select: { id: true } });
+  if (!admins.length) return;
+  const nome = conta.descricao ? `${conta.banco} — ${conta.descricao}` : conta.banco;
+  await prisma.notificacao.createMany({
+    data: admins.map((a) => ({
+      usuarioId: a.id,
+      tipo: "sistema",
+      titulo: `${novos} movimentação(ões) nova(s) — ${nome}`,
+      mensagem: `O extrato da conta ${nome} foi atualizado automaticamente.`,
+      link: "/admin/bpo?aba=bancos",
+    })),
+  });
+}
+
+/** Evento recebido (Asaas ou Pluggy): sincroniza na hora as contas afetadas, com trava de 30 s. */
+export async function sincronizarPorEvento(filtro: { provedor: "asaas" } | { provedor: "pluggy"; itemId: string }, fetchImpl: typeof fetch = fetch) {
+  const contas = await prisma.contaBancaria.findMany({
+    where: { ativo: true, provedor: filtro.provedor, ...(filtro.provedor === "pluggy" ? { pluggyItemId: filtro.itemId } : {}) },
+    select: { id: true, ultimaSincronizacao: true },
+  });
+  const agora = Date.now();
+  const resultados = [];
+  for (const c of contas) {
+    if (c.ultimaSincronizacao && agora - c.ultimaSincronizacao.getTime() < 30_000) continue;
+    resultados.push({ contaId: c.id, ...(await sincronizarConta(c.id, fetchImpl)) });
+  }
+  return resultados;
+}
+
+/** Token do webhook do Asaas: o salvo pela tela (criptografado; "plain:" é recriptografado) ou a env. */
+export async function tokenWebhookAsaas(): Promise<string | null> {
+  const l = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TOKEN_ASAAS } });
+  if (l?.valor) {
+    const claro = descriptografarSegredo(l.valor);
+    if (segredoEmTextoPuro(l.valor)) await prisma.configuracao.update({ where: { chave: CHAVE_TOKEN_ASAAS }, data: { valor: criptografarSegredo(claro) } });
+    return claro || null;
+  }
+  return process.env.ASAAS_WEBHOOK_TOKEN || null;
+}
+
+export async function salvarTokenWebhookAsaas(token: string) {
+  const valor = criptografarSegredo(token.trim());
+  await prisma.configuracao.upsert({
+    where: { chave: CHAVE_TOKEN_ASAAS },
+    create: { chave: CHAVE_TOKEN_ASAAS, valor, grupo: "bancos" },
+    update: { valor },
+  });
+}
+
+export async function webhookAsaasConfigurado() {
+  const l = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TOKEN_ASAAS }, select: { id: true } });
+  return Boolean(l) || Boolean(process.env.ASAAS_WEBHOOK_TOKEN);
+}
+
+/** Token do webhook do Asaas gravado como "plain:" (carga inicial) passa a ficar criptografado. */
+export async function recriptografarConfiguracaoAsaas() {
+  const l = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TOKEN_ASAAS } });
+  if (l && segredoEmTextoPuro(l.valor)) {
+    await prisma.configuracao.update({ where: { chave: CHAVE_TOKEN_ASAAS }, data: { valor: criptografarSegredo(descriptografarSegredo(l.valor)) } });
+  }
 }

@@ -10,6 +10,8 @@ import {
   confirmarImportacao,
   dataDaConta,
   previaImportacao,
+  registrarWebhookPluggy,
+  salvarTokenWebhookAsaas,
   sincronizarConta,
   statusPluggy,
   tokenPluggy,
@@ -53,7 +55,13 @@ export async function salvarCredenciaisPluggy(input: { clientId: string; clientS
 export async function testarPluggy() {
   return capturarErroAcao(async () => {
     await exigirModuloAcao("bpo");
-    try { await tokenPluggy(); return { ok: true, mensagem: "Pluggy conectada." }; }
+    try {
+      await tokenPluggy();
+      // Avisos em tempo real: garante o webhook da Pluggy apontando para o sistema (erro vira aviso).
+      const aviso = await registrarWebhookPluggy().then(() => " Avisos em tempo real ativos.")
+        .catch((e) => ` (Avisos em tempo real: ${e instanceof Error ? e.message : "falhou"})`);
+      return { ok: true, mensagem: `Pluggy conectada.${aviso}` };
+    }
     catch (e) { return { ok: false, mensagem: e instanceof Error ? e.message : "Falha na Pluggy." }; }
   });
 }
@@ -94,8 +102,21 @@ export async function importarItemPluggy(input: { itemId: string; dataInicial?: 
       });
       criadas++;
     }
+    await registrarWebhookPluggy().catch(() => undefined);
     revalidatePath(BPO);
     return { encontradas: contas.length, criadas };
+  });
+}
+
+// ── Webhook do Asaas (avisos em tempo real) ─────────────────────────────────
+
+export async function salvarTokenWebhookAsaasAcao(token: string) {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("bpo", { somenteEquipe: true });
+    const t = texto(token);
+    if (t.length < 8 || t.length > 255) throw new Error("Token do webhook do Asaas inválido (mínimo de 8 caracteres).");
+    await salvarTokenWebhookAsaas(t);
+    return { success: true };
   });
 }
 

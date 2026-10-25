@@ -114,3 +114,22 @@ export async function createPluggyConnectToken(token: string, fetchImpl: Fetch =
   if (!data.accessToken) throw new Error("A Pluggy não devolveu o token de conexão.");
   return data.accessToken;
 }
+
+/**
+ * Pedido de 25/10 (avisos em tempo real): garante um webhook "all" da Pluggy apontando para o
+ * sistema, com cabeçalho secreto. Idempotente: não duplica se já existir para a mesma URL.
+ */
+export async function garantirWebhookPluggy(token: string, url: string, segredo: string, fetchImpl: Fetch = fetch): Promise<"existente" | "criado"> {
+  const lista = await fetchImpl(`${PLUGGY_API}/webhooks`, { headers: { "X-API-KEY": token } });
+  if (lista.ok) {
+    const data = (await lista.json()) as { results?: { url?: string }[] };
+    if ((data.results ?? []).some(w => w.url === url)) return "existente";
+  }
+  const res = await fetchImpl(`${PLUGGY_API}/webhooks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-API-KEY": token },
+    body: JSON.stringify({ event: "all", url, headers: { "x-webhook-token": segredo } }),
+  });
+  if (!res.ok) throw new Error(`A Pluggy não aceitou o aviso em tempo real (HTTP ${res.status}).`);
+  return "criado";
+}

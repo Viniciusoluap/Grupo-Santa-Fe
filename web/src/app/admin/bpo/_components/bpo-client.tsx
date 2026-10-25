@@ -82,6 +82,8 @@ interface Props {
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
   pluggy: { configured: boolean; active: boolean };
+  webhookAsaas: { url: string; configurado: boolean };
+  abaInicial?: "bancos";
   relatorios: RelatoriosData;
 }
 
@@ -264,8 +266,8 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, relatorios }: Props) {
-  const [aba, setAba] = useState<Aba>("cobracas");
+export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, webhookAsaas, abaInicial, relatorios }: Props) {
+  const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
   const [search, setSearch] = useState("");
@@ -688,7 +690,7 @@ export function BpoClient({ lancamentos, clientes, leads, contas, pluggy, relato
           </div>
 
           {/* Pedido de 25/10: contas por API (Asaas, Meu Pluggy) e importação de extrato. */}
-          <BancosPanel contas={contas} pluggy={pluggy} abrirNovaConta={abrirNovaConta} />
+          <BancosPanel contas={contas} pluggy={pluggy} webhookAsaas={webhookAsaas} abrirNovaConta={abrirNovaConta} />
         </div>
       )}
 

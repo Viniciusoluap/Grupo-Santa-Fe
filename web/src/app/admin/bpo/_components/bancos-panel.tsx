@@ -19,6 +19,7 @@ import {
   listarTransacoesConta,
   previaImportacaoExtrato,
   salvarCredenciaisPluggy,
+  salvarTokenWebhookAsaasAcao,
   sincronizarContaBancaria,
   testarPluggy,
   tokenConexaoPluggy,
@@ -70,10 +71,13 @@ function Modal({ titulo, onClose, largo, children }: { titulo: string; onClose: 
 export function BancosPanel({
   contas,
   pluggy,
+  webhookAsaas,
   abrirNovaConta = 0,
 }: {
   contas: ContaBancoPainel[];
   pluggy: { configured: boolean; active: boolean };
+  /** Avisos em tempo real do Asaas: URL a cadastrar no painel do Asaas e se já há token salvo. */
+  webhookAsaas: { url: string; configurado: boolean };
   /** Muda de valor quando o botão "Adicionar Conta" do topo do BPO é clicado. */
   abrirNovaConta?: number;
 }) {
@@ -121,7 +125,7 @@ export function BancosPanel({
   if (abrirNovaConta !== pedidoAtendido) { setPedidoAtendido(abrirNovaConta); setNovaOpen(true); }
 
   // ── Ajustar data inicial / chave ──
-  const [edit, setEdit] = useState<{ id: string; dataInicial: string; apiKey: string; provedor: string } | null>(null);
+  const [edit, setEdit] = useState<{ id: string; dataInicial: string; apiKey: string; provedor: string; tokenWebhook: string } | null>(null);
 
   // ── Movimentações ──
   const [verConta, setVerConta] = useState<string | null>(null);
@@ -199,7 +203,7 @@ export function BancosPanel({
                 )}
                 <button className={botaoSec} onClick={() => setImp({ contaId: c.id, nome: c.descricao || c.banco })}><FileUp size={11} /> Importar extrato</button>
                 <button className={botaoSec} onClick={() => alternarMovimentacoes(c.id)}><ListOrdered size={11} /> {verConta === c.id ? "Ocultar" : "Movimentações"}</button>
-                <button className={botaoSec} onClick={() => setEdit({ id: c.id, dataInicial: c.dataInicial ?? "", apiKey: "", provedor: c.provedor })}>
+                <button className={botaoSec} onClick={() => setEdit({ id: c.id, dataInicial: c.dataInicial ?? "", apiKey: "", provedor: c.provedor, tokenWebhook: "" })}>
                   Data inicial{c.provedor === "asaas" ? " / chave" : ""}
                 </button>
                 <button className="inline-flex items-center gap-1 text-xs font-bold border border-red-300 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50" disabled={ocupado}
@@ -324,10 +328,25 @@ export function BancosPanel({
             <p className={ajuda}>Vale para as próximas sincronizações e importações. O que já foi gravado continua.</p>
           </div>
           {edit.provedor === "asaas" && (
-            <div><label className={rotulo}>Nova chave de API (deixe em branco para manter)</label><input type="password" value={edit.apiKey} onChange={(e) => setEdit({ ...edit, apiKey: e.target.value })} className={campo} autoComplete="off" /></div>
+            <>
+              <div><label className={rotulo}>Nova chave de API (deixe em branco para manter)</label><input type="password" value={edit.apiKey} onChange={(e) => setEdit({ ...edit, apiKey: e.target.value })} className={campo} autoComplete="off" /></div>
+              <div>
+                <label className={rotulo}>Token do webhook do Asaas (opcional)</label>
+                <input type="password" value={edit.tokenWebhook} onChange={(e) => setEdit({ ...edit, tokenWebhook: e.target.value })} className={campo} autoComplete="off"
+                  placeholder={webhookAsaas.configurado ? "já configurado — deixe em branco para manter" : "o mesmo token cadastrado no Asaas"} />
+                <p className={ajuda}>
+                  Avisos em tempo real: no painel do Asaas (Integrações › Webhooks), cadastre a URL{" "}
+                  <code className="bg-gray-100 text-[var(--brand-dark)] px-1 break-all">{webhookAsaas.url}</code> com este mesmo token.
+                  Sem token, o extrato continua atualizando pela sincronização diária.
+                </p>
+              </div>
+            </>
           )}
           <button className={`${botaoPri} w-full`} disabled={ocupado}
-            onClick={() => executar(async () => exigirResultado(await atualizarContaBancaria({ id: edit.id, dataInicial: edit.dataInicial || null, apiKey: edit.apiKey || undefined })),
+            onClick={() => executar(async () => {
+              if (edit.tokenWebhook.trim()) exigirResultado(await salvarTokenWebhookAsaasAcao(edit.tokenWebhook));
+              return exigirResultado(await atualizarContaBancaria({ id: edit.id, dataInicial: edit.dataInicial || null, apiKey: edit.apiKey || undefined }));
+            },
               () => { toast.success("Conta atualizada."); setEdit(null); })}>Salvar</button>
         </Modal>
       )}

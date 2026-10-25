@@ -62,6 +62,24 @@ Merge, deploy e migração em produção ainda dependem de autorização separad
 - Deps: `unpdf@1.9.1`, `pluggy-connect-sdk@2.14.2`, `xlsx@0.18.5` (o SF não tinha leitor de planilha).
 - Testes: `web/src/lib/__tests__/extrato-import.test.ts` (11) e `bancos-sync.db.test.ts` (9, banco local real + PDF real com jspdf).
 
+## Etapa 5 — Santa Fé: avisos em tempo real dos bancos (concluída pelo @dev AIOX, não commitada/publicada)
+- `web/src/lib/bancos/pluggy.ts`: `garantirWebhookPluggy` (GET/POST `/webhooks`, evento "all", cabeçalho `x-webhook-token`).
+- `web/src/lib/bancos.ts`: `segredoWebhookPluggy` (HMAC do AUTH_SECRET), `registrarWebhookPluggy`, `segredoConfere`
+  (timingSafeEqual), aviso aos admins (`Notificacao` tipo "sistema", link `/admin/bpo?aba=bancos`) quando a sincronização grava
+  movimentações novas, `sincronizarPorEvento` (trava de 30 s), token do webhook do Asaas em `configuracoes`
+  ("asaas.webhookToken", criptografado; `plain:` recriptografado; env `ASAAS_WEBHOOK_TOKEN` de reserva). URL pública:
+  `PUBLIC_SITE_URL` → `SITE_URL` → `https://www.gruposantafee.com.br`.
+- Rotas: `web/src/app/api/pluggy/webhook/route.ts` e `web/src/app/api/asaas/webhook/route.ts` (sem token configurado: 401).
+  O `src/proxy.ts` não exige login em `/api/*` — nada a liberar.
+- Actions: `testarPluggy`/`importarItemPluggy` registram o webhook (erro vira aviso); `salvarTokenWebhookAsaasAcao` (só equipe).
+- Tela: no "Ajustar conta" de conta Asaas, campo "Token do webhook do Asaas" e a URL a cadastrar no Asaas; `/admin/bpo?aba=bancos`
+  abre direto a aba de bancos.
+- Teste: `web/src/lib/__tests__/avisos-tempo-real.db.test.ts` (8, banco local real, APIs simuladas).
+- Automáticos: vitest completo 843 ok / só as 10 falhas pré-existentes conhecidas; tsc 0 erros; eslint 0; build OK.
+- Pendente em produção: cadastrar no painel do Asaas a URL `https://www.gruposantafee.com.br/api/asaas/webhook` com o token
+  salvo na tela (manual por enquanto, igual à Prospecta; a API do Asaas tem `/v3/webhooks`, então dá para automatizar depois —
+  nos dois sistemas, por paridade); o webhook da Pluggy é registrado sozinho ao clicar "Testar conexão".
+
 ## Testes
 (a) Automáticos (Prospecta): `pnpm check` OK; vitest 135 arquivos / 984 testes OK; `vite build` OK.
 - Novos: `server/extrato-import.test.ts` (11) e `server/bancos-sync.test.ts` (7, inclui PDF real gerado no teste).
