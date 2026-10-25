@@ -79,3 +79,8 @@
 - Smoke test em `https://grupo-santa-f.vercel.app/`: HTTP 200. Varredura de erros de runtime após o deploy: nenhum erro encontrado.
 - Banco real Supabase: as duas alterações aditivas foram aplicadas e verificadas antes do merge. Nenhum backfill histórico 09/10 executado. A correção 01 permaneceu intocada.
 - Entrega: código, banco aditivo, merge e deploy concluídos. Pendências de homologação humana: Safari/iPad, comparação visual de um PDF/Excel real, upload real com Drive e aprovação específica para backfill histórico.
+
+## Correção do lucro com Pró-Soluto (25/10, autorizado pelo dono — paridade Prospecta)
+- **Lucro Grupo Santa Fé = Base do Empreiteiro − Lucro do Empreiteiro** (`web/src/lib/financeiro/obra.ts`, texto em `financeiro-obra.tsx`).
+  Desmarcado = mesma conta de antes. Testes atualizados + caso do dono (58.259,00 · 40% → 34.955,40).
+- Backfill 09/10 no Santa Fé: nada a aplicar (2 obras "A definir", sem PCI).

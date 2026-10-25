@@ -141,9 +141,9 @@ describe("Pró-Soluto na base do empreiteiro", () => {
     expect(cents(marcado.lucroEmpreiteiro) - cents(anterior.lucroEmpreiteiro)).toBe(
       aplicarPercentual(cents(marcado.valorTotalProSoluto) as number, percentualMicro("20")!),
     );
-    expect(cents(anterior.lucroEmpresa) - cents(marcado.lucroEmpresa)).toBe(
-      cents(marcado.lucroEmpreiteiro) - cents(anterior.lucroEmpreiteiro),
-    );
+    // Pedido do dono (25/10): lucro da empresa = Base do Empreiteiro − Lucro do Empreiteiro.
+    expect(cents(marcado.lucroEmpresa)).toBe(cents(marcado.baseEmpreiteiro) - cents(marcado.lucroEmpreiteiro));
+    expect(cents(anterior.lucroEmpresa)).toBe(cents(anterior.baseEmpreiteiro) - cents(anterior.lucroEmpreiteiro));
     expect(cents(marcado.lucroEstimado)).toBe(cents(anterior.lucroEstimado));
   });
 
@@ -151,7 +151,8 @@ describe("Pró-Soluto na base do empreiteiro", () => {
     const primeiro = calcularObra({ ...entradas, incluirProSolutoBaseEmpreiteiro: true });
     const pago = calcularObra({ ...entradas, incluirProSolutoBaseEmpreiteiro: true, movimentos: [mov("entrada", "1000")] });
     expect(cents(pago.valorTotalProSoluto)).toBeLessThan(cents(primeiro.valorTotalProSoluto));
-    expect(cents(pago.lucroEmpresa)).toBeGreaterThan(cents(primeiro.lucroEmpresa));
+    // Base menor (Pró-Soluto menor) → lucro da empresa (base − empreiteiro) também menor.
+    expect(cents(pago.lucroEmpresa)).toBeLessThan(cents(primeiro.lucroEmpresa));
     const desmarcado = calcularObra({ ...entradas, movimentos: [mov("entrada", "1000")] });
     expect(cents(desmarcado.baseEmpreiteiro)).toBe(R("45000"));
   });
@@ -218,5 +219,14 @@ describe("Dias de obra e conversões", () => {
     const r = calcularObra(obra({ movimentos: [mov("pagamento", "57795")] }));
     expect(valor(r.custoConstrucao)).toBe(R("110000"));
     expect(valor(r.saldoRestante)).toBe(R("112205"));
+  });
+});
+
+describe("Lucro da empresa com Pró-Soluto na base (caso do dono, 25/10)", () => {
+  it("base R$ 58.259,00 e 40% → empreiteiro R$ 23.303,60 e empresa R$ 34.955,40", () => {
+    const base = 5_825_900;
+    const empreiteiro = aplicarPercentual(base, percentualMicro(40)!);
+    expect(empreiteiro).toBe(2_330_360);
+    expect(base - empreiteiro).toBe(3_495_540);
   });
 });
