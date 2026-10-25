@@ -67,6 +67,20 @@ Branch: `claude/sync-mirrored-repos-bsqnz3` nos dois repositórios. Decisões do
 (c) Pendente em produção: olhar as telas ajustadas; conferir o formulário de imóvel (sem checkboxes de feed) e
     Configurações › Pagamento (só Asaas).
 
+## Publicação (25/10, autorizada pelo dono)
+- Prospecta PR #165 → main `63ce83d`, deploy `dpl_G2bEprrW3HVsefaHgqpqMph2B8pe` **READY**.
+- Santa Fé PR #228 → main `fb2399f`, deploy `dpl_13FGf9cwVrgpoMFx68xTvB2LAvxV` **READY**.
+- Sem erros de runtime nos 15 min seguintes.
+
+## Decisões do dono em 25/10
+- Exclusive: o que funciona bem lá é a **API do Asaas** (não Pluggy).
+- Integração bancária: **tudo via API**, cada banco: Asaas (chave já existe), Inter PJ (grátis, certificado),
+  Cora (API exige CoraPro R$ 44,90/mês), C6 (portal C6 Developers — confirmar com o gerente acesso a extrato/saldo).
+- WhatsApp por QR: Evolution API hospedada no Railway (~US$ 5/mês). Observação: o ViniDom usa a API oficial do
+  WhatsApp Business (sem QR, sem Railway) — confirmado no repositório.
+
 ## Próximo passo exato
-1. Dono autoriza merge/deploy deste lote (PRs abertos em rascunho).
-2. Dono decide a hospedagem da Evolution API (WhatsApp por QR) e o caminho bancário proposto.
+1. Aguardando o "pode começar" do dono para: BPO › Bancos (Asaas + Inter via API, Cora/C6 preparados) e tela
+   "Conectar WhatsApp" (QR via Evolution) nos dois sistemas.
+2. Dono: gerar certificado/credenciais Inter; assinar CoraPro e pedir API; perguntar ao gerente C6 sobre a API;
+   criar conta Railway e publicar a Evolution (o agente fornece o passo a passo).
