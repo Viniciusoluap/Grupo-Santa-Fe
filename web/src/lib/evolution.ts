@@ -32,7 +32,7 @@ export async function testarEvolution(c: EvolutionConfig, fetchImpl: Fetch = fet
   let r;
   try { r = await chamar(c, "/instance/fetchInstances", {}, fetchImpl); }
   catch { throw new Error("Não consegui falar com o servidor da Evolution. Confira o endereço."); }
-  if (r.status === 401 || r.status === 403) throw new Error("A Evolution recusou a chave (AUTHENTICATION_API_KEY).");
+  if (r.status === 401 || r.status === 403) throw new Error(`A Evolution recusou a chave (HTTP ${r.status})${motivo(r.data)}. Confira a AUTHENTICATION_API_KEY.`);
   if (!r.ok) throw new Error(`A Evolution respondeu com erro (HTTP ${r.status})${motivo(r.data)}.`);
   if (!Array.isArray(r.data)) throw new Error("Esse endereço não é a API da Evolution (use o endereço do serviço, sem /manager).");
 }

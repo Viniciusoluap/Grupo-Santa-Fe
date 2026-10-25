@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
-import { dataIsoDaConta, statusPluggy, URL_WEBHOOK_ASAAS, webhookAsaasConfigurado } from "@/lib/bancos";
+import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
@@ -26,7 +26,6 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     totalFinanciamentos,
     corretores,
     pluggy,
-    asaasWebhookConfigurado,
   ] = await Promise.all([
     // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
@@ -64,7 +63,6 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       take: 10,
     }),
     statusPluggy(),
-    webhookAsaasConfigurado(),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
   const { aba } = await searchParams;
@@ -183,5 +181,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} webhookAsaas={{ url: URL_WEBHOOK_ASAAS(), configurado: asaasWebhookConfigurado }} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
 }

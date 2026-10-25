@@ -146,3 +146,27 @@ Merge, deploy e migração em produção ainda dependem de autorização separad
 
 ## Conferência dos deploys (25/10 02:54 UTC)
 - Prospecta `dpl_EaLk3NYi2TXazXQDk1uNKcjeXwRx` e Santa Fé `dpl_9PGXUEEieZqcTFHibEejHtm3XMTH`: **READY**, sem erros de runtime nos 15 min seguintes. Item 1 das pendências concluído.
+
+## Lotes A–E (plano PLANO-25-10-BPO-WHATSAPP.md, autorizados pelo dono em 25/10)
+Branch: `claude/sync-mirrored-repos-bsqnz3` (nos 2 repos).
+- **Lote A — WhatsApp** (SF `80e0bec`; Prospecta `aa63c78`, `a928377`): variáveis preenchidas por destinatário
+  (`web/src/lib/whatsapp/variaveis.ts`), prévia e bloqueio; aba Conversas; webhook `/api/whatsapp/evolution-webhook`;
+  botão no lead. Migração `20261025190000_whatsapp_conversas`.
+- **Lote B+D — Integrações** (SF: commit deste passo): `/admin/integracoes` (só admin) com Asaas (chave central em
+  `configuracoes` `asaas.apiKey`/`asaas.webhookToken`, criptografadas), Pluggy e Evolution; status, erro real, `…XXXX`,
+  Testar/Trocar. Campos de chave saíram de BPO › Bancos e do QR do WhatsApp. Conta Asaas sem chave própria usa a central.
+  Env `ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN` passam a ter precedência sobre o banco (igual Prospecta; a tela avisa).
+  Configurações deixou de enviar segredos de `configuracoes` ao navegador.
+- **Lote C — Extrato → BPO**: lançamento 1:1 por movimentação (categorias aprovadas), transferência interna filtrada na
+  leitura, DRE calculado no servidor. Migração `20261025180000_bpo_extrato`.
+- **Lote E — publicar**: em andamento (PR, merge, migrações Supabase, deploy).
+
+### Próximo passo exato
+1. PR da branch → main, merge, conferir deploy READY.
+2. Aplicar no Supabase `giulchozonhzyopmgmkv`: `20261025180000_bpo_extrato` e `20261025190000_whatsapp_conversas` (aditivas).
+3. Dono: colar chaves em Admin › Integrações; Reprocessar movimentações em BPO › Bancos se houver extrato importado.
+
+### Testes
+(a) SF 899 ok + 10 falhas pré-existentes (drive-estrutura, exclusao-definitiva, medicao-drive, pci-upload,
+    progresso-historico-janela, projeto-engenheiro); tsc/eslint/build OK com `/admin/integracoes`. Serviços externos simulados.
+(b) Manuais: tela ainda não aberta no navegador. (c) Produção: chaves reais, webhook Asaas, QR.

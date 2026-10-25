@@ -6,10 +6,9 @@ import { prisma } from "@/lib/db";
 import { exigirModuloAcao, usuarioAtual } from "@/lib/auth/modulos";
 import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
-import { configEvolution, salvarConfigEvolution, urlServidorEvolution } from "@/lib/whatsapp/evolution-config";
+import { configEvolution, urlServidorEvolution } from "@/lib/whatsapp/evolution-config";
 import {
-  enviarTextoEvolution, estadoInstancia, gerarQrCode, mesmoTelefone, normalizarUrlEvolution, numeroConectado,
-  registrarWebhookEvolution, testarEvolution,
+  enviarTextoEvolution, estadoInstancia, gerarQrCode, mesmoTelefone, numeroConectado, registrarWebhookEvolution,
 } from "@/lib/evolution";
 import { enviarWhatsappBusiness } from "@/lib/whatsapp/business";
 import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
@@ -53,7 +52,7 @@ async function donoParaQr(): Promise<{ dono: string; perfil: string }> {
 
 async function exigirEvolution() {
   const c = await configEvolution();
-  if (!c) throw new Error("Informe primeiro o endereço e a chave do servidor da Evolution (Railway).");
+  if (!c) throw new Error("Servidor do WhatsApp não configurado: informe o endereço e a chave em Configurações › Integrações.");
   return c;
 }
 
@@ -67,21 +66,8 @@ export async function statusServidorEvolution(): Promise<{ configurado: boolean;
 // ações chamadas pela tela devolvem { erro } com o motivo legível.
 const motivo = (e: unknown) => (e instanceof Error ? e.message : "Falha na Evolution.");
 
-export async function salvarServidorEvolution(url: string, apiKey: string): Promise<{ erro?: string }> {
-  try { await salvarServidorEvolutionInterno(url, apiKey); return {}; } catch (e) { return { erro: motivo(e) }; }
-}
-
-async function salvarServidorEvolutionInterno(url: string, apiKey: string): Promise<void> {
-  const { perfil } = await donoParaQr();
-  if (perfil === "corretor") throw new Error("Só a equipe configura o servidor.");
-  // Pedido de 25/10: sempre https e sem /manager (http fazia o POST virar GET → 404).
-  const limpa = url.trim() ? normalizarUrlEvolution(url) : "";
-  if (!/^https:\/\/[^\s/]+\S*$/i.test(limpa)) throw new Error("Endereço inválido (ex.: https://seu-servico.up.railway.app).");
-  if (apiKey.trim().length < 8) throw new Error("Chave de acesso muito curta.");
-  await testarEvolution({ url: limpa, apiKey });
-  await salvarConfigEvolution(limpa, apiKey);
-  revalidatePath("/admin/whatsapp");
-}
+// LOTE B (25/10): endereço e chave da Evolution são salvos só em Configurações › Integrações
+// (lib/actions/integracoes.ts → salvarEvolutionIntegracao).
 
 export async function conectarWhatsappQr(): Promise<{ qrCode: string | null; status: string; erro?: string }> {
   try { return await conectarWhatsappQrInterno(); } catch (e) { return { qrCode: null, status: "erro", erro: motivo(e) }; }

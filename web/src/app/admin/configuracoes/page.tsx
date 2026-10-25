@@ -1,4 +1,5 @@
-import { Settings } from "lucide-react";
+import Link from "next/link";
+import { Plug, Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
@@ -63,7 +64,10 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
       orderBy: { nome: "asc" },
     }),
   ]);
-  const valoresSalvos = Object.fromEntries(configs.map((c) => [c.chave, c.valor]));
+  // LOTE B (25/10): só os campos desta tela vão ao navegador — segredos de integração
+  // (asaas.*, whatsapp.evolution.*), mesmo criptografados, ficam no servidor.
+  const chavesDaTela = new Set(SECTIONS.flatMap((s) => s.fields.map((f) => f.chave)));
+  const valoresSalvos = Object.fromEntries(configs.filter((c) => chavesDaTela.has(c.chave)).map((c) => [c.chave, c.valor]));
   // Resultado da volta do Google ao conectar o Drive (?drive=ok|erro&motivo=...).
   const { drive, motivo } = await searchParams;
   const h = await headers();
@@ -73,12 +77,18 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <div className="flex items-center gap-3">
-        <Settings size={22} className="text-[var(--brand-dark)]" />
-        <div>
-          <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Configurações</h1>
-          <p className="text-gray-600 text-sm mt-0.5">Dados da empresa e preferências do sistema</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Settings size={22} className="text-[var(--brand-dark)]" />
+          <div>
+            <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Configurações</h1>
+            <p className="text-gray-600 text-sm mt-0.5">Dados da empresa, integrações e preferências do sistema</p>
+          </div>
         </div>
+        {/* LOTE B (25/10): atalho para as chaves do Asaas, da Pluggy e do WhatsApp. */}
+        <Link href="/admin/integracoes" className="inline-flex items-center gap-1.5 border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-[var(--brand-dark)] hover:bg-gray-50">
+          <Plug size={14} /> Integrações (Asaas, Pluggy, WhatsApp)
+        </Link>
       </div>
 
       <FotoPerfilClient userName={userName} />

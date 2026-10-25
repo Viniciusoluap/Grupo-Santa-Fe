@@ -4,8 +4,9 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { criptografarSegredo, descriptografarSegredo, segredoEmTextoPuro } from "@/lib/segredo";
-import { authenticatePluggy, fetchPluggyAccountBalance, fetchPluggyTransactions, garantirWebhookPluggy } from "@/lib/bancos/pluggy";
+import { autenticarPluggyDetalhado, mensagemRecusaPluggy, fetchPluggyAccountBalance, fetchPluggyTransactions, garantirWebhookPluggy } from "@/lib/bancos/pluggy";
 import { fetchAsaasExtrato, fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
+import { chaveAsaasCentral, recriptografarAsaasCentral, tokenWebhookAsaasCentral } from "@/lib/bancos/asaas-central";
 import { recalcularSaldoConta, vincularTransacoesAoBpo } from "@/lib/bancos/lancamentos-bpo";
 import {
   aplicarDataInicial,
@@ -39,24 +40,29 @@ async function lerSegredo(valor: string, regravar: (cifrado: string) => Promise<
 }
 
 /**
- * Token da Pluggy com as credenciais salvas na tela. Se ainda não houver nada salvo, usa as
- * variáveis PLUGGY_CLIENT_ID/SECRET que o Santa Fé já aceitava (compatibilidade).
+ * Credenciais da Pluggy em uso: as salvas em Configurações › Integrações (tabela pluggy_settings) ou,
+ * se ainda não houver nada salvo, as variáveis PLUGGY_CLIENT_ID/SECRET (compatibilidade). null = nada.
  */
-export async function tokenPluggy(fetchImpl: typeof fetch = fetch): Promise<string> {
+export async function credenciaisPluggy(): Promise<{ clientId: string; clientSecret: string; fonte: "env" | "banco" } | null> {
   const s = await prisma.configuracaoPluggy.findFirst();
-  let clientId: string, clientSecret: string;
   if (s?.isActive) {
-    clientId = await lerSegredo(s.clientIdEncrypted, (v) => prisma.configuracaoPluggy.update({ where: { id: s.id }, data: { clientIdEncrypted: v } }));
-    clientSecret = await lerSegredo(s.clientSecretEncrypted, (v) => prisma.configuracaoPluggy.update({ where: { id: s.id }, data: { clientSecretEncrypted: v } }));
-  } else if (!s && process.env.PLUGGY_CLIENT_ID && process.env.PLUGGY_CLIENT_SECRET) {
-    clientId = process.env.PLUGGY_CLIENT_ID;
-    clientSecret = process.env.PLUGGY_CLIENT_SECRET;
-  } else {
-    throw new Error("Configure o Client ID e o Client Secret da Pluggy nesta aba.");
+    const clientId = await lerSegredo(s.clientIdEncrypted, (v) => prisma.configuracaoPluggy.update({ where: { id: s.id }, data: { clientIdEncrypted: v } }));
+    const clientSecret = await lerSegredo(s.clientSecretEncrypted, (v) => prisma.configuracaoPluggy.update({ where: { id: s.id }, data: { clientSecretEncrypted: v } }));
+    return { clientId, clientSecret, fonte: "banco" };
   }
-  const token = await authenticatePluggy(clientId, clientSecret, fetchImpl);
-  if (!token) throw new Error("A Pluggy recusou o Client ID/Secret (ou está fora do ar).");
-  return token;
+  if (!s && process.env.PLUGGY_CLIENT_ID && process.env.PLUGGY_CLIENT_SECRET) {
+    return { clientId: process.env.PLUGGY_CLIENT_ID, clientSecret: process.env.PLUGGY_CLIENT_SECRET, fonte: "env" };
+  }
+  return null;
+}
+
+/** Token da Pluggy; quando ela recusa, lança "A Pluggy recusou (HTTP x): <motivo>" (LOTE D). */
+export async function tokenPluggy(fetchImpl: typeof fetch = fetch): Promise<string> {
+  const c = await credenciaisPluggy();
+  if (!c) throw new Error("Configure o Client ID e o Client Secret da Pluggy em Configurações › Integrações.");
+  const r = await autenticarPluggyDetalhado(c.clientId, c.clientSecret, fetchImpl);
+  if (!r.ok) throw new Error(mensagemRecusaPluggy(r.status, r.mensagem));
+  return r.token;
 }
 
 /** Status da Pluggy para a tela (nunca devolve as credenciais). */
@@ -66,8 +72,19 @@ export async function statusPluggy() {
   return { configured: Boolean(s) || viaAmbiente, active: Boolean(s?.isActive) || viaAmbiente };
 }
 
-async function credencialDaConta(conta: { id: string; credencialEncrypted: string | null }) {
-  if (!conta.credencialEncrypted) throw new Error("Esta conta não tem a chave de API cadastrada.");
+/**
+ * LOTE B (25/10): conta Asaas sem chave própria usa a chave central (Integrações / ASAAS_API_KEY).
+ * Contas antigas com chave própria continuam usando a delas.
+ */
+export async function credencialDaConta(conta: { id: string; provedor: string; credencialEncrypted: string | null }) {
+  if (!conta.credencialEncrypted) {
+    if (conta.provedor === "asaas") {
+      const central = await chaveAsaasCentral();
+      if (central) return central.apiKey;
+      throw new Error("Cadastre a chave do Asaas em Configurações › Integrações.");
+    }
+    throw new Error("Esta conta não tem a chave de API cadastrada.");
+  }
   return lerSegredo(conta.credencialEncrypted, (v) => prisma.contaBancaria.update({ where: { id: conta.id }, data: { credencialEncrypted: v } }));
 }
 
@@ -138,7 +155,7 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
 
 /** Sincronização diária (cron): todas as contas ativas ligadas a uma API. */
 export async function sincronizarTodasContas(fetchImpl: typeof fetch = fetch) {
-  await recriptografarConfiguracaoAsaas().catch(() => undefined);
+  await recriptografarAsaasCentral().catch(() => undefined);
   // LOTE C: rede de segurança diária — movimentação sem lançamento no BPO ganha o seu (idempotente).
   await vincularTransacoesAoBpo().catch(() => undefined);
   const contas = await prisma.contaBancaria.findMany({
@@ -238,12 +255,11 @@ export async function confirmarImportacao(contaId: string, linhas: LinhaExtrato[
 
 // ── Avisos em tempo real (pedido de 25/10) ──────────────────────────────────
 // Gêmeo do final de Prospecta/server/bancos.ts. O Santa Fé não tem configuração de cobranças do
-// Asaas: o token do webhook do Asaas fica na tabela `configuracoes` (chave "asaas.webhookToken").
+// Asaas: chave e token do webhook ficam na tabela `configuracoes` (lib/bancos/asaas-central.ts).
 
 const SITE = () => (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.gruposantafee.com.br").replace(/\/+$/, "");
 export const URL_WEBHOOK_PLUGGY = () => `${SITE()}/api/pluggy/webhook`;
 export const URL_WEBHOOK_ASAAS = () => `${SITE()}/api/asaas/webhook`;
-const CHAVE_TOKEN_ASAAS = "asaas.webhookToken";
 
 /** Segredo do webhook da Pluggy, derivado do segredo do servidor (nada a configurar). */
 export function segredoWebhookPluggy(): string {
@@ -293,35 +309,10 @@ export async function sincronizarPorEvento(filtro: { provedor: "asaas" } | { pro
   return resultados;
 }
 
-/** Token do webhook do Asaas: o salvo pela tela (criptografado; "plain:" é recriptografado) ou a env. */
+/**
+ * Token do webhook do Asaas (LOTE B): ASAAS_WEBHOOK_TOKEN tem precedência; senão o salvo em
+ * Configurações › Integrações (criptografado; "plain:" é recriptografado). Mesma regra da Prospecta.
+ */
 export async function tokenWebhookAsaas(): Promise<string | null> {
-  const l = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TOKEN_ASAAS } });
-  if (l?.valor) {
-    const claro = descriptografarSegredo(l.valor);
-    if (segredoEmTextoPuro(l.valor)) await prisma.configuracao.update({ where: { chave: CHAVE_TOKEN_ASAAS }, data: { valor: criptografarSegredo(claro) } });
-    return claro || null;
-  }
-  return process.env.ASAAS_WEBHOOK_TOKEN || null;
-}
-
-export async function salvarTokenWebhookAsaas(token: string) {
-  const valor = criptografarSegredo(token.trim());
-  await prisma.configuracao.upsert({
-    where: { chave: CHAVE_TOKEN_ASAAS },
-    create: { chave: CHAVE_TOKEN_ASAAS, valor, grupo: "bancos" },
-    update: { valor },
-  });
-}
-
-export async function webhookAsaasConfigurado() {
-  const l = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TOKEN_ASAAS }, select: { id: true } });
-  return Boolean(l) || Boolean(process.env.ASAAS_WEBHOOK_TOKEN);
-}
-
-/** Token do webhook do Asaas gravado como "plain:" (carga inicial) passa a ficar criptografado. */
-export async function recriptografarConfiguracaoAsaas() {
-  const l = await prisma.configuracao.findUnique({ where: { chave: CHAVE_TOKEN_ASAAS } });
-  if (l && segredoEmTextoPuro(l.valor)) {
-    await prisma.configuracao.update({ where: { chave: CHAVE_TOKEN_ASAAS }, data: { valor: criptografarSegredo(descriptografarSegredo(l.valor)) } });
-  }
+  return (await tokenWebhookAsaasCentral())?.token ?? null;
 }

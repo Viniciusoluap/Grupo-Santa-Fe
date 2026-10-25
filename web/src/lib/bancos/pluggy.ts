@@ -21,19 +21,50 @@ export type PluggyAccount = {
 
 type Fetch = typeof fetch;
 
-export async function authenticatePluggy(clientId: string, clientSecret: string, fetchImpl: Fetch = fetch): Promise<string | null> {
+export type AutenticacaoPluggy =
+  | { ok: true; token: string }
+  | { ok: false; status: number | null; mensagem: string };
+
+/**
+ * LOTE B/D (25/10): autentica e devolve o motivo real quando a Pluggy recusa
+ * (status HTTP + campo `message` do corpo). status null = não houve resposta (rede).
+ * Gêmeo de autenticarPluggyDetalhado em Prospecta/server/_core/pluggy.ts.
+ */
+export async function autenticarPluggyDetalhado(clientId: string, clientSecret: string, fetchImpl: Fetch = fetch): Promise<AutenticacaoPluggy> {
+  let res: Response;
   try {
-    const res = await fetchImpl(`${PLUGGY_API}/auth`, {
+    res = await fetchImpl(`${PLUGGY_API}/auth`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId, clientSecret }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { apiKey: string };
-    return data.apiKey ?? null;
-  } catch {
-    return null;
+  } catch (e) {
+    return { ok: false, status: null, mensagem: e instanceof Error ? e.message : "sem resposta" };
   }
+  type Corpo = { apiKey?: string; message?: unknown; codeDescription?: unknown; error?: unknown };
+  let data: Corpo | null = null;
+  try { data = (await res.json()) as Corpo; } catch { /* corpo vazio */ }
+  if (!res.ok) {
+    const m = [data?.message, data?.codeDescription, data?.error].find((v) => typeof v === "string" && v.trim());
+    return { ok: false, status: res.status ?? null, mensagem: typeof m === "string" ? m.trim().slice(0, 300) : "sem detalhe" };
+  }
+  if (!data?.apiKey) return { ok: false, status: res.status ?? null, mensagem: "a Pluggy não devolveu o token" };
+  return { ok: true, token: data.apiKey };
+}
+
+/** Texto para a tela: "A Pluggy recusou (HTTP x): <mensagem>" + dica quando é o plano gratuito/trial. */
+export function mensagemRecusaPluggy(status: number | null, mensagem: string): string {
+  if (status === null) return `Não consegui falar com a Pluggy: ${mensagem}`;
+  const base = `A Pluggy recusou (HTTP ${status}): ${mensagem}`;
+  return /trial|subscription|assinatura|plano|plan\b/i.test(mensagem)
+    ? `${base} — o plano gratuito da Pluggy não libera a API; use Importar extrato.`
+    : base;
+}
+
+/** Compatibilidade: token ou null (sem detalhe). Para o motivo, use autenticarPluggyDetalhado. */
+export async function authenticatePluggy(clientId: string, clientSecret: string, fetchImpl: Fetch = fetch): Promise<string | null> {
+  const r = await autenticarPluggyDetalhado(clientId, clientSecret, fetchImpl);
+  return r.ok ? r.token : null;
 }
 
 /**

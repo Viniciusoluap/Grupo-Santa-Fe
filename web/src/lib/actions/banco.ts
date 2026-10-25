@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { criptografarSegredo } from "@/lib/segredo";
-import { authenticatePluggy, createPluggyConnectToken, fetchPluggyItemAccounts, fetchPluggyItemConnector } from "@/lib/bancos/pluggy";
+import { createPluggyConnectToken, fetchPluggyItemAccounts, fetchPluggyItemConnector } from "@/lib/bancos/pluggy";
 import { fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
+import { chaveAsaasCentral } from "@/lib/bancos/asaas-central";
 import {
   confirmarImportacao,
   dataDaConta,
   previaImportacao,
   registrarWebhookPluggy,
-  salvarTokenWebhookAsaas,
   sincronizarConta,
   statusPluggy,
   tokenPluggy,
@@ -40,18 +40,8 @@ export async function statusPluggyAcao() {
   return capturarErroAcao(async () => { await exigirModuloAcao("bpo"); return statusPluggy(); });
 }
 
-export async function salvarCredenciaisPluggy(input: { clientId: string; clientSecret: string }) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("bpo", { somenteEquipe: true });
-    const clientId = texto(input?.clientId), clientSecret = texto(input?.clientSecret);
-    if (!clientId || !clientSecret) throw new Error("Informe o Client ID e o Client Secret.");
-    const token = await authenticatePluggy(clientId, clientSecret);
-    if (!token) throw new Error("Credenciais Pluggy inválidas ou API indisponível");
-    const dados = { clientIdEncrypted: criptografarSegredo(clientId), clientSecretEncrypted: criptografarSegredo(clientSecret), isActive: true };
-    await prisma.configuracaoPluggy.upsert({ where: { id: 1 }, create: { id: 1, ...dados }, update: dados });
-    return { success: true };
-  });
-}
+// LOTE B (25/10): Client ID/Secret da Pluggy são salvos só em Configurações › Integrações
+// (lib/actions/integracoes.ts → salvarPluggyIntegracao).
 
 export async function testarPluggy() {
   return capturarErroAcao(async () => {
@@ -109,17 +99,7 @@ export async function importarItemPluggy(input: { itemId: string; dataInicial?: 
   });
 }
 
-// ── Webhook do Asaas (avisos em tempo real) ─────────────────────────────────
-
-export async function salvarTokenWebhookAsaasAcao(token: string) {
-  return capturarErroAcao(async () => {
-    await exigirModuloAcao("bpo", { somenteEquipe: true });
-    const t = texto(token);
-    if (t.length < 8 || t.length > 255) throw new Error("Token do webhook do Asaas inválido (mínimo de 8 caracteres).");
-    await salvarTokenWebhookAsaas(t);
-    return { success: true };
-  });
-}
+// LOTE B (25/10): o token do webhook do Asaas é salvo só em Configurações › Integrações.
 
 // ── Contas ──────────────────────────────────────────────────────────────────
 
@@ -143,8 +123,14 @@ export async function criarContaBancaria(input: {
     const dataInicial = dataIsoOpcional(input?.dataInicial);
     let saldo = Number.isFinite(input?.saldoAtual) ? Number(input.saldoAtual) : 0;
     if (provedor === "asaas") {
-      if (!apiKey) throw new Error("Informe a chave de API do Asaas.");
-      saldo = await fetchAsaasSaldo(apiKey);
+      // LOTE B (25/10): sem chave própria, valida e usa a chave central (Integrações).
+      let chave = apiKey;
+      if (!chave) {
+        const central = await chaveAsaasCentral().catch(() => null);
+        if (!central) throw new Error("Cadastre a chave do Asaas em Configurações › Integrações.");
+        chave = central.apiKey;
+      }
+      saldo = await fetchAsaasSaldo(chave);
     }
     const conta = await prisma.contaBancaria.create({
       data: {

@@ -6,7 +6,7 @@ import { garantirWebhookPluggy } from "@/lib/bancos/pluggy";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-const sessao = vi.hoisted(() => ({ user: { id: "usuario-teste", role: "admin" } }));
+const sessao = vi.hoisted(() => ({ user: { id: "usuario-teste", role: "admin" } as { id: string; role: string } }));
 vi.mock("@/auth", () => ({ auth: async () => sessao }));
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url;
@@ -36,6 +36,7 @@ describe.skipIf(!url)("webhooks Pluggy e Asaas (banco real)", () => {
   let prisma: typeof import("@/lib/db").prisma;
   let bancos: typeof import("@/lib/bancos");
   let acoes: typeof import("@/lib/actions/banco");
+  let integracoes: typeof import("@/lib/actions/integracoes");
   let pluggyWebhook: typeof import("@/app/api/pluggy/webhook/route").POST;
   let asaasWebhook: typeof import("@/app/api/asaas/webhook/route").POST;
   let pluggyAntes: Awaited<ReturnType<typeof prisma.configuracaoPluggy.findFirst>> = null;
@@ -46,6 +47,7 @@ describe.skipIf(!url)("webhooks Pluggy e Asaas (banco real)", () => {
     ({ prisma } = await import("@/lib/db"));
     bancos = await import("@/lib/bancos");
     acoes = await import("@/lib/actions/banco");
+    integracoes = await import("@/lib/actions/integracoes");
     ({ POST: pluggyWebhook } = await import("@/app/api/pluggy/webhook/route"));
     ({ POST: asaasWebhook } = await import("@/app/api/asaas/webhook/route"));
     pluggyAntes = await prisma.configuracaoPluggy.findFirst();
@@ -143,19 +145,24 @@ describe.skipIf(!url)("webhooks Pluggy e Asaas (banco real)", () => {
     expect(await prisma.transacaoBancaria.count({ where: { contaId: conta.id, origem: "asaas" } })).toBe(1);
   });
 
-  it("Asaas: token salvo pela action (só equipe) e env ASAAS_WEBHOOK_TOKEN como reserva", async () => {
-    sessao.user.role = "corretor";
-    expect(await acoes.salvarTokenWebhookAsaasAcao("token-novo-123")).toHaveProperty("erroAcao");
+  it("Asaas: token salvo em Integrações (só admin); ASAAS_WEBHOOK_TOKEN tem precedência", async () => {
+    // LOTE B (25/10): o token sai do BPO › Bancos e passa a ser salvo em Configurações › Integrações.
+    for (const role of ["corretor", "colaborador"]) {
+      sessao.user.role = role;
+      expect(await integracoes.salvarAsaasIntegracaoAcao({ webhookToken: "token-novo-123" })).toEqual({ erro: "Não autorizado." });
+    }
     sessao.user.role = "admin";
-    expect(await acoes.salvarTokenWebhookAsaasAcao("curto")).toEqual({ erroAcao: expect.stringMatching(/inválido/) });
-    expect(await acoes.salvarTokenWebhookAsaasAcao("token-novo-123")).toEqual({ success: true });
+    expect(await integracoes.salvarAsaasIntegracaoAcao({ webhookToken: "curto" })).toEqual({ erro: expect.stringMatching(/inválido/) });
+    expect(await integracoes.salvarAsaasIntegracaoAcao({ webhookToken: "token-novo-123" })).toEqual({ ambiente: null });
     expect(await bancos.tokenWebhookAsaas()).toBe("token-novo-123");
     expect((await prisma.configuracao.findUniqueOrThrow({ where: { chave: "asaas.webhookToken" } })).valor).not.toContain("token-novo");
 
-    await prisma.configuracao.deleteMany({ where: { chave: "asaas.webhookToken" } });
     process.env.ASAAS_WEBHOOK_TOKEN = "token-da-env-1";
     try {
       vi.stubGlobal("fetch", vi.fn());
+      expect(await bancos.tokenWebhookAsaas()).toBe("token-da-env-1");
+      expect((await asaasWebhook(post("/api/asaas/webhook", { "asaas-access-token": "token-novo-123" }, {}))).status).toBe(401);
+      await prisma.configuracao.deleteMany({ where: { chave: "asaas.webhookToken" } });
       expect((await asaasWebhook(post("/api/asaas/webhook", { "asaas-access-token": "token-da-env-1" }, {}))).status).toBe(200);
     } finally { delete process.env.ASAAS_WEBHOOK_TOKEN; }
   });

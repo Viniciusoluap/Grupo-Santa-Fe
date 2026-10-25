@@ -265,7 +265,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               {/* Not connected: QR code (Evolution) e, como alternativa, a API oficial */}
               {!conexaoAtiva && (
                 <div className="space-y-5">
-                  <ConexaoQrCode podeConfigurarServidor={role !== "corretor"} onConectado={aoConectarQr} onAviso={aviso} />
+                  <ConexaoQrCode podeConfigurarServidor={role === "admin"} onConectado={aoConectarQr} onAviso={aviso} />
                   <details className="border-t border-gray-100 pt-3">
                   <summary className="cursor-pointer text-xs text-gray-700 font-bold">Usar a API oficial do WhatsApp Business (Meta)</summary>
                   <div className="space-y-5 mt-3">
