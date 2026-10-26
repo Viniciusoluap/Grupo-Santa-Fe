@@ -17,7 +17,7 @@ import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
-import { ehDespesa } from "@/lib/bpo-categorias";
+import { CATEGORIAS_BPO, ehDespesa, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
 
 export interface LancamentoComCliente {
@@ -42,12 +42,15 @@ export interface TransacaoBancariaData {
   id: string;
   data: string;
   descricao: string;
+  descricaoOriginal?: string | null;
+  titular?: string | null;
   valor: number;
   tipo: string;
   categoria: string | null;
   status: string;
   externalId: string | null;
   origem: string;
+  clienteId?: string | null;
 }
 
 export interface ContaBancariaData {
@@ -763,7 +766,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
             {/* Step 2a: Cobrança form */}
             {modalTipo === "cobranca" && (
               <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
-                <input type="hidden" name="tipo" value="honorario" />
+                <input type="hidden" name="tipo" value="cobranca" />
 
                 {/* Client: BPO client or lead */}
                 <div>
@@ -803,11 +806,9 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Cobrança *</label>
-                  <select name="tipo" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                    <option value="honorario">Honorário Mensal</option>
-                    <option value="reembolso">Reembolso</option>
-                    <option value="outros">Outros</option>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria *</label>
+                  <select name="categoria" required defaultValue="Recebimento de cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                    {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
                   </select>
                 </div>
                 <div>
@@ -851,6 +852,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
             {/* Step 2b: Despesa form */}
             {modalTipo === "despesa" && (
               <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
+                <input type="hidden" name="tipo" value="despesa" />
                 {/* Client: BPO client or lead */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente / Referência *</label>
@@ -889,14 +891,9 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Despesa *</label>
-                  <select name="tipo" required className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                    <option value="despesa">Despesa Operacional</option>
-                    <option value="despesa_pessoal">Folha / Pessoal</option>
-                    <option value="despesa_marketing">Marketing</option>
-                    <option value="despesa_imposto">Impostos / Taxas</option>
-                    <option value="despesa_aluguel">Aluguel / Infraestrutura</option>
-                    <option value="despesa_fornecedor">Fornecedor / Serviços</option>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria *</label>
+                  <select name="categoria" required defaultValue="Outros" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                    {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
                   </select>
                 </div>
                 <div>

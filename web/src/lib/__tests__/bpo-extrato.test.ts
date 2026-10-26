@@ -1,9 +1,9 @@
 // LOTE C (25/10): categorias do BPO, saldo lido do extrato e DRE/Contabilidade/Relatórios
 // a partir dos lançamentos (regras puras). Cenários espelhados na Prospecta.
 import { describe, expect, it } from "vitest";
-import { CATEGORIAS_BPO, contaNoResultado, ehDespesa, sugerirCategoria, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
+import { CATEGORIAS_BPO, contaNoResultado, descricaoComTitular, ehDespesa, normalizarTitular, resumoPorCliente, sugerirCategoria, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
-import { lerCsv, lerOfx, lerTextoPdf } from "@/lib/extrato-import";
+import { extrairTitular, lerCsv, lerOfx, lerTextoPdf } from "@/lib/extrato-import";
 
 describe("categorias padrão", () => {
   it("lista completa na ordem combinada", () => {
@@ -34,6 +34,29 @@ describe("categorias padrão", () => {
     expect(ehDespesa("recebimento")).toBe(false);
     expect(contaNoResultado({ categoria: TRANSFERENCIA_INTERNA })).toBe(false);
     expect(contaNoResultado({ categoria: null })).toBe(true);
+  });
+});
+
+describe("titular e clientes BPO", () => {
+  it("extrai e normaliza o titular sem confundir texto genérico", () => {
+    expect(extrairTitular("Pix recebido - João da Silva")).toBe("João da Silva");
+    expect(extrairTitular("Pagamento boleto")).toBeNull();
+    expect(normalizarTitular("JOÃO DA SILVA - CPF 123.456.789-00")).toBe("joao da silva cpf");
+    expect(descricaoComTitular(["Pix recebido", "João da Silva", "Pix recebido de João da Silva"])).toContain("João da Silva");
+  });
+
+  it("calcula recebido e em aberto por cliente", () => {
+    const resultado = resumoPorCliente([
+      { clienteId: "a", tipo: "recebimento", valor: 100, pago: true },
+      { clienteId: "a", tipo: "recebimento", valor: 30, pago: false },
+      { clienteId: "a", tipo: "despesa", valor: 20, pago: true },
+    ]);
+    expect(resultado.get("a")).toEqual({ recebido: 100, emAberto: 30 });
+  });
+
+  it("preserva o titular ao reimportar OFX", () => {
+    const ofx = `<OFX><STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20261005<TRNAMT>100.00<NAME>PIX RECEBIDO<MEMO>Pix recebido - Maria Silva</STMTTRN></OFX>`;
+    expect(lerOfx(ofx).linhas[0]).toMatchObject({ titular: "Maria Silva" });
   });
 });
 

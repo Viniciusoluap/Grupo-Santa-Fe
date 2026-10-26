@@ -19,6 +19,9 @@ export default async function RegularizacaoPage() {
     regularizacoes, itens.map(i => ({ ...i, previsto: i.previsto.toString() })),
     recebimentos.map(r => ({ ...r, valor: r.valor.toString() })),
   );
+  const totais = new Map<string, number>();
+  for (const item of itens) totais.set(item.regularizacaoId, (totais.get(item.regularizacaoId) ?? 0) + Number(item.previsto));
+  const processos = regularizacoes.map((regularizacao) => ({ ...regularizacao, valorTotalGeral: totais.get(regularizacao.id) ?? 0 }));
 
-  return <RegularizacaoClient regularizacoes={regularizacoes} indicadores={indicadores} />;
+  return <RegularizacaoClient regularizacoes={processos} indicadores={indicadores} />;
 }

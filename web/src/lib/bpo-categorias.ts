@@ -63,3 +63,41 @@ export const ehDespesa = (tipo: string) => tipo === "despesa" || tipo.startsWith
 
 /** Transferência interna (entre contas da empresa) não é receita nem despesa. */
 export const contaNoResultado = (l: { categoria?: string | null }) => l.categoria !== TRANSFERENCIA_INTERNA;
+
+/** Nome comparável para regras automáticas de classificação por titular. */
+export function normalizarTitular(nome: string | null | undefined): string {
+  return sem(String(nome ?? ""))
+    .replace(/[\d.\-/*]{6,}/g, " ")
+    .replace(/[^a-z0-9& ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 255);
+}
+
+/** Monta a descrição sem perder o titular original do Pix. */
+export function descricaoComTitular(partes: (string | null | undefined)[]): string {
+  const saida: string[] = [];
+  for (const parte of partes) {
+    const texto = String(parte ?? "").replace(/\s+/g, " ").trim();
+    if (!texto) continue;
+    const normal = sem(texto);
+    if (saida.some((atual) => sem(atual).includes(normal))) continue;
+    saida.push(texto);
+  }
+  return (saida.join(" — ") || "Movimentação bancária").slice(0, 500);
+}
+
+export function resumoPorCliente(lancamentos: { clienteId: string | null; tipo: string; valor: number; pago: boolean; categoria?: string | null }[]) {
+  const totais = new Map<string, { recebido: number; emAberto: number }>();
+  for (const lancamento of lancamentos) {
+    if (!lancamento.clienteId || ehDespesa(lancamento.tipo) || !contaNoResultado(lancamento)) continue;
+    const atual = totais.get(lancamento.clienteId) ?? { recebido: 0, emAberto: 0 };
+    if (lancamento.pago) atual.recebido += Math.round(lancamento.valor * 100);
+    else atual.emAberto += Math.round(lancamento.valor * 100);
+    totais.set(lancamento.clienteId, atual);
+  }
+  return new Map(Array.from(totais, ([id, valor]) => [id, {
+    recebido: valor.recebido / 100,
+    emAberto: valor.emAberto / 100,
+  }]));
+}

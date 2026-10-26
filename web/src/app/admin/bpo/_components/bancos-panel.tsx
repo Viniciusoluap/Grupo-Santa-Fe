@@ -42,8 +42,8 @@ export interface ContaBancoPainel {
   saldoExtratoData?: string | null;
 }
 
-type Transacao = { id: string; data: string; descricao: string; valor: number; tipo: string; categoria: string | null; status: string; origem: string; clienteId: string | null };
-type LinhaPrevia = { data: string; descricao: string; valor: number; tipo: "credito" | "debito"; jaImportada: boolean };
+type Transacao = { id: string; data: string; descricao: string; descricaoOriginal?: string | null; titular?: string | null; valor: number; tipo: string; categoria: string | null; status: string; origem: string; clienteId: string | null };
+type LinhaPrevia = { data: string; descricao: string; titular?: string; original?: string; valor: number; tipo: "credito" | "debito"; jaImportada: boolean };
 type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null; saldo: { valor: number; data: string | null } | null };
 
 const PROVEDOR: Record<string, string> = { asaas: "API do Asaas", pluggy: "Pluggy (Meu Pluggy)", manual: "Importação de extrato" };
@@ -244,7 +244,10 @@ export function BancosPanel({
                         {transacoes.map((t) => (
                           <tr key={t.id}>
                             <td className="py-1.5 pr-2 text-gray-700 whitespace-nowrap">{new Date(t.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>
-                            <td className="py-1.5 pr-2 text-[var(--brand-dark)]">{t.descricao}</td>
+                            <td className="py-1.5 pr-2 text-[var(--brand-dark)]">
+                              <span className="block">{t.descricao}</span>
+                              {t.titular && <span className="block text-[10px] font-bold text-gray-600">Titular: {t.titular}</span>}
+                            </td>
                             <td className="py-1.5 pr-2">
                               <select aria-label="Categoria" value={t.categoria ?? ""} disabled={ocupado}
                                 onChange={(e) => classificar(c.id, t, { categoria: e.target.value })}

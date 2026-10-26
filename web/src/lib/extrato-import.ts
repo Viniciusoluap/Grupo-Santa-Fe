@@ -7,6 +7,9 @@ export type LinhaExtrato = {
   descricao: string;
   valor: number; // sempre positivo
   tipo: "credito" | "debito";
+  titular?: string;
+  detalhe?: string;
+  original?: string;
 };
 
 /** Saldo informado pelo próprio arquivo (LOTE C): valor com sinal e a data a que se refere. */
@@ -79,9 +82,30 @@ export function dataIso(entrada: unknown): string | null {
   return null;
 }
 
-function linha(data: string | null, descricao: string, valor: number | null): LinhaExtrato | null {
+const TIPO_ANTES_DO_NOME = /^(?:transf(?:erencia)?\.?\s+pix\s+(?:enviada|recebida)|pix\s+(?:enviado|recebido|enviada|recebida)|pgto\.?\s+qr\s+code\s+pix|pagamento\s+(?:qr\s+code\s+)?pix|ted\s+(?:enviada|recebida)|doc\s+(?:enviado|recebido)|pix)\b/i;
+const SO_TIPO = /^(?:pix|ted|doc|transf|transferencia|pagamento|pgto|boleto|tarifa|saque|deposito|compra|recebimento|qr|code|enviad[oa]|recebid[oa]|de|para|\s|[-–:|.])+$/i;
+
+export function extrairTitular(texto: string | null | undefined): string | null {
+  const original = String(texto ?? "").replace(/\s+/g, " ").trim();
+  if (!original) return null;
+  const m = original.match(TIPO_ANTES_DO_NOME);
+  let resto = m ? original.slice(m[0].length) : "";
+  if (!m) {
+    const partes = original.split(/\s[-–|]\s/);
+    if (partes.length < 2 || !SO_TIPO.test(sem(partes[0]))) return null;
+    resto = partes.slice(1).join(" - ");
+  }
+  resto = resto.replace(/^[\s\-–:|.]+/, "").replace(/^(?:de|para|p\/)\s+/i, "").trim();
+  return /[a-zA-ZÀ-ÿ]{2}/.test(resto) && !SO_TIPO.test(sem(resto)) ? resto.slice(0, 255) : null;
+}
+
+function linha(data: string | null, descricao: string, valor: number | null, extras: { titular?: string | null; detalhe?: string | null; original?: string | null } = {}): LinhaExtrato | null {
   if (!data || valor === null || valor === 0) return null;
-  return { data, descricao: descricao.replace(/\s+/g, " ").trim().slice(0, 500) || "Movimentação", valor: Math.abs(valor), tipo: valor < 0 ? "debito" : "credito" };
+  const resultado: LinhaExtrato = { data, descricao: descricao.replace(/\s+/g, " ").trim().slice(0, 500) || "Movimentação", valor: Math.abs(valor), tipo: valor < 0 ? "debito" : "credito" };
+  if (extras.titular?.trim()) resultado.titular = extras.titular.trim().slice(0, 255);
+  if (extras.detalhe?.trim()) resultado.detalhe = extras.detalhe.trim().slice(0, 500);
+  if (extras.original?.trim()) resultado.original = extras.original.trim().slice(0, 2000);
+  return resultado;
 }
 
 // ── OFX ─────────────────────────────────────────────────────────────────────
@@ -93,7 +117,9 @@ export function lerOfx(texto: string): ResultadoLeitura {
     const valor = valorMonetario(campo(bloco, "TRNAMT").replace(",", "."));
     const tipoOfx = campo(bloco, "TRNTYPE").toUpperCase();
     const assinado = valor !== null && valor > 0 && tipoOfx === "DEBIT" ? -valor : valor;
-    const l = linha(dataIso(campo(bloco, "DTPOSTED")), campo(bloco, "MEMO") || campo(bloco, "NAME"), assinado);
+    const memo = campo(bloco, "MEMO"), nome = campo(bloco, "NAME");
+    const titular = nome && !SO_TIPO.test(nome) ? nome : extrairTitular(memo || nome);
+    const l = linha(dataIso(campo(bloco, "DTPOSTED")), memo || nome, assinado, { titular, original: [nome, memo].filter(Boolean).join(" | ") });
     if (l) linhas.push(l); else ignoradas++;
   }
   // LOTE C: saldo do extrato (<LEDGERBAL><BALAMT>…<DTASOF>…).
@@ -111,6 +137,7 @@ const COL_CRED = ["credito", "entrada", "entradas", "creditos", "credito (r$)", 
 const COL_DEB = ["debito", "saida", "saidas", "debitos", "debito (r$)", "saida (r$)"];
 const COL_TIPO = ["tipo", "natureza", "d/c", "c/d", "tipo transacao", "tipo de transacao"];
 const COL_SALDO = ["saldo", "saldo (r$)", "saldo r$", "saldo do dia", "saldo final", "balance"];
+const COL_TITULAR = ["titular", "favorecido", "pagador", "beneficiario", "contraparte", "destinatario", "remetente", "nome do pagador", "nome do favorecido", "recebedor"];
 
 function acharColuna(cab: string[], nomes: string[]) {
   const i = cab.findIndex(c => nomes.includes(c));
@@ -118,7 +145,7 @@ function acharColuna(cab: string[], nomes: string[]) {
 }
 
 export function lerTabela(tabela: unknown[][], formato = "Planilha"): ResultadoLeitura {
-  let cabIdx = -1, iData = -1, iDesc = -1, iValor = -1, iCred = -1, iDeb = -1, iTipo = -1, iSaldo = -1;
+  let cabIdx = -1, iData = -1, iDesc = -1, iValor = -1, iCred = -1, iDeb = -1, iTipo = -1, iSaldo = -1, iTitular = -1;
   for (let r = 0; r < Math.min(tabela.length, 40); r++) {
     const cab = (tabela[r] ?? []).map(c => sem(String(c ?? "")));
     const d = acharColuna(cab, COL_DATA);
@@ -126,6 +153,7 @@ export function lerTabela(tabela: unknown[][], formato = "Planilha"): ResultadoL
     if (d >= 0 && (v >= 0 || c >= 0 || b >= 0)) {
       cabIdx = r; iData = d; iValor = v; iCred = c; iDeb = b;
       iDesc = acharColuna(cab, COL_DESC); iTipo = acharColuna(cab, COL_TIPO); iSaldo = acharColuna(cab, COL_SALDO);
+      iTitular = acharColuna(cab, COL_TITULAR);
       break;
     }
   }
@@ -149,7 +177,8 @@ export function lerTabela(tabela: unknown[][], formato = "Planilha"): ResultadoL
     }
     const descricao = iDesc >= 0 ? String(row[iDesc] ?? "") : "";
     if (/^saldo\b/i.test(sem(descricao))) { ignoradas++; continue; }
-    const l = linha(dataIso(row[iData]), descricao, valor);
+    const titular = (iTitular >= 0 ? String(row[iTitular] ?? "").trim() : "") || extrairTitular(descricao);
+    const l = linha(dataIso(row[iData]), descricao, valor, { titular, original: row.map((v) => String(v ?? "")).filter(Boolean).join(" | ") });
     if (l) linhas.push(l); else ignoradas++;
   }
   return { linhas, ignoradas, formato, saldo: saldoFinal(saldos, linhas) };
@@ -206,10 +235,15 @@ export function lerTextoPdf(linhasTexto: string[], anoPadrao?: number): Resultad
     }
     if (ehSaldo) continue;
     if (valor !== null && valor > 0 && PALAVRAS_DEBITO.test(sem(descricao))) valor = -valor;
-    const l = linha(data, descricao, valor);
+    const l = linha(data, descricao, valor, { titular: extrairTitular(descricao), original: resto });
     if (l) linhas.push(l); else ignoradas++;
   }
   return { linhas, ignoradas, formato: "PDF", saldo: saldoFinal(saldos, linhas) };
+}
+
+export const EXTENSOES_EXTRATO = ["csv", "txt", "xlsx", "xls", "ofx", "pdf"] as const;
+export function extensaoExtratoValida(nome: string) {
+  return (EXTENSOES_EXTRATO as readonly string[]).includes(nome.toLowerCase().split(".").pop() ?? "");
 }
 
 /** Aplica a data inicial da conta: o que for anterior não pertence a esta empresa. */

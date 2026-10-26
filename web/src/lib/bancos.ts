@@ -8,6 +8,7 @@ import { autenticarPluggyDetalhado, mensagemRecusaPluggy, fetchPluggyAccountBala
 import { fetchAsaasExtrato, fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
 import { chaveAsaasCentral, recriptografarAsaasCentral, tokenWebhookAsaasCentral } from "@/lib/bancos/asaas-central";
 import { recalcularSaldoConta, vincularTransacoesAoBpo } from "@/lib/bancos/lancamentos-bpo";
+import { sincronizarCobrancasAsaas } from "@/lib/bancos/cobrancas-asaas";
 import {
   aplicarDataInicial,
   chavesImportacao,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/extrato-import";
 
 export type Provedor = "manual" | "asaas" | "pluggy";
-type Movimento = { externalId: string; data: string; descricao: string; valor: number; tipo: "credito" | "debito"; categoria?: string };
+type Movimento = { externalId: string; data: string; descricao: string; valor: number; tipo: "credito" | "debito"; categoria?: string; titular?: string; detalhe?: string; original?: string; asaasPaymentId?: string };
 type ContaComData = { id: string; dataInicial: Date | null };
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -97,20 +98,31 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
   let novos = 0;
   for (let i = 0; i < mantidas.length; i += 200) {
     const lote = mantidas.slice(i, i + 200);
-    const r = await prisma.transacaoBancaria.createMany({
-      data: lote.map((m) => ({
+    const existentes = new Set((await prisma.transacaoBancaria.findMany({
+      where: { externalId: { in: lote.map((m) => m.externalId) } }, select: { externalId: true },
+    })).map((m) => m.externalId));
+    await prisma.$transaction(lote.map((m) => prisma.transacaoBancaria.upsert({
+      where: { externalId: m.externalId },
+      create: {
         contaId: conta.id,
         data: new Date(`${m.data}T12:00:00Z`),
         descricao: m.descricao.slice(0, 500),
+        descricaoOriginal: (m.original || m.detalhe || null)?.slice(0, 2000) ?? null,
+        titular: m.titular?.slice(0, 255) ?? null,
         valor: Math.round(m.valor * 100) / 100,
         tipo: m.tipo,
         categoria: m.categoria?.slice(0, 100) ?? null,
         externalId: m.externalId,
+        asaasPaymentId: m.asaasPaymentId ?? null,
         origem,
-      })),
-      skipDuplicates: true,
-    });
-    novos += r.count;
+      },
+      update: {
+        ...(m.titular ? { titular: m.titular.slice(0, 255) } : {}),
+        ...(m.original || m.detalhe ? { descricaoOriginal: (m.original || m.detalhe)!.slice(0, 2000) } : {}),
+        ...(m.asaasPaymentId ? { asaasPaymentId: m.asaasPaymentId } : {}),
+      },
+    })));
+    novos += lote.filter((m) => !existentes.has(m.externalId)).length;
   }
   // LOTE C: cada movimentação vira um lançamento pago no BPO (1:1, idempotente).
   const bpo = await vincularTransacoesAoBpo({ contaId: conta.id });
@@ -125,11 +137,13 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
   try {
     let movimentos: Movimento[];
     let saldo: number | null;
+    let chaveAsaas: string | null = null;
     // Releitura com folga: o banco pode lançar com atraso; a chave única evita duplicar.
     const ultima = conta.ultimaSincronizacao ? new Date(conta.ultimaSincronizacao.getTime() - 10 * 86400000).toISOString().slice(0, 10) : null;
     const desde = [dataIsoDaConta(conta.dataInicial), ultima].filter((x): x is string => Boolean(x)).sort().pop() ?? diasAtras(365);
     if (conta.provedor === "asaas") {
       const chave = await credencialDaConta(conta);
+      chaveAsaas = chave;
       movimentos = await fetchAsaasExtrato(chave, desde, hoje(), fetchImpl);
       saldo = await fetchAsaasSaldo(chave, fetchImpl);
     } else if (conta.provedor === "pluggy" && conta.pluggyAccountId) {
@@ -140,6 +154,7 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
       return { ok: false, mensagem: "Esta conta é alimentada por importação de extrato (botão Importar extrato)." };
     }
     const r = await gravarMovimentos(conta, movimentos, conta.provedor);
+    if (chaveAsaas) await sincronizarCobrancasAsaas(chaveAsaas, desde, fetchImpl);
     if (r.novos > 0) await avisarNovasMovimentacoes(conta, r.novos).catch(() => undefined);
     await prisma.contaBancaria.update({
       where: { id: conta.id },
