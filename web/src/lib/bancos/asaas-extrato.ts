@@ -14,6 +14,18 @@ export type AsaasMovimento = {
   valor: number;
   tipo: "credito" | "debito";
   categoria?: string;
+  asaasPaymentId?: string;
+};
+
+export type AsaasCobranca = {
+  id: string;
+  status: string;
+  value: number;
+  netValue?: number;
+  dueDate: string;
+  paymentDate?: string;
+  description?: string;
+  customer?: string;
 };
 
 function baseUrl(apiKey: string) {
@@ -48,7 +60,7 @@ export async function fetchAsaasExtrato(apiKey: string, desde: string, ate: stri
     const q = new URLSearchParams({ startDate: desde, finishDate: ate, offset: String(offset), limit: "100" });
     const data = await getAsaas<{
       hasMore?: boolean;
-      data?: { id: string; value: number; date: string; description?: string; type?: string }[];
+      data?: { id: string; value: number; date: string; description?: string; type?: string; paymentId?: string }[];
     }>(apiKey, `/financialTransactions?${q}`, fetchImpl);
     for (const t of data.data ?? []) {
       out.push({
@@ -58,8 +70,20 @@ export async function fetchAsaasExtrato(apiKey: string, desde: string, ate: stri
         valor: Math.abs(Number(t.value)),
         tipo: Number(t.value) < 0 ? "debito" : "credito",
         categoria: t.type,
+        asaasPaymentId: t.paymentId,
       });
     }
+    if (!data.hasMore) break;
+  }
+  return out;
+}
+
+export async function fetchAsaasCobrancas(apiKey: string, desde: string, fetchImpl: Fetch = fetch): Promise<AsaasCobranca[]> {
+  const out: AsaasCobranca[] = [];
+  for (let offset = 0, pagina = 0; pagina < 100; pagina++, offset += 100) {
+    const q = new URLSearchParams({ dateCreatedGe: desde, offset: String(offset), limit: "100" });
+    const data = await getAsaas<{ hasMore?: boolean; data?: AsaasCobranca[] }>(apiKey, `/payments?${q}`, fetchImpl);
+    out.push(...(data.data ?? []));
     if (!data.hasMore) break;
   }
   return out;

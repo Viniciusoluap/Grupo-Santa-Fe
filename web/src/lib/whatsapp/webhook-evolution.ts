@@ -4,7 +4,8 @@ import "server-only";
 // Gêmeo de Prospecta/server/whatsapp-evolution-webhook.ts.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
-import { mesmoTelefone, textoDaMensagem } from "@/lib/evolution";
+import { LIMITE_MIDIA, mesmoTelefone, midiaDaMensagem, textoDaMensagem } from "@/lib/evolution";
+import { baixarEGuardarMidia } from "@/lib/whatsapp/midia";
 
 const SITE = () => (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.gruposantafee.com.br").replace(/\/+$/, "");
 export const URL_WEBHOOK_EVOLUTION = () => `${SITE()}/api/whatsapp/evolution-webhook`;
@@ -92,13 +93,17 @@ export async function processarEventoEvolution(ev: EventoEvolution): Promise<str
       const deMim = Boolean(d?.key?.fromMe);
       const lead = await leadPorTelefone(numero);
       const texto = textoDaMensagem(d?.message);
-      await prisma.mensagemWhatsapp.create({
+      const midia = midiaDaMensagem(d?.message);
+      const gravada = await prisma.mensagemWhatsapp.create({
         data: {
           conexaoId: conn.id, leadId: lead?.id ?? null, destinatario: numero,
           nomeDestinatario: lead?.nome ?? d?.pushName ?? null, mensagem: texto.slice(0, 4000),
           externalId: id ?? null, status: deMim ? "enviada" : "recebida", direcao: deMim ? "saida" : "entrada", lida: deMim,
+          ...(midia ? { midiaTipo: midia.tipo, midiaMime: midia.mime, midiaNome: midia.nome, midiaTamanho: midia.tamanho } : {}),
         },
       });
+      if (midia && id && conn.instancia && !(midia.tamanho && midia.tamanho > LIMITE_MIDIA))
+        await baixarEGuardarMidia(gravada.id, conn.instancia, id, midia.tamanho);
       if (!deMim) {
         novas++;
         await prisma.notificacao.create({

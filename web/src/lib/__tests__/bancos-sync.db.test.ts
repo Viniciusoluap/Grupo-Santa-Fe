@@ -202,8 +202,8 @@ describe("PDF de verdade (gerado no teste)", () => {
     const r = await lerArquivoExtrato("extrato.pdf", Buffer.from(doc.output("arraybuffer")));
     expect(r.formato).toBe("PDF");
     expect(r.linhas).toEqual([
-      { data: "2026-10-01", descricao: "PIX RECEBIDO CLIENTE", valor: 1200, tipo: "credito" },
-      { data: "2026-10-02", descricao: "PAGAMENTO BOLETO", valor: 350.75, tipo: "debito" },
+      { data: "2026-10-01", descricao: "PIX RECEBIDO CLIENTE", valor: 1200, tipo: "credito", titular: "CLIENTE", original: "PIX RECEBIDO CLIENTE 1.200,00 3.200,00" },
+      { data: "2026-10-02", descricao: "PAGAMENTO BOLETO", valor: 350.75, tipo: "debito", original: "PAGAMENTO BOLETO -350,75 2.849,25" },
     ]);
   });
 });

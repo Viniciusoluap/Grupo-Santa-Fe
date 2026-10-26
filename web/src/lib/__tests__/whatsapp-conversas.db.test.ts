@@ -134,4 +134,15 @@ describe.skipIf(!url)("WhatsApp › Conversas (banco real)", () => {
       sessao.user = { id: admin.id, role: "admin", corretorId: undefined };
     }
   });
+
+  it("excluir conversa remove só as mensagens locais daquele número", async () => {
+    sessao.user = { id: admin.id, role: "admin", corretorId: undefined };
+    await upsert(conexaoAdmin.instancia!, `del-${SUF}`, `${JID}@s.whatsapp.net`);
+    const antes = await prisma.mensagemWhatsapp.count({ where: { conexaoId: conexaoAdmin.id } });
+    const r = await acoes.excluirConversaWhatsapp(JID);
+    expect(r.erro).toBeUndefined();
+    expect(r.apagadas).toBeGreaterThan(0);
+    expect(await prisma.mensagemWhatsapp.count({ where: { conexaoId: conexaoAdmin.id } })).toBeLessThan(antes);
+    expect(await prisma.mensagemWhatsapp.count({ where: { conexaoId: conexaoAdmin.id, destinatario: NOVO } })).toBeGreaterThan(0);
+  });
 });

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const user = { id: usuario.id, corretorId: usuario.corretorId ?? undefined };
   const role = usuario.perfil ?? undefined;
 
-  const { mensagem, destinatarios, extras } = await req.json() as { mensagem: string; destinatarios: Destinatario[]; extras?: Record<string, string> };
+  const { mensagem, destinatarios, extras, extrasPorLead } = await req.json() as { mensagem: string; destinatarios: Destinatario[]; extras?: Record<string, string>; extrasPorLead?: Record<string, Record<string, string>> };
   if (typeof mensagem !== "string" || !mensagem.trim() || !Array.isArray(destinatarios)) {
     return NextResponse.json({ error: "Mensagem e destinatários são obrigatórios" }, { status: 400 });
   }
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   // Pedido de 25/10: cada destinatário recebe o template já preenchido; nada sai com {{…}}.
   const valores = await valoresDosLeads(destinatariosValidados.map((d) => d.leadId), usuario.nome ?? null);
-  const { textos, erro } = textosPorDestinatario(mensagem, destinatariosValidados.map((d) => d.leadId), valores, limparExtras(extras));
+  const { textos, erro } = textosPorDestinatario(mensagem, destinatariosValidados.map((d) => d.leadId), valores, limparExtras(extras), extrasPorLead);
   if (erro) return NextResponse.json({ error: erro }, { status: 400 });
 
   let enviadas = 0;

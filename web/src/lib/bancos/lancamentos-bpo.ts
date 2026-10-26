@@ -3,7 +3,7 @@
 // crédito → receita (Cobranças), débito → despesa (Despesas); data/competência = data do banco.
 // Também classifica (categoria + cliente BPO) e mantém o saldo das contas por importação.
 import { prisma } from "@/lib/db";
-import { categoriaValida, sugerirCategoria, tipoLancamentoDaTransacao } from "@/lib/bpo-categorias";
+import { categoriaValida, descricaoComTitular, normalizarTitular, sugerirCategoria, tipoLancamentoDaTransacao } from "@/lib/bpo-categorias";
 import type { SaldoExtrato } from "@/lib/extrato-import";
 
 const LOTE = 500;
@@ -23,14 +23,28 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       },
       orderBy: { id: "asc" },
       take: LOTE,
-      select: { id: true, data: true, descricao: true, valor: true, tipo: true, categoria: true },
+      select: { id: true, data: true, descricao: true, descricaoOriginal: true, titular: true, valor: true, tipo: true, categoria: true, bpoClienteId: true },
     });
     if (!lote.length) break;
 
-    const comCategoria = lote.map((t) => ({
-      ...t,
-      categoriaFinal: categoriaValida(t.categoria) ? t.categoria : sugerirCategoria(t.descricao, t.tipo, t.categoria),
-    }));
+    const regras = await prisma.bpoRegraTitular.findMany();
+    const porTitular = new Map(regras.map((regra) => [regra.titularNormalizado, regra]));
+    const clientes = await prisma.bpoCliente.findMany({ select: { id: true, razaoSocial: true, lead: { select: { nome: true } } } });
+    const clientePorNome = new Map<string, string[]>();
+    for (const cliente of clientes) for (const nome of [cliente.razaoSocial, cliente.lead?.nome]) {
+      const chave = normalizarTitular(nome);
+      if (chave) clientePorNome.set(chave, [...(clientePorNome.get(chave) ?? []), cliente.id]);
+    }
+    const comCategoria = lote.map((t) => {
+      const chave = normalizarTitular(t.titular);
+      const regra = chave ? porTitular.get(chave) : null;
+      const candidatos = chave ? [...new Set(clientePorNome.get(chave) ?? [])] : [];
+      return {
+        ...t,
+        categoriaFinal: categoriaValida(regra?.categoria) ? regra.categoria : categoriaValida(t.categoria) ? t.categoria : sugerirCategoria(t.descricao, t.tipo, t.categoria),
+        clienteFinal: regra?.bpoClienteId ?? t.bpoClienteId ?? (candidatos.length === 1 ? candidatos[0] : null),
+      };
+    });
     const porCategoria = new Map<string, string[]>();
     for (const t of comCategoria) {
       if (t.categoria === t.categoriaFinal) continue;
@@ -45,13 +59,14 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       data: comCategoria.map((t) => ({
         transacaoId: t.id,
         tipo: tipoLancamentoDaTransacao(t.tipo),
-        descricao: t.descricao,
+        descricao: descricaoComTitular([t.descricao, t.titular, t.descricaoOriginal]),
         valor: t.valor,
         vencimento: t.data,
         pago: true,
         pagoEm: t.data,
         competencia: t.data.toISOString().slice(0, 7),
         categoria: t.categoriaFinal,
+        clienteId: t.clienteFinal,
       })),
       skipDuplicates: true,
     });
@@ -120,7 +135,7 @@ export async function reprocessarMovimentacoes() {
 
 /** Categoria e cliente BPO de uma movimentação, refletidos no lançamento vinculado. */
 export async function classificarTransacao(id: string, input: { categoria?: string; clienteId?: string | null }) {
-  const t = await prisma.transacaoBancaria.findUnique({ where: { id }, select: { id: true } });
+  const t = await prisma.transacaoBancaria.findUnique({ where: { id }, select: { id: true, titular: true } });
   if (!t) throw new Error("Movimentação não encontrada.");
   if (input.categoria !== undefined && !categoriaValida(input.categoria)) throw new Error("Categoria inválida.");
   const clienteId = input.clienteId === undefined ? undefined : input.clienteId || null;
@@ -128,7 +143,10 @@ export async function classificarTransacao(id: string, input: { categoria?: stri
     const c = await prisma.bpoCliente.findUnique({ where: { id: clienteId }, select: { id: true } });
     if (!c) throw new Error("Cliente BPO não encontrado.");
   }
-  if (input.categoria !== undefined) await prisma.transacaoBancaria.update({ where: { id }, data: { categoria: input.categoria } });
+  await prisma.transacaoBancaria.update({ where: { id }, data: {
+    ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
+    ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
+  } });
   await vincularTransacoesAoBpo({ ids: [id] });
   await prisma.bpoLancamento.update({
     where: { transacaoId: id },
@@ -137,5 +155,28 @@ export async function classificarTransacao(id: string, input: { categoria?: stri
       ...(clienteId !== undefined ? { clienteId } : {}),
     },
   });
+  const titularNormalizado = normalizarTitular(t.titular);
+  if (titularNormalizado) {
+    await prisma.bpoRegraTitular.upsert({
+      where: { titularNormalizado },
+      create: { titularNormalizado, categoria: input.categoria, bpoClienteId: clienteId },
+      update: {
+        ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
+        ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
+      },
+    });
+    const iguais = (await prisma.transacaoBancaria.findMany({ where: { titular: { not: null } }, select: { id: true, titular: true } }))
+      .filter((mov) => normalizarTitular(mov.titular) === titularNormalizado).map((mov) => mov.id);
+    if (iguais.length) {
+      await prisma.transacaoBancaria.updateMany({ where: { id: { in: iguais } }, data: {
+        ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
+        ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
+      } });
+      await prisma.bpoLancamento.updateMany({ where: { transacaoId: { in: iguais } }, data: {
+        ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
+        ...(clienteId !== undefined ? { clienteId } : {}),
+      } });
+    }
+  }
   return { ok: true };
 }

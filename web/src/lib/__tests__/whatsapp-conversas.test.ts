@@ -4,11 +4,12 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/whatsapp/midia", () => ({ baixarEGuardarMidia: async () => ({ ok: true }) }));
 process.env.AUTH_SECRET ||= "segredo-de-teste";
 
-import { limparExtras, listaPorExtenso, preencherTemplate, primeiroNome, textosPorDestinatario, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
+import { limparExtras, listaPorExtenso, preencherTemplate, primeiroNome, textoDocumentosMarcados, textosPorDestinatario, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
 import { montarValoresLead } from "@/lib/whatsapp/valores-lead-regra";
-import { mesmoTelefone, normalizarUrlEvolution, registrarWebhookEvolution, testarEvolution, textoDaMensagem } from "@/lib/evolution";
+import { baixarMidiaEvolution, LIMITE_MIDIA, mesmoTelefone, midiaDaMensagem, normalizarUrlEvolution, registrarWebhookEvolution, testarEvolution, textoDaMensagem } from "@/lib/evolution";
 import { normalizarStatusEvolution, segredoWebhookEvolution, webhookEvolutionAutorizado } from "@/lib/whatsapp/webhook-evolution";
 
 const resposta = (corpo: unknown, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => corpo } as Response);
@@ -34,6 +35,15 @@ describe("variáveis do template", () => {
     const com = textosPorDestinatario("Oi {{nome}}, às {{horario}}", ["a", "b"], valores, limparExtras({ Horario: " 10h " }));
     expect(com.erro).toBeNull();
     expect(com.textos.get("b")).toBe("Oi Bia, às 10h");
+  });
+  it("aceita documentos escolhidos por destinatário e texto livre", () => {
+    expect(textoDocumentosMarcados(["rg", "pis"], "Declaração anual")).toBe("RG ou CNH frente e verso, PIS e Declaração anual");
+    const valores = new Map([["a", { nome: "Ana" }], ["b", { nome: "Bia" }]]);
+    const r = textosPorDestinatario("Oi {{nome}}: {{documentos}}", ["a", "b"], valores, {}, {
+      a: { documentos: "RG" }, b: { documentos: "PIS e FGTS" },
+    });
+    expect(r.erro).toBeNull();
+    expect(r.textos.get("b")).toBe("Oi Bia: PIS e FGTS");
   });
   it("valores do lead do Santa Fé (serviços legíveis, corretor, imóvel, banco, endereço)", () => {
     const v = montarValoresLead({
@@ -80,6 +90,13 @@ describe("Evolution", () => {
     expect(mesmoTelefone("(94) 99304-4689", "559493044689")).toBe(true);
     expect(mesmoTelefone("94 99304-4689", "5594993044689")).toBe(true);
     expect(mesmoTelefone("94 99304-4689", "5594993044680")).toBe(false);
+  });
+  it("identifica e baixa mídia da Evolution, limitada a 10 MB", async () => {
+    expect(LIMITE_MIDIA).toBe(10 * 1024 * 1024);
+    expect(midiaDaMensagem({ imageMessage: { mimetype: "image/jpeg", fileLength: "2048", caption: "planta" } })).toEqual({ tipo: "imagem", mime: "image/jpeg", nome: null, tamanho: 2048 });
+    expect(midiaDaMensagem({ documentWithCaptionMessage: { message: { documentMessage: { fileName: "rg.pdf", mimetype: "application/pdf" } } } })).toMatchObject({ tipo: "documento", nome: "rg.pdf" });
+    const f = vi.fn(() => resposta({ base64: "data:image/jpeg;base64,AQID", mimetype: "image/jpeg", fileName: "foto.jpg" }));
+    await expect(baixarMidiaEvolution({ url: "evo.app", apiKey: "k" }, "inst1", "ABC", f as never)).resolves.toEqual({ base64: "AQID", mime: "image/jpeg", nome: "foto.jpg" });
   });
   it("webhook: segredo HMAC do AUTH_SECRET e status de entrega/leitura", () => {
     const esperado = createHmac("sha256", process.env.AUTH_SECRET!).update("evolution-webhook").digest("hex");

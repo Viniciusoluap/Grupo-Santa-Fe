@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition, useEffect, useCallback } from "react";
+import { useState, useTransition, useEffect, useCallback, useMemo } from "react";
 import {
   MessageCircle, CheckCircle2, Clock, AlertCircle, Wifi, WifiOff,
   Search, X, Send, Smartphone, Plus, Eye, Users,
 } from "lucide-react";
-import { previaEnvioWhatsapp, salvarConexaoBusiness } from "@/lib/actions/whatsapp";
-import { VARIAVEIS_TEMPLATE, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
+import { documentosParaEnvioWhatsapp, imoveisParaEnvioWhatsapp, previaEnvioWhatsapp, salvarConexaoBusiness } from "@/lib/actions/whatsapp";
+import { DOCUMENTOS_CHECKLIST, textoDocumentosMarcados, VARIAVEIS_TEMPLATE, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
 import { parseServicosLead } from "@/lib/crm/servicos-lead";
 import { ConexaoQrCode } from "./conexao-qr-code";
 import { ConversasWhatsApp } from "./conversas-whatsapp";
@@ -90,7 +90,7 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
 
 export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, abaInicial = "conexao", numeroInicial = null }: Props) {
   // Pedido de 25/10: ?aba=conversas&numero=… abre direto o chat (notificações e página do lead).
-  const [activeTab, setActiveTab] = useState<Aba>(abaInicial);
+  const [activeTab, setActiveTab] = useState<Aba>(abaInicial === "conexao" && role !== "corretor" ? "conversas" : abaInicial);
   const [minhaConexao, setMinhaConexao] = useState<ConexaoData | null>(initialConexao);
   const [businessToken, setBusinessToken] = useState("");
   const [businessPhoneId, setBusinessPhoneId] = useState("");
@@ -107,18 +107,35 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
 
   // Pedido de 25/10: variáveis do template preenchidas por destinatário, com prévia e campos para o que faltar.
   const [extras, setExtras] = useState<Record<string, string>>({});
+  const [imoveis, setImoveis] = useState<{ id: string; texto: string }[]>([]);
+  const [docsPorLead, setDocsPorLead] = useState<Record<string, { marcados: string[]; livre: string }>>({});
   const [previa, setPrevia] = useState<Previa[]>([]);
-  const usaVariaveis = variaveisDoTexto(mensagem).length > 0;
+  const variaveis = useMemo(() => variaveisDoTexto(mensagem), [mensagem]);
+  const usaVariaveis = variaveis.length > 0;
+  const extrasPorLead = useMemo(() => Object.fromEntries(Object.entries(docsPorLead).map(([id, d]) => [id, { documentos: textoDocumentosMarcados(d.marcados, d.livre) }])), [docsPorLead]);
+
+  useEffect(() => {
+    if (!variaveis.includes("imovel") || imoveis.length) return;
+    imoveisParaEnvioWhatsapp().then(setImoveis).catch(() => undefined);
+  }, [variaveis, imoveis.length]);
+  useEffect(() => {
+    if (!variaveis.includes("documentos") || !selectedLeads.length) return;
+    documentosParaEnvioWhatsapp(selectedLeads).then((itens) => setDocsPorLead((atual) => {
+      const proximo = { ...atual };
+      for (const item of itens) if (!proximo[item.id]) proximo[item.id] = { marcados: item.pendentes, livre: "" };
+      return proximo;
+    })).catch(() => undefined);
+  }, [variaveis, selectedLeads]);
   const calcularPrevia = usaVariaveis && selectedLeads.length > 0 && mensagem.trim().length > 0;
   useEffect(() => {
     if (!calcularPrevia) return;
     let ativo = true;
     const t = setTimeout(async () => {
-      const r = await previaEnvioWhatsapp(mensagem, selectedLeads, extras).catch(() => null);
+      const r = await previaEnvioWhatsapp(mensagem, selectedLeads, extras, extrasPorLead).catch(() => null);
       if (ativo && r && !r.erro) setPrevia(r.itens);
     }, 300);
     return () => { ativo = false; clearTimeout(t); };
-  }, [calcularPrevia, mensagem, selectedLeads, extras]);
+  }, [calcularPrevia, mensagem, selectedLeads, extras, extrasPorLead]);
   const previaAtual = calcularPrevia ? previa.filter((p) => selectedLeads.includes(p.id)) : [];
   const faltando = Array.from(new Set(previaAtual.flatMap((p) => p.faltando)));
 
@@ -173,14 +190,14 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       const res = await fetch("/api/whatsapp/enviar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensagem, destinatarios, extras }),
+        body: JSON.stringify({ mensagem, destinatarios, extras, extrasPorLead }),
       });
       const data = await res.json() as { ok?: boolean; error?: string; enviadas?: number; falhas?: number };
       if (data.error) {
         setToast({ msg: data.error, type: "error" });
       } else {
         setToast({ msg: `${data.enviadas ?? 0} enviada(s)${(data.falhas ?? 0) > 0 ? `, ${data.falhas} falha(s)` : ""}`, type: (data.falhas ?? 0) > 0 ? "error" : "success" });
-        setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setPrevia([]);
+        setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setDocsPorLead({}); setPrevia([]);
       }
     } catch { setToast({ msg: "Erro ao enviar mensagens", type: "error" }); }
     finally { setEnviando(false); }
@@ -218,7 +235,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       {/* Tabs */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
         {([
-          { key: "conexao" as const, label: "Conexão", icon: Smartphone },
+          ...(role === "corretor" ? [{ key: "conexao" as const, label: "Conexão", icon: Smartphone }] : []),
           { key: "conversas" as const, label: "Conversas", icon: Users },
           { key: "enviar" as const, label: "Enviar Mensagem", icon: Send },
           { key: "templates" as const, label: "Templates", icon: MessageCircle },
@@ -239,7 +256,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
         <div className="space-y-5">
 
           {/* Admin e colaborador (conexão da empresa) / Corretor: a própria conexão */}
-          {(role === "admin" || role === "colaborador" || role === "corretor") && (
+          {role === "corretor" && (
             <div className="bg-white border border-gray-100 p-5">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
                 {role === "corretor" ? "Minha Conexão WhatsApp" : "Conexão WhatsApp da empresa"}
@@ -265,7 +282,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               {/* Not connected: QR code (Evolution) e, como alternativa, a API oficial */}
               {!conexaoAtiva && (
                 <div className="space-y-5">
-                  <ConexaoQrCode podeConfigurarServidor={role === "admin"} onConectado={aoConectarQr} onAviso={aviso} />
+                  <ConexaoQrCode podeConfigurarServidor={false} onConectado={aoConectarQr} onAviso={aviso} />
                   <details className="border-t border-gray-100 pt-3">
                   <summary className="cursor-pointer text-xs text-gray-700 font-bold">Usar a API oficial do WhatsApp Business (Meta)</summary>
                   <div className="space-y-5 mt-3">
@@ -310,7 +327,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
           )}
 
           {/* Admin e colaborador: conexões dos corretores */}
-          {(role === "admin" || role === "colaborador") && (
+          {role === "corretor" && false && (
             <div className="bg-white border border-gray-100 p-5">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
                 Conexões dos Corretores {conexoesCorretores.length > 0 && `(${conexoesCorretores.length})`}
@@ -345,7 +362,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
             <div className="flex items-center gap-3 border border-yellow-200 bg-yellow-50 p-4">
               <AlertCircle size={18} className="text-yellow-600 shrink-0" />
               <p className="text-sm text-yellow-800">
-                Conecte o WhatsApp (QR code ou API oficial) na aba Conexão.
+                {role === "corretor" ? "Conecte o WhatsApp (QR code ou API oficial) na aba Conexão." : "Peça ao administrador para conectar o WhatsApp em Integrações."}
               </p>
             </div>
           )}
@@ -413,16 +430,27 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               </div>
               {usaVariaveis && selectedLeads.length > 0 && (
                 <div className="space-y-3 border-t border-gray-100 pt-3">
-                  {faltando.length > 0 && (
+                  {(faltando.length > 0 || variaveis.includes("documentos")) && (
                     <div className="space-y-2 border border-yellow-200 bg-yellow-50 p-3">
-                      <p className="text-xs font-bold text-yellow-900">Alguns destinatários não têm estes dados no cadastro. Informe para enviar:</p>
-                      {faltando.map((v) => (
+                      {faltando.length > 0 && <p className="text-xs font-bold text-yellow-900">Alguns destinatários não têm estes dados no cadastro. Informe para enviar:</p>}
+                      {faltando.filter((v) => v !== "documentos").map((v) => (
                         <div key={v}>
                           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">{VARIAVEIS_TEMPLATE[v] ?? v}</label>
-                          <input type="text" value={extras[v] ?? ""} onChange={(e) => setExtras((x) => ({ ...x, [v]: e.target.value }))}
+                          <input type="text" list={v === "imovel" ? "imoveis-whatsapp" : undefined} value={extras[v] ?? ""} onChange={(e) => setExtras((x) => ({ ...x, [v]: e.target.value }))}
                             className="w-full border border-yellow-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
+                          {v === "imovel" && <datalist id="imoveis-whatsapp">{imoveis.map((i) => <option key={i.id} value={i.texto} />)}</datalist>}
                         </div>
                       ))}
+                      {variaveis.includes("documentos") && selectedLeads.map((id) => {
+                        const d = docsPorLead[id] ?? { marcados: [], livre: "" };
+                        return <div key={id} className="border-t border-yellow-200 pt-2">
+                          <p className="text-xs font-bold text-gray-800 mb-1">Documentos de {leads.find((l) => l.id === id)?.nome}</p>
+                          <div className="grid gap-1 sm:grid-cols-2">{DOCUMENTOS_CHECKLIST.map((doc) => <label key={doc.chave} className="flex items-center gap-2 text-xs text-gray-800">
+                            <input type="checkbox" checked={d.marcados.includes(doc.chave)} onChange={(e) => setDocsPorLead((x) => ({ ...x, [id]: { ...d, marcados: e.target.checked ? [...d.marcados, doc.chave] : d.marcados.filter((c) => c !== doc.chave) } }))} /> {doc.nome}
+                          </label>)}</div>
+                          <input type="text" value={d.livre} placeholder="Outro documento (opcional)" onChange={(e) => setDocsPorLead((x) => ({ ...x, [id]: { ...d, livre: e.target.value } }))} className="mt-2 w-full border border-yellow-300 px-3 py-2 text-sm bg-white" />
+                        </div>;
+                      })}
                     </div>
                   )}
                   <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Prévia (como cada contato vai receber)</p>

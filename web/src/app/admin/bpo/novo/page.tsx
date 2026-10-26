@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { criarBpoCliente } from "@/lib/actions/bpo";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { prisma } from "@/lib/db";
 
 const SERVICOS = [
   { value: "contas_pagar",   label: "Contas a Pagar" },
@@ -15,6 +16,12 @@ const SERVICOS = [
 
 export default async function NovoBpoClientePage() {
   await exigirModuloPagina("bpo");
+  const leads = await prisma.lead.findMany({
+    where: { excluidoEm: null },
+    select: { id: true, nome: true, telefone: true },
+    orderBy: { nome: "asc" },
+    take: 500,
+  });
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -26,6 +33,14 @@ export default async function NovoBpoClientePage() {
       </div>
 
       <form action={criarBpoCliente} className="bg-white border border-gray-100 p-6 space-y-5">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vincular a um lead do CRM</label>
+          <select name="leadId" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+            <option value="">Cadastro livre / fornecedor</option>
+            {leads.map((lead) => <option key={lead.id} value={lead.id}>{lead.nome} — {lead.telefone}</option>)}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Ao escolher um lead, nome, CPF, telefone e e-mail são aproveitados automaticamente.</p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Razão Social / Nome *</label>
@@ -40,12 +55,12 @@ export default async function NovoBpoClientePage() {
             <input name="cpf" type="text" placeholder="000.000.000-00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável *</label>
-            <input name="responsavel" type="text" required placeholder="Nome do contato" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
+            <input name="responsavel" type="text" placeholder="Opcional; usa o nome do cliente" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone *</label>
-            <input name="telefone" type="text" required placeholder="(94) 9 9999-9999" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Telefone</label>
+            <input name="telefone" type="text" placeholder="Opcional no cadastro livre" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
           </div>
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
@@ -67,8 +82,8 @@ export default async function NovoBpoClientePage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Honorários Mensais (R$) *</label>
-            <CurrencyInput name="honorarios" required placeholder="1500,00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Honorários Mensais (R$)</label>
+            <CurrencyInput name="honorarios" placeholder="0,00" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Dia de Vencimento *</label>
@@ -76,7 +91,7 @@ export default async function NovoBpoClientePage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data de Início *</label>
-            <input name="dataInicio" type="date" required className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+            <input name="dataInicio" type="date" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
           </div>
         </div>
 

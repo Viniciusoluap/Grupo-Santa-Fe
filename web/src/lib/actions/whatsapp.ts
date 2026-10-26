@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { exigirModuloAcao, usuarioAtual } from "@/lib/auth/modulos";
-import { podeAcessarModulo } from "@/lib/perfis-acesso";
+import { podeAcessarModulo, podeAdministrarSeguranca } from "@/lib/perfis-acesso";
 import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
 import { configEvolution, urlServidorEvolution } from "@/lib/whatsapp/evolution-config";
 import {
@@ -14,6 +14,7 @@ import { enviarWhatsappBusiness } from "@/lib/whatsapp/business";
 import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
 import { limparExtras, textosPorDestinatario } from "@/lib/whatsapp/variaveis";
 import { URL_WEBHOOK_EVOLUTION, leadPorTelefone, segredoWebhookEvolution } from "@/lib/whatsapp/webhook-evolution";
+import { baixarEGuardarMidia, mensagemWhatsappAcessivel } from "@/lib/whatsapp/midia";
 
 // O parametro usuarioId recebido do cliente e' ignorado deliberadamente: a UI
 // so chama esta action com o proprio usuarioId (session.user.id), mas a action
@@ -60,6 +61,20 @@ export async function statusServidorEvolution(): Promise<{ configurado: boolean;
   await donoParaQr();
   const url = await urlServidorEvolution();
   return { configurado: Boolean(url), url };
+}
+
+export async function conexoesWhatsappIntegracoes() {
+  const u = await usuarioAtual();
+  if (!u?.ativo || !podeAdministrarSeguranca(u)) throw new Error("Não autorizado.");
+  const dono = await donoDaConexaoWhatsApp(u.id, u.perfil);
+  const empresa = dono ? await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId: dono }, select: { numero: true, status: true, provedor: true } }) : null;
+  const corretores = await prisma.usuario.findMany({
+    where: { papel: "corretor" }, select: { id: true, nome: true, conexaoWhatsApp: { select: { numero: true, status: true } } }, orderBy: { nome: "asc" },
+  });
+  return {
+    empresa,
+    corretores: corretores.map((c) => ({ id: c.id, nome: c.nome, numero: c.conexaoWhatsApp?.numero ?? null, status: c.conexaoWhatsApp?.status ?? "desconectado" })),
+  };
 }
 
 // Em produção o Next esconde a mensagem de erros lançados em server actions; por isso as
@@ -123,7 +138,7 @@ async function atorWhatsapp() {
 }
 
 /** Prévia por destinatário: mensagem final e variáveis que ainda faltam. */
-export async function previaEnvioWhatsapp(mensagem: string, ids: string[], extras: Record<string, string> = {}): Promise<{ itens: { id: string; texto: string; faltando: string[] }[]; erro?: string }> {
+export async function previaEnvioWhatsapp(mensagem: string, ids: string[], extras: Record<string, string> = {}, extrasPorLead: Record<string, Record<string, string>> = {}): Promise<{ itens: { id: string; texto: string; faltando: string[] }[]; erro?: string }> {
   try {
     const { u } = await atorWhatsapp();
     const pedidos = Array.from(new Set((Array.isArray(ids) ? ids : []).filter((x): x is string => typeof x === "string"))).slice(0, 200);
@@ -133,10 +148,28 @@ export async function previaEnvioWhatsapp(mensagem: string, ids: string[], extra
     });
     const permitidos = pedidos.filter((id) => leads.some((l) => l.id === id));
     const valores = await valoresDosLeads(permitidos, u.nome ?? null);
-    return { itens: textosPorDestinatario(String(mensagem ?? "").slice(0, 4096), permitidos, valores, limparExtras(extras)).previa };
+    return { itens: textosPorDestinatario(String(mensagem ?? "").slice(0, 4096), permitidos, valores, limparExtras(extras), extrasPorLead).previa };
   } catch (e) {
     return { itens: [], erro: motivo(e) };
   }
+}
+
+export async function imoveisParaEnvioWhatsapp(): Promise<{ id: string; texto: string }[]> {
+  await atorWhatsapp();
+  const itens = await prisma.imovel.findMany({ select: { id: true, titulo: true, rua: true, bairro: true, cidade: true }, orderBy: { titulo: "asc" }, take: 1000 });
+  return itens.map((i) => ({ id: i.id, texto: [i.titulo, [i.rua, i.bairro, i.cidade].filter(Boolean).join(", ")].filter(Boolean).join(" — ") }));
+}
+
+export async function documentosParaEnvioWhatsapp(ids: string[]): Promise<{ id: string; pendentes: string[] }[]> {
+  const { u } = await atorWhatsapp();
+  const pedidos = Array.from(new Set(ids)).slice(0, 200);
+  const leads = await prisma.lead.findMany({
+    where: { id: { in: pedidos }, ...(u.perfil === "corretor" ? { corretorId: u.corretorId } : {}) },
+    select: { id: true },
+  });
+  const docs = await prisma.documentoCliente.findMany({ where: { leadId: { in: leads.map((l) => l.id) } }, select: { leadId: true, tipo: true, arquivoId: true } });
+  const { DOCUMENTOS_CLIENTE } = await import("@/lib/documentos-cliente-padrao");
+  return leads.map((l) => ({ id: l.id, pendentes: DOCUMENTOS_CLIENTE.filter((d) => d.chave !== "other" && !docs.some((x) => x.leadId === l.id && x.tipo === d.chave && x.arquivoId)).map((d) => d.chave) }));
 }
 
 /** Garante que a Evolution avise o sistema das mensagens (idempotente). Chamado ao abrir a aba Conversas. */
@@ -186,23 +219,52 @@ export async function conversasWhatsapp(): Promise<{ conversas: ConversaWhatsapp
   }
 }
 
-export type MensagemConversa = { id: string; direcao: string; mensagem: string; status: string; quando: string };
+export type MidiaConversa = { tipo: string; mime: string | null; nome: string | null; tamanho: number | null; baixada: boolean };
+export type MensagemConversa = { id: string; direcao: string; mensagem: string; status: string; quando: string; midia: MidiaConversa | null };
 
 export async function mensagensConversaWhatsapp(numero: string): Promise<{ mensagens: MensagemConversa[]; erro?: string }> {
   try {
     if (!numeroValido(numero)) return { mensagens: [], erro: "Número inválido." };
     const { u, conn } = await atorWhatsapp();
     if (!conn) return { mensagens: [] };
-    const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, orderBy: { enviadaEm: "desc" }, take: 3000 });
+    const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, include: { midia: { select: { mensagemId: true } } }, orderBy: { enviadaEm: "desc" }, take: 3000 });
     const da = todas.filter((m) => mesmoTelefone(m.destinatario, numero)).reverse();
     const proibidos = await leadsProibidos(u, Array.from(new Set(da.flatMap((m) => (m.leadId ? [m.leadId] : [])))));
     if (proibidos.size) return { mensagens: [], erro: "Conversa de outro corretor." };
     const naoLidas = da.filter((m) => m.direcao === "entrada" && !m.lida).map((m) => m.id);
     if (naoLidas.length) await prisma.mensagemWhatsapp.updateMany({ where: { id: { in: naoLidas } }, data: { lida: true } });
-    return { mensagens: da.map((m) => ({ id: m.id, direcao: m.direcao, mensagem: m.mensagem, status: m.status, quando: m.enviadaEm.toISOString() })) };
+    return { mensagens: da.map((m) => ({
+      id: m.id, direcao: m.direcao, mensagem: m.mensagem, status: m.status, quando: m.enviadaEm.toISOString(),
+      midia: m.midiaTipo ? { tipo: m.midiaTipo, mime: m.midiaMime, nome: m.midiaNome, tamanho: m.midiaTamanho, baixada: Boolean(m.midia) } : null,
+    })) };
   } catch (e) {
     return { mensagens: [], erro: motivo(e) };
   }
+}
+
+/** Exclui somente os registros locais da conversa; nada é apagado no celular. */
+export async function excluirConversaWhatsapp(numero: string): Promise<{ apagadas: number; erro?: string }> {
+  try {
+    if (!numeroValido(numero)) return { apagadas: 0, erro: "Número inválido." };
+    const { u, conn } = await atorWhatsapp();
+    if (!conn) return { apagadas: 0, erro: "WhatsApp não está conectado." };
+    const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, select: { id: true, destinatario: true, leadId: true } });
+    const da = todas.filter((m) => mesmoTelefone(m.destinatario, numero));
+    const proibidos = await leadsProibidos(u, Array.from(new Set(da.flatMap((m) => m.leadId ? [m.leadId] : []))));
+    if (proibidos.size) return { apagadas: 0, erro: "Conversa de outro corretor." };
+    if (da.length) await prisma.mensagemWhatsapp.deleteMany({ where: { conexaoId: conn.id, id: { in: da.map((m) => m.id) } } });
+    return { apagadas: da.length };
+  } catch (e) { return { apagadas: 0, erro: motivo(e) }; }
+}
+
+export async function baixarMidiaWhatsappDeNovo(id: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const msg = await mensagemWhatsappAcessivel(id);
+    if (!msg?.midiaTipo) return { ok: false, erro: "Mensagem sem arquivo." };
+    if (!msg.instancia || !msg.externalId) return { ok: false, erro: "Só dá para baixar de novo pela conexão por QR code." };
+    const r = await baixarEGuardarMidia(msg.id, msg.instancia, msg.externalId, msg.midiaTamanho);
+    return r.ok ? { ok: true } : { ok: false, erro: r.motivo };
+  } catch (e) { return { ok: false, erro: motivo(e) }; }
 }
 
 /** Contato novo da conversa vira lead (nome do WhatsApp + telefone) e as mensagens passam a apontar para ele. */

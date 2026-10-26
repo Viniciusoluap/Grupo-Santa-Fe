@@ -135,6 +135,7 @@ model Lead {
   duplicadoEm          DateTime?
   duplicadoPorId       String?
   duplicadoPor         Usuario?        @relation("LeadDuplicadoPor", fields: [duplicadoPorId], references: [id], onDelete: SetNull)
+  clientesBpo          BpoCliente[]
 
   @@map("leads")
 }
@@ -339,63 +340,63 @@ model ChecklistItem {
 // ─── OBRAS ───────────────────────────────────────────────────────────────────
 
 model Obra {
-  id                    String                   @id @default(cuid())
-  nome                  String
-  tipo                  String?
-  status                String                   @default("orcamento")
-  clienteNome           String
-  clienteTel            String
-  endereco              String?
-  area                  Float?
-  valorTotal            Float?
-  valorPago             Float                    @default(0)
-  progresso             Int                      @default(0)
-  engenheiroResp        String?
-  dataInicio            DateTime?
-  dataPrevisaoFim       DateTime?
-  dataConclusao         DateTime?
-  leadId                String?
-  servicoLeadId         String?                  @unique
-  servicoLead           ServicoLead?             @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  id                              String                   @id @default(cuid())
+  nome                            String
+  tipo                            String?
+  status                          String                   @default("orcamento")
+  clienteNome                     String
+  clienteTel                      String
+  endereco                        String?
+  area                            Float?
+  valorTotal                      Float?
+  valorPago                       Float                    @default(0)
+  progresso                       Int                      @default(0)
+  engenheiroResp                  String?
+  dataInicio                      DateTime?
+  dataPrevisaoFim                 DateTime?
+  dataConclusao                   DateTime?
+  leadId                          String?
+  servicoLeadId                   String?                  @unique
+  servicoLead                     ServicoLead?             @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
   /// Lote 23/10, etapa 3: imóvel vinculado que guarda a "Localização exata" da obra (Mapa Operacional).
-  imovelId              String?                  @unique
-  imovel                Imovel?                  @relation("ObraImovel", fields: [imovelId], references: [id], onDelete: SetNull)
-  leadVinculado         Lead?                    @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  latitude              Float?
-  longitude             Float?
-  descricao             String                   @default("")
+  imovelId                        String?                  @unique
+  imovel                          Imovel?                  @relation("ObraImovel", fields: [imovelId], references: [id], onDelete: SetNull)
+  leadVinculado                   Lead?                    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  latitude                        Float?
+  longitude                       Float?
+  descricao                       String                   @default("")
   // EPIC-020 Lote 2 — Valores da Operação e Custos (entradas; os totais são
   // sempre calculados por src/lib/financeiro/obra.ts, nunca gravados).
   // `valorTotal`/`valorPago` (Float) são legados preservados, sem uso no cálculo.
-  vgv                   Decimal?                 @db.Decimal(15, 2)
-  financiamentoCef      Decimal?                 @db.Decimal(15, 2)
-  fgts                  Decimal?                 @db.Decimal(15, 2)
-  subsidio              Decimal?                 @db.Decimal(15, 2)
-  custoTerreno          Decimal?                 @db.Decimal(15, 2)
-  comissaoValor         Decimal?                 @db.Decimal(15, 2)
-  orcamentoPrevisto     Decimal?                 @db.Decimal(15, 2)
-  taxaMensalPct         Decimal?                 @db.Decimal(7, 4)
-  qtdeParcelas          Int?
-  escritorioCef         String?
-  empreiteiroId         String?
-  empreiteiro           Usuario?                 @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
-  percentualEmpreiteiro Decimal?                 @db.Decimal(9, 6)
-  incluirProSolutoBaseEmpreiteiro Boolean          @default(false) @map("incluir_pro_soluto_base_empreiteiro")
+  vgv                             Decimal?                 @db.Decimal(15, 2)
+  financiamentoCef                Decimal?                 @db.Decimal(15, 2)
+  fgts                            Decimal?                 @db.Decimal(15, 2)
+  subsidio                        Decimal?                 @db.Decimal(15, 2)
+  custoTerreno                    Decimal?                 @db.Decimal(15, 2)
+  comissaoValor                   Decimal?                 @db.Decimal(15, 2)
+  orcamentoPrevisto               Decimal?                 @db.Decimal(15, 2)
+  taxaMensalPct                   Decimal?                 @db.Decimal(7, 4)
+  qtdeParcelas                    Int?
+  escritorioCef                   String?
+  empreiteiroId                   String?
+  empreiteiro                     Usuario?                 @relation("ObraEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
+  percentualEmpreiteiro           Decimal?                 @db.Decimal(9, 6)
+  incluirProSolutoBaseEmpreiteiro Boolean                  @default(false) @map("incluir_pro_soluto_base_empreiteiro")
   /// EPIC-020 Lote 3: percentual de comissão próprio da obra (prevalece sobre o do corretor).
-  comissaoPercentual    Decimal?                 @db.Decimal(7, 4)
+  comissaoPercentual              Decimal?                 @db.Decimal(7, 4)
   /// EPIC-020 Lote 4: Progresso Geral medido (soma incidência × execução), 6 casas.
-  progressoMedido       Decimal?                 @db.Decimal(9, 6)
-  pci                   ObraPci?
-  pciVersoes            ObraPciVersao[]
-  progressoItens        ObraProgressoItem[]
-  progressoHistorico    ObraProgressoHistorico[]
-  fotos                 ObraFoto[]
-  movimentos            ObraMovimento[]
-  investidores          ObraInvestidor[]
-  etapas                ObraEtapa[]
-  diario                ObraDiario[]
-  criadoEm              DateTime                 @default(now())
-  atualizadoEm          DateTime                 @updatedAt
+  progressoMedido                 Decimal?                 @db.Decimal(9, 6)
+  pci                             ObraPci?
+  pciVersoes                      ObraPciVersao[]
+  progressoItens                  ObraProgressoItem[]
+  progressoHistorico              ObraProgressoHistorico[]
+  fotos                           ObraFoto[]
+  movimentos                      ObraMovimento[]
+  investidores                    ObraInvestidor[]
+  etapas                          ObraEtapa[]
+  diario                          ObraDiario[]
+  criadoEm                        DateTime                 @default(now())
+  atualizadoEm                    DateTime                 @updatedAt
 
   @@unique([servicoLeadId, leadId])
   @@map("obras")
@@ -679,23 +680,28 @@ model Configuracao {
 // ─── BPO FINANCEIRO ───────────────────────────────────────────────────────────
 
 model BpoCliente {
-  id            String          @id @default(cuid())
-  razaoSocial   String
-  cnpj          String?
-  cpf           String?
-  responsavel   String
-  email         String?
-  telefone      String
-  servicos      String          @default("[]") // JSON: ["contas_pagar","contas_receber","folha","fiscal","conciliacao"]
-  status        String          @default("ativo") // ativo, pausado, encerrado
-  honorarios    Float
-  diaVencimento Int             @default(10)
-  dataInicio    DateTime
-  observacoes   String          @default("")
-  lancamentos   BpoLancamento[]
-  criadoEm      DateTime        @default(now())
-  atualizadoEm  DateTime        @updatedAt
+  id                 String              @id @default(cuid())
+  razaoSocial        String
+  cnpj               String?
+  cpf                String?
+  responsavel        String
+  email              String?
+  telefone           String
+  servicos           String              @default("[]") // JSON: ["contas_pagar","contas_receber","folha","fiscal","conciliacao"]
+  status             String              @default("ativo") // ativo, pausado, encerrado
+  honorarios         Float
+  diaVencimento      Int                 @default(10)
+  dataInicio         DateTime
+  observacoes        String              @default("")
+  lancamentos        BpoLancamento[]
+  leadId             String?
+  lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  regrasTitular      BpoRegraTitular[]
+  criadoEm           DateTime            @default(now())
+  atualizadoEm       DateTime            @updatedAt
+  transacaoBancarias TransacaoBancaria[]
 
+  @@index([leadId])
   @@map("bpo_clientes")
 }
 
@@ -719,6 +725,7 @@ model BpoLancamento {
   categoria                 String?
   transacaoId               String?                    @unique
   transacao                 TransacaoBancaria?         @relation(fields: [transacaoId], references: [id], onDelete: Cascade)
+  asaasPaymentId            String?                    @unique
   criadoEm                  DateTime                   @default(now())
 
   @@map("bpo_lancamentos")
@@ -838,23 +845,42 @@ model ContaBancaria {
 }
 
 model TransacaoBancaria {
-  id         String        @id @default(cuid())
-  contaId    String
-  conta      ContaBancaria @relation(fields: [contaId], references: [id], onDelete: Cascade)
-  data       DateTime
-  descricao  String
-  valor      Float
-  tipo       String // credito, debito
-  categoria  String?
-  status     String        @default("pendente") // pendente, conciliado, ignorado
-  externalId String?       @unique
+  id                String         @id @default(cuid())
+  contaId           String
+  conta             ContaBancaria  @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  data              DateTime
+  descricao         String
+  valor             Float
+  tipo              String // credito, debito
+  categoria         String?
+  status            String         @default("pendente") // pendente, conciliado, ignorado
+  externalId        String?        @unique
   /// Pedido de 25/10: asaas | pluggy | importacao | manual.
-  origem     String        @default("manual")
+  origem            String         @default("manual")
+  titular           String?
+  descricaoOriginal String?
+  bpoClienteId      String?
+  bpoCliente        BpoCliente?    @relation(fields: [bpoClienteId], references: [id], onDelete: SetNull)
+  asaasPaymentId    String?
   /// LOTE C (25/10): lançamento pago gerado no BPO (Cobranças/Despesas/DRE), 1:1.
-  lancamento BpoLancamento?
-  criadoEm   DateTime      @default(now())
+  lancamento        BpoLancamento?
+  criadoEm          DateTime       @default(now())
 
+  @@index([titular])
+  @@index([asaasPaymentId])
   @@map("transacoes_bancarias")
+}
+
+model BpoRegraTitular {
+  id                 String      @id @default(cuid())
+  titularNormalizado String      @unique
+  categoria          String?
+  bpoClienteId       String?
+  bpoCliente         BpoCliente? @relation(fields: [bpoClienteId], references: [id], onDelete: SetNull)
+  criadoEm           DateTime    @default(now())
+  atualizadoEm       DateTime    @updatedAt
+
+  @@map("bpo_regras_titular")
 }
 
 /// Pedido de 25/10: credenciais da Pluggy (Meu Pluggy) gravadas pela tela do BPO › Bancos.
@@ -908,10 +934,23 @@ model MensagemWhatsapp {
   lida             Boolean         @default(true)
   enviadaEm        DateTime        @default(now())
   atualizadoEm     DateTime        @updatedAt
+  midiaTipo        String?
+  midiaMime        String?
+  midiaNome        String?
+  midiaTamanho     Int?
+  midia            WhatsappMidia?
 
   @@index([conexaoId, destinatario, enviadaEm])
   @@index([externalId])
   @@map("mensagens_whatsapp")
+}
+
+model WhatsappMidia {
+  mensagemId String           @id
+  mensagem   MensagemWhatsapp @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
+  conteudo   Bytes
+
+  @@map("whatsapp_midias")
 }
 
 // ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────
@@ -1343,8 +1382,8 @@ model ImovelFoto {
   criadoPorId String?
   criadoEm    DateTime @default(now())
 
-  @@index([imovelId])
   @@unique([imovelId, sha256])
+  @@index([imovelId])
   @@map("imovel_fotos")
 }
 

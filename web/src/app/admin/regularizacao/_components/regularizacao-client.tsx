@@ -41,6 +41,7 @@ interface Regularizacao {
   matricula: string | null;
   responsavel: string | null;
   valorServico: number | null;
+  valorTotalGeral: number;
   previsaoFim: Date | null;
 }
 
@@ -103,6 +104,8 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
               <FileCheck size={15} className="text-[var(--brand-yellow)]" />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl">{value}</p>
+            {label === "Valor já recebido" && <p className="text-[10px] text-gray-500 mt-1">Soma dos recebimentos confirmados dos itens de receita própria.</p>}
+            {label === "Valor contratado" && <p className="text-[10px] text-gray-500 mt-1">Soma do previsto em Projetos, PCI, Água, Despachante e CND/CNO.</p>}
           </div>
         ))}
       </div>
@@ -157,7 +160,8 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-[var(--brand-dark)]">{formatCurrency(r.valorServico)}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-gray-500">Total geral</p>
+                  <p className="font-bold text-[var(--brand-dark)]">{formatCurrency(r.valorTotalGeral)}</p>
                 </div>
               </div>
 

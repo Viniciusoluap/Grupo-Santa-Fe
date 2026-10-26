@@ -210,11 +210,11 @@ export async function listarTransacoesConta(contaId: string) {
       orderBy: { data: "desc" },
       take: 300,
       select: {
-        id: true, data: true, descricao: true, valor: true, tipo: true, categoria: true, status: true, origem: true,
+        id: true, data: true, descricao: true, descricaoOriginal: true, titular: true, valor: true, tipo: true, categoria: true, status: true, origem: true, bpoClienteId: true,
         lancamento: { select: { clienteId: true } },
       },
     });
-    return t.map(({ lancamento, ...x }) => ({ ...x, data: x.data.toISOString(), clienteId: lancamento?.clienteId ?? null }));
+    return t.map(({ lancamento, ...x }) => ({ ...x, data: x.data.toISOString(), clienteId: x.bpoClienteId ?? lancamento?.clienteId ?? null }));
   });
 }
 
@@ -314,7 +314,7 @@ export async function confirmarImportacaoExtrato(contaId: string, linhas: LinhaE
         || typeof l.valor !== "number" || !(l.valor > 0) || (l.tipo !== "credito" && l.tipo !== "debito")) {
         throw new Error("Lançamento inválido na importação.");
       }
-      return { data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo };
+      return { data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo, titular: l.titular, detalhe: l.detalhe, original: l.original };
     });
     const saldoValido = saldo && typeof saldo.valor === "number" && Number.isFinite(saldo.valor)
       && (saldo.data === null || (typeof saldo.data === "string" && DATA_ISO.test(saldo.data)))

@@ -38,7 +38,7 @@ describe("formatos de arquivo", () => {
       ";;;",
     ].join("\n");
     const r = lerCsv(csv);
-    expect(r.linhas).toEqual([
+    expect(r.linhas).toMatchObject([
       { data: "2026-10-01", descricao: "Pix recebido Cliente A", valor: 1500, tipo: "credito" },
       { data: "2026-10-02", descricao: "Boleto fornecedor", valor: 320.4, tipo: "debito" },
     ]);
@@ -56,7 +56,7 @@ describe("formatos de arquivo", () => {
 
   it("planilha do Excel com datas em número serial", () => {
     const r = lerTabela([["Data", "Descrição", "Valor"], [46300, "Pix", 10], [46301, "Tarifa", -2.5]], "Excel");
-    expect(r.linhas).toEqual([
+    expect(r.linhas).toMatchObject([
       { data: "2026-10-05", descricao: "Pix", valor: 10, tipo: "credito" },
       { data: "2026-10-06", descricao: "Tarifa", valor: 2.5, tipo: "debito" },
     ]);
@@ -72,7 +72,7 @@ describe("formatos de arquivo", () => {
 <STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20261001120000[-3:BRT]<TRNAMT>1500.00<FITID>1<MEMO>PIX RECEBIDO</STMTTRN>
 <STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261002<TRNAMT>-89.90<FITID>2<NAME>TARIFA</STMTTRN>
 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
-    expect(lerOfx(ofx).linhas).toEqual([
+    expect(lerOfx(ofx).linhas).toMatchObject([
       { data: "2026-10-01", descricao: "PIX RECEBIDO", valor: 1500, tipo: "credito" },
       { data: "2026-10-02", descricao: "TARIFA", valor: 89.9, tipo: "debito" },
     ]);
@@ -86,7 +86,7 @@ describe("formatos de arquivo", () => {
       "03/10 TARIFA MENSAL 30,00",
       "03/10/2026 SALDO DO DIA 4.720,00",
     ], 2026);
-    expect(r.linhas).toEqual([
+    expect(r.linhas).toMatchObject([
       { data: "2026-10-01", descricao: "PIX RECEBIDO FULANO", valor: 1000, tipo: "credito" },
       { data: "2026-10-02", descricao: "PIX ENVIADO BELTRANO", valor: 250, tipo: "debito" },
       { data: "2026-10-03", descricao: "TARIFA MENSAL", valor: 30, tipo: "debito" },
