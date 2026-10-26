@@ -18,6 +18,18 @@ CREATE TABLE IF NOT EXISTS "bpo_regras_titular" (
   CONSTRAINT "bpo_regras_titular_pkey" PRIMARY KEY ("id")
 );
 
+-- Tabela interna: o aplicativo acessa via conexão de servidor, sem acesso direto
+-- dos papéis públicos da Data API do Supabase.
+ALTER TABLE "bpo_regras_titular" ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE "bpo_regras_titular" FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE "bpo_regras_titular" FROM authenticated;
+  END IF;
+END $$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "bpo_regras_titular_titularNormalizado_key" ON "bpo_regras_titular"("titularNormalizado");
 CREATE UNIQUE INDEX IF NOT EXISTS "bpo_lancamentos_asaasPaymentId_key" ON "bpo_lancamentos"("asaasPaymentId");
 CREATE INDEX IF NOT EXISTS "transacoes_bancarias_titular_idx" ON "transacoes_bancarias"("titular");
