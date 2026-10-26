@@ -16,7 +16,7 @@ Branch: `claude/sync-mirrored-repos-bsqnz3` nos 2 repos.
 - [ ] Publicação (testes, migrações prod, PRs, merge, deploy) + dados (16 imóveis, Sarah)
 
 ## Próximo passo exato
-Publicar o bloco 2 do Santa Fé no GitHub, executar a validação final dos dois repositórios e abrir os PRs. Somente depois preparar migrações/deploy e aplicar a prévia dos dados (16 imóveis gerados e 61 responsáveis legados na Prospecta).
+Ver o checkpoint de publicação abaixo; os dois blocos já foram publicados e os PRs estão abertos.
 
 ## Retomada pelo Codex — 26/10
 - Branches remotas conferidas antes de editar: Prospecta `5a8f6b4`; Santa Fé `b55c80a`.
@@ -44,3 +44,10 @@ Publicar o bloco 2 do Santa Fé no GitHub, executar a validação final dos dois
 - Asaas: dono criou a conta no BPO (data inicial 01/01/2020); 566 movimentações sincronizadas (2022-06 a 2026-10), todas viraram lançamentos; saldo real 0,00.
 - Pluggy: 401 "client keys are invalid" — dono recola chaves do dashboard.pluggy.ai.
 - OFX cinza no iPad (accept do input) → Agente A.
+
+## Checkpoint Codex — 26/10, revisão de publicação
+- Blocos publicados no GitHub: BPO/Bancos/Regularização `5895ebbc6ae747c4f7cb11c1bb0def6b885bdb22`, WhatsApp/Imóveis/Integrações `33bcdd6970fd501931261ffa41dd15ad456f954e`. PR [#234](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/234) aberto e sem conflito; prévia Vercel com status de sucesso.
+- (a) Automáticos: TypeScript aprovado, lint sem erro (32 avisos), 115 arquivos/824 testes aprovados; 18 arquivos/109 testes de banco ignorados sem `TEST_DATABASE_URL`. As migrações `20261025220000` (15 comandos) e `20261025230000` (5 comandos) passaram em transações no banco Neon de prévia; conferidos 10 campos e 2 tabelas criados.
+- (b) Manual: verificados os vínculos Vercel e o esquema Supabase de produção. O banco de produção ainda não recebeu essas duas migrações. O projeto não tem tabela `_prisma_migrations`; seu histórico remoto é de migrações Supabase. A tentativa de criar uma branch Supabase para testar retornou erro de requestState, por isso a validação de esquema usou o banco de prévia separado.
+- (c) Produção: SQLs, merge/deploy e fluxos reais (WhatsApp, Asaas, Pluggy) pendentes. Nenhum dado de produção foi alterado neste checkpoint.
+- Próximo passo exato: aplicar os dois SQLs versionados no Supabase de produção, verificar campos, índices e tabelas, mesclar o PR #234 e validar o deploy. Não executar `prisma migrate deploy` cegamente contra a produção sem reconciliar o histórico de migrações ausente.
