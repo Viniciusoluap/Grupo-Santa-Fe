@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { ImovelAcoes } from "./_components/imovel-acoes";
 import { redirect } from "next/navigation";
+import { localizacaoImovel } from "@/lib/obra-localizacao";
 
 const typeLabel: Record<string, string> = {
   casa: "Casa",
@@ -142,7 +143,7 @@ export default async function AdminImoveisPage() {
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <span className="text-xs text-gray-500">
-                      {imovel.bairro}, {imovel.cidade}
+                      {localizacaoImovel(imovel)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)]">

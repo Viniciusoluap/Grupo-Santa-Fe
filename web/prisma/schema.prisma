@@ -934,10 +934,23 @@ model MensagemWhatsapp {
   lida             Boolean         @default(true)
   enviadaEm        DateTime        @default(now())
   atualizadoEm     DateTime        @updatedAt
+  midiaTipo        String?
+  midiaMime        String?
+  midiaNome        String?
+  midiaTamanho     Int?
+  midia            WhatsappMidia?
 
   @@index([conexaoId, destinatario, enviadaEm])
   @@index([externalId])
   @@map("mensagens_whatsapp")
+}
+
+model WhatsappMidia {
+  mensagemId String           @id
+  mensagem   MensagemWhatsapp @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
+  conteudo   Bytes
+
+  @@map("whatsapp_midias")
 }
 
 // ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────

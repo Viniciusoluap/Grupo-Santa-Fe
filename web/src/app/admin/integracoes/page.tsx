@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { Plug } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Plug } from "lucide-react";
 import { destinoDoUsuario, usuarioAtual } from "@/lib/auth/modulos";
 import { podeAdministrarSeguranca } from "@/lib/perfis-acesso";
 import { statusIntegracoes } from "@/lib/integracoes";
@@ -18,6 +19,7 @@ export default async function IntegracoesPage() {
 
   return (
     <div className="space-y-5 max-w-3xl">
+      <Link href="/admin" className="inline-flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-[var(--brand-dark)]"><ArrowLeft size={16} /> Voltar ao painel</Link>
       <div className="flex items-center gap-3">
         <Plug size={22} className="text-[var(--brand-dark)]" />
         <div>

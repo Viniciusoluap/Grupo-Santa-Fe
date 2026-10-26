@@ -11,6 +11,7 @@ import {
   salvarAsaasIntegracaoAcao, salvarEvolutionIntegracaoAcao, salvarPluggyIntegracaoAcao, statusIntegracoesAcao, testarIntegracaoAcao,
 } from "@/lib/actions/integracoes";
 import type { ResultadoTeste, ServicoIntegracao, StatusIntegracoes } from "@/lib/integracoes";
+import { ConexaoWhatsappIntegracoes } from "./conexao-whatsapp-integracoes";
 
 type Campo = { nome: string; rotulo: string; segredo?: boolean; placeholder?: string; opcional?: boolean };
 type Mensagem = { tipo: "ok" | "erro"; texto: string };
@@ -166,7 +167,10 @@ export function IntegracoesClient({ inicial }: { inicial: StatusIntegracoes }) {
         titulo="WhatsApp — servidor da Evolution (QR code)"
         servico="whatsapp"
         salvo={<p>{whatsapp.configurado ? `Endereço ${whatsapp.url} · chave terminando em ${whatsapp.final}${FONTE(whatsapp.fonte)}.` : "Endereço e chave do servidor não salvos."}</p>}
-        extra={<p className="text-xs text-gray-700">Conectar o número (QR code) e conversas: <Link href="/admin/whatsapp" className="underline font-bold text-[var(--brand-dark)]">Central WhatsApp</Link>.</p>}
+        extra={<div className="space-y-3">
+          <ConexaoWhatsappIntegracoes />
+          <p className="text-xs text-gray-700">Depois de conectar, as conversas ficam na <Link href="/admin/whatsapp" className="underline font-bold text-[var(--brand-dark)]">Central WhatsApp</Link>.</p>
+        </div>}
         campos={[
           { nome: "url", rotulo: "Endereço do servidor", placeholder: "https://evolution-xxxx.up.railway.app" },
           { nome: "apiKey", rotulo: "Chave de acesso (AUTHENTICATION_API_KEY)", segredo: true },

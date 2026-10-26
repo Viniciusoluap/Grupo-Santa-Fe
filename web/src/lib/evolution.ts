@@ -114,6 +114,7 @@ type MensagemEvolution = {
   imageMessage?: { caption?: string };
   videoMessage?: { caption?: string };
   documentMessage?: { fileName?: string };
+  documentWithCaptionMessage?: { message?: { documentMessage?: { fileName?: string } } };
   audioMessage?: unknown;
   stickerMessage?: unknown;
   locationMessage?: unknown;
@@ -128,6 +129,7 @@ export function textoDaMensagem(message: MensagemEvolution | undefined | null): 
   if (message.imageMessage) return message.imageMessage.caption ? `[imagem] ${message.imageMessage.caption}` : "[imagem]";
   if (message.videoMessage) return message.videoMessage.caption ? `[vídeo] ${message.videoMessage.caption}` : "[vídeo]";
   if (message.documentMessage) return `[documento] ${message.documentMessage.fileName ?? ""}`.trim();
+  if (message.documentWithCaptionMessage?.message?.documentMessage) return `[documento] ${message.documentWithCaptionMessage.message.documentMessage.fileName ?? ""}`.trim();
   if (message.audioMessage) return "[áudio]";
   if (message.stickerMessage) return "[figurinha]";
   if (message.locationMessage) return "[localização]";
@@ -144,4 +146,51 @@ export function mesmoTelefone(a: string | null | undefined, b: string | null | u
   };
   const x = n(a ?? ""), y = n(b ?? "");
   return Boolean(x) && x === y;
+}
+
+export type TipoMidia = "imagem" | "audio" | "video" | "documento" | "figurinha";
+export const LIMITE_MIDIA = 10 * 1024 * 1024;
+
+function tamanhoDeclarado(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
+  const l = v as { low?: number; high?: number } | null;
+  if (l && typeof l.low === "number") return (l.high ?? 0) * 2 ** 32 + (l.low >>> 0);
+  return null;
+}
+
+export function midiaDaMensagem(entrada: unknown): { tipo: TipoMidia; mime: string | null; nome: string | null; tamanho: number | null } | null {
+  if (!entrada || typeof entrada !== "object") return null;
+  const message = entrada as Record<string, unknown>;
+  const pares: [string, TipoMidia, string][] = [
+    ["imageMessage", "imagem", "image/jpeg"], ["audioMessage", "audio", "audio/ogg"], ["videoMessage", "video", "video/mp4"],
+    ["documentMessage", "documento", "application/octet-stream"], ["stickerMessage", "figurinha", "image/webp"],
+  ];
+  const embrulho = message.documentWithCaptionMessage as { message?: { documentMessage?: unknown } } | undefined;
+  const doc = embrulho?.message?.documentMessage;
+  for (const [chave, tipo, padrao] of pares) {
+    const bruto = chave === "documentMessage" ? (message.documentMessage ?? doc) : message[chave];
+    if (!bruto || typeof bruto !== "object") continue;
+    const m = bruto as { mimetype?: unknown; fileName?: unknown; fileLength?: unknown };
+    const mime = typeof m.mimetype === "string" ? m.mimetype.split(";")[0].trim().slice(0, 120) : padrao;
+    const nome = typeof m.fileName === "string" ? m.fileName.slice(0, 255) : null;
+    return { tipo, mime: mime || padrao, nome, tamanho: tamanhoDeclarado(m.fileLength) };
+  }
+  return null;
+}
+
+export async function baixarMidiaEvolution(c: EvolutionConfig, instancia: string, externalId: string, fetchImpl: Fetch = fetch): Promise<{ base64: string; mime: string | null; nome: string | null } | null> {
+  const r = await chamar<{ base64?: string; mimetype?: string; fileName?: string }>(c, `/chat/getBase64FromMediaMessage/${encodeURIComponent(instancia)}`, {
+    method: "POST",
+    body: JSON.stringify({ message: { key: { id: externalId } }, convertToMp4: false }),
+    signal: AbortSignal.timeout(20_000),
+  }, fetchImpl);
+  if (!r.ok) throw new Error(`A Evolution não entregou o arquivo (HTTP ${r.status})${motivo(r.data)}.`);
+  const bruto = typeof r.data?.base64 === "string" ? r.data.base64.replace(/^data:[^,]*,/, "").replace(/\s+/g, "") : "";
+  if (!bruto) return null;
+  return {
+    base64: bruto,
+    mime: typeof r.data?.mimetype === "string" ? r.data.mimetype.split(";")[0].trim().slice(0, 120) || null : null,
+    nome: typeof r.data?.fileName === "string" ? r.data.fileName.slice(0, 255) : null,
+  };
 }

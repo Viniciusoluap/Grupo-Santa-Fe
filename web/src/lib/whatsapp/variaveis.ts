@@ -1,5 +1,6 @@
 // Pedido de 25/10: as variáveis dos templates ({{nome}}, {{servico}}…) são preenchidas por destinatário
 // antes do envio. Regra pura, gêmea de Prospecta/shared/whatsapp/variaveis.ts.
+import { DOCUMENTOS_CLIENTE } from "@/lib/documentos-cliente-padrao";
 
 export const VARIAVEIS_TEMPLATE: Record<string, string> = {
   nome: "Nome do cliente",
@@ -46,6 +47,11 @@ export function listaPorExtenso(itens: string[]): string {
   return `${u.slice(0, -1).join(", ")} e ${u[u.length - 1]}`;
 }
 
+export { DOCUMENTOS_CLIENTE as DOCUMENTOS_CHECKLIST } from "@/lib/documentos-cliente-padrao";
+export function textoDocumentosMarcados(chaves: string[], livre = ""): string {
+  return listaPorExtenso([...DOCUMENTOS_CLIENTE.filter((d) => chaves.includes(d.chave)).map((d) => d.nome), livre.trim()]);
+}
+
 /** Campos preenchidos na tela: só os não vazios, aparados e com tamanho limitado. */
 export function limparExtras(extras: unknown): Record<string, string> {
   if (!extras || typeof extras !== "object") return {};
@@ -60,8 +66,8 @@ export function limparExtras(extras: unknown): Record<string, string> {
  * Texto final de cada destinatário (dados do lead + campos da tela). Se algum ficar com {{…}},
  * devolve o erro que bloqueia o envio inteiro (mesma mensagem da Prospecta).
  */
-export function textosPorDestinatario(texto: string, ids: string[], valores: Map<string, Record<string, string>>, extras: Record<string, string>) {
-  const r = new Map(ids.map((id) => [id, preencherTemplate(texto, { ...(valores.get(id) ?? {}), ...extras })]));
+export function textosPorDestinatario(texto: string, ids: string[], valores: Map<string, Record<string, string>>, extras: Record<string, string>, extrasPorLead: Record<string, Record<string, string>> = {}) {
+  const r = new Map(ids.map((id) => [id, preencherTemplate(texto, { ...(valores.get(id) ?? {}), ...limparExtras(extras), ...limparExtras(extrasPorLead[id]) })]));
   const pendentes = ids.filter((id) => r.get(id)!.faltando.length);
   const nomes = Array.from(new Set(pendentes.flatMap((id) => r.get(id)!.faltando))).map((n) => `{{${n}}}`).join(", ");
   return {

@@ -26,13 +26,46 @@ export function coordenadasSalvas(lat: unknown, lng: unknown): Coordenadas | nul
 
 /** Dados do imóvel criado para a obra (sem publicação em nenhum canal). */
 export function imovelDaObra(obra: { id: number | string; titulo: string; endereco: string | null; cidade: string | null; estado: string | null }) {
+  const deduzido = obra.cidade?.trim() ? null : cidadeEstadoDoEndereco(obra.endereco);
   return {
     titulo: `Obra — ${obra.titulo}`.slice(0, 255),
     descricao: `Ponto da obra nº ${obra.id}, criado automaticamente pela Localização exata. Não publicado.`,
     endereco: obra.endereco?.trim() || null,
-    cidade: obra.cidade?.trim() || "Não informada",
-    estado: obra.estado?.trim().slice(0, 2) || null,
+    cidade: obra.cidade?.trim() || deduzido?.cidade || "Não informada",
+    estado: obra.estado?.trim().slice(0, 2) || deduzido?.estado || null,
   };
+}
+
+const ESTADOS: Record<string, string> = {
+  acre: "AC", alagoas: "AL", amapa: "AP", amazonas: "AM", bahia: "BA", ceara: "CE", "distrito federal": "DF", "espirito santo": "ES",
+  goias: "GO", maranhao: "MA", "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG", para: "PA", paraiba: "PB",
+  parana: "PR", pernambuco: "PE", piaui: "PI", "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS",
+  rondonia: "RO", roraima: "RR", "santa catarina": "SC", "sao paulo": "SP", sergipe: "SE", tocantins: "TO",
+};
+const SIGLAS = new Set(Object.values(ESTADOS));
+const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export function cidadeEstadoDoEndereco(endereco: string | null | undefined): { cidade: string; estado: string } | null {
+  const ultimo = (endereco ?? "").split(",").pop()?.trim() ?? "";
+  if (!ultimo || /\d/.test(ultimo)) return null;
+  const valida = (cidade: string) => Boolean(cidade) && !/^(vila|jardim|jd\.?|bairro|parque|residencial|res\.|conjunto|setor|loteamento|condominio|condomínio|quadra|rua|avenida|av\.?)(\s|$)/i.test(cidade);
+  const sigla = /^(.+?)\s*(?:[/-]\s*|\s+)([A-Z]{2})$/.exec(ultimo);
+  if (sigla && SIGLAS.has(sigla[2])) return valida(sigla[1].trim()) ? { cidade: sigla[1].trim(), estado: sigla[2] } : null;
+  const normal = semAcento(ultimo);
+  for (const [nome, uf] of Object.entries(ESTADOS).sort((a, b) => b[0].length - a[0].length)) {
+    if (normal.endsWith(` ${nome}`) || normal.endsWith(`/${nome}`) || normal.endsWith(`-${nome}`)) {
+      const cidade = ultimo.slice(0, ultimo.length - nome.length).replace(/[\s/-]+$/, "").trim();
+      return valida(cidade) ? { cidade, estado: uf } : null;
+    }
+  }
+  return null;
+}
+
+export function localizacaoImovel(i: { rua?: string | null; bairro?: string | null; cidade?: string | null; estado?: string | null }): string {
+  const cidade = i.cidade && i.cidade.trim() !== "Não informada" ? i.cidade : null;
+  const nomeEstado = Object.entries(ESTADOS).find(([, uf]) => uf === i.estado)?.[0];
+  const estadoJaNoEndereco = nomeEstado && semAcento(i.rua ?? "").trim().endsWith(nomeEstado);
+  return enderecoCompleto([i.rua, i.bairro, cidade, estadoJaNoEndereco ? null : i.estado]) ?? "Não informada";
 }
 
 /**

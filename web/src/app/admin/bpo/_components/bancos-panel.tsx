@@ -96,11 +96,9 @@ export function BancosPanel({
   }
 
   // ── Pluggy — LOTE B (25/10): Client ID/Secret ficam só em Configurações › Integrações. ──
-  const [itemForm, setItemForm] = useState({ itemId: "", dataInicial: "" });
   function importarItem(itemId: string) {
-    executar(async () => exigirResultado(await importarItemPluggy({ itemId, dataInicial: itemForm.dataInicial || null })), (r) => {
+    executar(async () => exigirResultado(await importarItemPluggy({ itemId, dataInicial: null })), (r) => {
       toast.success(`${r.encontradas} conta(s) encontrada(s), ${r.criadas} cadastrada(s).`);
-      setItemForm({ itemId: "", dataInicial: "" });
     });
   }
   async function conectarMeuPluggy() {
@@ -300,15 +298,8 @@ export function BancosPanel({
           {" "}As contas conectadas no Meu Pluggy são lidas sem custo e sincronizadas todo dia.
         </p>
         {pluggy.configured && (
-          <div className="border-t border-gray-200 pt-4 space-y-3">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div><label className={rotulo}>Considerar movimentações a partir de</label><input type="date" value={itemForm.dataInicial} onChange={(e) => setItemForm((f) => ({ ...f, dataInicial: e.target.value }))} className={campo} /></div>
-              <div><label className={rotulo}>ID da conexão (itemId), se já tiver</label><input value={itemForm.itemId} onChange={(e) => setItemForm((f) => ({ ...f, itemId: e.target.value.trim() }))} className={campo} placeholder="opcional" /></div>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <button className={botaoSec} disabled={ocupado} onClick={conectarMeuPluggy}><Link2 size={11} /> Conectar banco (Meu Pluggy)</button>
-              <button className={botaoSec} disabled={itemForm.itemId.length < 8 || ocupado} onClick={() => importarItem(itemForm.itemId)}>Buscar contas deste ID</button>
-            </div>
+          <div className="border-t border-gray-200 pt-4">
+            <button className={botaoSec} disabled={ocupado} onClick={conectarMeuPluggy}><Link2 size={11} /> Conectar conta Pluggy</button>
           </div>
         )}
       </div>
