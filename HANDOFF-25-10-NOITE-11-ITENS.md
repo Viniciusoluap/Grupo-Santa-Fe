@@ -9,14 +9,18 @@ Branch: `claude/sync-mirrored-repos-bsqnz3` nos 2 repos.
 - bpo_clients = 0 (cadastro falhando). bank_transactions sem titular (reimportar extrato após correção).
 
 ## Andamento
-- [ ] Prospecta Agente A: BPO (itens 8, 9, 10, 11) + Regularização (6, 7) — migração 0075
-- [ ] Prospecta Agente B: WhatsApp (1, 2, 4 + botão flutuante) + Imóveis (3) + Sarah (5) — migração 0076
-- [ ] Itens 12 (opção B: admin conecta em Integrações; corretor no portal dele) → Agente B; 13 (Voltar → Painel) e 14 (cobranças emitidas do Asaas) → Agente A — autorizados 25/10 20:45
-- [ ] Santa Fé porte (mesmos itens)
+- [x] Prospecta: implementação concluída e salva até `5a8f6b4`; `check` e `build` aprovados; 147 arquivos/1.087 testes aprovados na revalidação de 26/10.
+- [x] Prospecta: BPO/Regularização (itens 6–11, 13 e 14) e WhatsApp/Imóveis/Sarah (itens 1–5 e 12) concluídos nas migrações 0075/0076.
+- [ ] Santa Fé: porte iniciado em 26/10 a partir do checkpoint remoto `b55c80a`, após confirmar que a branch continha somente plano e handoff.
 - [ ] Publicação (testes, migrações prod, PRs, merge, deploy) + dados (16 imóveis, Sarah)
 
 ## Próximo passo exato
-Ver lista acima; cada agente reporta arquivos e testes; Claude revisa, commita, atualiza este arquivo e faz push.
+Portar primeiro banco/BPO/Regularização para o Santa Fé, testar, atualizar este handoff e fazer push. Depois portar WhatsApp/Imóveis/Sarah e repetir o checkpoint. Não aplicar migrações nem alterar dados de produção antes da validação final.
+
+## Retomada pelo Codex — 26/10
+- Branches remotas conferidas antes de editar: Prospecta `5a8f6b4`; Santa Fé `b55c80a`.
+- Não havia PR aberto para o lote e não havia código do porte Santa Fé salvo no GitHub.
+- Regra de continuidade: atualizar este arquivo e fazer commit/push ao término de cada bloco, conferindo o SHA remoto.
 
 ## Registro
 - Asaas: dono criou a conta no BPO (data inicial 01/01/2020); 566 movimentações sincronizadas (2022-06 a 2026-10), todas viraram lançamentos; saldo real 0,00.
