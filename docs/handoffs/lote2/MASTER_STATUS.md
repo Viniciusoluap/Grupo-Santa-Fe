@@ -153,3 +153,17 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - Redeploy de verificação em andamento: dpl_DRVTiYxkZRXPm4BHbwBVwa2HXBXy, SHA Prospecta 8a53fa1. O bloqueio de autorização anterior está resolvido. Conferir /api/health e guardas de acesso após READY.
 - PRs #174 / #237 continuam com histórico preservado. Testes automáticos e migrações documentados anteriormente são reaproveitados; nenhum código funcional foi alterado nesta retomada.
 - Próximos: verificação de runtime do preview, conferir checks dos PRs, merge autorizado, acompanhar deploys de produção e registrar smoke/limitações. Não afirmar aceite visual/PWA/upload real sem evidência.
+
+## Checkpoint de publicação — 27/10
+- Prospecta: preview respondeu HTTP200 em /api/health, `{ok:true,db:connected}`; /api/trpc/auth.me respondeu normalmente com sessão nula (sem autenticação). O erro DATABASE_URL ausente foi resolvido.
+- Builds dos heads de revisão confirmados READY na Vercel. O status agregado GitHub Prospecta ainda mostrava pending para um deployment já READY; o build foi conferido diretamente na Vercel, sem alterar ou simular checks.
+- PR Santa Fé #237 mergeado, commit b560071bcab22c2ff11279f21d29908ccbf062ac; deployment de produção dpl_g5Lxy3DYQYgWcXTQ6HBWeHvUzR4h iniciado. Rollback anterior SF: dpl_HN3NqGBwxpXxpTT62HzouSxwHi1B, SHA94f7b5d.
+- Próximo: confirmar merge Prospecta e deploys finais READY, smoke de produção e atualização definitiva do handoff. Testes visuais/autenticados completos ainda não são dados como aprovados.
+
+## Merge autorizado concluído nos dois sistemas
+- Prospecta PR174: merge e1711560b76bc7ef51d44ac145deeb1018963fe7; deployment de produção iniciado dpl_CF9QkSyeMZZhZAwxD936sC2arfxY.
+- Santa Fé PR237: merge b560071bcab22c2ff11279f21d29908ccbf062ac; deployment de produção iniciado dpl_g5Lxy3DYQYgWcXTQ6HBWeHvUzR4h.
+- Branches e histórico preservados. Nenhum reset, force push ou remoção de dados. As migrações aditivas já aplicadas foram reaproveitadas.
+- Aceite desta retomada: saúde do preview Prospecta HTTP200/banco conectado; build READY. Sem nova alteração funcional. Builds de produção em acompanhamento; ainda não afirmar publicação concluída neste checkpoint.
+- Guardas de download no preview não puderam ser confirmadas pelo fetch da Vercel: ferramenta tratou o 401 como proteção de deployment; o fallback HTTP chegou à tela SSO. Não contar isso como teste funcional autenticado.
+- Próximo: confirmar READY e domínios dos deploys de produção, conferir saúde/acesso público e guardar evidência/limitações no handoff final.
