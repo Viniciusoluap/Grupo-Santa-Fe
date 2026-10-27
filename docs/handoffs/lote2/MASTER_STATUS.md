@@ -79,3 +79,11 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - Preservado código/histórico do lançamento legado; inventário exige conciliar vendas antigas antes de operações. CRM só para quem também tem permissão CRM.
 - Ainda pendente nesta frente: testes SQL de idempotência/tombstone/concorrência e ações SF; revisão de bloqueios comerciais; preço negociado do CRM não tem campo próprio equivalente nos dois bancos (não usar valor aprovado/simulado como preço de venda). Nome e vínculo CRM estão implementados; preço continua editável.
 - Próximo passo imediato: terminar testes desta frente, revisar transações e migrações; não aplicar em produção antes disso. Depois redesign09, regressão e integração com main.
+
+### Retomada após renovação do ambiente — 27/10
+- Checkpoints GitHub recuperados: Prospecta 9cea25f / Santa Fé b413c80; nenhuma branch anterior sobrescrita.
+- Recuperado o ajuste do controle de concorrência das unidades: revisão inteira incrementada por trigger (independente de timezone), em vez de comparar datas; testes de persistência já haviam identificado e isolado o caso.
+- Recuperados também: bloqueio de edição com vendas legadas pendentes, restauração de orçamento importado com lista construída vazia e comparação byte a byte de PCI de 8 MB via Buffer.compare (mesma exigência, sem estouro de memória do deep-equal).
+- Última rodada anterior: 158 suítes Prospecta passaram; um worker no teste PCI de 8 MB estourou heap, caso isolado passou 4/4 após Buffer.compare. SF: 125 passaram, 21 ignoradas por ausência de TEST_DATABASE_URL; mesmo caso de 8 MB passou isolado. Os resultados finais precisam ser novamente registrados por comando/commit nesta retomada.
+- Neon: nova branch de teste recusada por limite de branches. Branch de testes existente teste-migrations-0024-0026 (br-cold-feather-an7ecnay) consultada, ainda sem unidades; nenhuma migração de produção aplicada.
+- Próximo passo: restaurar/validar testes SQL e acabamento visual, integrar origin/main, publicar checkpoints, testar migrações na branch existente sem reset/descarte, então produção/deploy.

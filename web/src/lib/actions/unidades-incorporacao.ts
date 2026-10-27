@@ -117,12 +117,14 @@ export async function clientesUnidades(query = "") {
 export async function sincronizarUnidades(estudoId: string) {
   return capturarErroAcao(async () => { const u = await admin(); const r = await sincronizarUnidadesCenario(estudoId, u); revalidatePath(`/admin/incorporacao/${estudoId}`); return r; });
 }
-export async function editarUnidade(estudoId: string, unidadeId: string, d: { status: "disponivel" | "reservada" | "vendida"; comprador: string | null; compradorLeadId: string | null; valor: string | null; esperadoEm: string }) {
+export async function editarUnidade(estudoId: string, unidadeId: string, d: { status: "disponivel" | "reservada" | "vendida"; comprador: string | null; compradorLeadId: string | null; valor: string | null; revisao: number }) {
   return capturarErroAcao(async () => {
     const usuarioId = await admin();
     if (!["disponivel", "reservada", "vendida"].includes(d.status)) throw new Error("Status inválido.");
     if (d.valor !== null && (!/^\d{1,13}(\.\d{1,2})?$/.test(d.valor) || Number(d.valor) <= 0)) throw new Error("Valor inválido.");
-    if (!Number.isFinite(new Date(d.esperadoEm).getTime())) throw new Error("Versão inválida.");
+    if (!Number.isInteger(d.revisao) || d.revisao < 0) throw new Error("Versão inválida.");
+    const legacy = await listarUnidadesImpl(estudoId);
+    if (legacy.legacyInvalid || legacy.legacyPending.length) throw new Error("Concilie as vendas históricas antes de alterar o inventário.");
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM estudos_incorporacao WHERE id = ${estudoId} FOR UPDATE`;
       const atual = await tx.estudoUnidade.findFirst({ where: { id: unidadeId, estudoId, excluidoEm: null } });
@@ -135,8 +137,7 @@ export async function editarUnidade(estudoId: string, unidadeId: string, d: { st
         if (!lead) throw new Error("Cliente do CRM não encontrado."); comprador = lead.nome;
       }
       if (d.status === "vendida" && (!comprador || !d.valor)) throw new Error("Informe comprador e valor para vender.");
-      const inicio = new Date(d.esperadoEm); const fim = new Date(inicio.getTime() + 1);
-      const r = await tx.estudoUnidade.updateMany({ where: { id: unidadeId, estudoId, excluidoEm: null, atualizadoEm: { gte: inicio, lt: fim } }, data: { status: d.status, comprador, compradorLeadId: d.compradorLeadId, valorVenda: d.valor } });
+      const r = await tx.estudoUnidade.updateMany({ where: { id: unidadeId, estudoId, excluidoEm: null, revisao: d.revisao }, data: { status: d.status, comprador, compradorLeadId: d.compradorLeadId, valorVenda: d.valor } });
       if (r.count !== 1) throw new Error("A unidade mudou em outra sessão. Atualize antes de salvar.");
       await tx.estudoUnidadeEvento.create({ data: { unidadeId, statusAnterior: atual.status, statusNovo: d.status, comprador, valorVenda: d.valor, usuarioId } });
     });

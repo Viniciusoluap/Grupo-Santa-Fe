@@ -40,7 +40,7 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
     if (estudo.orcamentoParametrizadoJson) {
       try {
         const salvo = JSON.parse(estudo.orcamentoParametrizadoJson) as Partial<PremissasOrcamentoParametrizado>;
-        if (salvo.itens?.length) return { ...defaults(), ...salvo };
+        if (Array.isArray(salvo.itens) || salvo.metodo) return { ...defaults(), ...salvo };
       } catch { /* JSON corrompido → defaults */ }
     }
     const base = defaults();

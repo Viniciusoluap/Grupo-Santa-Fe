@@ -1234,6 +1234,7 @@ model EstudoUnidade {
   status       String                @default("disponivel") @db.VarChar(20)
   compradorLeadId String?
   compradorLead Lead? @relation("CompradorUnidade", fields: [compradorLeadId], references: [id], onDelete: SetNull)
+  revisao Int @default(0)
   origemChave String? @db.VarChar(255)
   cenarioId String? @db.VarChar(120)
   excluidoEm DateTime?
