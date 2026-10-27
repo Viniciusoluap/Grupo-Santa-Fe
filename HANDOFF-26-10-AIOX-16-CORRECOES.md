@@ -79,3 +79,8 @@ Concluir a paridade de WhatsApp e BPO, finalizar a Correção 16, adicionar test
   PR #234 em `main` (cópia guardada fora do repositório, por segurança).
 - Commits locais do Codex posteriores a `edea685` (ex.: lacuna WhatsApp Santa Fé) não chegaram ao GitHub.
 - Aguardando o prompt mestre (01–16) do dono para a matriz de lacunas.
+
+## Checkpoint Claude — 27/10/2026 (prompt mestre versionado + matriz)
+- Prompt mestre salvo em `web/docs/stories/epics/epic-009-aiox-16-correcoes/PROMPT-MESTRE-26-10.md`; matriz preliminar em `MATRIZ-16-CORRECOES.md`.
+- Aguardando o Codex publicar os commits locais pendentes de `codex/aiox-16-correcoes-20261026` (opção 1 do dono).
+- Próximo passo: trazer o novo HEAD do Codex, reauditar e seguir FASE 2 → 3 → 4 com paridade Prospecta.
