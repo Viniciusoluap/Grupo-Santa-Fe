@@ -1,5 +1,16 @@
 # HANDOFF 26/10 — AIOX, 16 correções
 
+## Checkpoint final de publicação — 27/10/2026
+
+- Main entregue: 94f7b5db61404f9f95d9ba2a84bb748b032948ff; PR final #236 mergeado (lote principal anterior Prospecta #172 / Santa Fé #235).
+- Deploy de produção confirmado READY: dpl_HN3NqGBwxpXxpTT62HzouSxwHi1B; SHA conferido pelo conector Vercel.
+- Correções 01–16 implementadas e migradas. Matriz individual em docs/handoff/IMPLEMENTATION_STATUS.md registra testes e limitações; não confundir implementação com aceite integral em dispositivos físicos.
+- PWA v2 publicado nos dois. Após atualização, novo acesso ao domínio www.prospectaconstrucoes.com carregou Central WhatsApp autenticada, conversas distintas e seis templates persistidos com Novo template/Editar; sem aba Histórico. Nenhuma mensagem enviada ou registro alterado no smoke.
+- Santa Fé: página pública carregou e consultou imóveis; acesso administrativo solicita login. Não havia sessão autenticada disponível.
+- Nenhum dado financeiro real foi apagado ou usado como baixa de teste. Backups permanecem em aiox_backup_20261027. Contagens preservadas: Prospecta 1.011 lançamentos, Santa Fé 5.
+- Validações restantes: iPhone/Android físicos/PWA instalado; fluxo autenticado Santa Fé; upload real de projeto/documento; próximo extrato Cora real; movimentações Pluggy quando a API disponibilizar dados. Não repetir implementação nem migrações para executar estes aceites.
+- Continuidade: este commit documental fica na branch de trabalho pós-merge, com SHAs de produção acima. Confirmar main remoto e ler matriz antes de continuar; não executar db:push/prisma migrate automaticamente em históricos divergentes.
+
 ## Smoke e proteção PWA pós-deploy — 27/10/2026
 
 - Ambos os merges/deploys iniciais estão READY: Prospecta #172 / 66c064b7; Santa Fé #235 / 8e809239.
