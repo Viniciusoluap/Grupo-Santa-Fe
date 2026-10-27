@@ -52,7 +52,19 @@ Este é o ponto de retomada do trabalho iniciado no Claude. Repositórios: Prosp
 
 ## Próximo passo exato
 
+**Atualização prioritária:** o login falhou antes de validar credenciais porque o preview está sem DATABASE_URL. A revisão automática recusou transferir a conexão do banco Neon de testes à Vercel sem autorização específica. Nenhuma variável criada. Aguardar a resposta à pergunta de autorização; depois configurar apenas o preview desta branch e redeployar, conferir runtime e então seguir os passos abaixo. Não contornar a recusa.
+
 1. Autenticar no preview Prospecta via formulário seguro do navegador. URL de login observada: https://site-prospecta-a8tdd819d-viniciusoluaps-projects.vercel.app/login . Não há credenciais armazenadas neste documento.
 2. Verificar manualmente as correções do prompt com dados de teste claramente identificados e sem alterar vendas reais; repetir equivalência SF. Registrar o que passou e o que não passou.
 3. Conferir PRs/checks/main atual, concluir critérios, tirar PRs de rascunho e fazer merge autorizado (sem pedir autorização outra vez), acompanhar deploy de produção e smoke.
 4. Atualizar handoffs, commit/push e confirmar SHA remoto a cada etapa. Não declarar o lote inteiro concluído enquanto esses aceites estiverem pendentes.
+
+### Bloqueio vigente — ambiente de preview (27/10)
+- O formulário seguro de login foi submetido, mas a aplicação permaneceu em `/login` com "CRM temporariamente indisponível". NÃO é evidência de senha incorreta ou login bem-sucedido.
+- Diagnóstico confirmado nos logs Vercel do deployment `dpl_3EqisPsuCDRFd2r3KkXxGpdrLK8o`: `DATABASE_URL is not set`, em `ensureLeadCardDeadlineSchema`, antes da validação de credenciais. O build READY não garantia runtime configurado. Produção não apresentou esse erro nesta verificação, que foi exclusiva do preview.
+- Metadata de envs: `DATABASE_URL` só está definida para produção/dev e algumas outras branches; falta na branch atual. JWT tem valor global, mas recomenda-se isolamento próprio do preview ao configurar o ambiente.
+- Preparada configuração estrita de teste: Neon projeto `plain-cake-26372935`, branch existente `br-cold-feather-an7ecnay`, banco `neondb`; destino Vercel projeto `prj_hVT5OCL8S5GbJ5L0GArH9aDxbFHR`, variável `DATABASE_URL` tipo sensitive, target preview e gitBranch `codex/continuar-lote2-20261027`. NÃO usar banco de produção no preview. Nenhuma credencial consta neste handoff.
+- **A revisão automática rejeitou o cadastro da variável**: transferir credencial de banco à Vercel exige autorização explícita dessa credencial/destino; a autorização geral da tarefa não foi considerada suficiente. A variável NÃO foi criada, JWT NÃO foi alterado e NÃO houve redeploy dessa configuração. Não contornar por CLI, proxy ou cópia de segredos de produção.
+- Pergunta enviada ao dono: autoriza cadastrar a conexão da branch Neon de testes como segredo na Vercel, apenas no preview desta branch? Aguardar essa autorização específica antes da transferência; então configurar, redeploy e conferir runtime, antes de pedir autenticação novamente.
+- Banco de teste contém 1 usuário/67 leads/1 estudo e recebeu as migrações do lote. É uma base de teste anterior; conferir compatibilidade dos demais campos necessários antes dos E2E. Não criar sessão artificial nem substituir credenciais para conseguir acesso.
+- PRs permanecem rascunho (#174 P, #237 SF). Merge/deploy final e aceite autenticado continuam pendentes. Trabalho de código e migrações de produção já preservados. Próximo passo vigente é resolver este bloqueio de configuração, e só depois o login/aceite visual.
