@@ -19,6 +19,7 @@ export function validateProjectUpload(name: string, size: number, kind: string) 
   if (!Number.isSafeInteger(size) || size <= 0 || size > PROJECT_UPLOAD_LIMIT) throw new Error("Envie um arquivo de até 300 MB.");
   if (kind !== "editable" && kind !== "pdf") throw new Error("Escolha arquivo editável ou PDF.");
   if (kind === "pdf" && !/\.pdf$/i.test(name)) throw new Error("Nesta opção envie um arquivo PDF.");
+  if (kind === "editable" && /\.pdf$/i.test(name)) throw new Error("Envie o arquivo fonte editável nesta opção; o PDF pertence ao campo PDF.");
 }
 
 const extensionFrom = (name: string, mime: string) => {

@@ -69,7 +69,11 @@ export function limparExtras(extras: unknown): Record<string, string> {
  * devolve o erro que bloqueia o envio inteiro (mesma mensagem da Prospecta).
  */
 export function textosPorDestinatario(texto: string, ids: string[], valores: Map<string, Record<string, string>>, extras: Record<string, string>, extrasPorLead: Record<string, Record<string, string>> = {}) {
-  const r = new Map(ids.map((id) => [id, preencherTemplate(texto, { ...(valores.get(id) ?? {}), ...limparExtras(extras), ...limparExtras(extrasPorLead[id]) })]));
+  const r = new Map(ids.map((id) => {
+    const escolhidos = { ...limparExtras(extras), ...limparExtras(extrasPorLead[id]) };
+    return [id, preencherTemplate(texto, { ...(valores.get(id) ?? {}), ...escolhidos,
+      servico: escolhidos.servico || "", servicos: escolhidos.servicos || "" })];
+  }));
   const pendentes = ids.filter((id) => r.get(id)!.faltando.length);
   const nomes = Array.from(new Set(pendentes.flatMap((id) => r.get(id)!.faltando))).map((n) => `{{${n}}}`).join(", ");
   return {

@@ -750,6 +750,12 @@ model BpoLancamento {
   categoria                 String?
   /// Categoria usada no fluxo operacional (ex.: despesa de obra); independente da contábil.
   categoriaOperacional      String?
+  vinculoOperacionalId      String?
+  vinculoOperacionalRotulo  String?
+  tipoDespesaObra           String?
+  requestKey                String?                    @unique
+  origemEfetiva             String                     @default("manual")
+  origemTransacaoKey        String?                    @unique
   categoriaContabil         String?
   etapa                    String? // chave de SERVICOS_PROGRESSO quando a despesa pertence à obra
   version                   Int                        @default(1)

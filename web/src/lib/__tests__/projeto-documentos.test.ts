@@ -18,6 +18,7 @@ describe("documentos de projetos", () => {
     expect(() => validateProjectUpload("projeto.dwg", PROJECT_UPLOAD_LIMIT + 1, "editable")).toThrow();
     expect(() => validateProjectUpload("../arquivo.dwg", 10, "editable")).toThrow();
     expect(() => validateProjectUpload("projeto.dwg", 10, "pdf")).toThrow();
+    expect(() => validateProjectUpload("projeto.pdf", 10, "editable")).toThrow();
   });
 
   it("gera nome canônico versionado e preserva a extensão", () => {

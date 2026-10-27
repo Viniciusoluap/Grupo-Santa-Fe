@@ -236,13 +236,26 @@ export type PreviaImportacao = {
   saldo: SaldoExtrato | null;
 };
 
+async function chavesCompativeisImportacao(contaId: string, linhas: LinhaExtrato[]) {
+  const atuais = chavesImportacao(contaId, linhas, sha);
+  if (!linhas.some(l => l.identificadorBancario)) return atuais;
+  const legadas = chavesImportacao(contaId, linhas.map(l => ({ ...l, identificadorBancario: undefined })), sha);
+  const encontradas = new Set<string>();
+  const todas = [...atuais, ...legadas];
+  for (let i = 0; i < todas.length; i += 500) {
+    const rows = await prisma.transacaoBancaria.findMany({ where: { externalId: { in: todas.slice(i, i + 500) } }, select: { externalId: true } });
+    rows.forEach(r => r.externalId && encontradas.add(r.externalId));
+  }
+  return atuais.map((key, i) => encontradas.has(key) ? key : encontradas.has(legadas[i]) ? legadas[i] : key);
+}
+
 export async function previaImportacao(contaId: string, nome: string, conteudo: Buffer, anoPadrao?: number): Promise<PreviaImportacao> {
   const conta = await prisma.contaBancaria.findUnique({ where: { id: contaId }, select: { id: true, dataInicial: true } });
   if (!conta) throw new Error("Conta não encontrada.");
   const lido = await lerArquivoExtrato(nome, conteudo, anoPadrao);
   const dataInicial = dataIsoDaConta(conta.dataInicial);
   const { mantidas, antesDaDataInicial } = aplicarDataInicial(lido.linhas, dataInicial);
-  const chaves = chavesImportacao(conta.id, mantidas, sha);
+  const chaves = await chavesCompativeisImportacao(conta.id, mantidas);
   const existentes = new Set<string>();
   for (let i = 0; i < chaves.length; i += 500) {
     const r = await prisma.transacaoBancaria.findMany({ where: { externalId: { in: chaves.slice(i, i + 500) } }, select: { externalId: true } });
@@ -263,7 +276,7 @@ export async function confirmarImportacao(contaId: string, linhas: LinhaExtrato[
   if (!conta) throw new Error("Conta não encontrada.");
   // Mesmas chaves da prévia: filtra pela data inicial antes de numerar as ocorrências.
   const { mantidas, antesDaDataInicial } = aplicarDataInicial(linhas, dataIsoDaConta(conta.dataInicial));
-  const chaves = chavesImportacao(conta.id, mantidas, sha);
+  const chaves = await chavesCompativeisImportacao(conta.id, mantidas);
   const r = await gravarMovimentos(conta, mantidas.map((l, i) => ({ ...l, externalId: chaves[i] })), "importacao");
   // LOTE C: saldo do arquivo (ou soma das movimentações) atualizado após importar.
   const saldoAtual = await recalcularSaldoConta(conta.id, saldo);

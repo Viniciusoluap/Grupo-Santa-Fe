@@ -119,8 +119,9 @@ export function lerOfx(texto: string): ResultadoLeitura {
     const tipoOfx = campo(bloco, "TRNTYPE").toUpperCase();
     const assinado = valor !== null && valor > 0 && tipoOfx === "DEBIT" ? -valor : valor;
     const memo = campo(bloco, "MEMO"), nome = campo(bloco, "NAME");
-    const titular = nome && !SO_TIPO.test(nome) ? nome : extrairTitular(memo || nome);
+    const titular = nome && !SO_TIPO.test(sem(nome)) ? nome : extrairTitular(memo || nome);
     const l = linha(dataIso(campo(bloco, "DTPOSTED")), memo || nome, assinado, { titular, original: [nome, memo].filter(Boolean).join(" | ") });
+    if (l && campo(bloco, "FITID")) l.identificadorBancario = campo(bloco, "FITID").slice(0, 255);
     if (l) linhas.push(l); else ignoradas++;
   }
   // LOTE C: saldo do extrato (<LEDGERBAL><BALAMT>…<DTASOF>…).

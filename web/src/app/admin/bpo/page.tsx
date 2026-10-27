@@ -6,11 +6,13 @@ import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
+import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
 
 const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
 
 export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
   await exigirModuloPagina("bpo");
+  const catalogoOperacional = await catalogoOperacionalBpo();
 
   const [
     lancamentos,
@@ -146,7 +148,11 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     centroCustos: l.centroCustos,
     categoria: l.categoria,
     categoriaContabil: l.categoriaContabil ?? l.categoria,
-    categoriaOperacional: l.categoriaOperacional ?? l.etapa,
+    categoriaOperacional: l.categoriaOperacional,
+    vinculoOperacionalId: l.vinculoOperacionalId,
+    vinculoOperacionalRotulo: l.vinculoOperacionalRotulo,
+    tipoDespesaObra: l.tipoDespesaObra,
+    etapa: l.etapa,
     version: l.version,
     doExtrato: Boolean(l.transacaoId),
   }));
@@ -186,5 +192,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient catalogoOperacional={catalogoOperacional} lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
 }

@@ -47,6 +47,7 @@ WITH repetidos AS (
 DELETE FROM "bpo_clientes" b USING duplicados d WHERE b."id" = d."id";
 
 CREATE UNIQUE INDEX IF NOT EXISTS "bpo_clientes_leadId_key" ON "bpo_clientes"("leadId");
-ALTER TABLE "bpo_clientes" DROP COLUMN IF EXISTS "servicos";
+-- Campo legado mantido fisicamente para recuperação; não aparece na UI nem no modelo Prisma.
+-- A remoção do formulário não exige apagar informação histórica.
 ALTER TABLE "bpo_cliente_migracao_backup" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "bpo_cliente_migracao_backup" FORCE ROW LEVEL SECURITY;

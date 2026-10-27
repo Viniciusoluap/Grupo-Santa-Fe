@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS "whatsapp_templates" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "whatsapp_templates_slug_key" ON "whatsapp_templates"("slug");
 CREATE INDEX IF NOT EXISTS "whatsapp_templates_finalidade_ativo_idx" ON "whatsapp_templates"("finalidade", "ativo");
+-- O acesso é feito exclusivamente pelo servidor Prisma, com autorização de perfil.
+ALTER TABLE "whatsapp_templates" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE "whatsapp_templates" FROM anon, authenticated;
 
 INSERT INTO "whatsapp_templates" ("id", "slug", "nome", "finalidade", "conteudo") VALUES
 ('padrao-captacao','captacao','Boas-vindas ao lead','Captação',E'Olá, {{nome}}! Tudo bem?\n\nSou {{corretor}}, do Grupo Santa Fé.\n\nRecebemos seu contato e será um prazer ajudar você a encontrar a melhor solução para seu objetivo. Nosso atendimento é personalizado, e quero entender melhor sua necessidade para apresentar as possibilidades mais adequadas e orientar você durante todo o processo.\n\nPodemos começar com algumas perguntas rápidas?'),

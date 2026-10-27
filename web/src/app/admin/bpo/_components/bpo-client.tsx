@@ -19,8 +19,9 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
 import { CATEGORIAS_BPO, ehDespesa, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
-import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
+import { CamposOperacionais } from "./campos-operacionais";
+import { ROTULOS_OPERACIONAIS, type CatalogoBpo } from "@/lib/bpo-operacional";
 
 export interface LancamentoComCliente {
   id: string;
@@ -39,6 +40,10 @@ export interface LancamentoComCliente {
   categoria: string | null;
   categoriaContabil: string | null;
   categoriaOperacional: string | null;
+  vinculoOperacionalId?: string | null;
+  vinculoOperacionalRotulo?: string | null;
+  tipoDespesaObra?: string | null;
+  etapa?: string | null;
   version: number;
   doExtrato: boolean;
 }
@@ -93,6 +98,7 @@ interface RelatoriosData {
 }
 
 interface Props {
+  catalogoOperacional: CatalogoBpo;
   lancamentos: LancamentoComCliente[];
   dre: LinhaDre[];
   contabilidade: ResumoContabil & { ano: string };
@@ -309,7 +315,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+export function BpoClient({ catalogoOperacional, lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
@@ -333,7 +339,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
     startTransition(async () => {
       try {
         const resumo = await importarClientesCrmBpo();
-        setModalFeedback(`CRM: ${resumo.encontradasNoCrm} lead(s) analisado(s), ${resumo.criadas} importado(s), ${resumo.jaImportadas} já estavam vinculados.`);
+        setModalFeedback(`CRM: ${resumo.encontradasNoCrm} analisado(s), ${resumo.criadas} importado(s), ${resumo.atualizadas} atualizado(s), ${resumo.inalteradas} sem alteração e ${resumo.conflitos} conflito(s) de documento para revisão.`);
         router.refresh();
       } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao importar clientes do CRM."); }
     });
@@ -346,7 +352,8 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
     const form = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoria: String(form.get("categoria")), categoriaContabil: String(form.get("categoria")), categoriaOperacional: String(form.get("categoriaOperacional")) || null, clienteId: String(form.get("clienteId")) || null, clienteNomeLivre: String(form.get("clienteNomeLivre")) || null, centroCustos: String(form.get("centroCustos")) || null });
+        const campo = (nome: string) => String(form.get(nome) ?? "") || null;
+        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoria: String(form.get("categoria")), categoriaContabil: String(form.get("categoria")), categoriaOperacional: campo("categoriaOperacional"), vinculoOperacionalId: campo("vinculoOperacionalId"), tipoDespesaObra: campo("tipoDespesaObra"), etapa: campo("etapa"), clienteId: campo("clienteId"), clienteNomeLivre: campo("clienteNomeLivre"), centroCustos: campo("centroCustos") });
         setModalFeedback("Lançamento atualizado e auditado.");
         setLancamentoEditando(null);
         router.refresh();
@@ -487,8 +494,9 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p>
                     {(l.categoriaContabil || l.categoriaOperacional || l.doExtrato) && (
-                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoriaContabil ?? l.categoria ?? ""}{l.categoriaOperacional ? ` · ${SERVICOS_PROGRESSO.find((s) => s.chave === l.categoriaOperacional)?.nome ?? l.categoriaOperacional}` : ""}{l.doExtrato ? " · extrato bancário" : ""}</p>
+                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoriaContabil ?? l.categoria ?? ""}{l.categoriaOperacional ? ` · ${ROTULOS_OPERACIONAIS[l.categoriaOperacional] ?? l.categoriaOperacional}` : ""}{l.doExtrato ? " · extrato bancário" : ""}</p>
                     )}
+                    {l.vinculoOperacionalId && l.categoriaOperacional && (() => { const chave = ehDespesa(l.tipo) && l.categoriaOperacional === "comissoes" ? "imoveis" : l.categoriaOperacional; const registro = catalogoOperacional[chave]?.find((r) => r.id === l.vinculoOperacionalId); return registro ? <Link className="text-xs text-blue-700 underline" href={registro.href}>{l.vinculoOperacionalRotulo ?? registro.rotulo}</Link> : <span className="text-xs text-gray-500">{l.vinculoOperacionalRotulo}</span>; })()}
                   </td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500 hidden sm:table-cell">{l.competencia}</td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500">{new Date(l.vencimento).toLocaleDateString("pt-BR")}</td>
@@ -792,7 +800,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
               <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
               <label className="block text-xs font-bold text-gray-500 uppercase">Categoria contábil<select name="categoria" defaultValue={lancamentoEditando.categoriaContabil ?? lancamentoEditando.categoria ?? "Outros"} className="mt-1 w-full border px-3 py-2 text-sm normal-case">{CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
             </div>
-            <label className="block text-xs font-bold text-gray-500 uppercase">Categoria operacional / módulo<select name="categoriaOperacional" defaultValue={lancamentoEditando.categoriaOperacional ?? ""} disabled={!ehDespesa(lancamentoEditando.tipo)} className="mt-1 w-full border px-3 py-2 text-sm normal-case"><option value="">Sem módulo</option>{SERVICOS_PROGRESSO.map((s) => <option key={s.chave} value={s.chave}>{s.nome}</option>)}</select></label>
+            <CamposOperacionais key={lancamentoEditando.id} tipo={lancamentoEditando.tipo} catalogo={catalogoOperacional} inicial={lancamentoEditando} obrigatorio={false}/>
             <label className="block text-xs font-bold text-gray-500 uppercase">Centro de custos<input name="centroCustos" defaultValue={lancamentoEditando.centroCustos ?? ""} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
@@ -835,6 +843,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
             {modalTipo === "cobranca" && (
               <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
                 <input type="hidden" name="tipo" value="cobranca" />
+                <CamposOperacionais tipo="cobranca" catalogo={catalogoOperacional}/>
 
                 {/* Client: BPO client or lead */}
                 <div>
@@ -909,7 +918,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setModalTipo(null)}
                     className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
-                  <button type="submit" disabled={isPending || (!leadSelectedId && !leadSelectedNome)}
+                  <button type="submit" disabled={isPending}
                     className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
                     {isPending ? "Salvando..." : "Criar Cobrança"}
                   </button>
@@ -921,6 +930,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
             {modalTipo === "despesa" && (
               <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
                 <input type="hidden" name="tipo" value="despesa" />
+                <CamposOperacionais tipo="despesa" catalogo={catalogoOperacional}/>
                 {/* Client: BPO client or lead */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente / Referência *</label>
@@ -965,13 +975,6 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria operacional / módulo da obra</label>
-                  <select name="categoriaOperacional" defaultValue="" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                    <option value="">Sem vínculo com módulo</option>
-                    {SERVICOS_PROGRESSO.map((s) => <option key={s.chave} value={s.chave}>{s.nome}</option>)}
-                  </select>
-                </div>
-                <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Centro de Custos</label>
                   <input name="centroCustos" type="text" placeholder="Ex: Administrativo, BPO, Obras..."
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
@@ -1001,7 +1004,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setModalTipo(null)}
                     className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
-                  <button type="submit" disabled={isPending || (!leadSelectedId && !leadSelectedNome)}
+                  <button type="submit" disabled={isPending}
                     className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
                     {isPending ? "Salvando..." : "Registrar Despesa"}
                   </button>

@@ -1,5 +1,6 @@
 "use server";
-import { exigirModuloAcao } from "@/lib/auth/modulos";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { preservarLancamentoNaLimpeza } from "@/lib/bpo-limpeza";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { capturarErroAcao, exigirResultado } from "@/lib/acao-resultado";
@@ -182,7 +183,7 @@ export async function previaLimpezaContaBancaria(id: string) {
     if (!conta) throw new Error("Conta não encontrada.");
     const transacoes = await prisma.transacaoBancaria.findMany({ where: { contaId: id }, include: { lancamento: { include: { movimentosObra: { select: { id: true } }, recebimentosRegularizacao: { select: { id: true } } } } } });
     const lancamentos = transacoes.flatMap((t) => t.lancamento ? [t.lancamento] : []);
-    const preservar = (l: typeof lancamentos[number]) => Boolean(l.asaasPaymentId || l.movimentosObra.length || l.recebimentosRegularizacao.length);
+    const preservar = preservarLancamentoNaLimpeza;
     const rotulo = [conta.descricao || conta.banco, conta.conta].filter(Boolean).join(" · ");
     return { contaId: conta.id, rotulo, transacoes: transacoes.length,
       lancamentosRemovidos: lancamentos.filter((l) => !preservar(l)).length,
@@ -194,6 +195,7 @@ export async function previaLimpezaContaBancaria(id: string) {
 /** Backup e limpeza atômicos. A conta fica inativa; credenciais nunca entram no snapshot. */
 export async function excluirContaBancaria(id: string, confirmarRotulo?: string) {
   return capturarErroAcao(async () => {
+    const administrador = await exigirAdminAtivo();
     await exigirModuloAcao("bpo", { somenteEquipe: true });
     const p = exigirResultado(await previaLimpezaContaBancaria(id));
     if (!confirmarRotulo || confirmarRotulo.trim() !== p.rotulo) throw new Error("Digite exatamente o nome da conta exibido na prévia para confirmar.");
@@ -202,15 +204,17 @@ export async function excluirContaBancaria(id: string, confirmarRotulo?: string)
       if (!conta) throw new Error("Conta removida ou alterada. Atualize a prévia.");
       const transacoes = await tx.transacaoBancaria.findMany({ where: { contaId: id }, include: { lancamento: { include: { movimentosObra: { select: { id: true } }, recebimentosRegularizacao: { select: { id: true } } } } } });
       const lancamentos = transacoes.flatMap((t) => t.lancamento ? [t.lancamento] : []);
-      const preservar = (l: typeof lancamentos[number]) => Boolean(l.asaasPaymentId || l.movimentosObra.length || l.recebimentosRegularizacao.length);
+      const preservar = preservarLancamentoNaLimpeza;
       const manter = lancamentos.filter(preservar), remover = lancamentos.filter((l) => !preservar(l));
+      if (transacoes.length !== p.transacoes || manter.length !== p.lancamentosPreservados || remover.length !== p.lancamentosRemovidos) throw new Error("A conta recebeu alterações depois da prévia. Atualize a prévia e confirme novamente.");
       const backup = await tx.bpoContaLimpezaBackup.create({ data: { contaReferencia: conta.id, contaRotulo: p.rotulo,
+        criadoPorUsuarioId: administrador.id,
         snapshotJson: JSON.stringify({ conta, transacoes, lancamentos }), transacoes: transacoes.length,
         lancamentosRemovidos: remover.length, lancamentosPreservados: manter.length } });
       if (manter.length) await tx.bpoLancamento.updateMany({ where: { id: { in: manter.map((l) => l.id) } }, data: { transacaoId: null, atualizadoEm: new Date(), version: { increment: 1 } } });
       if (remover.length) await tx.bpoLancamento.deleteMany({ where: { id: { in: remover.map((l) => l.id) } } });
       await tx.transacaoBancaria.deleteMany({ where: { contaId: id } });
-      await tx.contaBancaria.update({ where: { id }, data: { ativo: false, ultimaSincronizacao: null } });
+      await tx.contaBancaria.update({ where: { id }, data: { ativo: false, ultimaSincronizacao: null, saldoAtual: 0, saldoExtrato: null, saldoExtratoData: null } });
       return { backupId: backup.id, transacoes: transacoes.length, lancamentosRemovidos: remover.length, lancamentosPreservados: manter.length };
     });
     revalidatePath(BPO);

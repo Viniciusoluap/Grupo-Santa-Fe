@@ -1,5 +1,59 @@
 # HANDOFF 26/10 — AIOX, 16 correções
 
+## Pré-entrega autorizada — 27/10/2026
+
+- Autorização reiterada pelo proprietário para concluir, migrar, merge e deploy.
+- Suíte completa em lotes: Prospecta 147 arquivos/1.093 testes aprovados; Santa Fé 115 arquivos/829 testes aprovados (arquivos de banco real separados não executados nessa rodada). Logs locais temporários em /tmp; contagens registradas aqui para continuidade.
+- As duas prévias Vercel estavam READY nos commits remotos 532e6e7 (Prospecta) e 4c636a6 (Santa Fé).
+- Estrutura real dos bancos consultada por conectores; migrações iniciais validadas em PGlite sobre cópia do schema real.
+- Neon recusou nova branch e snapshot por limites do plano; nenhum recurso de outro agente foi removido.
+- Backup lógico pré-migração criado em schema privado aiox_backup_20261027 nos dois bancos: lançamentos, clientes e revisões. Prospecta: 1.011 lançamentos, zero clientes; Santa Fé: 5 lançamentos, zero clientes.
+- Restauração: tabelas de backup mantêm os valores anteriores; realizar recuperação seletiva por ID após inspeção, nunca substituir integralmente dados novos.
+- Diagnóstico Pluggy real: autenticação 200; endpoint legado 410 ENDPOINT_DEPRECATED; v2 200, sem transações; item UPDATED/SUCCESS. Não declarar importação de movimentações sem registros retornados.
+- Integrações finais BPO/WhatsApp/Projetos em revisão; migrações novas, testes finais e smoke autenticado ainda pendentes. Merge/deploy do lote ainda não realizados.
+
+## Revisão de aceite WhatsApp/Projetos — 27/10/2026
+
+- Repositório: Grupo Santa Fé; branch isolada `codex/aiox-whatsapp-projects-acceptance`, base HEAD da branch principal de trabalho publicada.
+- Objetivo desta etapa: fechar lacunas 03/05/06 encontradas na revisão estática e manter paridade.
+- Corrigido: serviços não são mais inferidos automaticamente do cadastro ao montar o envio; a seleção explícita prevalece e a ausência bloqueia a variável.
+- Corrigido: campos de dia/horário permanecem visíveis e editáveis após preenchimento. PDF abre em visualizador com retorno; outros documentos têm diálogo e download em outra aba, preservando a montagem da conversa.
+- Correção 01: restaurada a renderização de Conexões dos Corretores na aba Conexão; a página já carregava os mesmos registros, mas o componente ignorava a propriedade recebida.
+- A rota de mídia agora entrega PDF como `application/pdf; inline`, mantendo sandbox e download forçado para HTML/SVG.
+- Santa Fé: RLS habilitado em templates, sem acesso para anon/authenticated via Data API; uso exclusivamente via servidor autorizado.
+- Correção 16: revisão estática confirmou reserva de versão e checklist derivado do status ativo após upload concluído. Validação real da disponibilidade no Drive e navegação em dispositivos depende de ambiente autenticado.
+- Correção 16: PDF rejeitado no campo Editável para impedir dupla conclusão usando o mesmo documento PDF nos dois campos; quatro testes de documentos passaram novamente em cada sistema.
+- (a) Automáticos: TypeScript aprovado em ambos; Prospecta 22 testes focados e Santa Fé 18 testes focados aprovados.
+- (b) Manuais: revisão estática; nenhum navegador/dispositivo real usado nesta etapa.
+- (c) Produção: nenhuma migração aplicada, nenhum deploy e nenhuma mensagem real enviada. Publicação remota será feita pelo agente principal após integração.
+- Próximo passo exato: integrar o commit desta branch, publicar checkpoint e realizar smoke test autenticado dos documentos/templates.
+
+## Correções 13/15 — início 27/10
+
+Branch isolada `codex/sf-bpo-links-final`, base `c69e361`. Confirmado erro de categoria operacional confundida com etapa de obra. Em execução: catálogo dos módulos reais, IDs persistentes, validação backend e seletores criar/editar, com categoria contábil independente. Nenhuma produção alterada.
+
+### Conclusão técnica do lote BPO — 27/10/2026
+
+- 13/15: categorias operacionais corretas para receita e despesa; catálogo dos módulos reais com busca e referência persistente; despesa de comissão seleciona Imóvel; obra possui tipo e etapa derivados da lista existente; criar/editar validam categoria, existência do registro e exclusividade de etapa/tipo; categoria contábil preservada separadamente. Link do lançamento para serviço e dentro do formulário.
+- Criação usa `requestKey` única por formulário para proteger retry/duplo clique. Parcelas distintas são lançamentos distintos com referências operacionais compartilhadas.
+- 14: sincronização serializada por lock do banco, atualização apenas de nome/documento/e-mail/telefone e vínculo CRM; reaproveitamento de avulso pelo documento normalizado; documentos ambíguos ou ligados a outro lead são reportados para revisão, sem duplicação nem substituição dos vínculos financeiros.
+- 09: limpeza exige administrador, backup identifica autor, contagens são revalidadas, saldos da conta arquivada são zerados. Exclusão só para origem `extrato` comprovada; manual/legado/Asaas e qualquer vínculo operacional são preservados. `origemTransacaoKey` mantém identidade bancária ao desassociar, permitindo reanexar na reimportação sem duplicar o lançamento legítimo.
+- Migração aditiva `20261027140000_bpo_vinculos_operacionais`: colunas de referência/tipo/requestKey/origem/chave bancária e índices únicos. Etapas legadas são mantidas; origem legada é explicitamente protegida, não inferida apenas pela conciliação.
+- (a) Automáticos: Prisma generate e TypeScript aprovados; cinco arquivos focados/21 testes aprovados; migração aplicada duas vezes em PGlite preservou etapa legada e chave de origem; `git diff --check` aprovado.
+- (b) Manuais: revisão de código/campos e contratos, sem teste de UI em navegador.
+- (c) Produção: não aplicado; depende de integração do commit, migração com backup/preflight e testes reais. Limpeza de importações legadas ambíguas exige apuração da origem antes de reclassificá-las como extrato; o sistema preserva esses registros por segurança.
+- Próximo passo: integrar este commit na branch principal de trabalho, publicar checkpoint remoto, aplicar migração de modo controlado e validar criar/editar/reimportar/limpar em ambiente seguro. A navegação reversa serviço → financeiro e validação de pagamentos parciais ainda requerem conferência global do responsável pela entrega.
+
+## Validação real Pluggy/Cora — 27/10/2026
+
+- Diagnóstico real somente leitura na conexão ativa do Prospecta: autenticação HTTP 200; endpoint legado /transactions HTTP 410, código ENDPOINT_DEPRECATED, instruindo usar /v2/transactions. Endpoint v2 HTTP 200, results vazio e next nulo; item HTTP 200, status UPDATED, execução SUCCESS, conector MeuPluggy. Não afirmar recuperação de movimentações: a conta não disponibilizou transações nesta leitura.
+- Documentação oficial consultada: https://v2.docs.pluggy.ai/en/reference/transaction/transactions-list-by-cursor e https://v2.docs.pluggy.ai/en/reference/transaction/transactions-list .
+- Corrigido parâmetro de data para dateFrom; cursor aceito somente no formato query string previsto na API; chave externa histórica t.id preservada para não duplicar ao trocar v1 por v2. providerId/providerCode permanecem em identificador bancário separado.
+- OFX agora preserva FITID. Importação consulta tanto a chave bancária nova como a chave histórica calculada por atributos/ocorrência, usando a existente antes de inserir. Isso impede duplicação ao reimportar um OFX antigo após a melhoria da extração.
+- Nenhuma credencial foi alterada e nenhuma movimentação foi gravada em produção nesta validação.
+- Testes automáticos: Santa Fé: 2 arquivos/14 testes focados aprovados e TypeScript aprovado usando Prisma Client gerado existente.
+- Próxima etapa: integrar os commits, aplicar migrações aditivas, publicar e testar a sincronização administrativa. Reconciliação de itens recriados com IDs diferentes continua dependente do identificador bancário disponibilizado pelo provedor.
+
 ## Publicação remota confirmada — 27/10/2026
 
 - Branch: `codex/aiox-16-correcoes-20261026`.

@@ -12,9 +12,17 @@ describe("Pluggy v2", () => {
       return Promise.resolve({ ok: true, json: async () => ({ next: null, results: [] }) } as Response);
     });
     expect(await fetchPluggyTransactions("tok", "acc1", "2026-01-01", fetchFake as never)).toEqual([
-      { externalId: "pluggy:provider-77", identificadorBancario: "provider-77", data: "2026-10-01", descricao: "PIX MARIA", valor: 25, tipo: "credito", categoria: undefined, titular: "Maria" },
+      { externalId: "id-item-1", identificadorBancario: "provider-77", data: "2026-10-01", descricao: "PIX MARIA", valor: 25, tipo: "credito", categoria: undefined, titular: "Maria" },
     ]);
     expect(fetchFake).toHaveBeenCalledTimes(2);
+    expect(fetchFake.mock.calls[0][0]).toContain("dateFrom=2026-01-01");
+    expect(fetchFake.mock.calls[0][0]).not.toContain("&from=");
+  });
+
+  it("rejeita cursor de outro host antes de enviar a chave", async () => {
+    const fake = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [], next: "https://outro-host.example/token" }) });
+    await expect(fetchPluggyTransactions("segredo", "acc", null, fake)).rejects.toThrow("cursor inválido");
+    expect(fake).toHaveBeenCalledTimes(1);
   });
 
   it("no HTTP 410 preserva detalhe da API e diagnostica o item", async () => {

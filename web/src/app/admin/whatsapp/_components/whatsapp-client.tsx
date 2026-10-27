@@ -62,7 +62,7 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export function WhatsAppClient({ leads, minhaConexao: initialConexao, historico, role, usuarioId, templates, servicosDisponiveis, podeGerenciarTemplates, abaInicial = "conexao", numeroInicial = null }: Props) {
+export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, templates, servicosDisponiveis, podeGerenciarTemplates, abaInicial = "conexao", numeroInicial = null }: Props) {
   // Pedido de 25/10: ?aba=conversas&numero=… abre direto o chat (notificações e página do lead).
   const [activeTab, setActiveTab] = useState<Aba>(abaInicial === "conexao" && role !== "corretor" ? "conversas" : abaInicial);
   const [minhaConexao, setMinhaConexao] = useState<ConexaoData | null>(initialConexao);
@@ -117,6 +117,9 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, historico,
   }, [calcularPrevia, mensagem, selectedLeads, extrasComServicos, extrasPorLead]);
   const previaAtual = calcularPrevia ? previa.filter((p) => selectedLeads.includes(p.id)) : [];
   const faltando = Array.from(new Set(previaAtual.flatMap((p) => p.faltando)));
+  // Manter o campo montado após preencher evita perder foco ou impedir a edição.
+  const campos = variaveis.filter(v => v !== "servico" && v !== "servicos" && v !== "documentos" &&
+    (v === "dia" || v === "horario" || faltando.includes(v) || Object.hasOwn(extras, v)));
 
   // ─── KPIs ─────────────────────────────────────────────────────────────────
 
@@ -302,7 +305,10 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, historico,
               )}
             </div>
           }
-
+          {(role === "admin" || role === "colaborador") && <div className="border border-gray-100 bg-white p-5">
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-[var(--brand-dark)]">Conexões dos Corretores</h2>
+            {!conexoesCorretores.length ? <p className="text-sm text-gray-600">Nenhum corretor cadastrado.</p> : <div className="space-y-3">{conexoesCorretores.map((corretor) => <div key={corretor.usuarioId} className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3"><div><p className="text-sm font-bold text-gray-900">{corretor.usuarioNome}</p><p className="text-xs text-gray-600">{corretor.numero || "Número ainda não conectado"}</p></div><span className={`rounded px-2 py-1 text-xs font-bold ${corretor.status === "conectado" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-700"}`}>{corretor.status === "conectado" ? "Conectado" : corretor.status === "aguardando_qr" ? "Aguardando QR code" : "Desconectado"}</span></div>)}</div>}
+          </div>}
         </div>
       )}
 
@@ -382,10 +388,10 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, historico,
               {usaVariaveis && selectedLeads.length > 0 && (
                 <div className="space-y-3 border-t border-gray-100 pt-3">
                   {usaServicos && <div className="border border-yellow-200 bg-yellow-50 p-3"><p className="mb-2 text-xs font-bold text-yellow-900">Selecione somente os serviços desta mensagem:</p><div className="grid gap-2 sm:grid-cols-2">{servicosDisponiveis.map((servico) => <label key={servico} className="flex items-center gap-2 text-xs text-gray-800"><input type="checkbox" checked={servicosSelecionados.includes(servico)} onChange={() => setServicosSelecionados((atual) => atual.includes(servico) ? atual.filter((s) => s !== servico) : [...atual, servico])} />{servico}</label>)}</div>{!servicosSelecionados.length && <p className="mt-2 text-xs text-red-700">Selecione ao menos um serviço.</p>}</div>}
-                  {(faltando.length > 0 || variaveis.includes("documentos")) && (
+                  {(campos.length > 0 || variaveis.includes("documentos")) && (
                     <div className="space-y-2 border border-yellow-200 bg-yellow-50 p-3">
                       {faltando.length > 0 && <p className="text-xs font-bold text-yellow-900">Alguns destinatários não têm estes dados no cadastro. Informe para enviar:</p>}
-                      {faltando.filter((v) => v !== "documentos" && v !== "servico" && v !== "servicos").map((v) => (
+                      {campos.map((v) => (
                         <div key={v}>
                           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">{VARIAVEIS_TEMPLATE[v] ?? v}</label>
                           <input type="text" list={v === "imovel" ? "imoveis-whatsapp" : undefined} value={extras[v] ?? ""} onChange={(e) => setExtras((x) => ({ ...x, [v]: e.target.value }))}

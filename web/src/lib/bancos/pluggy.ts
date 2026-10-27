@@ -112,13 +112,14 @@ export async function fetchPluggyTransactions(
 ): Promise<PluggyTransaction[]> {
   const out: PluggyTransaction[] = [];
   const params = new URLSearchParams({ accountId, pageSize: "500" });
-  if (desde) params.set("from", desde);
+  if (desde) params.set("dateFrom", desde);
   let proxima: string | null = `?${params.toString()}`;
   const cursores = new Set<string>();
   for (let pagina = 0; proxima && pagina < 200; pagina++) {
     if (cursores.has(proxima)) throw new Error("A Pluggy devolveu um cursor repetido; a sincronização foi interrompida para evitar duplicação.");
     cursores.add(proxima);
-    const url = proxima.startsWith("http") ? proxima : `${PLUGGY_API}/v2/transactions${proxima.startsWith("?") ? proxima : `?${proxima}`}`;
+    if (!proxima.startsWith("?")) throw new Error("A Pluggy devolveu um cursor inválido.");
+    const url = `${PLUGGY_API}/v2/transactions${proxima}`;
     const res = await fetchImpl(url, { headers: { "X-API-KEY": token } });
     if (!res.ok) {
       const detalhe = await detalheErro(res);
@@ -140,7 +141,9 @@ export async function fetchPluggyTransactions(
       out.push({
         ...(titular ? { titular } : {}),
         ...(identificador ? { identificadorBancario: identificador } : {}),
-        externalId: t.providerId?.trim() ? `pluggy:${t.providerId.trim()}` : t.id,
+        // Preserva a chave histórica para a migração v1 → v2 não recriar lançamentos.
+        // O identificador bancário fica em coluna própria para reconciliação entre itens.
+        externalId: t.id,
         data: t.date,
         descricao: t.descriptionRaw || t.description,
         valor: Math.abs(t.amount),
