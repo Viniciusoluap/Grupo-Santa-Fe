@@ -1,5 +1,41 @@
 # DEPLOY_STATUS — Lote 02
 
+## Estado final da publicação — 27/10/2026
+
+**Merge e deploy de produção concluídos nos dois repositórios, conforme autorização do dono.** As branches do Claude e da continuação foram preservadas, sem reset/force push. Os registros posteriores abaixo são históricos; este bloco descreve o estado vigente.
+
+| Sistema | PR mergeado | Commit do merge | Deploy de produção confirmado READY | Domínio oficial |
+|---|---|---|---|---|
+| Prospecta | [#174](https://github.com/Viniciusoluap/Prospecta/pull/174) | e1711560b76bc7ef51d44ac145deeb1018963fe7 | dpl_CF9QkSyeMZZhZAwxD936sC2arfxY | https://www.prospectaconstrucoes.com |
+| Grupo Santa Fé | [#237](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/237) | b560071bcab22c2ff11279f21d29908ccbf062ac | dpl_g5Lxy3DYQYgWcXTQ6HBWeHvUzR4h | https://www.gruposantafee.com.br |
+
+### O que foi verificado nesta entrega
+
+(a) Automático/HTTP/build:
+- Builds de produção dos dois merges concluídos na Vercel e associados aos domínios oficiais acima.
+- Prospecta /api/health: HTTP200, `{ok:true,db:connected}`.
+- Download de modelo PCI sem sessão: HTTP401 com mensagem de sessão expirada, nos dois domínios de produção. Conteúdo privado não foi entregue.
+- Santa Fé /login: HTTP200, HTML identificado com o deployment novo dpl_g5Lxy3DYQYgWcXTQ6HBWeHvUzR4h.
+- Consulta aos logs de runtime de cada novo deployment, níveis error/fatal, janela de 15 minutos da verificação: nenhum registro encontrado. Isso não substitui observação de todos os fluxos autenticados.
+- Reaproveitados os testes anteriores: P1219/1219 geral +17/17 específicos posteriores ao preço comercial, SF944 aprovados/124 ignorados geral + testes focados documentados. TypeScript passou nos dois e os builds de produção repetiram as verificações configuradas. Nenhum código funcional foi alterado nesta retomada, apenas configuração/documentação.
+
+(b) Manual/autenticado:
+- Ainda pendentes: aceite visual integral desktop/tablet/mobile/PWA e E2E de upload/download/edição/salvar/recarregar com sessão legítima. NÃO foram marcados como aprovados. O dono autorizou prosseguir com merge/deploy, ciente do estado registrado.
+- XLSB no gerador PCI continua somente leitura com aviso; XLS/XLSM possuem geração conforme testes registrados. Cadastro do modelo oficial real continua sendo uma operação administrativa da aplicação.
+
+(c) Produção e configuração:
+- Migrações P0087–0092 / SF20261027160000–210000 já estavam aplicadas, com contagens legadas preservadas e RLS conferida. Não foram repetidas nesta retomada.
+- Bloqueio anterior de configuração RESOLVIDO após autorização específica: segredo DATABASE_URL somente no preview da branch codex/continuar-lote2-20261027, ligado à branch Neon de testes br-cold-feather-an7ecnay. Sem copiar a conexão de produção e sem credenciais no Git.
+- Rollback: P deployment dpl_5iTonbh7ZCPEesCiCrfvcrxvpwRX (SHA880b5dd); SF dpl_HN3NqGBwxpXxpTT62HzouSxwHi1B (SHA94f7b5d). Manter as tabelas/colunas aditivas e quaisquer dados novos; rollback da aplicação não deve apagar estruturas.
+- Este checkpoint final altera apenas documentação na main, preservando o código funcional dos merges acima. O novo deployment gerado por esse commit deve ser acompanhado até READY.
+
+### Próximo passo de validação do produto
+
+Usar os sistemas publicados e realizar o aceite autenticado dos critérios manuais do prompt original, registrando qualquer defeito concreto por correção e mantendo a paridade. Não declarar o conjunto das 22 correções 100% validado enquanto esses aceites estiverem pendentes. Não há mais merge/deploy funcional aguardando autorização.
+
+
+## Histórico preservado da execução
+
 (pendente — preenchido nas fases seguintes)
 
 ## Previews de integração confirmados READY (27/10)
@@ -36,3 +72,17 @@
 - Redeploy de verificação em andamento: dpl_DRVTiYxkZRXPm4BHbwBVwa2HXBXy, SHA Prospecta 8a53fa1. O bloqueio de autorização anterior está resolvido. Conferir /api/health e guardas de acesso após READY.
 - PRs #174 / #237 continuam com histórico preservado. Testes automáticos e migrações documentados anteriormente são reaproveitados; nenhum código funcional foi alterado nesta retomada.
 - Próximos: verificação de runtime do preview, conferir checks dos PRs, merge autorizado, acompanhar deploys de produção e registrar smoke/limitações. Não afirmar aceite visual/PWA/upload real sem evidência.
+
+## Checkpoint de publicação — 27/10
+- Prospecta: preview respondeu HTTP200 em /api/health, `{ok:true,db:connected}`; /api/trpc/auth.me respondeu normalmente com sessão nula (sem autenticação). O erro DATABASE_URL ausente foi resolvido.
+- Builds dos heads de revisão confirmados READY na Vercel. O status agregado GitHub Prospecta ainda mostrava pending para um deployment já READY; o build foi conferido diretamente na Vercel, sem alterar ou simular checks.
+- PR Santa Fé #237 mergeado, commit b560071bcab22c2ff11279f21d29908ccbf062ac; deployment de produção dpl_g5Lxy3DYQYgWcXTQ6HBWeHvUzR4h iniciado. Rollback anterior SF: dpl_HN3NqGBwxpXxpTT62HzouSxwHi1B, SHA94f7b5d.
+- Próximo: confirmar merge Prospecta e deploys finais READY, smoke de produção e atualização definitiva do handoff. Testes visuais/autenticados completos ainda não são dados como aprovados.
+
+## Merge autorizado concluído nos dois sistemas
+- Prospecta PR174: merge e1711560b76bc7ef51d44ac145deeb1018963fe7; deployment de produção iniciado dpl_CF9QkSyeMZZhZAwxD936sC2arfxY.
+- Santa Fé PR237: merge b560071bcab22c2ff11279f21d29908ccbf062ac; deployment de produção iniciado dpl_g5Lxy3DYQYgWcXTQ6HBWeHvUzR4h.
+- Branches e histórico preservados. Nenhum reset, force push ou remoção de dados. As migrações aditivas já aplicadas foram reaproveitadas.
+- Aceite desta retomada: saúde do preview Prospecta HTTP200/banco conectado; build READY. Sem nova alteração funcional. Builds de produção em acompanhamento; ainda não afirmar publicação concluída neste checkpoint.
+- Guardas de download no preview não puderam ser confirmadas pelo fetch da Vercel: ferramenta tratou o 401 como proteção de deployment; o fallback HTTP chegou à tela SSO. Não contar isso como teste funcional autenticado.
+- Próximo: confirmar READY e domínios dos deploys de produção, conferir saúde/acesso público e guardar evidência/limitações no handoff final.
