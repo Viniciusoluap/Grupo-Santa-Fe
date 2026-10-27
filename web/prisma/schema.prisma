@@ -86,6 +86,7 @@ model ImovelRecusadoAviso {
 // ─── LEADS / CRM ─────────────────────────────────────────────────────────────
 
 model Lead {
+  unidadesCompradas EstudoUnidade[] @relation("CompradorUnidade")
   id                   String          @id @default(cuid())
   vencimentoCard       DateTime?       @db.Date
   nome                 String
@@ -1231,6 +1232,11 @@ model EstudoUnidade {
   codigoChave  String                @db.VarChar(120)
   tipo         String                @db.VarChar(40)
   status       String                @default("disponivel") @db.VarChar(20)
+  compradorLeadId String?
+  compradorLead Lead? @relation("CompradorUnidade", fields: [compradorLeadId], references: [id], onDelete: SetNull)
+  origemChave String? @db.VarChar(255)
+  cenarioId String? @db.VarChar(120)
+  excluidoEm DateTime?
   comprador    String?               @db.VarChar(255)
   valorVenda   Decimal?              @db.Decimal(15, 2)
   criadoEm     DateTime              @default(now())

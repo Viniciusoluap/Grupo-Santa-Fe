@@ -1,4 +1,5 @@
 "use server";
+import { referenciasAtendimento, vincularAtendimento } from "@/lib/incorporacao/atendimento-clientes";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { uploadPublico } from "@/lib/blob";
@@ -457,9 +458,16 @@ export async function salvarCronogramaObra(estudoId: string, dadosJson: string) 
 /** Salva os chamados de atendimento pós-venda — etapa 5.4. */
 export async function salvarAtendimentoClientes(estudoId: string, dadosJson: string) {
   await exigirModuloAcao("incorporacao");
+  const refs = referenciasAtendimento(dadosJson);
+  if (refs.clientes.length) await exigirModuloAcao("crm");
+  const [clientes, unidades] = await Promise.all([
+    refs.clientes.length ? prisma.lead.findMany({ where: { id: { in: refs.clientes }, excluidoEm: null }, select: { id: true, nome: true } }) : Promise.resolve([]),
+    refs.unidades.length ? prisma.estudoUnidade.findMany({ where: { id: { in: refs.unidades }, estudoId, excluidoEm: null }, select: { id: true, codigo: true } }) : Promise.resolve([]),
+  ]);
+  const json = vincularAtendimento(dadosJson, clientes, unidades);
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
-    data: { atendimentoClientesJson: dadosJson },
+    data: { atendimentoClientesJson: json },
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
   return { ok: true };

@@ -2,6 +2,7 @@
 // Estudos de massa salvos (Lote 2, correção 11) e estudo sem KML (correção 06).
 // Mesmo contrato das demais ações da incorporação: o erro volta como dado
 // (`capturarErroAcao`) e a tela o transforma de volta com `exigirResultado`.
+import { sincronizarUnidadesCenario } from "@/lib/incorporacao/unidades-cenario-db";
 import { revalidatePath } from "next/cache";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
@@ -79,6 +80,7 @@ export async function salvarEstudoMassa(estudoId: string, d: DadosEstudoMassa) {
       cenarioEscolhidoId: typeof d.cenarioEscolhidoId === "string" ? d.cenarioEscolhidoId.slice(0, 120) : null,
       principal: d.principal === true,
     }, u.id);
+    await sincronizarUnidadesCenario(estudoId, u.id);
     revalidatePath(caminho(estudoId));
     return r;
   });
@@ -86,8 +88,9 @@ export async function salvarEstudoMassa(estudoId: string, d: DadosEstudoMassa) {
 
 export async function marcarEstudoMassaPrincipal(estudoId: string, estudoMassaId: string) {
   return capturarErroAcao(async () => {
-    await exigirModuloAcao("incorporacao");
+    const u = await exigirModuloAcao("incorporacao");
     await marcarPrincipalDb(estudoId, estudoMassaId);
+    await sincronizarUnidadesCenario(estudoId, u.id);
     revalidatePath(caminho(estudoId));
     return { ok: true as const };
   });

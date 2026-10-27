@@ -72,3 +72,10 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - (a) 45/45 testes de orçamento/cenário/relatório nos dois; typecheck sem erros. (b) upload/download em navegador e teste visual ainda pendentes. (c) sem produção.
 - Pontos para auditoria final: validar importação de arquivo real (linhas totalizadoras com nomes atípicos devem ser removidas na conferência), revisar custos adicionais da Viabilidade contra itens importados para não somar a mesma despesa duas vezes; vínculo fornecedores ↔ Viabilidade ainda pendente.
 - Próximo passo: unidades 15/16/19.3 e redesign09, persistência/permissões PCI SF, regressão ampla e integração/deploy.
+
+### Checkpoint WIP — unidades 15/16 e atendimento 19.3
+- Em implementação, NÃO pronto para merge: migrações aditivas 0085 / 20261027130000 (origem/cenário, cliente CRM, exclusão lógica); geração idempotente com eventos após salvar/selecionar cenário; UI de inventário agora nos demais tipos também; edição com controle de versão, reserva/venda, tombstone e exclusão bloqueada para histórico comercial.
+- Atendimento seleciona CRM ou avulso e unidades reais com status/comprador; valida referências no servidor e só salva JSON de atendimentos. Não modifica status comercial.
+- Preservado código/histórico do lançamento legado; inventário exige conciliar vendas antigas antes de operações. CRM só para quem também tem permissão CRM.
+- Ainda pendente nesta frente: testes SQL de idempotência/tombstone/concorrência e ações SF; revisão de bloqueios comerciais; preço negociado do CRM não tem campo próprio equivalente nos dois bancos (não usar valor aprovado/simulado como preço de venda). Nome e vínculo CRM estão implementados; preço continua editável.
+- Próximo passo imediato: terminar testes desta frente, revisar transações e migrações; não aplicar em produção antes disso. Depois redesign09, regressão e integração com main.

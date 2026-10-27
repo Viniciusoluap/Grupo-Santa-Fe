@@ -25,3 +25,16 @@ export function vendasLegadas(json: string | null): { vendas: VendaLegada[]; inv
     return { vendas: validas, invalido: false };
   } catch { return { vendas: [], invalido: true }; }
 }
+
+/** Identidade física estável entre versões de cenários: evita duplicar vendas e tombstones. */
+export function unidadesDoCenario(c: import("./estudos-massa").CenarioPrincipal | null) {
+  if (!c) return [];
+  const chaves = new Set<string>();
+  return c.lotes.map((l) => {
+    const codigo = `Q${l.quadra} / L${l.lote}`;
+    const chave = chaveUnidade(codigo);
+    if (codigo.length > 120 || chaves.has(chave)) throw new Error("Cenário com identificação de lote repetida ou longa demais. Revise quadra e lote.");
+    chaves.add(chave);
+    return { codigo, chave, origem: chave, cenario: c.cenarioId ?? "lotes_avulsos", valor: c.precoM2Lote && c.precoM2Lote > 0 ? (l.areaM2 * c.precoM2Lote).toFixed(2) : null };
+  });
+}

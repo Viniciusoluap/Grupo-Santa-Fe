@@ -32,7 +32,7 @@ export function OrcamentoImportacao({ dados, onChange, areaReferencia }: { dados
       const book = xlsx.read(bytes, { type: "array", cellFormula: true });
       if (!book.SheetNames.length) throw new Error("Planilha sem abas.");
       let binary = "";
-      for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + 8192)));
       const matrizPorAba: Record<string, unknown[][]> = {}; const formulasPorAba: Record<string, Record<string, string>> = {};
       for (const nome of book.SheetNames) {
         const sheet = book.Sheets[nome];
