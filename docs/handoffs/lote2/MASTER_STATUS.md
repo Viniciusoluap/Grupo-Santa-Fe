@@ -1,5 +1,11 @@
 # MASTER STATUS — Lote 02 — 22 correções (Prospecta + Grupo Santa Fé)
 
+## Estado vigente — continuar daqui
+- PRs em rascunho: Prospecta [#174](https://github.com/Viniciusoluap/Prospecta/pull/174) e Santa Fé [#237](https://github.com/Viniciusoluap/Grupo-Santa-Fe/pull/237). Código e handoffs preservados na branch `codex/continuar-lote2-20261027`.
+- Etapas 1/2: concluídas; 3/4: implementadas com testes automáticos e migrações aplicadas; 5: implementada, aceite visual pendente; 6: regressão automática aprovada, falta E2E autenticado; 7: previews READY, PRs rascunho, merge/deploy final pendentes.
+- Próximo passo exato: autenticar legitimamente no preview pelo formulário seguro do navegador e validar os critérios manuais do prompt original. Não usar sessão artificial, não redefinir dados, não repetir migrações já aplicadas sem motivo.
+- Consulte também `HANDOFF-27-10-LOTE2-CONTINUACAO.md` na raiz. Os checkpoints abaixo são históricos; o estado mais recente está no topo e nos últimos registros.
+
 - Branch de continuação (ambos): `codex/continuar-lote2-20261027`
 - Origem preservada: `claude/lote2-22-correcoes-20261027`
 - Base: Prospecta `08fdd3d` · Santa Fé `a696389` (origin/main em 27/10/2026)
@@ -16,12 +22,12 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 | 03 | Gerador de PCI + Sub PCI atual (Integrações) | Parcial (leitor/gravador PLS existem; sem gerador) | Parcial (leitor; sem gerador) | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 04 | Perfil Engenheiro + CREA + documentos | Faltante (sem papel engenheiro, sem docs de usuário) | Faltante (sem papel/docs/ZIP) | Testada (auto) | 3d0d3fa / 59abb8a |
 | 05 | Mapa Operacional satélite/ruas + cluster | Parcial (OSM, sem cluster) | OSM, circleMarker, sem cluster | Testada (auto) | 3d0d3fa / 59abb8a |
-| 06 | Incorporação sem KML (checkbox) | Bloqueio por geojson existe | Bloqueio sem KML | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
-| 07 | Projeto Aprovado ↔ Projetos | Não integrado; Projeto exige lead | Separados (lead_id já nulo) | Testada automaticamente; migrações 0091 / 20261027200000 pendentes em produção | 003f43d / dfdbcdc |
-| 08 | Dados Gerais (nome empreendimento, responsável por ID, remover campos) | Existe; responsável texto livre | Existe; responsável texto | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
+| 06 | Incorporação sem KML (checkbox) | Bloqueio por geojson existe | Bloqueio sem KML | Testada automaticamente; migrações 0089 / 20261027180000 aplicadas; aceite autenticado pendente | 4a5a561 / 6380e23 |
+| 07 | Projeto Aprovado ↔ Projetos | Não integrado; Projeto exige lead | Separados (lead_id já nulo) | Testada automaticamente; migrações 0091 / 20261027200000 aplicadas; aceite autenticado pendente | 003f43d / dfdbcdc |
+| 08 | Dados Gerais (nome empreendimento, responsável por ID, remover campos) | Existe; responsável texto livre | Existe; responsável texto | Testada automaticamente; migrações 0089 / 20261027180000 aplicadas; aceite autenticado pendente | 4a5a561 / 6380e23 |
 | 09 | Redesign Incorporação | Grade de botões, 5 fases | 5 fases/22 etapas | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
-| 10 | Estudo de Massa Generativa | Existe com geometria real (turf) | Existe (turf, genético) | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
-| 11 | Estudos Salvos | Persistência simples, sem versões/UX | JSON sobrescreve | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
+| 10 | Estudo de Massa Generativa | Existe com geometria real (turf) | Existe (turf, genético) | Testada automaticamente; migrações 0089 / 20261027180000 aplicadas; aceite autenticado pendente | 4a5a561 / 6380e23 |
+| 11 | Estudos Salvos | Persistência simples, sem versões/UX | JSON sobrescreve | Testada automaticamente; migrações 0089 / 20261027180000 aplicadas; aceite autenticado pendente | 4a5a561 / 6380e23 |
 | 12 | Orçamento Parametrizado + import Excel | Parcial (sem import) | Parcial (sem import) | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 13 | Negociação responsiva | Existe (cartões) | Existe | Implementada — validar visual/produção | continuação Codex |
 | 14 | Projeto Aprovado responsivo | Existe (tabela) | Existe | Implementada — validar visual/produção | continuação Codex |
