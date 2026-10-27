@@ -9,7 +9,39 @@ export type PluggyTransaction = {
   valor: number;
   tipo: "credito" | "debito";
   categoria?: string;
+  titular?: string;
+  /** Identificador estável informado pela instituição/Pluggy, quando disponível. */
+  identificadorBancario?: string;
 };
+
+type ErroPluggy = { message?: unknown; codeDescription?: unknown; error?: unknown; code?: unknown };
+
+async function detalheErro(res: Response): Promise<string> {
+  let data: ErroPluggy | null = null;
+  try { data = (await res.json()) as ErroPluggy; } catch { /* resposta vazia ou não JSON */ }
+  const detalhe = [data?.message, data?.codeDescription, data?.error]
+    .find((v) => typeof v === "string" && v.trim());
+  const codigo = typeof data?.codeDescription === "string" && data.codeDescription.trim()
+    ? ` [${data.codeDescription.trim()}]`
+    : "";
+  return `${typeof detalhe === "string" ? `: ${detalhe.trim().slice(0, 300)}` : ""}${codigo}`;
+}
+
+async function diagnosticarItem(token: string, itemId: string | null | undefined, fetchImpl: Fetch): Promise<string> {
+  if (!itemId) return "";
+  try {
+    const res = await fetchImpl(`${PLUGGY_API}/items/${encodeURIComponent(itemId)}`, { headers: { "X-API-KEY": token } });
+    if (!res.ok) return ` Item ${itemId}: diagnóstico indisponível (HTTP ${res.status}${await detalheErro(res)}).`;
+    const item = (await res.json()) as {
+      status?: string; executionStatus?: string; error?: { code?: string; message?: string } | null;
+      statusDetail?: { code?: string; message?: string } | string | null;
+    };
+    const erro = item.error?.message || (typeof item.statusDetail === "string" ? item.statusDetail : item.statusDetail?.message);
+    return ` Item ${itemId}: status=${item.status ?? "desconhecido"}, execução=${item.executionStatus ?? "desconhecida"}${erro ? `, motivo=${erro}` : ""}.`;
+  } catch (e) {
+    return ` Item ${itemId}: falha ao consultar diagnóstico (${e instanceof Error ? e.message : "erro"}).`;
+  }
+}
 
 export type PluggyAccount = {
   id: string;
@@ -75,30 +107,50 @@ export async function fetchPluggyTransactions(
   token: string,
   accountId: string,
   desde?: string | null,
-  fetchImpl: Fetch = fetch
+  fetchImpl: Fetch = fetch,
+  itemId?: string | null,
 ): Promise<PluggyTransaction[]> {
   const out: PluggyTransaction[] = [];
-  for (let page = 1; page <= 50; page++) {
-    const params = new URLSearchParams({ accountId, pageSize: "500", page: String(page) });
-    if (desde) params.set("from", desde);
-    const res = await fetchImpl(`${PLUGGY_API}/transactions?${params}`, { headers: { "X-API-KEY": token } });
-    if (!res.ok) throw new Error(`A Pluggy recusou a leitura das transações (HTTP ${res.status}).`);
+  const params = new URLSearchParams({ accountId, pageSize: "500" });
+  if (desde) params.set("from", desde);
+  let proxima: string | null = `?${params.toString()}`;
+  const cursores = new Set<string>();
+  for (let pagina = 0; proxima && pagina < 200; pagina++) {
+    if (cursores.has(proxima)) throw new Error("A Pluggy devolveu um cursor repetido; a sincronização foi interrompida para evitar duplicação.");
+    cursores.add(proxima);
+    const url = proxima.startsWith("http") ? proxima : `${PLUGGY_API}/v2/transactions${proxima.startsWith("?") ? proxima : `?${proxima}`}`;
+    const res = await fetchImpl(url, { headers: { "X-API-KEY": token } });
+    if (!res.ok) {
+      const detalhe = await detalheErro(res);
+      const diagnostico = res.status === 410 ? await diagnosticarItem(token, itemId, fetchImpl) : "";
+      throw new Error(`A Pluggy recusou a leitura das transações (HTTP ${res.status}${detalhe}).${diagnostico}`);
+    }
     const data = (await res.json()) as {
-      totalPages?: number;
-      results: { id: string; date: string; description: string; amount: number; type: string; category?: string }[];
+      next?: string | null;
+      results: {
+        id: string; date: string; description: string; amount: number; type: string; category?: string;
+        providerId?: string | null; providerCode?: string | null; descriptionRaw?: string | null;
+        paymentData?: { payer?: { name?: string | null } | null; receiver?: { name?: string | null } | null } | null;
+      }[];
     };
     for (const t of data.results ?? []) {
+      const parte = t.type === "CREDIT" ? t.paymentData?.payer : t.paymentData?.receiver;
+      const titular = parte?.name?.trim();
+      const identificador = t.providerId?.trim() || t.providerCode?.trim();
       out.push({
-        externalId: t.id,
+        ...(titular ? { titular } : {}),
+        ...(identificador ? { identificadorBancario: identificador } : {}),
+        externalId: t.providerId?.trim() ? `pluggy:${t.providerId.trim()}` : t.id,
         data: t.date,
-        descricao: t.description,
+        descricao: t.descriptionRaw || t.description,
         valor: Math.abs(t.amount),
         tipo: t.type === "CREDIT" ? "credito" : "debito",
         categoria: t.category,
       });
     }
-    if (!data.totalPages || page >= data.totalPages) break;
+    proxima = typeof data.next === "string" && data.next.trim() ? data.next.trim() : null;
   }
+  if (proxima) throw new Error("A Pluggy ultrapassou o limite seguro de 200 páginas na sincronização.");
   return out;
 }
 

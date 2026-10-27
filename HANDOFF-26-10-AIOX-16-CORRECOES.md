@@ -55,3 +55,20 @@ Auditar, implementar, testar e publicar as correções 01–16 do prompt mestre 
 ## Próximo passo exato
 
 Concluir a auditoria das 16 correções nos dois repositórios, publicar a matriz de lacunas neste Handoff e iniciar o primeiro lote técnico com testes focados.
+
+## Checkpoint de retomada — 26/10/2026, noite
+
+- Recuperados e inventariados todos os checkpoints locais da execução AIOX interrompida, sem descarte.
+- Correções 10/11 integradas: Pluggy `/v2/transactions` por cursor, erro detalhado, identificador bancário e paridade do importador Cora.
+- Correção 16 integrada parcialmente: estrutura aditiva de revisão/documentos e helper de nome canônico; UI, transações de status/prioridade e checklist derivado ainda pendentes.
+- Correções 01–09 e 12–15 ainda aguardam o porte/implementação específico da stack Next.js/Prisma.
+
+### Testes deste checkpoint
+
+- (a) Automáticos: Prisma generate e TypeScript aprovados; 3 arquivos focados/10 testes de Pluggy, Cora/BPO e documentos de projeto aprovados.
+- (b) Manuais: commits parciais inventariados e cherry-picks sem conflito.
+- (c) Produção: nenhuma migração ou dado alterado; merge/deploy ainda não executados.
+
+### Próximo passo exato
+
+Concluir a paridade de WhatsApp e BPO, finalizar a Correção 16, adicionar testes das regras críticas e executar lint/suíte/build antes de qualquer migração de produção.

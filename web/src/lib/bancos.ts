@@ -22,7 +22,7 @@ import {
 } from "@/lib/extrato-import";
 
 export type Provedor = "manual" | "asaas" | "pluggy";
-type Movimento = { externalId: string; data: string; descricao: string; valor: number; tipo: "credito" | "debito"; categoria?: string; titular?: string; detalhe?: string; original?: string; asaasPaymentId?: string };
+type Movimento = { externalId: string; data: string; descricao: string; valor: number; tipo: "credito" | "debito"; categoria?: string; titular?: string; detalhe?: string; original?: string; identificadorBancario?: string; asaasPaymentId?: string };
 type ContaComData = { id: string; dataInicial: Date | null };
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -109,6 +109,7 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
         descricao: m.descricao.slice(0, 500),
         descricaoOriginal: (m.original || m.detalhe || null)?.slice(0, 2000) ?? null,
         titular: m.titular?.slice(0, 255) ?? null,
+        identificadorBancario: m.identificadorBancario?.slice(0, 255) ?? null,
         valor: Math.round(m.valor * 100) / 100,
         tipo: m.tipo,
         categoria: m.categoria?.slice(0, 100) ?? null,
@@ -119,6 +120,7 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
       update: {
         ...(m.titular ? { titular: m.titular.slice(0, 255) } : {}),
         ...(m.original || m.detalhe ? { descricaoOriginal: (m.original || m.detalhe)!.slice(0, 2000) } : {}),
+        ...(m.identificadorBancario ? { identificadorBancario: m.identificadorBancario.slice(0, 255) } : {}),
         ...(m.asaasPaymentId ? { asaasPaymentId: m.asaasPaymentId } : {}),
       },
     })));
@@ -148,7 +150,7 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
       saldo = await fetchAsaasSaldo(chave, fetchImpl);
     } else if (conta.provedor === "pluggy" && conta.pluggyAccountId) {
       const token = await tokenPluggy(fetchImpl);
-      movimentos = await fetchPluggyTransactions(token, conta.pluggyAccountId, desde, fetchImpl);
+      movimentos = await fetchPluggyTransactions(token, conta.pluggyAccountId, desde, fetchImpl, conta.pluggyItemId);
       saldo = await fetchPluggyAccountBalance(token, conta.pluggyAccountId, fetchImpl);
     } else {
       return { ok: false, mensagem: "Esta conta é alimentada por importação de extrato (botão Importar extrato)." };

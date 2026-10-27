@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectChecklist, validateProjectUpload, PROJECT_UPLOAD_LIMIT } from "../projeto-documentos";
+import { projectChecklist, projectDocumentCanonicalName, reconcileProjectChecklist, validateProjectUpload, PROJECT_UPLOAD_LIMIT } from "../projeto-documentos";
 
 describe("documentos de projetos", () => {
   it("gera itens dos tipos escolhidos e preserva itens manuais e históricos", () => {
@@ -18,5 +18,16 @@ describe("documentos de projetos", () => {
     expect(() => validateProjectUpload("projeto.dwg", PROJECT_UPLOAD_LIMIT + 1, "editable")).toThrow();
     expect(() => validateProjectUpload("../arquivo.dwg", 10, "editable")).toThrow();
     expect(() => validateProjectUpload("projeto.dwg", 10, "pdf")).toThrow();
+  });
+
+  it("gera nome canônico versionado e preserva a extensão", () => {
+    expect(projectDocumentCanonicalName({ projectName: "Casa São Luís", clientName: "João D'Ávila", itemName: "Projeto Elétrico", version: 2, originalName: "qualquer nome.DWG", mime: "application/octet-stream" }))
+      .toBe("CASA_SAO_LUIS_JOAO_D_AVILA_PROJETO_ELETRICO_V02.dwg");
+  });
+
+  it("deriva o checklist somente dos documentos ativos", () => {
+    const checks = reconcileProjectChecklist([{ id: "eletrico", text: "Elétrico", done: true }], [{ itemId: "eletrico", kind: "pdf" }]);
+    expect(checks[0]).toMatchObject({ done: true, pdfDone: true, editableDone: false });
+    expect(reconcileProjectChecklist(checks, [])[0]).toMatchObject({ done: false, pdfDone: false, editableDone: false });
   });
 });

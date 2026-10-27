@@ -473,6 +473,7 @@ model ProjetoRevisao {
   solicitadoPorNome   String
   texto               String
   status              String    @default("pendente") // pendente | entregue
+  statusAnteriorProjeto String?
   colaboradorId       String?
   colaborador         Usuario?  @relation("RevisaoColaborador", fields: [colaboradorId], references: [id], onDelete: SetNull)
   situacaoNotificacao String // enviado | sem_destinatario | falhou
@@ -486,6 +487,32 @@ model ProjetoRevisao {
 
   @@index([projetoId, criadoEm(sort: Desc)])
   @@map("projeto_revisoes")
+}
+
+/// Arquivos normalizados do módulo Projetos. `Projeto.arquivos` permanece como cache legado.
+model ProjetoDocumento {
+  id               String   @id @default(cuid())
+  projetoId        String
+  revisaoId        String?
+  itemId           String
+  tipo             String
+  nomeOriginal     String
+  nomeCanonico     String
+  mime             String
+  tamanho          Int
+  versao           Int
+  driveFileId      String?
+  url              String?
+  status           String   @default("uploading")
+  substituidoPorId String?
+  enviadoPorId     String?
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
+  excluidoEm       DateTime?
+
+  @@unique([projetoId, itemId, tipo, versao])
+  @@index([projetoId, itemId, tipo, status])
+  @@map("projeto_documentos")
 }
 
 // ─── REGULARIZAÇÃO ───────────────────────────────────────────────────────────
@@ -859,6 +886,7 @@ model TransacaoBancaria {
   origem            String         @default("manual")
   titular           String?
   descricaoOriginal String?
+  identificadorBancario String?   @map("identificador_bancario")
   bpoClienteId      String?
   bpoCliente        BpoCliente?    @relation(fields: [bpoClienteId], references: [id], onDelete: SetNull)
   asaasPaymentId    String?
@@ -867,6 +895,7 @@ model TransacaoBancaria {
   criadoEm          DateTime       @default(now())
 
   @@index([titular])
+  @@index([identificadorBancario])
   @@index([asaasPaymentId])
   @@map("transacoes_bancarias")
 }
