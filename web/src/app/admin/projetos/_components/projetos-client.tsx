@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { excluirProjeto, alterarStatusProjeto } from "@/lib/actions/projetos";
 import { AcoesExcluir } from "@/components/admin/acoes-excluir";
 import { exibirDiaPrazoProjeto, ordenarProjetosPorPrazo } from "@/lib/projetos-prazo";
+import { rotuloStatusAprovacao } from "@/lib/incorporacao/projeto-sincronizacao";
 
 interface Projeto {
   id: string;
@@ -20,6 +21,10 @@ interface Projeto {
   valorProjeto: number | null;
   valorPago: number;
   prazoEntrega: Date | null;
+  /** Correção 07: projeto gerado por um processo de Incorporação › Projeto Aprovado. */
+  estudoIncorporacaoId?: string | null;
+  processoAprovacaoId?: string | null;
+  aprovacaoStatus?: string | null;
 }
 
 interface Props {
@@ -154,6 +159,11 @@ export function ProjetosClient({ projetos }: Props) {
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <Link href={`/admin/projetos/${p.id}`} className="font-medium text-[var(--brand-dark)] leading-tight underline">{p.nome}</Link>
+                      {p.estudoIncorporacaoId && (
+                        <Link href={`/admin/incorporacao/${p.estudoIncorporacaoId}`} className="ml-2 inline-block bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-900 underline">
+                          Incorporação{p.processoAprovacaoId ? ` · ${rotuloStatusAprovacao(p.aprovacaoStatus)}` : " · processo excluído"}
+                        </Link>
+                      )}
                       <p className="md:hidden text-xs text-gray-600 mt-1">{p.clienteNome}</p>
                       <TiposResumo raw={p.tipo} />
                     </td>

@@ -10,6 +10,8 @@ import { parseKmlTerreno } from "@/lib/geo/kml";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
 import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 import { tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
+import { salvarAprovacaoProjetoSincronizado, vinculosDoEstudo } from "@/lib/projeto-incorporacao-sync";
+import { listarEngenheiros } from "@/lib/engenheiros";
 
 // Lê os campos de localização do formulário. Aceita um link do Google Maps (ou
 // um par "lat,lng" colado) e extrai as coordenadas exatas quando possível.
@@ -39,6 +41,24 @@ function lerLocalizacao(formData: FormData): {
   };
 }
 
+/**
+ * Correção 08: responsável escolhido entre os usuários ativos (admin ou
+ * colaborador — engenheiro é colaborador com perfil) e salvo por ID; o texto
+ * legado `responsavel` recebe o nome. `null` = campo ausente no formulário
+ * (não altera); "" = sem responsável.
+ */
+async function lerResponsavel(formData: FormData): Promise<{ responsavelId: string | null; responsavel: string | null } | null> {
+  if (!formData.has("responsavelId")) return null;
+  const id = String(formData.get("responsavelId") ?? "").trim();
+  if (!id) return { responsavelId: null, responsavel: null };
+  const u = await prisma.usuario.findUnique({ where: { id }, select: { id: true, nome: true, ativo: true, papel: true } });
+  if (!u) throw new Error("Responsável inválido.");
+  const atual = String(formData.get("responsavelIdAtual") ?? "");
+  // o responsável já gravado continua aceito mesmo se ficou inativo depois
+  if (u.id !== atual && (!u.ativo || !["admin", "colaborador"].includes(u.papel))) throw new Error("Responsável inválido ou inativo.");
+  return { responsavelId: u.id, responsavel: u.nome };
+}
+
 export async function criarEstudo(formData: FormData) {
   await exigirModuloAcao("incorporacao");
 
@@ -46,11 +66,7 @@ export async function criarEstudo(formData: FormData) {
   const tipoIncorporacao = formData.get("tipoIncorporacao");
   const municipio = (formData.get("municipio") as string)?.trim();
   const estado = ((formData.get("estado") as string) || "PA").trim();
-  const responsavel = (formData.get("responsavel") as string)?.trim() || null;
-  const matriculaImovel = (formData.get("matriculaImovel") as string)?.trim() || null;
-  const carRegistro = (formData.get("carRegistro") as string)?.trim() || null;
-  const zoneamentoOficial = (formData.get("zoneamentoOficial") as string)?.trim() || null;
-  const zoneamentoFonte = (formData.get("zoneamentoFonte") as string)?.trim() || null;
+  const responsavelInfo = await lerResponsavel(formData);
   const { endereco, latitude, longitude } = lerLocalizacao(formData);
 
   // Campos obrigatórios são enforçados no HTML (required); guarda defensiva.
@@ -58,7 +74,7 @@ export async function criarEstudo(formData: FormData) {
   if (!tipoIncorporacaoValido(tipoIncorporacao)) throw new Error("Selecione o tipo de incorporação.");
 
   const estudo = await prisma.estudoIncorporacao.create({
-    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status: "em_estudo", tipoIncorporacao },
+    data: { nome, municipio, estado, ...(responsavelInfo ?? {}), endereco, latitude, longitude, status: "em_estudo", tipoIncorporacao },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -73,11 +89,7 @@ export async function editarEstudo(formData: FormData) {
   const nome = (formData.get("nome") as string)?.trim();
   const municipio = (formData.get("municipio") as string)?.trim();
   const estado = ((formData.get("estado") as string) || "PA").trim();
-  const responsavel = (formData.get("responsavel") as string)?.trim() || null;
-  const matriculaImovel = (formData.get("matriculaImovel") as string)?.trim() || null;
-  const carRegistro = (formData.get("carRegistro") as string)?.trim() || null;
-  const zoneamentoOficial = (formData.get("zoneamentoOficial") as string)?.trim() || null;
-  const zoneamentoFonte = (formData.get("zoneamentoFonte") as string)?.trim() || null;
+  const responsavelInfo = await lerResponsavel(formData);
   const status = formData.get("status");
   const tipoIncorporacao = formData.get("tipoIncorporacao");
   const { endereco, latitude, longitude } = lerLocalizacao(formData);
@@ -88,7 +100,9 @@ export async function editarEstudo(formData: FormData) {
 
   await prisma.estudoIncorporacao.update({
     where: { id },
-    data: { nome, municipio, estado, responsavel, matriculaImovel, carRegistro, zoneamentoOficial, zoneamentoFonte, endereco, latitude, longitude, status, tipoIncorporacao: tipoIncorporacao || null },
+    // Matrícula, CAR e zoneamento saíram do formulário (correção 08): as colunas
+    // continuam no banco e não são mais sobrescritas aqui.
+    data: { nome, municipio, estado, ...(responsavelInfo ?? {}), endereco, latitude, longitude, status, tipoIncorporacao: tipoIncorporacao || null },
   });
 
   revalidatePath("/admin/incorporacao");
@@ -297,13 +311,23 @@ export async function salvarProjetistas(estudoId: string, dadosJson: string) {
 
 /** Salva os processos de aprovação do projeto junto aos órgãos competentes — etapa 3.2. */
 export async function salvarAprovacaoProjeto(estudoId: string, dadosJson: string) {
-  await exigirModuloAcao("incorporacao");
-  await prisma.estudoIncorporacao.update({
-    where: { id: estudoId },
-    data: { aprovacaoProjetoJson: dadosJson },
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("incorporacao");
+    // Correção 07: cada processo também é um registro em Projetos (upsert, sem duplicar).
+    const { vinculos } = await salvarAprovacaoProjetoSincronizado(estudoId, dadosJson);
+    revalidatePath(`/admin/incorporacao/${estudoId}`);
+    revalidatePath("/admin/projetos");
+    return { ok: true as const, vinculos };
   });
-  revalidatePath(`/admin/incorporacao/${estudoId}`);
-  return { ok: true };
+}
+
+/** Correção 07: projeto de cada processo (link "Abrir em Projetos") e engenheiros para o seletor da linha. */
+export async function dadosProjetosDaAprovacao(estudoId: string) {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("incorporacao");
+    const [vinculos, engenheiros] = await Promise.all([vinculosDoEstudo(estudoId), listarEngenheiros()]);
+    return { vinculos, engenheiros };
+  });
 }
 
 /** Salva o checklist de documentos do registro da incorporação — etapa 3.4. */

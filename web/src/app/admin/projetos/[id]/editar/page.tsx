@@ -14,7 +14,7 @@ export default async function EditarProjetoPage({ params }: PageProps) {
   await exigirModuloPagina("projetos");
 
   const { id } = await params;
-  const p = await prisma.projeto.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
+  const p = await prisma.projeto.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } }, estudoIncorporacao: { select: { id: true, nome: true } } } });
   if (!p) notFound();
 
   let tiposSelecionados: string[] = [];
@@ -42,6 +42,10 @@ export default async function EditarProjetoPage({ params }: PageProps) {
           prazo={prazoValue}
           engenheiros={engenheiros}
           cliente={p.leadVinculado ? <ClienteVinculadoInfo lead={p.leadVinculado} className="sm:col-span-2" /> : null}
+          aprovacao={p.estudoIncorporacao && p.processoAprovacaoId ? {
+            estudoId: p.estudoIncorporacao.id, estudoNome: p.estudoIncorporacao.nome, orgao: p.aprovacaoOrgao ?? "Outro",
+            protocolo: p.aprovacaoProtocolo ?? "", status: p.aprovacaoStatus ?? "nao_protocolado", observacoes: p.aprovacaoObservacoes ?? "",
+          } : null}
         />
       </div>
     </div>

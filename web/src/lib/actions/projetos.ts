@@ -12,6 +12,8 @@ import { redirect } from "next/navigation";
 import { persistirDiaPrazoProjeto } from "@/lib/projetos-prazo";
 import { emailPedidoRevisao, mensagemPedidoSalvo, validarPedidoRevisao, type SituacaoCanal } from "@/lib/projeto-revisao";
 import { sendEmail } from "@/lib/email";
+import { refletirProjetoNoEstudo, removerProcessoDoEstudo, vinculoDoProjeto } from "@/lib/projeto-incorporacao-sync";
+import { ehOrgaoAprovacao, ehStatusAprovacao } from "@/lib/incorporacao/projeto-sincronizacao";
 
 export async function alterarStatusProjeto(id: string, status: string) {
   await exigirModuloAcao("projetos");
@@ -48,8 +50,12 @@ export async function alterarStatusProjetoFromDetail(id: string, status: string)
 export async function excluirProjeto(id: string) {
   return capturarErroAcao(async () => {
     await exigirModuloAcao("projetos", { somenteEquipe: true });
+    const vinculo = await vinculoDoProjeto(id);
     const r = await excluirServicoDefinitivo("projeto", id);
+    // Correção 07: o processo de aprovação correspondente sai do Projeto Aprovado.
+    if (vinculo) await removerProcessoDoEstudo(vinculo);
     revalidatePath("/admin/projetos");
+    if (vinculo?.estudoIncorporacaoId) revalidatePath(`/admin/incorporacao/${vinculo.estudoIncorporacaoId}`);
     revalidatePath("/admin/leads");
     return r;
   });
@@ -59,11 +65,13 @@ async function editarProjetoImpl(formData: FormData) {
   await exigirModuloAcao("projetos");
   const id = formData.get("id") as string;
   await transacaoCRM(async (tx) => {
-    const atual = await tx.projeto.findUnique({ where: { id }, select: { leadId: true, status: true, engenheiro: true, checklist: true } });
+    const atual = await tx.projeto.findUnique({ where: { id }, select: { leadId: true, status: true, engenheiro: true, checklist: true, clienteNome: true, clienteTel: true, estudoIncorporacaoId: true, processoAprovacaoId: true } });
     if (!atual) throw new Error("Registro não encontrado.");
     if (formData.has("leadId") && formData.get("leadId") !== atual.leadId) throw new Error("O vínculo com o CRM não pode ser alterado neste módulo.");
     if (atual.leadId) await bloquearLead(tx, atual.leadId);
-    const cliente = await clienteParaRegistro(atual.leadId, formData, tx);
+    // Correção 07: projeto vindo da Incorporação mantém o empreendimento como cliente (sem lead).
+    const vinculadoAoEstudo = !!(atual.estudoIncorporacaoId && atual.processoAprovacaoId);
+    const cliente = vinculadoAoEstudo ? { clienteNome: atual.clienteNome, clienteTel: atual.clienteTel } : await clienteParaRegistro(atual.leadId, formData, tx);
     const tiposJson = tiposObrigatorios(formData, PROJETO_TIPO_CONFIG);
     const tipos = JSON.parse(tiposJson) as string[];
     let anteriores: {id?: string; texto: string; feito: boolean; type?: string}[] = [];
@@ -83,11 +91,28 @@ async function editarProjetoImpl(formData: FormData) {
         ...(await engenheiroDoFormulario(tx, formData, atual.engenheiro)),
         descricao: (formData.get("descricao") as string) || "",
         prazoEntrega: (formData.get("prazoEntrega") as string) ? persistirDiaPrazoProjeto(formData.get("prazoEntrega") as string) : null,
+        ...(vinculadoAoEstudo ? aprovacaoExternaDoFormulario(formData) : {}),
       },
     });
+    // Correção 07: os dados compartilhados voltam ao processo do Projeto Aprovado.
+    if (vinculadoAoEstudo) await refletirProjetoNoEstudo(id, tx);
   });
   revalidatePath("/admin/projetos");
   redirect(`/admin/projetos/${id}`);
+}
+
+/** Correção 07: situação de aprovação externa (só para projeto vindo da Incorporação). */
+function aprovacaoExternaDoFormulario(formData: FormData) {
+  const orgao = String(formData.get("aprovacaoOrgao") ?? "");
+  const status = String(formData.get("aprovacaoStatus") ?? "");
+  if (!ehOrgaoAprovacao(orgao)) throw new Error("Escolha o órgão do processo de aprovação.");
+  if (!ehStatusAprovacao(status)) throw new Error("Escolha a situação de aprovação externa.");
+  return {
+    aprovacaoOrgao: orgao,
+    aprovacaoStatus: status,
+    aprovacaoProtocolo: String(formData.get("aprovacaoProtocolo") ?? "").trim().slice(0, 120) || null,
+    aprovacaoObservacoes: String(formData.get("aprovacaoObservacoes") ?? "").trim().slice(0, 2000) || null,
+  };
 }
 
 /** Item 07: devolve a mensagem de validação ao formulário (os dados digitados ficam na tela). */

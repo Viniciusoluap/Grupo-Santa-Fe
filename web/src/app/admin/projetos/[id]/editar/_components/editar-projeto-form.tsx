@@ -8,6 +8,11 @@ import { editarProjeto } from "@/lib/actions/projetos";
 import { PhoneInput } from "@/components/ui/phone-input";
 import ProjetoDetailClient from "../../_components/projeto-detail-client";
 import { creaAoTrocarEngenheiro, formatarCrea } from "@/lib/engenheiro";
+import { ORGAOS_APROVACAO } from "@/lib/incorporacao/aprovacao-projeto";
+import { STATUS_APROVACAO_EXTERNA } from "@/lib/incorporacao/projeto-sincronizacao";
+
+/** Correção 07: processo de Incorporação › Projeto Aprovado vinculado a este projeto. */
+export interface AprovacaoVinculada { estudoId: string; estudoNome: string; orgao: string; protocolo: string; status: string; observacoes: string }
 
 const campo = "w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50";
 const rotulo = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1";
@@ -19,13 +24,14 @@ interface Engenheiro { id: string; nome: string; papel: string; crea?: string | 
  * mantém tudo o que foi digitado (sem recarregar a página). Engenheiro é um
  * colaborador escolhido por ID, com busca.
  */
-export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheiros, cliente }: {
+export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheiros, cliente, aprovacao = null }: {
   projeto: { id: string; nome: string; status: string; clienteNome: string; clienteTel: string | null; engenheiro: string | null; engenheiroId: string | null; engenheiroRegistro: string | null; valorProjeto: number | null; descricao: string; checklist: string; arquivos: string };
   tiposSelecionados: string[];
   prazo: string;
   engenheiros: Engenheiro[];
   /** Cartão do cliente vinculado ao CRM (quando houver). */
   cliente: ReactNode | null;
+  aprovacao?: AprovacaoVinculada | null;
 }) {
   const [tipos, setTipos] = useState<string[]>(tiposSelecionados);
   const [engenheiroId, setEngenheiroId] = useState(projeto.engenheiroId ?? "");
@@ -70,7 +76,12 @@ export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheir
           <label className={rotulo}>Prazo de Entrega</label>
           <input name="prazoEntrega" type="date" defaultValue={prazo} className={campo} />
         </div>
-        {cliente ?? (
+        {aprovacao ? (
+          <div className="sm:col-span-2 border border-sky-100 bg-sky-50 px-3 py-2 text-sm">
+            <span className="font-bold">Empreendimento (da Incorporação):</span> {aprovacao.estudoNome}{" "}
+            <Link href={`/admin/incorporacao/${aprovacao.estudoId}`} className="underline">Abrir o estudo</Link>
+          </div>
+        ) : cliente ?? (
           <>
             <div>
               <label className={rotulo}>Cliente *</label>
@@ -102,6 +113,33 @@ export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheir
         </div>
 
       </div>
+
+      {aprovacao && (
+        <fieldset className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-sky-100 p-4">
+          <legend className="px-1 text-xs font-bold text-gray-500 uppercase tracking-wide">Aprovação externa (sincronizada com a Incorporação)</legend>
+          <div>
+            <label className={rotulo}>Órgão</label>
+            <select name="aprovacaoOrgao" defaultValue={aprovacao.orgao} className={`${campo} appearance-none`}>
+              {ORGAOS_APROVACAO.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={rotulo}>Protocolo</label>
+            <input name="aprovacaoProtocolo" type="text" maxLength={120} defaultValue={aprovacao.protocolo} className={campo} />
+          </div>
+          <div>
+            <label className={rotulo}>Situação de aprovação externa</label>
+            <select name="aprovacaoStatus" defaultValue={aprovacao.status} className={`${campo} appearance-none`}>
+              {STATUS_APROVACAO_EXTERNA.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={rotulo}>Observações do processo</label>
+            <input name="aprovacaoObservacoes" type="text" maxLength={2000} defaultValue={aprovacao.observacoes} className={campo} />
+          </div>
+          <p className="sm:col-span-2 text-xs text-gray-600">O status acima é o andamento técnico interno; esta situação é a do órgão. Prazo e engenheiro também voltam ao processo.</p>
+        </fieldset>
+      )}
 
       <fieldset>
         <legend className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Tipos de Projeto *</legend>

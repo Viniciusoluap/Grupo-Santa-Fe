@@ -2,11 +2,13 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { criarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
 import { SeletorLocalizacao } from "../_components/seletor-localizacao";
-import { CadastroFormalFields } from "../_components/cadastro-formal-fields";
+import { SeletorResponsavel } from "../_components/seletor-responsavel";
+import { listarResponsaveisEstudo } from "@/lib/incorporacao/responsaveis";
 import { TIPOS_INCORPORACAO } from "@/lib/incorporacao/tipo-estudo";
 
 export default async function NovoEstudoPage() {
   await exigirModuloPagina("incorporacao");
+  const responsaveis = await listarResponsaveisEstudo();
 
   return (
     <div className="space-y-5 max-w-xl">
@@ -25,7 +27,7 @@ export default async function NovoEstudoPage() {
           </select>
         </div>
         <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome do estudo *</label>
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome do empreendimento *</label>
           <input name="nome" required placeholder="Ex.: Loteamento Jardim das Palmeiras"
             className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
         </div>
@@ -48,12 +50,7 @@ export default async function NovoEstudoPage() {
           </p>
           <SeletorLocalizacao />
         </div>
-        <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Responsável</label>
-          <input name="responsavel" placeholder="Opcional"
-            className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
-        </div>
-        <CadastroFormalFields />
+        <SeletorResponsavel opcoes={responsaveis} />
         <button type="submit"
           className="text-xs font-bold px-5 py-2.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 transition-opacity">
           Criar estudo

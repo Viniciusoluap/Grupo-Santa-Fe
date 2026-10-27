@@ -456,10 +456,21 @@ model Projeto {
   arquivos           String           @default("[]")
   checklist          String           @default("[]")
   revisoes           ProjetoRevisao[]
+  /// Lote 2, correção 07: projeto gerado por um processo de Incorporação › Projeto Aprovado.
+  /// Chave única (estudo, processo) → upsert, nunca duplica.
+  estudoIncorporacaoId String?
+  estudoIncorporacao   EstudoIncorporacao? @relation("ProjetoEstudoIncorporacao", fields: [estudoIncorporacaoId], references: [id], onDelete: SetNull)
+  processoAprovacaoId  String?          @db.VarChar(100)
+  /// Situação de aprovação externa (órgão) — separada do andamento técnico em `status`.
+  aprovacaoOrgao       String?          @db.VarChar(120)
+  aprovacaoProtocolo   String?          @db.VarChar(120)
+  aprovacaoStatus      String?          @db.VarChar(30)
+  aprovacaoObservacoes String?
   criadoEm           DateTime         @default(now())
   atualizadoEm       DateTime         @updatedAt
 
   @@unique([servicoLeadId, leadId])
+  @@unique([estudoIncorporacaoId, processoAprovacaoId])
   @@map("projetos")
 }
 
@@ -809,6 +820,9 @@ model Usuario {
   imoveisCadastrados          Imovel[]              @relation("ImovelCadastradoPor")
   avisosImovelRecusado        ImovelRecusadoAviso[]
   /// Lote 2, correção 04: perfil Engenheiro (colaborador + dados profissionais) e documentos.
+  estudosResponsavel          EstudoIncorporacao[]  @relation("EstudoResponsavel")
+  estudosMassaCriados         EstudoMassaSalvo[]    @relation("EstudoMassaAutor")
+  estudosMassaExcluidos       EstudoMassaSalvo[]    @relation("EstudoMassaExcluidoPor")
   perfilEngenheiro            PerfilEngenheiro?
   documentosUsuario           DocumentoUsuario[]    @relation("DocumentoDoUsuario")
   documentosUsuarioEnviados   DocumentoUsuario[]    @relation("DocumentoEnviadoPor")
@@ -996,22 +1010,32 @@ model ResumoVencimentoCard {
 // ─── INCORPORAÇÃO (estudos de viabilidade / massa / topografia / urbanístico) ──
 
 model EstudoIncorporacao {
-  id                String          @id @default(cuid())
-  nome              String
-  municipio         String
-  estado            String          @default("PA")
-  endereco          String? // endereço/logradouro (opcional)
-  latitude          Float? // localização exata (Google Maps)
-  longitude         Float?
-  responsavel       String?
-  status            String          @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
-  tipoIncorporacao  String? // legado NULL: não inferir tipo pelo nome ou pelo status
-  dueDiligenceJson  String?
-  unidades          EstudoUnidade[]
-  matriculaImovel   String?
-  carRegistro       String?
-  zoneamentoOficial String?
-  zoneamentoFonte   String?
+  id                 String             @id @default(cuid())
+  nome               String
+  municipio          String
+  estado             String             @default("PA")
+  endereco           String? // endereço/logradouro (opcional)
+  latitude           Float? // localização exata (Google Maps)
+  longitude          Float?
+  responsavel        String?
+  /// Lote 2, correção 08: responsável por ID (o texto `responsavel` é o legado/exibição).
+  responsavelId      String?
+  responsavelUsuario Usuario?           @relation("EstudoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  /// Lote 2, correção 06 (AD-03): empreendimento sem KML + lotes avulsos (JSON).
+  semKml             Boolean            @default(false)
+  lotesAvulsosJson   String?
+  /// Lote 2, correção 11 (AD-04): estudos de massa salvos (o principal é espelhado em massaCenariosJson/cenarioEscolhidoId/mixJson).
+  estudosMassa       EstudoMassaSalvo[]
+  /// Correção 07: projetos gerados pelos processos do Projeto Aprovado.
+  projetosAprovacao  Projeto[]       @relation("ProjetoEstudoIncorporacao")
+  status             String             @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
+  tipoIncorporacao   String? // legado NULL: não inferir tipo pelo nome ou pelo status
+  dueDiligenceJson   String?
+  unidades           EstudoUnidade[]
+  matriculaImovel    String?
+  carRegistro        String?
+  zoneamentoOficial  String?
+  zoneamentoFonte    String?
 
   // Terreno / geometria
   imovelId   String?
@@ -1122,6 +1146,36 @@ model EstudoIncorporacao {
 
   @@index([status])
   @@map("estudos_incorporacao")
+}
+
+/// Lote 2, correção 11 (AD-04): estudo de massa salvo (versões, cenários, poligonal de
+/// referência, indicadores, quadro de áreas, autor, exclusão lógica).
+model EstudoMassaSalvo {
+  id                  String             @id @default(cuid())
+  estudoId            String
+  estudo              EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  nome                String             @db.VarChar(120)
+  versao              Int                @default(1)
+  origemId            String?
+  origem              EstudoMassaSalvo?  @relation("EstudoMassaOrigem", fields: [origemId], references: [id], onDelete: SetNull)
+  derivados           EstudoMassaSalvo[] @relation("EstudoMassaOrigem")
+  parametrosJson      String?
+  cenariosJson        String
+  poligonalReferencia String?
+  cenarioEscolhidoId  String?            @db.VarChar(120)
+  indicadoresJson     String?
+  quadroAreasJson     String?
+  principal           Boolean            @default(false)
+  criadoPorId         String?
+  criadoPor           Usuario?           @relation("EstudoMassaAutor", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  criadoEm            DateTime           @default(now())
+  atualizadoEm        DateTime           @updatedAt
+  excluidoEm          DateTime?
+  excluidoPorId       String?
+  excluidoPor         Usuario?           @relation("EstudoMassaExcluidoPor", fields: [excluidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([estudoId])
+  @@map("estudos_massa_salvos")
 }
 
 // Snapshots imutáveis a cada alteração do estudo, preservados inclusive após

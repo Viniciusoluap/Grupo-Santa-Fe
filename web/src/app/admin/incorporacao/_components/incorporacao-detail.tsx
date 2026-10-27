@@ -41,6 +41,7 @@ import { orcamentoObraPreenchidoDoJson } from "@/lib/incorporacao/orcamento-obra
 import { obraConcluidaDoJson } from "@/lib/incorporacao/cronograma-obra";
 import { atendimentoTodosConcluidosDoJson } from "@/lib/incorporacao/atendimento-clientes";
 import { UnidadesTab } from "./unidades-tab";
+import { terrenoLiberado } from "@/lib/incorporacao/lotes-avulsos";
 
 export interface EstudoData {
   id: string;
@@ -51,6 +52,11 @@ export interface EstudoData {
   tipoIncorporacao?: string | null;
   dueDiligenceJson?: string | null;
   responsavel: string | null;
+  /** Correção 08: responsável por ID de usuário (o texto acima é o legado/exibição). */
+  responsavelId?: string | null;
+  /** Correção 06 (AD-03): estudo sem KML + lotes avulsos (JSON). */
+  semKml?: boolean;
+  lotesAvulsosJson?: string | null;
   versaoNumero?: number | null;
   colaboradores?: { id: string; nome: string }[];
   matriculaImovel?: string | null;
@@ -149,7 +155,7 @@ const FASES: Fase[] = [
     numero: 2,
     titulo: "Novos Negócios",
     etapas: [
-      { id: "terreno", numero: "2.1", titulo: "Documentos do Terreno", componente: TerrenoTab, concluida: (e) => !!e.geojson },
+      { id: "terreno", numero: "2.1", titulo: "Documentos do Terreno", componente: TerrenoTab, concluida: (e) => !!e.geojson || (!!e.semKml && !!e.lotesAvulsosJson && e.lotesAvulsosJson !== "[]") },
       { id: "topografia", numero: "2.1", titulo: "Topografia 3D", componente: TopografiaTab, concluida: (e) => !!e.elevacaoJson },
       { id: "mercado", numero: "2.2", titulo: "Inteligência de Mercado", componente: MercadoTab, concluida: (e) => !!e.pesquisaCidadeJson || !!e.estudoMercadoJson || !!e.precificacaoComparaveisJson || pesquisaPrimariaPreenchidaDoJson(e.pesquisaPrimariaJson) },
       { id: "massa", numero: "2.3", titulo: "Estudo de Massa e Quadro de Áreas", componente: MassaTab, concluida: (e) => !!e.massaCenariosJson },
@@ -330,7 +336,8 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
     alteradoRef.current = true;
     setTimeout(() => setAlterado(true), 0);
   };
-  const temTerreno = !!estudo.geojson;
+  // Correção 06: com KML ou com "não possui KML", as etapas dependentes do terreno ficam liberadas.
+  const temTerreno = terrenoLiberado(estudo);
 
   const progresso = useMemo(() => calcularProgresso(estudo), [estudo]);
 
@@ -404,8 +411,8 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
       <div className="pt-5" onInputCapture={marcarAlterado} onChangeCapture={marcarAlterado}>
         <div hidden={relatorioAtivo || etapaId !== "dados"} className="bg-white border border-gray-100 p-4 text-sm">
           <h2 className="font-bold text-[var(--brand-dark)] mb-2">Dados Gerais</h2>
-          <p>{estudo.nome} · {estudo.municipio}/{estudo.estado}</p>
-          <p>Responsável: {estudo.responsavel || "Não informado"}</p>
+          <p><span className="text-gray-600">Nome do empreendimento:</span> {estudo.nome} · {estudo.municipio}/{estudo.estado}</p>
+          <p><span className="text-gray-600">Responsável:</span> {estudo.responsavel || "Não informado"}</p>
           <Link href={`/admin/incorporacao/${estudo.id}/editar`} className="inline-block mt-3 font-bold underline text-[var(--brand-dark)]">Editar dados gerais</Link>
         </div>
         {estudo.tipoIncorporacao === "desmembramento_simples" && <div hidden={relatorioAtivo || etapaId !== "diligencia"}><DueDiligenceTab estudoId={estudo.id} json={estudo.dueDiligenceJson ?? null} /></div>}
@@ -417,7 +424,7 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
         {visitados.includes("relatorio") && <div hidden={!relatorioAtivo}><RelatorioTab estudo={estudo} /></div>}
       </div>
       {!temTerreno && etapaId !== "terreno" && etapaId !== "dados" && (
-        <p className="text-xs text-gray-500 mt-3">Envie o KML do terreno para habilitar as análises.</p>
+        <p className="text-xs text-gray-500 mt-3">Envie o KML do terreno ou marque &quot;Este empreendimento não possui KML&quot; na aba Terreno para habilitar as análises.</p>
       )}
     </div>
   );

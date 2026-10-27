@@ -23,6 +23,10 @@ export interface ProcessoAprovacao {
   prazoPrevisto?: string; // ISO yyyy-mm-dd
   status: StatusAprovacao;
   observacoes?: string;
+  /** Correção 07: engenheiro responsável (perfil Engenheiro / colaborador), espelhado no módulo Projetos. */
+  engenheiroId?: string;
+  engenheiro?: string;
+  engenheiroRegistro?: string;
 }
 
 export interface ResumoAprovacaoProjeto {

@@ -6,6 +6,8 @@ import { Upload, MapPinned, Ruler } from "lucide-react";
 import type { uploadKml } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
 import { enviarComProgresso } from "@/lib/envio-progresso";
+import { SemKmlToggle } from "./lotes-avulsos-editor";
+import { AVISO_SEM_POLIGONAL } from "@/lib/incorporacao/lotes-avulsos";
 
 const MapaTerreno = dynamic(() => import("./mapa-terreno").then((m) => m.MapaTerreno), {
   ssr: false,
@@ -50,6 +52,9 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
       </form>
       {erro && <p className="text-xs text-red-500">{erro}</p>}
 
+      {/* Correção 06: empreendimento sem KML + lotes avulsos */}
+      <SemKmlToggle estudo={estudo} />
+
       {temTerreno ? (
         <>
           {/* Métricas */}
@@ -70,8 +75,8 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
       ) : (
         <div className="bg-white border border-gray-100 p-10 text-center">
           <MapPinned size={28} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Nenhum terreno carregado</p>
-          <p className="text-gray-600 text-sm mt-1">Envie o KML para desenhar o polígono e calcular área e perímetro.</p>
+          <p className="text-gray-500 font-medium">{estudo.semKml ? "Sem poligonal" : "Nenhum terreno carregado"}</p>
+          <p className="text-gray-600 text-sm mt-1">{estudo.semKml ? AVISO_SEM_POLIGONAL : "Envie o KML para desenhar o polígono e calcular área e perímetro."}</p>
         </div>
       )}
     </div>
