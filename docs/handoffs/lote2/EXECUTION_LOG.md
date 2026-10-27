@@ -11,3 +11,6 @@
 
 ## Continuação Codex — checkpoint orçamento/lançamento
 - Download Excel editado com original independente; fonte explícita de custo de lançamento; sincronização ao salvar lotes avulsos; testes e próximos passos atualizados no MASTER_STATUS. Código em paridade nos dois repositórios.
+
+## Checkpoint preço comercial
+- Correção 15 completada com campo próprio do CRM, novos testes e migração aditiva equivalente; preservação de legados documentada. Suíte geral P concluída e testes PCI SF adicionais aprovados.

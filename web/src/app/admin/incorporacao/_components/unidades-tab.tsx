@@ -5,7 +5,7 @@ import { NumeroBRField } from "@/components/ui/numero-br-field";
 import { listarUnidades, criarUnidade, conciliarVendaLegada, sincronizarUnidades, clientesUnidades, editarUnidade, excluirUnidade } from "@/lib/actions/unidades-incorporacao";
 type Snapshot = Exclude<Awaited<ReturnType<typeof listarUnidades>>, ErroAcao>;
 type Unidade = Snapshot["unidades"][number];
-type Cliente = { id: string; nome: string; telefone: string };
+type Cliente = { id: string; nome: string; telefone: string; valorNegociado?: string | null };
 const input = "min-w-0 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm";
 const action = "rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold disabled:opacity-50";
 const brl = (v: string | number | null) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -44,7 +44,7 @@ export function UnidadesTab({ estudoId }: { estudoId: string }) {
     {edit && <section aria-label={`Editar ${edit.codigo}`} className="space-y-3 rounded-xl border-2 border-gray-700 bg-white p-4">
       <h3 className="font-bold">Editar {edit.codigo}</h3><fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
         <label className="min-w-0 text-sm">Buscar cliente no CRM<input value={busca} onChange={(e) => setBusca(e.target.value)} className={input} placeholder="Digite o nome" /></label>
-        <label className="min-w-0 text-sm">Cliente<select value={form.compradorLeadId} className={input} onChange={(e) => { const c = clientes.find((c) => c.id === e.target.value); setForm({ ...form, compradorLeadId: c?.id ?? "", comprador: c?.nome ?? form.comprador }); }}><option value="">Nome avulso</option>{form.compradorLeadId && !clientes.some((c) => c.id === form.compradorLeadId) && <option value={form.compradorLeadId}>{form.comprador}</option>}{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome} · {c.telefone}</option>)}</select></label>
+        <label className="min-w-0 text-sm">Cliente<select value={form.compradorLeadId} className={input} onChange={(e) => { const c = clientes.find((c) => c.id === e.target.value); const preco = Number(c?.valorNegociado); const usarPreco = Number.isFinite(preco) && preco > 0 && (form.valor === 0 || form.valor === preco || confirm("Usar o valor negociado cadastrado no CRM? O valor atual desta edição será substituído.")); setForm({ ...form, compradorLeadId: c?.id ?? "", comprador: c?.nome ?? form.comprador, valor: usarPreco ? preco : form.valor }); }}><option value="">Nome avulso</option>{form.compradorLeadId && !clientes.some((c) => c.id === form.compradorLeadId) && <option value={form.compradorLeadId}>{form.comprador}</option>}{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome} · {c.telefone}</option>)}</select></label>
         <label className="min-w-0 text-sm">Nome do comprador<input value={form.comprador} disabled={!!form.compradorLeadId} maxLength={255} onChange={(e) => setForm({ ...form, comprador: e.target.value })} className={input} /></label>
         <label className="min-w-0 text-sm">Valor negociado (R$)<NumeroBRField value={form.valor} onValueChange={(v) => setForm({ ...form, valor: Math.max(0, v) })} className={input} /></label>
         <label className="min-w-0 text-sm">Status<select value={form.status} className={input} onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}><option value="disponivel">Disponível</option><option value="reservada">Reservado</option><option value="vendida">Vendido</option></select></label>

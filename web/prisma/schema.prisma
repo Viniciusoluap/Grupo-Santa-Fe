@@ -113,6 +113,7 @@ model Lead {
   orcamento            Float?
   // Pedido de 15/10: Valor Aprovado do cliente; é o VGV das obras dele (fonte única).
   valorAprovado        Decimal?        @db.Decimal(15, 2)
+  valorNegociado       Decimal?        @db.Decimal(15, 2)
   notas                String          @default("")
   senhaAcesso          String?
   interacoes           Interacao[]

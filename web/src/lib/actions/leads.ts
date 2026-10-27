@@ -57,6 +57,14 @@ function texto(formData: FormData, campo: string, max = 255) {
   return valor;
 }
 
+function valorNegociadoDoFormulario(formData: FormData): string | null {
+  const raw = texto(formData, "valorNegociado", 40);
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 9_999_999_999_999.99) throw new Error("Valor negociado inválido.");
+  return n.toFixed(2);
+}
+
 function orcamentoDoFormulario(formData: FormData) {
   const raw = texto(formData, "orcamento", 40);
   if (!raw) return null;
@@ -133,6 +141,7 @@ export async function criarLead(formData: FormData) {
       creationRequestKey: `${ator.id}:${requestKey}`,
       origem: (formData.get("origem") as string) || "site",
       orcamento: orcamentoDoFormulario(formData),
+      ...(formData.has("valorNegociado") ? { valorNegociado: valorNegociadoDoFormulario(formData) } : {}),
       notas: (formData.get("notas") as string) || "",
       corretorId: ator.papel === "corretor" ? ator.corretorId : (formData.get("corretorId") as string) || undefined,
       responsavelId,
@@ -224,6 +233,7 @@ export async function editarLead(formData: FormData) {
       temperatura: temperaturaDoFormulario(formData.get("temperatura"), atual.temperatura as LeadTemperatura),
       origem: (formData.get("origem") as string) || "site",
       orcamento: orcamentoDoFormulario(formData),
+      ...(formData.has("valorNegociado") ? { valorNegociado: valorNegociadoDoFormulario(formData) } : {}),
       ...(formData.has("valorAprovado") ? { valorAprovado: valorAprovadoDoFormulario(formData) } : {}),
       notas: (formData.get("notas") as string) || "",
       // "Sem corretor" precisa desvincular de verdade (antes `undefined` mantinha o antigo).

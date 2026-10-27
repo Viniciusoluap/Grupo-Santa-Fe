@@ -25,7 +25,7 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 | 12 | Orçamento Parametrizado + import Excel | Parcial (sem import) | Parcial (sem import) | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 13 | Negociação responsiva | Existe (cartões) | Existe | Implementada — validar visual/produção | continuação Codex |
 | 14 | Projeto Aprovado responsivo | Existe (tabela) | Existe | Implementada — validar visual/produção | continuação Codex |
-| 15 | Unidades do cenário + comprador CRM | Parcial (manual, comprador texto) | Parcial (manual) | Parcial: geração e CRM testados; falta fonte explícita do valor negociado | — |
+| 15 | Unidades do cenário + comprador CRM | Parcial (manual, comprador texto) | Parcial (manual) | Implementada: geração, CRM e preço negociado testados; aceite visual/produção pendente | — |
 | 16 | Máscara R$ + editar/excluir unidade | Faltante | Faltante | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 17 | Planejamento responsivo | Existe | Existe | Implementada — validar visual/produção | continuação Codex |
 | 18 | Fornecedores R$ + Orçado vs Contratado | Parcial | Parcial | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
@@ -108,3 +108,11 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - (b) Manual: aceite visual desktop/tablet/mobile/PWA e upload/download autenticado ainda pendentes.
 - (c) Produção: nenhuma migração deste lote aplicada; não foi feito merge final.
 - Próximo passo exato: finalizar suíte Prospecta; completar valor negociado do CRM sem confundir VGV simulado/financiamento; revisar PCI SF/permissões; verificar UI; atualizar evidências; migrações, PRs e deploy autorizados quando validado.
+
+### Checkpoint — valor negociado explícito e regressão
+- Correção 15: novo campo opcional no cadastro/edição do CRM, `negotiated_value` (P) / `valorNegociado` (SF), separado da simulação/financiamento. Cliente selecionado preenche o preço comercial quando cadastrado; valor da unidade permanece editável; substituição de preço já preenchido exige confirmação. Ausência não vira preço fictício. Nenhum dado legado é convertido/backfilled.
+- Migração adicional: P `0092_lead_valor_negociado.sql`; SF `20261027210000_lead_valor_negociado`. Aditiva, nullable, valida não negativo e idempotente. Rodou duas vezes em PGlite e uma vez na branch Neon de teste existente.
+- (a) Prospecta: suíte geral integrada finalizada **162 arquivos, 1219 testes aprovados**, antes do campo de preço. Após campo: **17/17** específicos CRM/inventário; TypeScript aprovado. SF: **4/4** específicos preço/permissões/migrações; TypeScript aprovado. SF PCI adicional: **3/3** (permissões, rascunho grava/recarga, download vinculado à obra e bytes).
+- (b) Aceite manual e visual autenticado ainda pendente. Testes com mocks não substituem E2E de produção.
+- (c) Inspeção pré-migração: P 65 leads/4 estudos/2 unidades; SF 26 leads/1 estudo/0 unidades; tabelas novas ainda ausentes em produção. Nenhuma migração de produção até este checkpoint.
+- Próximos: aplicar migrações já testadas de forma aditiva (0087–0092 / SF 160000–210000), conferir contagens/RLS, validar previews e fluxos, abrir PRs e finalizar entrega quando aprovado nos critérios.

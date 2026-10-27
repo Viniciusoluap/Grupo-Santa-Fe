@@ -111,7 +111,8 @@ export async function conciliarVendaLegada(estudoId: string, vendaId: string, ti
 export async function clientesUnidades(query = "") {
   return capturarErroAcao(async () => {
     await admin(); await exigirModuloAcao("crm");
-    return prisma.lead.findMany({ where: { excluidoEm: null, ...(query ? { nome: { contains: query.slice(0, 120), mode: "insensitive" as const } } : {}) }, select: { id: true, nome: true, telefone: true }, orderBy: { nome: "asc" }, take: 200 });
+    const clientes = await prisma.lead.findMany({ where: { excluidoEm: null, ...(query ? { nome: { contains: query.slice(0, 120), mode: "insensitive" as const } } : {}) }, select: { id: true, nome: true, telefone: true, valorNegociado: true }, orderBy: { nome: "asc" }, take: 200 });
+    return clientes.map(c => ({...c, valorNegociado: c.valorNegociado?.toString() ?? null}));
   });
 }
 export async function sincronizarUnidades(estudoId: string) {
