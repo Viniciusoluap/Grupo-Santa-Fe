@@ -68,3 +68,10 @@ Este é o ponto de retomada do trabalho iniciado no Claude. Repositórios: Prosp
 - Pergunta enviada ao dono: autoriza cadastrar a conexão da branch Neon de testes como segredo na Vercel, apenas no preview desta branch? Aguardar essa autorização específica antes da transferência; então configurar, redeploy e conferir runtime, antes de pedir autenticação novamente.
 - Banco de teste contém 1 usuário/67 leads/1 estudo e recebeu as migrações do lote. É uma base de teste anterior; conferir compatibilidade dos demais campos necessários antes dos E2E. Não criar sessão artificial nem substituir credenciais para conseguir acesso.
 - PRs permanecem rascunho (#174 P, #237 SF). Merge/deploy final e aceite autenticado continuam pendentes. Trabalho de código e migrações de produção já preservados. Próximo passo vigente é resolver este bloqueio de configuração, e só depois o login/aceite visual.
+
+## Retomada autorizada — 27/10/2026
+- Dono autorizou explicitamente o cadastro da conexão da branch Neon de testes na Vercel e pediu, na sequência, merge e deploy dos dois sistemas.
+- DATABASE_URL criada como segredo (sensitive), apenas target preview e gitBranch codex/continuar-lote2-20261027, no projeto Vercel Prospecta. Destino do banco: branch de testes br-cold-feather-an7ecnay; não é produção. Nenhuma credencial no Git/handoff.
+- Redeploy de verificação em andamento: dpl_DRVTiYxkZRXPm4BHbwBVwa2HXBXy, SHA Prospecta 8a53fa1. O bloqueio de autorização anterior está resolvido. Conferir /api/health e guardas de acesso após READY.
+- PRs #174 / #237 continuam com histórico preservado. Testes automáticos e migrações documentados anteriormente são reaproveitados; nenhum código funcional foi alterado nesta retomada.
+- Próximos: verificação de runtime do preview, conferir checks dos PRs, merge autorizado, acompanhar deploys de produção e registrar smoke/limitações. Não afirmar aceite visual/PWA/upload real sem evidência.
