@@ -46,3 +46,10 @@ describe("materialPublicitarioAprovadoDoJson", () => {
     ).toBe(false);
   });
 });
+
+it("soma orçamento de todas as peças sem depender da aprovação e preserva dados legados", () => {
+  const lista = [peca({ valorOrcado: 100.15 }), peca({ status: "aprovado", valorOrcado: 200.25 }), peca({ status: "reprovado", valorOrcado: 50.10 }), peca({ status: "em_aprovacao" })];
+  expect(resumoMaterialPublicitario(lista)).toMatchObject({ valorTotalOrcado: 350.50, aprovadas: 1, emAprovacao: 1 });
+  expect(resumoMaterialPublicitario(lista.slice(1)).valorTotalOrcado).toBe(250.35);
+  expect(resumoMaterialPublicitario([peca({ valorOrcado: -1 }), peca({ valorOrcado: NaN })]).valorTotalOrcado).toBe(0);
+});

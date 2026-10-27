@@ -10,6 +10,8 @@ import {
   type TipoPecaPublicitaria,
 } from "@/lib/incorporacao/material-publicitario";
 import { salvarMaterialPublicitario } from "@/lib/actions/incorporacao";
+import { NumeroBRField } from "@/components/ui/numero-br-field";
+import { formatCurrency } from "@/lib/utils";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Material Publicitário (4.3 Lançamento, Marketing e Vendas) — repositório
@@ -31,7 +33,7 @@ function defaults(): Dados {
 }
 
 function novaPeca(): PecaPublicitaria {
-  return { id: Math.random().toString(36).slice(2), tipo: "Site", nome: "", status: "em_producao" };
+  return { id: Math.random().toString(36).slice(2), tipo: "Site", nome: "", status: "em_producao", valorOrcado: 0 };
 }
 
 const inputCls = "w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
@@ -94,14 +96,14 @@ export function MaterialPublicitarioTab({ estudo }: { estudo: EstudoData }) {
       {dados.pecas.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Kpi label="Peças" valor={String(resumo.total)} />
-          <Kpi label="Em aprovação" valor={String(resumo.emAprovacao)} />
+          <Kpi label="Valor total orçado" valor={formatCurrency(resumo.valorTotalOrcado)} />
           <Kpi label="Aprovadas" valor={`${resumo.pctAprovado}%`} destaque />
         </div>
       )}
 
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
-          <table className="text-xs min-w-[640px] w-full">
+          <table className="text-xs min-w-[780px] w-full">
             <thead>
               <tr>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Tipo</th>
@@ -121,6 +123,7 @@ export function MaterialPublicitarioTab({ estudo }: { estudo: EstudoData }) {
                   </td>
                   <td className="px-1 py-1"><input value={p.nome} onChange={(e) => upd(p.id, "nome", e.target.value)} className={inputCls} placeholder="Ex.: Vídeo de 30s para Instagram" /></td>
                   <td className="px-1 py-1"><input value={p.url ?? ""} onChange={(e) => upd(p.id, "url", e.target.value)} className={inputCls} placeholder="https://..." /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={p.valorOrcado ?? 0} onValueChange={(v) => upd(p.id, "valorOrcado", Math.max(0, v))} className={inputCls} /></td>
                   <td className="px-1 py-1">
                     <select value={p.status} onChange={(e) => upd(p.id, "status", e.target.value as StatusPeca)} className={inputCls}>
                       {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}

@@ -1,6 +1,6 @@
-// Material Publicitário (4.3 Lançamento, Marketing e Vendas) — repositório
-// e aprovação das peças publicitárias do lançamento (site, folder, vídeos,
-// redes sociais).
+// Material Publicitário — repositório e aprovação das peças publicitárias
+// do lançamento (site, folder, vídeos, redes sociais). Função pura, portada
+// do Grupo Santa Fé sem alteração de lógica.
 
 export type StatusPeca = "em_producao" | "em_aprovacao" | "aprovado" | "reprovado";
 
@@ -20,6 +20,7 @@ export interface PecaPublicitaria {
   tipo: TipoPecaPublicitaria;
   nome: string;
   url?: string;
+  valorOrcado?: number;
   status: StatusPeca;
 }
 
@@ -27,6 +28,7 @@ export interface ResumoMaterialPublicitario {
   total: number;
   aprovadas: number;
   emAprovacao: number;
+  valorTotalOrcado: number;
   pctAprovado: number;
 }
 
@@ -42,6 +44,7 @@ export function resumoMaterialPublicitario(pecas: PecaPublicitaria[]): ResumoMat
     total,
     aprovadas,
     emAprovacao,
+    valorTotalOrcado: Math.round(pecas.reduce((s, p) => s + (typeof p.valorOrcado === "number" && Number.isFinite(p.valorOrcado) && p.valorOrcado >= 0 ? p.valorOrcado : 0), 0) * 100) / 100,
     pctAprovado: total > 0 ? round1((aprovadas / total) * 100) : 0,
   };
 }

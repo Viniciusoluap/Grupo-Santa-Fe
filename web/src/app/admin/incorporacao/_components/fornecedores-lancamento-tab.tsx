@@ -38,6 +38,7 @@ function novoFornecedor(): FornecedorLancamento {
     id: Math.random().toString(36).slice(2),
     categoria: "Agência de Publicidade",
     nome: "",
+    valorOrcado: 0,
     valorContratado: 0,
     status: "nao_contratado",
   };
@@ -68,11 +69,12 @@ export function FornecedoresLancamentoTab({ estudo }: { estudo: EstudoData }) {
     marcarAlterado();
   }
   function removerFornecedor(id: string) {
+    if (!confirm("Excluir este fornecedor do orçamento? Salve para confirmar a alteração.")) return;
     setDados((d) => ({ fornecedores: d.fornecedores.filter((f) => f.id !== id) }));
     marcarAlterado();
   }
   function upd<K extends keyof FornecedorLancamento>(id: string, campo: K, valor: FornecedorLancamento[K]) {
-    setDados((d) => ({ fornecedores: d.fornecedores.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)) }));
+    setDados((d) => ({ fornecedores: d.fornecedores.map((f) => (f.id === id ? { ...f, valorOrcado: f.valorOrcado ?? f.valorContratado, [campo]: valor } : f)) }));
     marcarAlterado();
   }
 
@@ -104,20 +106,21 @@ export function FornecedoresLancamentoTab({ estudo }: { estudo: EstudoData }) {
       {dados.fornecedores.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Kpi label="Fornecedores" valor={String(resumo.total)} />
-          <Kpi label="Contratados" valor={`${resumo.pctContratado}%`} />
+          <Kpi label="Valor total orçado" valor={formatCurrency(resumo.valorTotalOrcado)} />
           <Kpi label="Valor total contratado" valor={formatCurrency(resumo.valorTotalContratado)} destaque />
         </div>
       )}
 
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
-          <table className="text-xs min-w-[680px] w-full">
+          <table className="text-xs min-w-[840px] w-full">
             <thead>
               <tr>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-44">Categoria</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Fornecedor</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Contato</th>
-                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">Valor (R$)</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-28">Orçado (R$)</th>
+                <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pb-1 w-28">Contratado (R$)</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Status</th>
                 <th />
               </tr>
@@ -132,7 +135,8 @@ export function FornecedoresLancamentoTab({ estudo }: { estudo: EstudoData }) {
                   </td>
                   <td className="px-1 py-1"><input value={f.nome} onChange={(e) => upd(f.id, "nome", e.target.value)} className={inputCls} placeholder="Nome" /></td>
                   <td className="px-1 py-1"><input value={f.contato ?? ""} onChange={(e) => upd(f.id, "contato", e.target.value)} className={inputCls} placeholder="Telefone/e-mail" /></td>
-                  <td className="px-1 py-1"><NumeroBRField value={f.valorContratado} onValueChange={(v) => upd(f.id, "valorContratado", v)} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={f.valorOrcado ?? f.valorContratado} onValueChange={(v) => upd(f.id, "valorOrcado", Math.max(0, v))} className={numCls} /></td>
+                  <td className="px-1 py-1"><NumeroBRField value={f.valorContratado} onValueChange={(v) => upd(f.id, "valorContratado", Math.max(0, v))} className={numCls} /></td>
                   <td className="px-1 py-1">
                     <select value={f.status} onChange={(e) => upd(f.id, "status", e.target.value as StatusFornecedor)} className={inputCls}>
                       {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}

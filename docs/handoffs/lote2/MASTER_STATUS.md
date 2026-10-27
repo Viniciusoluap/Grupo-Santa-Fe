@@ -50,3 +50,10 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - Onda 2 marcada em andamento no status não significa código concluído: auditar cada implementação. PCI SF contém backend, rotas e UI WIP; falta validar/testar.
 - (a) Baseline: checagem TypeScript em andamento nos dois; (b) navegador: não executado; (c) produção: nenhuma migração aplicada nesta retomada.
 - Próximo passo: validar PCI espelhada e completar testes SF, depois fornecedores/material, unidades, orçamento/viabilidade e responsividade/relatórios. Conciliar origin/main antes de merge (o lote anterior avançou).
+
+### Checkpoint — fornecedores e publicidade
+- Correções 18, 19.1 e 19.2 implementadas: valores orçados separados, total orçado em todos os status, total contratado apenas status Contratado conforme prompt, valor orçado por peça. Valores antigos preservados por fallback; campos monetários usam o componente numérico existente.
+- Arquivos: bibliotecas fornecedores-lancamento/material-publicitario e suas abas e testes. Nenhuma migração necessária (JSON existente).
+- (a) testes: 10/10 em cada repositório; PCI 15/15 Prospecta e 11/11 SF. Typecheck detectou dependência leaflet.markercluster ausente neste ambiente recuperado; instalar dependência já declarada antes de repetir. (b) sem teste visual; (c) sem deploy/migrações.
+- 19.3 (Atendimento CRM/unidades) continua pendente; 18 ainda precisa validar integração com Viabilidade. PCI SF ainda precisa testes de persistência/permissões; geração pura validada.
+- Push Git por HTTPS sem credencial; checkpoints são publicados pela integração GitHub (API Git Trees/Commits/Refs, sem force). Branch remota de continuação já criada e primeiro checkpoint confirmado.
