@@ -1,5 +1,13 @@
 # HANDOFF 26/10 — AIOX, 16 correções
 
+## Smoke e proteção PWA pós-deploy — 27/10/2026
+
+- Ambos os merges/deploys iniciais estão READY: Prospecta #172 / 66c064b7; Santa Fé #235 / 8e809239.
+- Navegador: Santa Fé público funcionando, painel solicita login. Prospecta acesso antigo em www ficou em branco, enquanto o MESMO deploy carregou em acesso limpo em site-prospecta.vercel.app. Bundle servido respondeu 200/JavaScript e passou análise de sintaxe.
+- Evidência indica cache do acesso antigo; não foi possível provar conteúdo do cache. Achado concreto: service workers aceitavam HTTP200 HTML como JS/CSS. Implementada renovação para v2 e validação MIME, descartando entradas incompatíveis e nunca armazenando fallback HTML.
+- Teste de regressão simula HTML indevido já cacheado e confirma descarte, nova busca e cache de JS válido. Teste Prospecta aprovado; espelhado Santa Fé.
+- As matrizes de implementação continuam válidas, com aceite físico/autenticado pendente. Próximo passo: publicar/mergear proteção PWA e conferir READY e acesso www.
+
 ## Entrega de código em produção — 27/10/2026
 
 - PR #235 mergeado: 8e80923916d1e248f396c5b3143ce3b8131c853e em main.

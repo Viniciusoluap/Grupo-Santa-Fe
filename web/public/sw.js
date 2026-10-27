@@ -10,7 +10,7 @@
 //   financeiro, sessão e permissões sempre vêm da rede, nunca do cache.
 // - Navegações de página (HTML/RSC): sempre buscadas na rede, para que
 //   o usuário logado nunca veja uma versão antiga/protegida por engano.
-const CACHE_NAME = "santafe-static-v1";
+const CACHE_NAME = "santafe-static-v2";
 const STATIC_PATH_PREFIXES = ["/_next/static/"];
 
 self.addEventListener("install", () => {
@@ -32,6 +32,14 @@ function isCacheableStaticAsset(url) {
   return STATIC_PATH_PREFIXES.some(prefix => url.pathname.startsWith(prefix));
 }
 
+function validStaticResponse(response, url) {
+  if (!response.ok) return false;
+  const type = (response.headers.get("content-type") || "").toLowerCase();
+  if (/\.m?js$/.test(url.pathname)) return /javascript|ecmascript/.test(type);
+  if (/\.css$/.test(url.pathname)) return type.includes("text/css");
+  return !type.includes("text/html");
+}
+
 self.addEventListener("fetch", event => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -42,9 +50,10 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     caches.open(CACHE_NAME).then(async cache => {
       const cached = await cache.match(request);
-      if (cached) return cached;
+      if (cached && validStaticResponse(cached, url)) return cached;
+      if (cached) await cache.delete(request);
       const response = await fetch(request);
-      if (response.ok) cache.put(request, response.clone());
+      if (validStaticResponse(response, url)) await cache.put(request, response.clone());
       return response;
     })
   );
