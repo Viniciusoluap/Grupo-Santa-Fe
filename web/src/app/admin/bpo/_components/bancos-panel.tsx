@@ -17,6 +17,7 @@ import {
   confirmarImportacaoExtrato,
   criarContaBancaria,
   excluirContaBancaria,
+  previaLimpezaContaBancaria,
   importarItemPluggy,
   listarTransacoesConta,
   previaImportacaoExtrato,
@@ -229,8 +230,12 @@ export function BancosPanel({
                   Data inicial
                 </button>
                 <button className="inline-flex items-center gap-1 text-xs font-bold border border-red-300 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50" disabled={ocupado}
-                  onClick={() => confirm(`Remover a conta ${c.banco}? As movimentações já gravadas continuam no histórico.`)
-                    && executar(async () => exigirResultado(await excluirContaBancaria(c.id)), () => toast.success("Conta removida."))}>
+                  onClick={() => executar(async () => {
+                    const p = exigirResultado(await previaLimpezaContaBancaria(c.id));
+                    const digitado = prompt(`Prévia de limpeza de ${p.rotulo}: ${p.transacoes} movimentações; ${p.lancamentosRemovidos} lançamentos serão removidos; ${p.lancamentosPreservados} lançamentos Asaas/operacionais serão preservados; ${p.vinculosOperacionais} vínculos operacionais mantidos.\n\nDigite o nome exato da conta para confirmar:`);
+                    if (digitado === null) return null;
+                    return exigirResultado(await excluirContaBancaria(c.id, digitado));
+                  }, (r) => { if (r) toast.success("Limpeza concluída; backup recuperável criado."); })}>
                   <Trash2 size={11} /> Remover
                 </button>
               </div>

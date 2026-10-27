@@ -37,8 +37,7 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
     prisma.bpoLancamento.findMany({ select: { tipo: true, valor: true, competencia: true, pago: true, categoria: true } }),
     prisma.bpoCliente.findMany({
-      where: { status: "ativo" },
-      select: { id: true, razaoSocial: true },
+      select: { id: true, razaoSocial: true, leadId: true },
       orderBy: { razaoSocial: "asc" },
     }),
     prisma.lead.findMany({
@@ -146,6 +145,9 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     competencia: l.competencia,
     centroCustos: l.centroCustos,
     categoria: l.categoria,
+    categoriaContabil: l.categoriaContabil ?? l.categoria,
+    categoriaOperacional: l.categoriaOperacional ?? l.etapa,
+    version: l.version,
     doExtrato: Boolean(l.transacaoId),
   }));
 

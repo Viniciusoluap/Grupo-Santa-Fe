@@ -5,10 +5,12 @@ import { DOCUMENTOS_CLIENTE } from "@/lib/documentos-cliente-padrao";
 export const VARIAVEIS_TEMPLATE: Record<string, string> = {
   nome: "Nome do cliente",
   servico: "Serviço",
+  servicos: "Serviços",
   corretor: "Corretor",
   imovel: "Imóvel",
   banco: "Banco",
   horario: "Horário",
+  dia: "Dia/data",
   endereco: "Endereço",
   documentos: "Documentos",
 };

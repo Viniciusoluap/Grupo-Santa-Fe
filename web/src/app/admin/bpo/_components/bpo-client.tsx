@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   FileText, Plus, Upload, Wrench, CheckCircle2, Clock,
   AlertCircle, Search, X, Building2, ArrowUpRight, ArrowDownRight,
@@ -12,12 +13,13 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { criarCobranca, pagarLancamento } from "@/lib/actions/bpo";
+import { criarCobranca, editarLancamentoBpo, importarClientesCrmBpo, pagarLancamento } from "@/lib/actions/bpo";
 import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
 import { CATEGORIAS_BPO, ehDespesa, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
+import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
 
 export interface LancamentoComCliente {
@@ -35,6 +37,9 @@ export interface LancamentoComCliente {
   centroCustos: string | null;
   /** LOTE C: categoria padrão e se o lançamento veio do extrato bancário. */
   categoria: string | null;
+  categoriaContabil: string | null;
+  categoriaOperacional: string | null;
+  version: number;
   doExtrato: boolean;
 }
 
@@ -91,7 +96,7 @@ interface Props {
   lancamentos: LancamentoComCliente[];
   dre: LinhaDre[];
   contabilidade: ResumoContabil & { ano: string };
-  clientes: { id: string; razaoSocial: string }[];
+  clientes: { id: string; razaoSocial: string; leadId: string | null }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
   pluggy: { configured: boolean; active: boolean };
@@ -305,6 +310,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
 }
 
 export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+  const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -320,7 +326,33 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
   // Pedido de 25/10: o botão "Adicionar Conta" do topo abre o cadastro dentro do BancosPanel.
   const [abrirNovaConta, setAbrirNovaConta] = useState(0);
   const [modalFeedback, setModalFeedback] = useState<string | null>(null);
+  const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoComCliente | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function importarClientesCrm() {
+    startTransition(async () => {
+      try {
+        const resumo = await importarClientesCrmBpo();
+        setModalFeedback(`CRM: ${resumo.encontradasNoCrm} lead(s) analisado(s), ${resumo.criadas} importado(s), ${resumo.jaImportadas} já estavam vinculados.`);
+        router.refresh();
+      } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao importar clientes do CRM."); }
+    });
+  }
+
+  function editarLancamento(l: LancamentoComCliente) { setLancamentoEditando(l); }
+
+  function handleSalvarEdicao(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    startTransition(async () => {
+      try {
+        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoria: String(form.get("categoria")), categoriaContabil: String(form.get("categoria")), categoriaOperacional: String(form.get("categoriaOperacional")) || null, clienteId: String(form.get("clienteId")) || null, clienteNomeLivre: String(form.get("clienteNomeLivre")) || null, centroCustos: String(form.get("centroCustos")) || null });
+        setModalFeedback("Lançamento atualizado e auditado.");
+        setLancamentoEditando(null);
+        router.refresh();
+      } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao editar lançamento."); }
+    });
+  }
 
   // KPIs cobranças
   const cobracasAll = lancamentos.filter((l) => !ehDespesa(l.tipo));
@@ -394,6 +426,13 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
     setLeadSelectedNome("");
   }
 
+  function selecionarLead(lead: Props["leads"][number]) {
+    const clienteBpo = clientes.find((cliente) => cliente.leadId === lead.id);
+    setLeadSelectedId(clienteBpo?.id ?? "");
+    setLeadSelectedNome(lead.nome);
+    setLeadSearch(lead.nome);
+  }
+
   async function handleCriarCobranca(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -447,8 +486,8 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                   <td className="px-4 py-3"><p className="font-medium text-[var(--brand-dark)] text-xs">{l.clienteNome}</p></td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p>
-                    {(l.categoria || l.doExtrato) && (
-                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoria ?? ""}{l.doExtrato ? `${l.categoria ? " · " : ""}extrato bancário` : ""}</p>
+                    {(l.categoriaContabil || l.categoriaOperacional || l.doExtrato) && (
+                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoriaContabil ?? l.categoria ?? ""}{l.categoriaOperacional ? ` · ${SERVICOS_PROGRESSO.find((s) => s.chave === l.categoriaOperacional)?.nome ?? l.categoriaOperacional}` : ""}{l.doExtrato ? " · extrato bancário" : ""}</p>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500 hidden sm:table-cell">{l.competencia}</td>
@@ -456,6 +495,8 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)] text-xs">{formatCurrency(l.valor)}</td>
                   <td className="px-4 py-3 text-center">{getStatusBadge(l)}</td>
                   <td className="px-4 py-3 text-center">
+                    <button onClick={() => editarLancamento(l)} disabled={isPending}
+                      className="text-xs font-bold text-blue-700 border border-blue-200 px-2 py-1 hover:bg-blue-50 disabled:opacity-50 mr-2">Editar</button>
                     {!l.pago ? (
                       <button onClick={() => handlePagar(l.id)} disabled={isPending}
                         className="text-xs font-bold text-[var(--brand-dark)] bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] px-3 py-1 transition-colors disabled:opacity-50">
@@ -506,6 +547,9 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
         <button onClick={() => alert("Funcionalidade em breve")}
           className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
           <Wrench size={13} /> Corrigir Dados/BPO
+        </button>
+        <button onClick={importarClientesCrm} disabled={isPending} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors disabled:opacity-50">
+          <Users size={13} /> Importar Clientes CRM
         </button>
       </div>
 
@@ -732,6 +776,30 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
       )}
 
       {/* ─── MODAL: Novo (Cobrança ou Despesa) ─── */}
+      {lancamentoEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form onSubmit={handleSalvarEdicao} className="bg-white w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase">Editar lançamento</h2>
+            <p className="text-xs text-gray-500">A alteração exige motivo e será salva no histórico com controle de versão.</p>
+            <input type="hidden" name="id" value={lancamentoEditando.id} />
+            <input type="hidden" name="version" value={lancamentoEditando.version} />
+            <input type="hidden" name="clienteId" value={lancamentoEditando.clienteId ?? ""} />
+            <input type="hidden" name="clienteNomeLivre" value={lancamentoEditando.clienteNomeLivre ?? ""} />
+            <label className="block text-xs font-bold text-gray-500 uppercase">Descrição<input name="descricao" required defaultValue={lancamentoEditando.descricao} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs font-bold text-gray-500 uppercase">Valor<input name="valor" type="number" min="0.01" step="0.01" required defaultValue={lancamentoEditando.valor} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Competência<input name="competencia" type="month" required defaultValue={lancamentoEditando.competencia} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Categoria contábil<select name="categoria" defaultValue={lancamentoEditando.categoriaContabil ?? lancamentoEditando.categoria ?? "Outros"} className="mt-1 w-full border px-3 py-2 text-sm normal-case">{CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+            </div>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Categoria operacional / módulo<select name="categoriaOperacional" defaultValue={lancamentoEditando.categoriaOperacional ?? ""} disabled={!ehDespesa(lancamentoEditando.tipo)} className="mt-1 w-full border px-3 py-2 text-sm normal-case"><option value="">Sem módulo</option>{SERVICOS_PROGRESSO.map((s) => <option key={s.chave} value={s.chave}>{s.nome}</option>)}</select></label>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Centro de custos<input name="centroCustos" defaultValue={lancamentoEditando.centroCustos ?? ""} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
+          </form>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -792,7 +860,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                         ))}
                         {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
                           <button key={l.id} type="button"
-                            onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
+                            onClick={() => selecionarLead(l)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{l.nome}</span>
                             <span className="text-gray-600 text-xs ml-2">Lead</span>
@@ -806,7 +874,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria contábil *</label>
                   <select name="categoria" required defaultValue="Recebimento de cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
                     {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
                   </select>
@@ -877,7 +945,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                         ))}
                         {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
                           <button key={l.id} type="button"
-                            onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
+                            onClick={() => selecionarLead(l)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{l.nome}</span>
                             <span className="text-gray-600 text-xs ml-2">Lead</span>
@@ -891,9 +959,16 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria contábil *</label>
                   <select name="categoria" required defaultValue="Outros" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
                     {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria operacional / módulo da obra</label>
+                  <select name="categoriaOperacional" defaultValue="" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
+                    <option value="">Sem vínculo com módulo</option>
+                    {SERVICOS_PROGRESSO.map((s) => <option key={s.chave} value={s.chave}>{s.nome}</option>)}
                   </select>
                 </div>
                 <div>

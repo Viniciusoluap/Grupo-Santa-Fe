@@ -45,6 +45,6 @@ export function reconcileProjectChecklist(checks: ProjectCheck[], documents: Pro
     const id = check.id || check.type || `legacy-${index}`;
     const pdfDone = active.has(`${id}:pdf`);
     const editableDone = active.has(`${id}:editable`);
-    return { ...check, id, pdfDone, editableDone, done: pdfDone || editableDone };
+    return { ...check, id, pdfDone, editableDone, done: pdfDone && editableDone };
   });
 }

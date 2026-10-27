@@ -15,6 +15,7 @@ import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
 import { limparExtras, textosPorDestinatario } from "@/lib/whatsapp/variaveis";
 import { URL_WEBHOOK_EVOLUTION, leadPorTelefone, segredoWebhookEvolution } from "@/lib/whatsapp/webhook-evolution";
 import { baixarEGuardarMidia, mensagemWhatsappAcessivel } from "@/lib/whatsapp/midia";
+import { validarTemplateWhatsapp } from "@/lib/whatsapp/templates";
 
 // O parametro usuarioId recebido do cliente e' ignorado deliberadamente: a UI
 // so chama esta action com o proprio usuarioId (session.user.id), mas a action
@@ -137,6 +138,22 @@ async function atorWhatsapp() {
   return { u, conn };
 }
 
+export async function salvarTemplateWhatsapp(input: { id?: string; nome: string; finalidade: string; conteudo: string }) {
+  const u = await usuarioAtual();
+  if (!u?.ativo || !podeAdministrarSeguranca(u)) throw new Error("Somente o administrador pode alterar templates.");
+  const nome = input.nome.trim().slice(0, 120);
+  const finalidade = input.finalidade.trim().slice(0, 80);
+  const conteudo = input.conteudo.trim().slice(0, 4096);
+  if (nome.length < 2 || finalidade.length < 2 || conteudo.length < 2) throw new Error("Preencha nome, finalidade e conteúdo.");
+  validarTemplateWhatsapp(conteudo);
+  if (input.id) {
+    await prisma.whatsappTemplate.update({ where: { id: input.id }, data: { nome, finalidade, conteudo, atualizadoPorId: u.id } });
+  } else {
+    await prisma.whatsappTemplate.create({ data: { slug: `personalizado-${Date.now()}-${u.id}`, nome, finalidade, conteudo, criadoPorId: u.id, atualizadoPorId: u.id } });
+  }
+  revalidatePath("/admin/whatsapp");
+}
+
 /** Prévia por destinatário: mensagem final e variáveis que ainda faltam. */
 export async function previaEnvioWhatsapp(mensagem: string, ids: string[], extras: Record<string, string> = {}, extrasPorLead: Record<string, Record<string, string>> = {}): Promise<{ itens: { id: string; texto: string; faltando: string[] }[]; erro?: string }> {
   try {
@@ -211,6 +228,12 @@ export async function conversasWhatsapp(): Promise<{ conversas: ConversaWhatsapp
       if (!g.nome && m.nomeDestinatario) g.nome = m.nomeDestinatario;
       if (!g.leadId && m.leadId) g.leadId = m.leadId;
       if (m.direcao === "entrada" && !m.lida) g.naoLidas++;
+    }
+    const ids = Array.from(new Set(grupos.flatMap((g) => g.leadId ? [g.leadId] : [])));
+    if (ids.length) {
+      const leads = await prisma.lead.findMany({ where: { id: { in: ids }, excluidoEm: null }, select: { id: true, nome: true } });
+      const nomes = new Map(leads.map((lead) => [lead.id, lead.nome]));
+      for (const g of grupos) if (g.leadId && nomes.has(g.leadId)) g.nome = nomes.get(g.leadId)!;
     }
     const proibidos = await leadsProibidos(u, grupos.flatMap((g) => (g.leadId ? [g.leadId] : [])));
     return { conversas: grupos.filter((g) => !g.leadId || !proibidos.has(g.leadId)) };

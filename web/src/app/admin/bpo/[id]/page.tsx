@@ -12,15 +12,6 @@ const STATUS_CONFIG = {
   encerrado: { label: "Encerrado", bg: "bg-gray-100",   text: "text-gray-500" },
 };
 
-const SERVICO_LABELS: Record<string, string> = {
-  contas_pagar:   "Contas a Pagar",
-  contas_receber: "Contas a Receber",
-  conciliacao:    "Conciliação",
-  folha:          "Folha de Pagamento",
-  fiscal:         "Obrigações Fiscais",
-  honorarios:     "Honorários",
-};
-
 interface PageProps { params: Promise<{ id: string }> }
 
 export default async function BpoClientePage({ params }: PageProps) {
@@ -33,8 +24,6 @@ export default async function BpoClientePage({ params }: PageProps) {
   });
   if (!cliente) notFound();
 
-  let servicos: string[] = [];
-  try { servicos = JSON.parse(cliente.servicos) as string[]; } catch { /* ignore */ }
 
   const cfg = STATUS_CONFIG[cliente.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.ativo;
   const pendentes = cliente.lancamentos.filter((l) => !l.pago);
@@ -81,18 +70,6 @@ export default async function BpoClientePage({ params }: PageProps) {
                 <p className="text-xs text-gray-500">{cliente.observacoes}</p>
               </div>
             )}
-          </div>
-
-          <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Serviços</p>
-            <div className="space-y-1.5">
-              {servicos.map((s) => (
-                <div key={s} className="flex items-center gap-2">
-                  <CheckCircle2 size={12} className="text-green-500" />
-                  <span className="text-sm text-gray-700">{SERVICO_LABELS[s] ?? s}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

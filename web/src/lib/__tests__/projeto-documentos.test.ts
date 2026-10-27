@@ -27,7 +27,9 @@ describe("documentos de projetos", () => {
 
   it("deriva o checklist somente dos documentos ativos", () => {
     const checks = reconcileProjectChecklist([{ id: "eletrico", text: "Elétrico", done: true }], [{ itemId: "eletrico", kind: "pdf" }]);
-    expect(checks[0]).toMatchObject({ done: true, pdfDone: true, editableDone: false });
+    expect(checks[0]).toMatchObject({ done: false, pdfDone: true, editableDone: false });
+    expect(reconcileProjectChecklist(checks, [{ itemId: "eletrico", kind: "pdf" }, { itemId: "eletrico", kind: "editable" }])[0])
+      .toMatchObject({ done: true, pdfDone: true, editableDone: true });
     expect(reconcileProjectChecklist(checks, [])[0]).toMatchObject({ done: false, pdfDone: false, editableDone: false });
   });
 });

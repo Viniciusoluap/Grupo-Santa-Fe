@@ -20,6 +20,7 @@ interface Projeto {
   valorProjeto: number | null;
   valorPago: number;
   prazoEntrega: Date | null;
+  _count: { revisoes: number };
 }
 
 interface Props {
@@ -70,7 +71,7 @@ export function ProjetosClient({ projetos }: Props) {
       p.engenheiro?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "todos" || p.status === statusFilter;
     return matchSearch && matchStatus;
-  }), p => p.prazoEntrega);
+  }), p => p.prazoEntrega, p => p._count.revisoes > 0 || p.status === "revisao");
 
   const totalValue = projetos.reduce((s, p) => s + (p.valorProjeto ?? 0), 0);
   const emAndamento = projetos.filter((p) => p.status === "em_elaboracao" || p.status === "revisao").length;
@@ -151,11 +152,12 @@ export function ProjetosClient({ projetos }: Props) {
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => {
                 return (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr key={p.id} className={p._count.revisoes > 0 || p.status === "revisao" ? "bg-amber-100 ring-2 ring-inset ring-amber-500" : "hover:bg-gray-50"}>
                     <td className="px-4 py-3">
                       <Link href={`/admin/projetos/${p.id}`} className="font-medium text-[var(--brand-dark)] leading-tight underline">{p.nome}</Link>
                       <p className="md:hidden text-xs text-gray-600 mt-1">{p.clienteNome}</p>
                       <TiposResumo raw={p.tipo} />
+                      {(p._count.revisoes > 0 || p.status === "revisao") && <span className="mt-1 inline-block rounded bg-amber-700 px-2 py-0.5 text-[10px] font-bold text-white">REVISÃO PRIORITÁRIA</span>}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <p className="text-sm text-gray-700">{p.clienteNome}</p>
