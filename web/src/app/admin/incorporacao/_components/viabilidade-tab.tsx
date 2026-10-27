@@ -13,6 +13,9 @@ import {
 } from "@/lib/finance/loteamento";
 import {
   defaultsForm,
+  sincronizarUrbanismo,
+  urbanismoDoCenario,
+  appDaViabilidade,
   defaultsMix,
   paraMotor,
   montarPremissasLoteamento,
@@ -80,7 +83,7 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 }
 
 function fmtM2(v: number) {
-  return `${Math.round(v).toLocaleString("pt-BR")} m²`;
+  return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
 }
 
 function fmtPct(v: number, casas = 1) {
@@ -88,51 +91,60 @@ function fmtPct(v: number, casas = 1) {
 }
 
 export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
-  const salvo = estudo.loteamentoJson ? JSON.parse(estudo.loteamentoJson) : null;
+  let salvo = null;
+  try { salvo = estudo.loteamentoJson ? JSON.parse(estudo.loteamentoJson) : null; } catch { /* preserva o formulário diante de JSON inválido */ }
 
-  const [form, setForm] = useState<PremissasForm>(() => {
+  const [formBase, setForm] = useState<PremissasForm>(() => {
     if (salvo) {
       try { return { ...defaultsForm(estudo), ...(salvo as Partial<PremissasForm>) }; }
       catch { /* premissas corrompidas → defaults */ }
     }
     return defaultsForm(estudo);
   });
-  const [mix, setMix] = useState<ItemMixProduto[]>(() => {
+  const form = sincronizarUrbanismo(estudo, formBase);
+  const origemUrbanismo = urbanismoDoCenario(estudo);
+  const [mixBase, setMix] = useState<ItemMixProduto[]>(() => {
     if (salvo?.itensMix && Array.isArray(salvo.itensMix) && salvo.itensMix.length > 0) {
       return salvo.itensMix as ItemMixProduto[];
     }
     return defaultsMix(estudo);
   });
 
+  const mix = form.mixModo === "cenario" ? defaultsMix(estudo) : mixBase;
+
   const [cenarioAtivo, setCenarioAtivo] = useState<CenarioId>("ideal");
   const [pending, startTransition] = useTransition();
   const [salvoOk, setSalvoOk] = useState(false);
 
   const set = <K extends keyof PremissasForm>(k: K) => (v: PremissasForm[K]) => {
-    setForm((f) => ({ ...f, [k]: v }));
+    const campoUrbanistico = ["areaBrutaM2", "pctAreaPublica", "pctAreaVerde", "pctSistemaViario", "pctFaixaServidao"].includes(k);
+    setForm({ ...form, [k]: v, urbanismoModo: campoUrbanistico ? "manual" : form.urbanismoModo, custoInfraModo: k === "custoInfraM2Lote" ? "manual" : form.custoInfraModo });
     setSalvoOk(false);
   };
 
   function addProduto() {
-    setMix((m) => [...m, { nome: "Novo produto", quantidade: 0, areaUnidadeM2: 0, precoM2: 0 }]);
+    setForm({ ...form, mixModo: "manual" });
+    setMix([...mix, { nome: "Novo produto", quantidade: 0, areaUnidadeM2: 0, precoM2: 0 }]);
     setSalvoOk(false);
   }
   function updProduto(i: number, campo: keyof ItemMixProduto, valor: string | number) {
-    setMix((m) => {
-      const novo = [...m];
+    setForm({ ...form, mixModo: "manual" });
+    setMix(() => {
+      const novo = [...mix];
       novo[i] = { ...novo[i], [campo]: campo === "nome" ? valor : (typeof valor === "number" ? valor : parseFloat(valor) || 0) };
       return novo;
     });
     setSalvoOk(false);
   }
   function removerProduto(i: number) {
-    setMix((m) => m.filter((_, j) => j !== i));
+    setForm({ ...form, mixModo: "manual" });
+    setMix(mix.filter((_, j) => j !== i));
     setSalvoOk(false);
   }
 
   // APP: SEMPRE calculada automaticamente a partir do mapa (aba Terreno) — nunca
   // um campo editável. Se o mapa ainda não calculou nada, assume 0.
-  const appAreaM2 = estudo.appAreaM2 ?? 0;
+  const appAreaM2 = appDaViabilidade(estudo, form);
   const pctAPP = form.areaBrutaM2 > 0 ? appAreaM2 / form.areaBrutaM2 : 0;
 
   const cenarios = useMemo(
@@ -182,6 +194,10 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         </button>
       </div>
 
+      <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700">
+        <p>{form.custoInfraModo === "orcamento" ? "Custo de infraestrutura vinculado ao orçamento salvo, distribuído pela área de referência." : "Custo de infraestrutura ajustado manualmente; alterações do orçamento não sobrescrevem este valor."}</p>
+        <button type="button" className="mt-1 font-bold underline" onClick={() => { if (confirm("Usar o custo do orçamento salvo no lugar do ajuste manual?")) { setForm({ ...form, custoInfraModo: "orcamento" }); setSalvoOk(false); } }}>Vincular custo ao orçamento</button>
+      </div>
       {/* ── Mix de produtos ── */}
       <div className="bg-white border border-gray-100 p-4">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Mix de produtos</p>
@@ -226,11 +242,19 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Secao titulo="Terreno & Urbanístico">
+          <div className="col-span-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+            <p>{form.urbanismoModo === "cenario" ? `Sincronizado com o cenário: ${origemUrbanismo?.cenarioId ?? (estudo.semKml ? "lotes avulsos" : "aguardando cenário salvo")}` : "Ajustes manuais preservados. Editar uma área interrompe a sincronização automática."}</p>
+            {origemUrbanismo?.quadroAreas && <>
+              <p className="mt-1">Área pública total: {fmtM2(origemUrbanismo.quadroAreas.areaPublicaTotalM2)} · Institucional: {fmtM2(origemUrbanismo.quadroAreas.areaInstitucionalM2)} · Vendável: {fmtM2(origemUrbanismo.quadroAreas.areaLiquidaVendavelM2)}</p>
+              <p className="mt-1">Supressão: {fmtM2(origemUrbanismo.quadroAreas.supressaoVegetalM2)} · Transmissão: {fmtM2(origemUrbanismo.quadroAreas.faixaTransmissaoM2)} · Servidão: {fmtM2(origemUrbanismo.quadroAreas.faixaServidaoM2)} · Outras restrições: {fmtM2(origemUrbanismo.quadroAreas.outrasNaoParcelaveisM2)}</p>
+              <button type="button" className="mt-2 font-bold underline" onClick={() => { if (form.urbanismoModo !== "manual" || confirm("Substituir os ajustes manuais pelas áreas do cenário selecionado?")) { setForm({ ...form, urbanismoModo: "cenario", mixModo: "cenario" }); setSalvoOk(false); } }}>Usar cenário selecionado</button>
+            </>}
+          </div>
           <Num label="Área bruta" sufixo="m²" value={form.areaBrutaM2} onChange={set("areaBrutaM2")} step={100} />
-          <Num label="Área pública" sufixo="%" value={form.pctAreaPublica} onChange={set("pctAreaPublica")} step={0.1} />
+          <Num label="Área institucional" sufixo="%" value={form.pctAreaPublica} onChange={set("pctAreaPublica")} step={0.1} />
           <Num label="Área verde" sufixo="%" value={form.pctAreaVerde} onChange={set("pctAreaVerde")} step={0.1} />
           <Num label="Sistema viário" sufixo="%" value={form.pctSistemaViario} onChange={set("pctSistemaViario")} step={0.1} />
-          <Num label="Faixa de servidão" sufixo="%" value={form.pctFaixaServidao} onChange={set("pctFaixaServidao")} step={0.1} />
+          <Num label="Restrições exceto APP" sufixo="%" value={form.pctFaixaServidao} onChange={set("pctFaixaServidao")} step={0.1} />
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">APP (automática)</label>
             <div className="w-full border border-green-200 bg-green-50 px-2.5 py-2 text-sm text-green-800 font-bold">

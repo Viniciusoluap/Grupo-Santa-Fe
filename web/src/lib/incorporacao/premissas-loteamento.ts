@@ -1,3 +1,4 @@
+import { cenarioPrincipalDe } from "@/lib/incorporacao/estudos-massa";
 // Conversão "formulário salvo (loteamentoJson) → premissas completas do motor
 // de viabilidade" — extraída da aba Viabilidade para ser reaproveitada também
 // pelo Relatório Executivo de Incorporação (Lote 6), sem duplicar a lógica de
@@ -25,6 +26,10 @@ import type { EstudoData } from "@/app/admin/incorporacao/_components/incorporac
 // Percentuais são representados em % (ex.: 10) neste formulário e convertidos
 // para fração (0..1) só na conversão para o motor (paraMotor).
 export interface PremissasForm {
+  custoInfraModo?: "orcamento" | "manual";
+  mixModo?: "cenario" | "manual";
+  urbanismoModo?: "cenario" | "manual";
+  urbanismoFonte?: string | null;
   areaBrutaM2: number;
   pctAreaPublica: number;
   pctAreaVerde: number;
@@ -69,15 +74,46 @@ export function custoInfraDoOrcamentoParametrizado(estudo: EstudoData): number {
   try {
     const salvo = JSON.parse(estudo.orcamentoParametrizadoJson) as PremissasOrcamentoParametrizado;
     const r = calcularOrcamentoParametrizado(salvo);
+    if (salvo.metodo === "infraestrutura" || salvo.metodo === "excel") return salvo.areaReferenciaM2 && salvo.areaReferenciaM2 > 0 ? r.custoTotal / salvo.areaReferenciaM2 : 0;
     return r.custoM2Real > 0 ? r.custoM2Real : 0;
   } catch {
     return 0;
   }
 }
 
+/** Fonte única das áreas: cenário principal espelhado, inclusive lotes sem KML. */
+export function urbanismoDoCenario(estudo: EstudoData) {
+  return cenarioPrincipalDe({ massaCenariosJson: estudo.massaCenariosJson, cenarioEscolhidoId: estudo.cenarioEscolhidoId,
+    areaBrutaM2: estudo.areaM2, semKml: estudo.semKml ?? false, lotesAvulsosJson: estudo.lotesAvulsosJson ?? null });
+}
+
+/** Ajustes manuais e viabilidades legadas salvas nunca são sobrescritos. */
+export function sincronizarUrbanismo(estudo: EstudoData, form: PremissasForm): PremissasForm {
+  if (form.custoInfraModo === "orcamento") {
+    const custo = custoInfraDoOrcamentoParametrizado(estudo);
+    if (custo > 0) form = { ...form, custoInfraM2Lote: custo };
+  }
+  if (form.urbanismoModo !== "cenario") return form;
+  const origem = urbanismoDoCenario(estudo);
+  const q = origem?.quadroAreas;
+  if (!q || q.areaBrutaM2 <= 0) return form;
+  const pct = (area: number) => area / q.areaBrutaM2 * 100;
+  return { ...form, urbanismoFonte: origem!.cenarioId ?? "lotes_avulsos", areaBrutaM2: q.areaBrutaM2,
+    // Área pública total JÁ inclui vias e verde: aqui entra só a institucional.
+    pctAreaPublica: pct(q.areaInstitucionalM2), pctAreaVerde: pct(q.areaVerdeM2), pctSistemaViario: pct(q.sistemaViarioM2),
+    pctFaixaServidao: pct(q.faixaServidaoM2 + q.faixaTransmissaoM2 + q.supressaoVegetalM2 + q.outrasNaoParcelaveisM2) };
+}
+
+export function appDaViabilidade(estudo: EstudoData, form: PremissasForm): number {
+  return form.urbanismoModo === "cenario" ? urbanismoDoCenario(estudo)?.quadroAreas?.appM2 ?? estudo.appAreaM2 ?? 0 : estudo.appAreaM2 ?? 0;
+}
+
 export function defaultsForm(estudo: EstudoData): PremissasForm {
   const custoParametrizado = custoInfraDoOrcamentoParametrizado(estudo);
   return {
+    custoInfraModo: estudo.loteamentoJson ? "manual" : "orcamento",
+    mixModo: estudo.loteamentoJson ? "manual" : "cenario",
+    urbanismoModo: estudo.loteamentoJson ? "manual" : "cenario",
     areaBrutaM2: Math.round(estudo.areaM2) || 100_000,
     pctAreaPublica: 10,
     pctAreaVerde: 5,
@@ -198,9 +234,9 @@ export function montarPremissasLoteamento(estudo: EstudoData): PremissasLoteamen
   }
   if (!salvo) return null;
 
-  const form: PremissasForm = { ...defaultsForm(estudo), ...salvo };
-  const itensMix = salvo.itensMix && salvo.itensMix.length > 0 ? salvo.itensMix : defaultsMix(estudo);
-  const appAreaM2 = estudo.appAreaM2 ?? 0;
+  const form: PremissasForm = sincronizarUrbanismo(estudo, { ...defaultsForm(estudo), ...salvo });
+  const itensMix = form.mixModo === "cenario" ? defaultsMix(estudo) : salvo.itensMix && salvo.itensMix.length > 0 ? salvo.itensMix : defaultsMix(estudo);
+  const appAreaM2 = appDaViabilidade(estudo, form);
   const pctAPP = form.areaBrutaM2 > 0 ? appAreaM2 / form.areaBrutaM2 : 0;
   return paraMotor(form, itensMix, pctAPP);
 }

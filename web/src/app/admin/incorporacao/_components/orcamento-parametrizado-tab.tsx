@@ -10,6 +10,8 @@ import {
 import { salvarOrcamentoParametrizado } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
+import { urbanismoDoCenario } from "@/lib/incorporacao/premissas-loteamento";
+import { OrcamentoImportacao } from "./orcamento-importacao";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Orçamento Parametrizado (2.4 Novos Negócios) — custo de obra por m²
@@ -41,7 +43,16 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
         if (salvo.itens?.length) return { ...defaults(), ...salvo };
       } catch { /* JSON corrompido → defaults */ }
     }
-    return defaults();
+    const base = defaults();
+    const c = urbanismoDoCenario(estudo);
+    const tipo = estudo.tipoIncorporacao ?? "";
+    if (["loteamento", "desmembramento_simples", "condominio_lotes"].includes(tipo)) return { ...base, metodo: "infraestrutura", areaReferenciaM2: c?.quadroAreas?.areaLiquidaVendavelM2 ?? 0,
+      infraestrutura: c?.quadroAreas ? [
+        { descricao: "Sistema viário", unidade: "m²", quantidade: c.quadroAreas.sistemaViarioM2, unitario: 0, total: 0 },
+        { descricao: "Terraplanagem", unidade: "m²", quantidade: c.quadroAreas.areaParcelavelM2, unitario: 0, total: 0 },
+        { descricao: "Infraestrutura por lote", unidade: "un", quantidade: c.lotes.length, unitario: 0, total: 0 },
+      ] : [] };
+    return { ...base, metodo: "construcao" };
   });
   const [pending, startTransition] = useTransition();
   const [salvo, setSalvo] = useState(false);
@@ -94,10 +105,12 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
           </button>
         </div>
         <p className="text-[11px] text-gray-600 max-w-xl">
-          Um pavimento por linha, cada um com seu coeficiente de equivalência de custo (1,0 = padrão; menor para garagem/áreas externas, maior para acabamentos superiores). O custo/m² real resultante alimenta automaticamente o custo de infraestrutura da Viabilidade, enquanto você não definir um valor próprio lá.
+          Selecione o método conforme o empreendimento. Lotes usam infraestrutura e quantidades do cenário; edificações usam área construída equivalente. A importação Excel tem conferência antes de aplicar e preserva o arquivo original. Salve para integrar os custos à Viabilidade.
         </p>
       </div>
 
+      <OrcamentoImportacao dados={dados} onChange={(d) => { setDados(d); marcarAlterado(); }} areaReferencia={urbanismoDoCenario(estudo)?.quadroAreas?.areaLiquidaVendavelM2 ?? 0} />
+      {(dados.metodo ?? "construcao") === "construcao" && <>
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
           <table className="text-xs min-w-[520px] w-full">
@@ -141,6 +154,8 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
           <Num label="Outros" sufixo="R$" value={dados.outros} onChange={set("outros")} step={1000} />
         </div>
       </div>
+
+      </>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Área total" valor={`${Math.round(resultado.areaTotalM2).toLocaleString("pt-BR")} m²`} />

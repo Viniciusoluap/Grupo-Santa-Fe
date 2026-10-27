@@ -15,7 +15,19 @@ export interface ItemOrcamentoParametrizado {
   coeficienteEquivalencia: number; // ex.: 1.0 = padrão; 0.5 = metade do custo/m² (garagem, área externa...)
 }
 
+export interface LinhaOrcamentoExcel {
+  descricao: string; unidade: string; quantidade: number; unitario: number; total: number; formula?: string;
+}
+export interface ImportacaoOrcamentoExcel {
+  nome: string; originalBase64: string; aba: string; importadoEm: string;
+  mapeamento: Record<string, number>; itens: LinhaOrcamentoExcel[];
+}
 export interface PremissasOrcamentoParametrizado {
+  metodo?: "construcao" | "infraestrutura" | "excel";
+  areaReferenciaM2?: number;
+  infraestrutura?: LinhaOrcamentoExcel[];
+  importacaoExcel?: ImportacaoOrcamentoExcel;
+
   itens: ItemOrcamentoParametrizado[];
   custoM2Equivalente: number; // R$/m² equivalente adotado (referência de mercado/padrão construtivo)
   passivoAmbiental: number;
@@ -41,6 +53,12 @@ function round2(n: number): number {
 export function calcularOrcamentoParametrizado(
   p: PremissasOrcamentoParametrizado
 ): ResultadoOrcamentoParametrizado {
+  if (p.metodo === "excel" || p.metodo === "infraestrutura") {
+    const linhas = p.metodo === "excel" ? p.importacaoExcel?.itens ?? [] : p.infraestrutura ?? [];
+    const total = linhas.reduce((s, l) => s + (Number.isFinite(l.total) && l.total >= 0 ? l.total : 0), 0);
+    const area = p.areaReferenciaM2 && p.areaReferenciaM2 > 0 ? p.areaReferenciaM2 : 0;
+    return { itens: [], areaTotalM2: area, areaEquivalenteTotalM2: 0, custoObraBase: round2(total), custoTotal: round2(total), custoM2Real: area > 0 ? round2(total / area) : 0 };
+  }
   const itens = p.itens.map((it) => ({
     ...it,
     areaEquivalenteM2: it.areaM2 * it.coeficienteEquivalencia,
