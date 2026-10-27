@@ -388,6 +388,9 @@ model Obra {
   progressoMedido                 Decimal?                 @db.Decimal(9, 6)
   pci                             ObraPci?
   pciVersoes                      ObraPciVersao[]
+  /// Lote 2, correção 03: Gerador de PCI (rascunho e PCIs geradas).
+  pciRascunho                     PciGeradorRascunho?
+  pciGeradas                      PciGerada[]
   progressoItens                  ObraProgressoItem[]
   progressoHistorico              ObraProgressoHistorico[]
   fotos                           ObraFoto[]
@@ -1474,6 +1477,59 @@ model ObraPci {
   vinculadaPorId String?
 
   @@map("obra_pci")
+}
+
+// ─── Lote 2, correção 03 (AD-06): Gerador de PCI ─────────────────────────────
+
+/// Modelo oficial da PCI (CAIXA), versionado. No máximo um `atual` (índice parcial na migração).
+model PciModelo {
+  id           String      @id @default(cuid())
+  versao       Int         @unique
+  nome         String      @db.VarChar(255)
+  formato      String      @db.VarChar(5)
+  tamanho      Int
+  hash         String      @db.VarChar(64)
+  dados        Bytes
+  atual        Boolean     @default(false)
+  observacao   String?
+  enviadoPorId String?
+  enviadoEm    DateTime    @default(now())
+  geradas      PciGerada[]
+
+  @@map("pci_modelos")
+}
+
+/// Rascunho do formulário do Gerador de PCI (um por obra).
+model PciGeradorRascunho {
+  obraId          String   @id
+  obra            Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  dados           Json     @db.JsonB
+  atualizadoPorId String?
+  atualizadoEm    DateTime @default(now())
+
+  @@map("pci_gerador_rascunhos")
+}
+
+/// PCI gerada (histórico por obra): dados do formulário, planilha e PDF.
+model PciGerada {
+  id              String     @id @default(cuid())
+  obraId          String
+  obra            Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  modeloId        String?
+  modelo          PciModelo? @relation(fields: [modeloId], references: [id], onDelete: SetNull)
+  modeloVersao    Int
+  dados           Json       @db.JsonB
+  avisos          Json       @default("[]") @db.JsonB
+  planilhaNome    String     @db.VarChar(255)
+  planilhaFormato String     @db.VarChar(5)
+  planilha        Bytes
+  pdfNome         String     @db.VarChar(255)
+  pdf             Bytes
+  criadoPorId     String?
+  criadoEm        DateTime   @default(now())
+
+  @@index([obraId, criadoEm])
+  @@map("pci_geradas")
 }
 
 // Checklist pessoal do CRM; preferências existem mesmo antes da solicitação.

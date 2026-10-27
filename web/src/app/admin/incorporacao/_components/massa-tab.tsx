@@ -114,26 +114,37 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
   const [aberto, setAberto] = useState<{ id: string; nome: string; versao: number } | null>(null);
   const [nome, setNome] = useState("");
 
+  const aplicarLista = useCallback((lista: EstudoMassaSalvo[]) => {
+    setSalvos(lista);
+    // ao entrar na aba, o principal é o estudo aberto (os cenários exibidos vêm do espelho dele)
+    setAberto((atual) => {
+      if (atual) return lista.some((s) => s.id === atual.id) ? atual : null;
+      const p = lista.find((s) => s.principal);
+      return p ? { id: p.id, nome: p.nome, versao: p.versao } : null;
+    });
+    setNome((atual) => atual || lista.find((s) => s.principal)?.nome || "");
+  }, []);
+
   const carregarSalvos = useCallback(async () => {
-    setCarregandoSalvos(true);
     try {
-      const lista = exigirResultado(await listarEstudosMassa(estudo.id));
-      setSalvos(lista);
-      // ao entrar na aba, o principal é o estudo aberto (os cenários exibidos vêm do espelho dele)
-      setAberto((atual) => {
-        if (atual) return lista.some((s) => s.id === atual.id) ? atual : null;
-        const p = lista.find((s) => s.principal);
-        if (p) setNome(p.nome);
-        return p ? { id: p.id, nome: p.nome, versao: p.versao } : null;
-      });
+      aplicarLista(exigirResultado(await listarEstudosMassa(estudo.id)));
     } catch (e) {
       setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Falha ao carregar os estudos salvos." });
     } finally {
       setCarregandoSalvos(false);
     }
-  }, [estudo.id]);
+  }, [estudo.id, aplicarLista]);
 
-  useEffect(() => { void carregarSalvos(); }, [carregarSalvos]);
+  useEffect(() => {
+    let vivo = true;
+    listarEstudosMassa(estudo.id).then((r) => {
+      if (!vivo) return;
+      try { aplicarLista(exigirResultado(r)); }
+      catch (e) { setMensagem({ tipo: "erro", texto: e instanceof Error ? e.message : "Falha ao carregar os estudos salvos." }); }
+      setCarregandoSalvos(false);
+    });
+    return () => { vivo = false; };
+  }, [estudo.id, aplicarLista]);
 
   function upd(k: CampoNumerico, valorTexto: string) {
     setCamposTexto((c) => ({ ...c, [k]: valorTexto }));
@@ -457,7 +468,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
         {carregandoSalvos ? (
           <p className="text-xs text-gray-600 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Carregando…</p>
         ) : salvos.length === 0 ? (
-          <p className="text-xs text-gray-600">Nenhum estudo salvo. Gere os cenários e use "Salvar estudo".</p>
+          <p className="text-xs text-gray-600">Nenhum estudo salvo. Gere os cenários e use &quot;Salvar estudo&quot;.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {salvos.map((s) => (
