@@ -84,3 +84,10 @@ Concluir a paridade de WhatsApp e BPO, finalizar a Correção 16, adicionar test
 - Prompt mestre salvo em `web/docs/stories/epics/epic-009-aiox-16-correcoes/PROMPT-MESTRE-26-10.md`; matriz preliminar em `MATRIZ-16-CORRECOES.md`.
 - Aguardando o Codex publicar os commits locais pendentes de `codex/aiox-16-correcoes-20261026` (opção 1 do dono).
 - Próximo passo: trazer o novo HEAD do Codex, reauditar e seguir FASE 2 → 3 → 4 com paridade Prospecta.
+
+## Decisão do dono — 27/10/2026
+- As 16 correções serão feitas **100% pelo Codex** na branch `codex/aiox-16-correcoes-20261026`. O Claude não mexe mais nelas.
+- O que o Claude deixou para o Codex aproveitar, na branch `claude/sync-mirrored-repos-bsqnz3`: o prompt mestre versionado,
+  a matriz preliminar e (só na Prospecta) a remoção da migração duplicada `drizzle/0077_bpo_vinculos_operacionais.sql`
+  (idêntica à `0080`). O Codex deve trazer esses arquivos ou repetir a remoção na branch dele.
+- O Claude vai assumir outro trabalho, diferente e em paralelo, em branch separada, sem tocar nos arquivos das 16 correções.
