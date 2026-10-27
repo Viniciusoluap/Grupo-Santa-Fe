@@ -29,8 +29,11 @@ export function exibirDiaPrazoProjeto(value: Date | string | null | undefined): 
 /** Vencidos, hoje, futuro; sem prazo por último. Data e ID formam ordem estável. */
 export function ordenarProjetosPorPrazo<T extends { id: string | number }>(
   projetos: T[], prazo: (p: T) => Date | string | null | undefined,
+  prioritario: (p: T) => boolean = () => false,
 ): T[] {
   return [...projetos].sort((a, b) => {
+    const prioridade = Number(prioritario(b)) - Number(prioritario(a));
+    if (prioridade) return prioridade;
     const da = diaPrazoProjeto(prazo(a)) ?? "9999-12-31";
     const db = diaPrazoProjeto(prazo(b)) ?? "9999-12-31";
     return da.localeCompare(db) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true });

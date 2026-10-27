@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
 import { WhatsAppClient } from "./_components/whatsapp-client";
+import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
+import { TEMPLATES_WHATSAPP_PADRAO } from "@/lib/whatsapp/templates";
 
 type SessionUser = { id?: string; role?: string; corretorId?: string };
 
@@ -79,6 +81,9 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
   const abaInicial = um(sp.aba) === "conversas" ? "conversas" : "conexao";
   const numeroInicial = um(sp.numero)?.replace(/\D/g, "").slice(0, 20) || null;
+  const templates = await prisma.whatsappTemplate.findMany({ where: { ativo: true }, orderBy: [{ finalidade: "asc" }, { nome: "asc" }] })
+    .then((rows) => rows.length ? rows.map((t) => ({ id: t.id, name: t.nome, category: t.finalidade, body: t.conteudo })) : TEMPLATES_WHATSAPP_PADRAO)
+    .catch(() => TEMPLATES_WHATSAPP_PADRAO);
 
   return (
     <WhatsAppClient
@@ -90,6 +95,9 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
       historico={historico}
       role={role}
       usuarioId={usuarioId}
+      templates={templates}
+      servicosDisponiveis={[...SERVICOS_LEAD]}
+      podeGerenciarTemplates={role === "admin"}
     />
   );
 }

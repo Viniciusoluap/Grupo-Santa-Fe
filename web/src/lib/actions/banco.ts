@@ -1,8 +1,9 @@
 "use server";
-import { exigirModuloAcao } from "@/lib/auth/modulos";
+import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
+import { preservarLancamentoNaLimpeza } from "@/lib/bpo-limpeza";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { capturarErroAcao } from "@/lib/acao-resultado";
+import { capturarErroAcao, exigirResultado } from "@/lib/acao-resultado";
 import { criptografarSegredo } from "@/lib/segredo";
 import { createPluggyConnectToken, fetchPluggyItemAccounts, fetchPluggyItemConnector } from "@/lib/bancos/pluggy";
 import { fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
@@ -172,13 +173,52 @@ export async function atualizarContaBancaria(input: { id: string; dataInicial?: 
   });
 }
 
-/** Remove a conta da lista (igual à Prospecta): as movimentações já gravadas continuam no histórico. */
-export async function excluirContaBancaria(id: string) {
+export type PreviaLimpezaBpo = { contaId: string; rotulo: string; transacoes: number; lancamentosRemovidos: number; lancamentosPreservados: number; vinculosOperacionais: number };
+
+/** Prévia exata para limpeza; lançamentos ligados ao Asaas ou a movimentos operacionais são preservados. */
+export async function previaLimpezaContaBancaria(id: string) {
   return capturarErroAcao(async () => {
     await exigirModuloAcao("bpo", { somenteEquipe: true });
-    await prisma.contaBancaria.update({ where: { id }, data: { ativo: false } });
+    const conta = await prisma.contaBancaria.findUnique({ where: { id }, select: { id: true, banco: true, descricao: true, conta: true } });
+    if (!conta) throw new Error("Conta não encontrada.");
+    const transacoes = await prisma.transacaoBancaria.findMany({ where: { contaId: id }, include: { lancamento: { include: { movimentosObra: { select: { id: true } }, recebimentosRegularizacao: { select: { id: true } } } } } });
+    const lancamentos = transacoes.flatMap((t) => t.lancamento ? [t.lancamento] : []);
+    const preservar = preservarLancamentoNaLimpeza;
+    const rotulo = [conta.descricao || conta.banco, conta.conta].filter(Boolean).join(" · ");
+    return { contaId: conta.id, rotulo, transacoes: transacoes.length,
+      lancamentosRemovidos: lancamentos.filter((l) => !preservar(l)).length,
+      lancamentosPreservados: lancamentos.filter(preservar).length,
+      vinculosOperacionais: lancamentos.filter((l) => l.movimentosObra.length || l.recebimentosRegularizacao.length).length };
+  });
+}
+
+/** Backup e limpeza atômicos. A conta fica inativa; credenciais nunca entram no snapshot. */
+export async function excluirContaBancaria(id: string, confirmarRotulo?: string) {
+  return capturarErroAcao(async () => {
+    const administrador = await exigirAdminAtivo();
+    await exigirModuloAcao("bpo", { somenteEquipe: true });
+    const p = exigirResultado(await previaLimpezaContaBancaria(id));
+    if (!confirmarRotulo || confirmarRotulo.trim() !== p.rotulo) throw new Error("Digite exatamente o nome da conta exibido na prévia para confirmar.");
+    const res = await prisma.$transaction(async (tx) => {
+      const conta = await tx.contaBancaria.findUnique({ where: { id }, select: { id: true, banco: true, agencia: true, conta: true, tipo: true, descricao: true, saldoAtual: true, ativo: true, pluggyItemId: true, pluggyAccountId: true, webhookUrl: true, ultimaSincronizacao: true, provedor: true, dataInicial: true, ultimoErro: true, saldoExtrato: true, saldoExtratoData: true, criadoEm: true } });
+      if (!conta) throw new Error("Conta removida ou alterada. Atualize a prévia.");
+      const transacoes = await tx.transacaoBancaria.findMany({ where: { contaId: id }, include: { lancamento: { include: { movimentosObra: { select: { id: true } }, recebimentosRegularizacao: { select: { id: true } } } } } });
+      const lancamentos = transacoes.flatMap((t) => t.lancamento ? [t.lancamento] : []);
+      const preservar = preservarLancamentoNaLimpeza;
+      const manter = lancamentos.filter(preservar), remover = lancamentos.filter((l) => !preservar(l));
+      if (transacoes.length !== p.transacoes || manter.length !== p.lancamentosPreservados || remover.length !== p.lancamentosRemovidos) throw new Error("A conta recebeu alterações depois da prévia. Atualize a prévia e confirme novamente.");
+      const backup = await tx.bpoContaLimpezaBackup.create({ data: { contaReferencia: conta.id, contaRotulo: p.rotulo,
+        criadoPorUsuarioId: administrador.id,
+        snapshotJson: JSON.stringify({ conta, transacoes, lancamentos }), transacoes: transacoes.length,
+        lancamentosRemovidos: remover.length, lancamentosPreservados: manter.length } });
+      if (manter.length) await tx.bpoLancamento.updateMany({ where: { id: { in: manter.map((l) => l.id) } }, data: { transacaoId: null, atualizadoEm: new Date(), version: { increment: 1 } } });
+      if (remover.length) await tx.bpoLancamento.deleteMany({ where: { id: { in: remover.map((l) => l.id) } } });
+      await tx.transacaoBancaria.deleteMany({ where: { contaId: id } });
+      await tx.contaBancaria.update({ where: { id }, data: { ativo: false, ultimaSincronizacao: null, saldoAtual: 0, saldoExtrato: null, saldoExtratoData: null } });
+      return { backupId: backup.id, transacoes: transacoes.length, lancamentosRemovidos: remover.length, lancamentosPreservados: manter.length };
+    });
     revalidatePath(BPO);
-    return { success: true };
+    return { success: true, ...res };
   });
 }
 

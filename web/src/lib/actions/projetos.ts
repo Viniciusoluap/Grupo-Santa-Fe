@@ -121,12 +121,18 @@ export async function solicitarRevisaoProjeto(projetoId: string, textoBruto: str
   return capturarErroAcao(async () => {
     const usuario = await exigirModuloAcao("projetos", { somenteEquipe: true });
     const texto = validarPedidoRevisao(textoBruto);
-    const projeto = await prisma.projeto.findUnique({ where: { id: projetoId }, select: { id: true, nome: true, clienteNome: true, engenheiroUsuario: { select: { id: true, nome: true, email: true, ativo: true } } } });
+    const projeto = await prisma.projeto.findUnique({ where: { id: projetoId }, select: { id: true, nome: true, status: true, clienteNome: true, engenheiroUsuario: { select: { id: true, nome: true, email: true, ativo: true } } } });
     if (!projeto) throw new Error("Projeto não encontrado.");
     const destinatario = projeto.engenheiroUsuario?.ativo ? projeto.engenheiroUsuario : null;
     const autor = usuario.nome || `Usuário ${usuario.id}`;
-    const pedido = await prisma.projetoRevisao.create({
-      data: { projetoId, solicitadoPorId: usuario.id, solicitadoPorNome: autor, texto, status: "pendente", colaboradorId: destinatario?.id ?? null, situacaoNotificacao: "sem_destinatario", situacaoEmail: "sem_destinatario" },
+    const pedido = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM projetos WHERE id = ${projetoId} FOR UPDATE`;
+      const jaPendente = await tx.projetoRevisao.findFirst({ where: { projetoId, status: "pendente" }, select: { id: true } });
+      const criado = await tx.projetoRevisao.create({
+        data: { projetoId, solicitadoPorId: usuario.id, solicitadoPorNome: autor, texto, status: "pendente", statusAnteriorProjeto: jaPendente ? null : projeto.status, colaboradorId: destinatario?.id ?? null, situacaoNotificacao: "sem_destinatario", situacaoEmail: "sem_destinatario" },
+      });
+      await tx.projeto.update({ where: { id: projetoId }, data: { status: "revisao" } });
+      return criado;
     });
     const link = `/admin/projetos/${projetoId}`;
     let notificacao: SituacaoCanal = "sem_destinatario";
@@ -147,6 +153,7 @@ export async function solicitarRevisaoProjeto(projetoId: string, textoBruto: str
       }
     }
     await prisma.projetoRevisao.update({ where: { id: pedido.id }, data: { situacaoNotificacao: notificacao, situacaoEmail: email } });
+    revalidatePath("/admin/projetos");
     revalidatePath(link);
     return { id: pedido.id, notificacao, email, mensagem: mensagemPedidoSalvo(notificacao, email) };
   });

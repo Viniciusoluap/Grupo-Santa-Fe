@@ -6,11 +6,13 @@ import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
+import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
 
 const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
 
-export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
+export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string }> }) {
   await exigirModuloPagina("bpo");
+  const catalogoOperacional = await catalogoOperacionalBpo();
 
   const [
     lancamentos,
@@ -35,10 +37,9 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       include: { cliente: { select: { razaoSocial: true } } },
     }),
     // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
-    prisma.bpoLancamento.findMany({ select: { tipo: true, valor: true, competencia: true, pago: true, categoria: true } }),
+    prisma.bpoLancamento.findMany({ select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
     prisma.bpoCliente.findMany({
-      where: { status: "ativo" },
-      select: { id: true, razaoSocial: true },
+      select: { id: true, razaoSocial: true, leadId: true },
       orderBy: { razaoSocial: "asc" },
     }),
     prisma.lead.findMany({
@@ -65,7 +66,8 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     statusPluggy(),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
-  const { aba } = await searchParams;
+  const { aba, categoriaOperacional, vinculoOperacionalId } = await searchParams;
+  const filtroOperacional = categoriaOperacional && vinculoOperacionalId ? { categoria: categoriaOperacional, id: vinculoOperacionalId } : undefined;
 
   // Build monthly commissions data (last 12 months)
   const now = new Date();
@@ -140,12 +142,20 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     tipo: l.tipo,
     descricao: l.descricao,
     valor: l.valor,
+    valorRecebido: l.valorRecebido,
     vencimento: l.vencimento.toISOString(),
     pago: l.pago,
     pagoEm: l.pagoEm?.toISOString() ?? null,
     competencia: l.competencia,
     centroCustos: l.centroCustos,
     categoria: l.categoria,
+    categoriaContabil: l.categoriaContabil ?? l.categoria,
+    categoriaOperacional: l.categoriaOperacional,
+    vinculoOperacionalId: l.vinculoOperacionalId,
+    vinculoOperacionalRotulo: l.vinculoOperacionalRotulo,
+    tipoDespesaObra: l.tipoDespesaObra,
+    etapa: l.etapa,
+    version: l.version,
     doExtrato: Boolean(l.transacaoId),
   }));
 
@@ -184,5 +194,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
 }

@@ -1,6 +1,7 @@
 // LOTE C (25/10, paridade Prospecta): categorias padrão do BPO Financeiro para as movimentações
 // bancárias e os lançamentos gerados por elas, com sugestão automática por palavras-chave.
 // Regras puras (sem banco/rede). Também concentra as regras de "o que entra no resultado".
+import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
 
 export const TRANSFERENCIA_INTERNA = "Transferência interna";
 
@@ -87,13 +88,13 @@ export function descricaoComTitular(partes: (string | null | undefined)[]): stri
   return (saida.join(" — ") || "Movimentação bancária").slice(0, 500);
 }
 
-export function resumoPorCliente(lancamentos: { clienteId: string | null; tipo: string; valor: number; pago: boolean; categoria?: string | null }[]) {
+export function resumoPorCliente(lancamentos: { clienteId: string | null; tipo: string; valor: number; pago: boolean; valorRecebido?: number; categoria?: string | null }[]) {
   const totais = new Map<string, { recebido: number; emAberto: number }>();
   for (const lancamento of lancamentos) {
     if (!lancamento.clienteId || ehDespesa(lancamento.tipo) || !contaNoResultado(lancamento)) continue;
     const atual = totais.get(lancamento.clienteId) ?? { recebido: 0, emAberto: 0 };
-    if (lancamento.pago) atual.recebido += Math.round(lancamento.valor * 100);
-    else atual.emAberto += Math.round(lancamento.valor * 100);
+    atual.recebido += Math.round(valorRealizado(lancamento) * 100);
+    atual.emAberto += Math.round(saldoLancamento(lancamento) * 100);
     totais.set(lancamento.clienteId, atual);
   }
   return new Map(Array.from(totais, ([id, valor]) => [id, {

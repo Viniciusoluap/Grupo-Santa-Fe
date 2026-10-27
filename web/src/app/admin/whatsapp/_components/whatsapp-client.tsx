@@ -2,10 +2,10 @@
 
 import { useState, useTransition, useEffect, useCallback, useMemo } from "react";
 import {
-  MessageCircle, CheckCircle2, Clock, AlertCircle, Wifi, WifiOff,
+  MessageCircle, CheckCircle2, AlertCircle, WifiOff,
   Search, X, Send, Smartphone, Plus, Eye, Users,
 } from "lucide-react";
-import { documentosParaEnvioWhatsapp, imoveisParaEnvioWhatsapp, previaEnvioWhatsapp, salvarConexaoBusiness } from "@/lib/actions/whatsapp";
+import { documentosParaEnvioWhatsapp, imoveisParaEnvioWhatsapp, previaEnvioWhatsapp, salvarConexaoBusiness, salvarTemplateWhatsapp } from "@/lib/actions/whatsapp";
 import { DOCUMENTOS_CHECKLIST, textoDocumentosMarcados, VARIAVEIS_TEMPLATE, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
 import { parseServicosLead } from "@/lib/crm/servicos-lead";
 import { ConexaoQrCode } from "./conexao-qr-code";
@@ -35,45 +35,19 @@ interface Props {
   usuarioId: string;
   abaInicial?: "conexao" | "conversas";
   numeroInicial?: string | null;
+  templates: Template[];
+  servicosDisponiveis: string[];
+  podeGerenciarTemplates: boolean;
 }
 
-type Aba = "conexao" | "conversas" | "enviar" | "templates" | "historico";
+type Aba = "conexao" | "conversas" | "enviar" | "templates";
 type Previa = { id: string; texto: string; faltando: string[] };
 
 // ─── Templates ────────────────────────────────────────────────────────────────
 
 interface Template { id: string; name: string; category: string; body: string; }
 
-const TEMPLATES: Template[] = [
-  { id: "t1", name: "Boas-vindas ao lead", category: "Captação", body: "Olá {{nome}}! Sou {{corretor}} da Grupo Santa Fé. Recebemos seu contato sobre {{servico}}. Podemos conversar?" },
-  { id: "t2", name: "Follow-up 48h", category: "Acompanhamento", body: "Olá {{nome}}, tudo bem? Estou entrando em contato sobre {{servico}}. Tenho opções que podem te interessar! 😊" },
-  { id: "t3", name: "Confirmação de visita", category: "Agenda", body: "Olá {{nome}}! Confirmo nossa visita às {{horario}} no endereço {{endereco}}. Qualquer dúvida me chame! ✅" },
-  { id: "t4", name: "Envio de proposta", category: "Negociação", body: "Olá {{nome}}! Preparei uma proposta sobre {{imovel}}. Podemos agendar para apresentar os detalhes?" },
-  { id: "t5", name: "Atualização do financiamento", category: "Financiamento", body: "Olá {{nome}}! O banco {{banco}} aprovou sua análise de crédito! Vamos conversar?" },
-  { id: "t6", name: "Lembrete de documentos", category: "Documentação", body: "Olá {{nome}}! Ainda precisamos dos documentos: {{documentos}}. Pode nos enviar? 📄" },
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  enviada:  { label: "Enviada",  bg: "bg-gray-100",  text: "text-gray-600"  },
-  entregue: { label: "Entregue", bg: "bg-blue-100",  text: "text-blue-700"  },
-  lida:     { label: "Lida",     bg: "bg-green-100", text: "text-green-700" },
-  falhou:   { label: "Falhou",   bg: "bg-red-100",   text: "text-red-700"   },
-};
-
-function StatusConexao({ status }: { status: string }) {
-  if (status === "conectado") return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-bold">
-      <Wifi size={12} /> Conectado
-    </span>
-  );
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 text-xs font-bold">
-      <WifiOff size={12} /> Desconectado
-    </span>
-  );
-}
 
 function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error"; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
@@ -88,7 +62,7 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, abaInicial = "conexao", numeroInicial = null }: Props) {
+export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, templates, servicosDisponiveis, podeGerenciarTemplates, abaInicial = "conexao", numeroInicial = null }: Props) {
   // Pedido de 25/10: ?aba=conversas&numero=… abre direto o chat (notificações e página do lead).
   const [activeTab, setActiveTab] = useState<Aba>(abaInicial === "conexao" && role !== "corretor" ? "conversas" : abaInicial);
   const [minhaConexao, setMinhaConexao] = useState<ConexaoData | null>(initialConexao);
@@ -102,6 +76,8 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
   const [searchLead, setSearchLead] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [mensagem, setMensagem] = useState("");
+  const [servicosSelecionados, setServicosSelecionados] = useState<string[]>([]);
+  const [editorTemplate, setEditorTemplate] = useState<{ id?: string; nome: string; finalidade: string; conteudo: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -112,6 +88,9 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
   const [previa, setPrevia] = useState<Previa[]>([]);
   const variaveis = useMemo(() => variaveisDoTexto(mensagem), [mensagem]);
   const usaVariaveis = variaveis.length > 0;
+  const usaServicos = variaveis.includes("servico") || variaveis.includes("servicos");
+  const textoServicos = servicosSelecionados.join(", ");
+  const extrasComServicos = useMemo(() => ({ ...extras, ...(usaServicos ? { servico: textoServicos, servicos: textoServicos } : {}) }), [extras, usaServicos, textoServicos]);
   const extrasPorLead = useMemo(() => Object.fromEntries(Object.entries(docsPorLead).map(([id, d]) => [id, { documentos: textoDocumentosMarcados(d.marcados, d.livre) }])), [docsPorLead]);
 
   useEffect(() => {
@@ -131,13 +110,16 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
     if (!calcularPrevia) return;
     let ativo = true;
     const t = setTimeout(async () => {
-      const r = await previaEnvioWhatsapp(mensagem, selectedLeads, extras, extrasPorLead).catch(() => null);
+      const r = await previaEnvioWhatsapp(mensagem, selectedLeads, extrasComServicos, extrasPorLead).catch(() => null);
       if (ativo && r && !r.erro) setPrevia(r.itens);
     }, 300);
     return () => { ativo = false; clearTimeout(t); };
-  }, [calcularPrevia, mensagem, selectedLeads, extras, extrasPorLead]);
+  }, [calcularPrevia, mensagem, selectedLeads, extrasComServicos, extrasPorLead]);
   const previaAtual = calcularPrevia ? previa.filter((p) => selectedLeads.includes(p.id)) : [];
   const faltando = Array.from(new Set(previaAtual.flatMap((p) => p.faltando)));
+  // Manter o campo montado após preencher evita perder foco ou impedir a edição.
+  const campos = variaveis.filter(v => v !== "servico" && v !== "servicos" && v !== "documentos" &&
+    (v === "dia" || v === "horario" || faltando.includes(v) || Object.hasOwn(extras, v)));
 
   // ─── KPIs ─────────────────────────────────────────────────────────────────
 
@@ -183,21 +165,21 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
 
   async function handleEnviar() {
     if (!mensagem.trim() || selectedLeads.length === 0) return;
-    if (faltando.length) { setToast({ msg: "Preencha os campos destacados antes de enviar.", type: "error" }); return; }
+    if (faltando.length || (usaServicos && !servicosSelecionados.length)) { setToast({ msg: "Preencha os campos destacados antes de enviar.", type: "error" }); return; }
     setEnviando(true);
     try {
       const destinatarios = leads.filter((l) => selectedLeads.includes(l.id)).map((l) => ({ id: l.id, nome: l.nome, telefone: l.telefone, leadId: l.id }));
       const res = await fetch("/api/whatsapp/enviar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensagem, destinatarios, extras, extrasPorLead }),
+        body: JSON.stringify({ mensagem, destinatarios, extras: extrasComServicos, extrasPorLead }),
       });
       const data = await res.json() as { ok?: boolean; error?: string; enviadas?: number; falhas?: number };
       if (data.error) {
         setToast({ msg: data.error, type: "error" });
       } else {
         setToast({ msg: `${data.enviadas ?? 0} enviada(s)${(data.falhas ?? 0) > 0 ? `, ${data.falhas} falha(s)` : ""}`, type: (data.falhas ?? 0) > 0 ? "error" : "success" });
-        setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setDocsPorLead({}); setPrevia([]);
+        setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setServicosSelecionados([]); setDocsPorLead({}); setPrevia([]);
       }
     } catch { setToast({ msg: "Erro ao enviar mensagens", type: "error" }); }
     finally { setEnviando(false); }
@@ -217,7 +199,6 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Leads Disponíveis", value: totalLeads, icon: Users, color: "text-[var(--brand-yellow)]" },
           { label: "Mensagens Enviadas", value: totalEnviadas, icon: MessageCircle, color: "text-blue-500" },
           { label: "Taxa de Leitura", value: `${taxaLeitura}%`, icon: Eye, color: "text-green-500" },
           { label: "Falhas", value: totalFalhas, icon: AlertCircle, color: "text-red-400" },
@@ -235,11 +216,10 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       {/* Tabs */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
         {([
-          ...(role === "corretor" ? [{ key: "conexao" as const, label: "Conexão", icon: Smartphone }] : []),
+          { key: "conexao" as const, label: "Conexão", icon: Smartphone },
           { key: "conversas" as const, label: "Conversas", icon: Users },
           { key: "enviar" as const, label: "Enviar Mensagem", icon: Send },
           { key: "templates" as const, label: "Templates", icon: MessageCircle },
-          { key: "historico" as const, label: "Histórico", icon: Clock },
         ]).map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
             className={`flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wide border-b-2 transition-colors whitespace-nowrap ${activeTab === key ? "border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "border-transparent text-gray-600 hover:text-[var(--brand-dark)]"}`}>
@@ -256,7 +236,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
         <div className="space-y-5">
 
           {/* Admin e colaborador (conexão da empresa) / Corretor: a própria conexão */}
-          {role === "corretor" && (
+          {
             <div className="bg-white border border-gray-100 p-5">
               <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
                 {role === "corretor" ? "Minha Conexão WhatsApp" : "Conexão WhatsApp da empresa"}
@@ -282,7 +262,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               {/* Not connected: QR code (Evolution) e, como alternativa, a API oficial */}
               {!conexaoAtiva && (
                 <div className="space-y-5">
-                  <ConexaoQrCode podeConfigurarServidor={false} onConectado={aoConectarQr} onAviso={aviso} />
+                  <ConexaoQrCode podeConfigurarServidor={role === "admin"} onConectado={aoConectarQr} onAviso={aviso} />
                   <details className="border-t border-gray-100 pt-3">
                   <summary className="cursor-pointer text-xs text-gray-700 font-bold">Usar a API oficial do WhatsApp Business (Meta)</summary>
                   <div className="space-y-5 mt-3">
@@ -324,34 +304,11 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 </div>
               )}
             </div>
-          )}
-
-          {/* Admin e colaborador: conexões dos corretores */}
-          {role === "corretor" && false && (
-            <div className="bg-white border border-gray-100 p-5">
-              <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-4">
-                Conexões dos Corretores {conexoesCorretores.length > 0 && `(${conexoesCorretores.length})`}
-              </h2>
-              {conexoesCorretores.length === 0 ? (
-                <p className="text-sm text-gray-600">Nenhum corretor cadastrado.</p>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {conexoesCorretores.map((c) => (
-                    <div key={c.usuarioId} className="flex items-center gap-4 py-3">
-                      <div className="w-8 h-8 bg-[var(--brand-dark)] flex items-center justify-center text-[var(--brand-yellow)] font-black text-sm shrink-0">
-                        {c.usuarioNome[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[var(--brand-dark)] text-sm truncate">{c.usuarioNome}</p>
-                        {c.numero && <p className="text-xs text-gray-600">{c.numero}</p>}
-                      </div>
-                      <StatusConexao status={c.status} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          }
+          {(role === "admin" || role === "colaborador") && <div className="border border-gray-100 bg-white p-5">
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-[var(--brand-dark)]">Conexões dos Corretores</h2>
+            {!conexoesCorretores.length ? <p className="text-sm text-gray-600">Nenhum corretor cadastrado.</p> : <div className="space-y-3">{conexoesCorretores.map((corretor) => <div key={corretor.usuarioId} className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3"><div><p className="text-sm font-bold text-gray-900">{corretor.usuarioNome}</p><p className="text-xs text-gray-600">{corretor.numero || "Número ainda não conectado"}</p></div><span className={`rounded px-2 py-1 text-xs font-bold ${corretor.status === "conectado" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-700"}`}>{corretor.status === "conectado" ? "Conectado" : corretor.status === "aguardando_qr" ? "Aguardando QR code" : "Desconectado"}</span></div>)}</div>}
+          </div>}
         </div>
       )}
 
@@ -362,7 +319,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
             <div className="flex items-center gap-3 border border-yellow-200 bg-yellow-50 p-4">
               <AlertCircle size={18} className="text-yellow-600 shrink-0" />
               <p className="text-sm text-yellow-800">
-                {role === "corretor" ? "Conecte o WhatsApp (QR code ou API oficial) na aba Conexão." : "Peça ao administrador para conectar o WhatsApp em Integrações."}
+                {role === "corretor" ? "Conecte o WhatsApp (QR code ou API oficial) na aba Conexão." : "Peça ao administrador para conectar o WhatsApp na aba Conexão."}
               </p>
             </div>
           )}
@@ -415,10 +372,10 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Template</label>
                 <select value={selectedTemplate?.id ?? ""}
-                  onChange={(e) => { const t = TEMPLATES.find((t) => t.id === e.target.value) ?? null; setSelectedTemplate(t); setMensagem(t?.body ?? ""); }}
+                  onChange={(e) => { const t = templates.find((t) => t.id === e.target.value) ?? null; setSelectedTemplate(t); setMensagem(t?.body ?? ""); setServicosSelecionados([]); }}
                   className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
                   <option value="">— Selecione um template —</option>
-                  {TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.category} — {t.name}</option>)}
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.category} — {t.name}</option>)}
                 </select>
               </div>
               <div>
@@ -430,10 +387,11 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
               </div>
               {usaVariaveis && selectedLeads.length > 0 && (
                 <div className="space-y-3 border-t border-gray-100 pt-3">
-                  {(faltando.length > 0 || variaveis.includes("documentos")) && (
+                  {usaServicos && <div className="border border-yellow-200 bg-yellow-50 p-3"><p className="mb-2 text-xs font-bold text-yellow-900">Selecione somente os serviços desta mensagem:</p><div className="grid gap-2 sm:grid-cols-2">{servicosDisponiveis.map((servico) => <label key={servico} className="flex items-center gap-2 text-xs text-gray-800"><input type="checkbox" checked={servicosSelecionados.includes(servico)} onChange={() => setServicosSelecionados((atual) => atual.includes(servico) ? atual.filter((s) => s !== servico) : [...atual, servico])} />{servico}</label>)}</div>{!servicosSelecionados.length && <p className="mt-2 text-xs text-red-700">Selecione ao menos um serviço.</p>}</div>}
+                  {(campos.length > 0 || variaveis.includes("documentos")) && (
                     <div className="space-y-2 border border-yellow-200 bg-yellow-50 p-3">
                       {faltando.length > 0 && <p className="text-xs font-bold text-yellow-900">Alguns destinatários não têm estes dados no cadastro. Informe para enviar:</p>}
-                      {faltando.filter((v) => v !== "documentos").map((v) => (
+                      {campos.map((v) => (
                         <div key={v}>
                           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">{VARIAVEIS_TEMPLATE[v] ?? v}</label>
                           <input type="text" list={v === "imovel" ? "imoveis-whatsapp" : undefined} value={extras[v] ?? ""} onChange={(e) => setExtras((x) => ({ ...x, [v]: e.target.value }))}
@@ -472,7 +430,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                   </div>
                 </div>
               )}
-              <button onClick={handleEnviar} disabled={enviando || selectedLeads.length === 0 || !mensagem.trim() || faltando.length > 0}
+              <button onClick={handleEnviar} disabled={enviando || selectedLeads.length === 0 || !mensagem.trim() || faltando.length > 0 || (usaServicos && !servicosSelecionados.length)}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider px-5 py-2.5 transition-colors">
                 <Send size={13} /> {enviando ? "Enviando..." : `Enviar para ${selectedLeads.length} contato${selectedLeads.length !== 1 ? "s" : ""}`}
               </button>
@@ -483,81 +441,27 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
 
       {/* ── Tab: Templates ──────────────────────────────────────────────────── */}
       {activeTab === "templates" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {TEMPLATES.map((t) => (
+        <div className="space-y-4">
+          {podeGerenciarTemplates && <div className="flex justify-end"><button onClick={() => setEditorTemplate({ nome: "", finalidade: "", conteudo: "" })} className="flex items-center gap-2 bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase text-[var(--brand-dark)]"><Plus size={14}/>Novo template</button></div>}
+          {editorTemplate && <form action={() => startTransition(async () => { try { await salvarTemplateWhatsapp(editorTemplate); setEditorTemplate(null); setToast({ msg: "Template salvo.", type: "success" }); window.location.reload(); } catch (e) { setToast({ msg: e instanceof Error ? e.message : "Erro ao salvar template.", type: "error" }); } })} className="space-y-3 border border-gray-200 bg-white p-5"><div className="grid gap-3 sm:grid-cols-2"><input aria-label="Nome" placeholder="Nome" value={editorTemplate.nome} onChange={(e) => setEditorTemplate({ ...editorTemplate, nome: e.target.value })} className="border p-2 text-sm"/><input aria-label="Finalidade" placeholder="Finalidade" value={editorTemplate.finalidade} onChange={(e) => setEditorTemplate({ ...editorTemplate, finalidade: e.target.value })} className="border p-2 text-sm"/></div><textarea aria-label="Conteúdo" rows={7} value={editorTemplate.conteudo} onChange={(e) => setEditorTemplate({ ...editorTemplate, conteudo: e.target.value })} className="w-full border p-2 text-sm"/><div className="whitespace-pre-wrap bg-gray-50 p-3 text-xs"><b>Prévia:</b><br/>{editorTemplate.conteudo || "Digite o conteúdo."}</div><div className="flex gap-2"><button type="submit" className="bg-green-600 px-4 py-2 text-xs font-bold text-white">Salvar</button><button type="button" onClick={() => setEditorTemplate(null)} className="border px-4 py-2 text-xs font-bold">Cancelar</button></div></form>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {templates.map((t) => (
             <div key={t.id} className="bg-white border border-gray-100 p-5">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-bold text-[var(--brand-dark)] text-sm">{t.name}</p>
                   <span className="text-[10px] font-bold bg-[var(--brand-yellow)]/20 text-[var(--brand-dark)] px-2 py-0.5 uppercase">{t.category}</span>
                 </div>
-                <button onClick={() => { setSelectedTemplate(t); setMensagem(t.body); setActiveTab("enviar"); }}
-                  className="text-xs bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold uppercase px-3 py-1.5 shrink-0 transition-colors">
-                  Usar
-                </button>
+                {podeGerenciarTemplates && <button onClick={() => setEditorTemplate({ id: t.id, nome: t.name, finalidade: t.category, conteudo: t.body })} className="border px-3 py-1.5 text-xs font-bold uppercase">Editar</button>}
               </div>
               <p className="text-xs text-gray-600 leading-relaxed mt-3 whitespace-pre-line line-clamp-3">{t.body}</p>
             </div>
           ))}
-          <div className="bg-gray-50 border border-dashed border-gray-200 p-5 flex flex-col items-center justify-center gap-2 text-center">
-            <Plus size={24} className="text-gray-500" />
-            <p className="text-sm font-bold text-gray-600">Novo Template</p>
-            <p className="text-xs text-gray-600">Em breve</p>
           </div>
         </div>
       )}
 
       {/* ── Tab: Histórico ──────────────────────────────────────────────────── */}
-      {activeTab === "historico" && (
-        <div className="bg-white border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">Mensagens Enviadas</h2>
-            <span className="text-xs text-gray-600">{historico.length} registros</span>
-          </div>
-          {historico.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <MessageCircle size={32} className="text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Nenhuma mensagem enviada ainda.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[var(--brand-dark)] text-[var(--brand-yellow)]">
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide">Contato</th>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide hidden md:table-cell">Mensagem</th>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide hidden lg:table-cell">Data/Hora</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {historico.map((m) => {
-                    const badge = STATUS_BADGE[m.status] ?? STATUS_BADGE.enviada;
-                    return (
-                      <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-[var(--brand-dark)]">{m.nomeDestinatario ?? m.destinatario}</p>
-                          <p className="text-xs text-gray-600">{m.destinatario}</p>
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell max-w-xs">
-                          <p className="text-xs text-gray-600 truncate">{m.mensagem}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold ${badge.bg} ${badge.text}`}>{badge.label}</span>
-                          {m.erroMsg && <p className="text-xs text-red-400 mt-0.5">{m.erroMsg}</p>}
-                        </td>
-                        <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-600">
-                          {new Date(m.enviadaEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -15,6 +15,11 @@ import { normalizarStatusEvolution, segredoWebhookEvolution, webhookEvolutionAut
 const resposta = (corpo: unknown, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => corpo } as Response);
 
 describe("variáveis do template", () => {
+  it("exige escolha de serviços no envio sem inferir a lista do cadastro", () => {
+    const valores = new Map([["1", { nome: "Ana", servico: "Todos do cadastro" }]]);
+    expect(textosPorDestinatario("{{servico}}", ["1"], valores, {}).erro).toContain("{{servico}}");
+    expect(textosPorDestinatario("{{servico}}", ["1"], valores, { servico: "Só escolhido" }).textos.get("1")).toBe("Só escolhido");
+  });
   it("preenche por destinatário e aponta o que falta", () => {
     const t = "Olá {{nome}}, sobre {{servico}} com {{ corretor }}. {{horario}}";
     expect(variaveisDoTexto(t)).toEqual(["nome", "servico", "corretor", "horario"]);

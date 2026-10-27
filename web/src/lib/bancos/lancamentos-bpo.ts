@@ -23,9 +23,20 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       },
       orderBy: { id: "asc" },
       take: LOTE,
-      select: { id: true, data: true, descricao: true, descricaoOriginal: true, titular: true, valor: true, tipo: true, categoria: true, bpoClienteId: true },
+      select: { id: true, externalId: true, data: true, descricao: true, descricaoOriginal: true, titular: true, valor: true, tipo: true, categoria: true, bpoClienteId: true },
     });
     if (!lote.length) break;
+
+    // A cleanup may have detached a legitimate operational entry. Reattach by the stable
+    // bank identifier before creating anything, preserving value, category and its audit.
+    const reanexados = new Set<string>();
+    for (const t of lote) if (t.externalId) {
+      const existente = await prisma.bpoLancamento.findUnique({ where: { origemTransacaoKey: t.externalId }, select: { id: true, transacaoId: true } });
+      if (existente && !existente.transacaoId) {
+        await prisma.bpoLancamento.update({ where: { id: existente.id }, data: { transacaoId: t.id, version: { increment: 1 } } });
+        reanexados.add(t.id);
+      }
+    }
 
     const regras = await prisma.bpoRegraTitular.findMany();
     const porTitular = new Map(regras.map((regra) => [regra.titularNormalizado, regra]));
@@ -35,7 +46,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       const chave = normalizarTitular(nome);
       if (chave) clientePorNome.set(chave, [...(clientePorNome.get(chave) ?? []), cliente.id]);
     }
-    const comCategoria = lote.map((t) => {
+    const comCategoria = lote.filter((t) => !reanexados.has(t.id)).map((t) => {
       const chave = normalizarTitular(t.titular);
       const regra = chave ? porTitular.get(chave) : null;
       const candidatos = chave ? [...new Set(clientePorNome.get(chave) ?? [])] : [];
@@ -58,6 +69,8 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     const r = await prisma.bpoLancamento.createMany({
       data: comCategoria.map((t) => ({
         transacaoId: t.id,
+        origemEfetiva: "extrato",
+        origemTransacaoKey: t.externalId,
         tipo: tipoLancamentoDaTransacao(t.tipo),
         descricao: descricaoComTitular([t.descricao, t.titular, t.descricaoOriginal]),
         valor: t.valor,

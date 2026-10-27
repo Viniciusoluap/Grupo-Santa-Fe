@@ -5,15 +5,6 @@ import { criarBpoCliente } from "@/lib/actions/bpo";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { prisma } from "@/lib/db";
 
-const SERVICOS = [
-  { value: "contas_pagar",   label: "Contas a Pagar" },
-  { value: "contas_receber", label: "Contas a Receber" },
-  { value: "conciliacao",    label: "Conciliação Bancária" },
-  { value: "folha",          label: "Folha de Pagamento" },
-  { value: "fiscal",         label: "Obrigações Fiscais" },
-  { value: "honorarios",     label: "Gestão de Honorários" },
-];
-
 export default async function NovoBpoClientePage() {
   await exigirModuloPagina("bpo");
   const leads = await prisma.lead.findMany({
@@ -65,18 +56,6 @@ export default async function NovoBpoClientePage() {
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">E-mail</label>
             <input name="email" type="email" placeholder="contato@empresa.com.br" className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-          </div>
-        </div>
-
-        <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Serviços Contratados *</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {SERVICOS.map((s) => (
-              <label key={s.value} className="flex items-center gap-2 p-2.5 border border-gray-200 cursor-pointer hover:border-[var(--brand-yellow)] transition-colors">
-                <input type="checkbox" name="servicos" value={s.value} className="accent-[var(--brand-yellow)]" />
-                <span className="text-sm text-gray-700">{s.label}</span>
-              </label>
-            ))}
           </div>
         </div>
 
