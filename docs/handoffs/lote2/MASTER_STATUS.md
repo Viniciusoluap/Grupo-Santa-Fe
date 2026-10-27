@@ -1,6 +1,7 @@
 # MASTER STATUS — Lote 02 — 22 correções (Prospecta + Grupo Santa Fé)
 
-- Branch (ambos os repos): `claude/lote2-22-correcoes-20261027`
+- Branch de continuação (ambos): `codex/continuar-lote2-20261027`
+- Origem preservada: `claude/lote2-22-correcoes-20261027`
 - Base: Prospecta `08fdd3d` · Santa Fé `a696389` (origin/main em 27/10/2026)
 - Agente: Claude Code (orquestração AIOX). Codex trabalha em paralelo em `codex/aiox-16-correcoes-20261026` — **não tocar** nos arquivos dele (ver EXECUTION_LOG).
 - Plano: ver ARCHITECTURE_DECISIONS.md (AD-10 ondas).
@@ -42,3 +43,10 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 
 - 27/10 09:30: 07 concluída (Prospecta 10/10 + vizinhas; SF puros 4/4, db 6/6, vizinhos 40/40). Nota: no banco LOCAL do SF, `prisma db push` deixa `estudos_incorporacao_versoes.id` sem DEFAULT (trigger de versão falha); corrigido localmente com `SET DEFAULT gen_random_uuid()` — não afeta produção (migrações SQL).
 - 27/10 ~10:00: 06/08/10/11 concluídas (Prospecta vitest completo 1191/1191; SF 1017/1027 — 10 falhas fora do escopo: pré-existentes + bancos-sync/bpo-extrato do Codex). Iniciados agentes orcamento-viabilidade (12,20) e unidades-lancamento (15,16,18,19). pci-gerador (03) em andamento.
+
+## Retomada Codex — 27/10/2026
+- Pedido atual: continuar o trabalho do Claude, reaproveitando os commits e mantendo handoffs e pushes frequentes. Execução autorizada.
+- Base recuperada neste repositório: `15e6dd6`. Nenhum arquivo local pendente foi descartado.
+- Onda 2 marcada em andamento no status não significa código concluído: auditar cada implementação. PCI SF contém backend, rotas e UI WIP; falta validar/testar.
+- (a) Baseline: checagem TypeScript em andamento nos dois; (b) navegador: não executado; (c) produção: nenhuma migração aplicada nesta retomada.
+- Próximo passo: validar PCI espelhada e completar testes SF, depois fornecedores/material, unidades, orçamento/viabilidade e responsividade/relatórios. Conciliar origin/main antes de merge (o lote anterior avançou).
