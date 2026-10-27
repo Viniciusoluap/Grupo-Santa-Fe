@@ -113,7 +113,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
 
   const set = <K extends keyof PremissasForm>(k: K) => (v: PremissasForm[K]) => {
     const campoUrbanistico = ["areaBrutaM2", "pctAreaPublica", "pctAreaVerde", "pctSistemaViario", "pctFaixaServidao"].includes(k);
-    setForm({ ...form, [k]: v, urbanismoModo: campoUrbanistico ? "manual" : form.urbanismoModo, custoInfraModo: k === "custoInfraM2Lote" ? "manual" : form.custoInfraModo });
+    setForm({ ...form, [k]: v, urbanismoModo: campoUrbanistico ? "manual" : form.urbanismoModo, custoInfraModo: k === "custoInfraM2Lote" ? "manual" : form.custoInfraModo, marketingFonte: k === "marketing" ? "manual" : form.marketingFonte });
     setSalvoOk(false);
   };
 
@@ -293,6 +293,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         <Secao titulo="Custos">
           <Num label="Infra por m² vendido" sufixo="R$/m²" value={form.custoInfraM2Lote} onChange={set("custoInfraM2Lote")} />
           <Num label="Projetos e licenças" sufixo="R$" value={form.projetosLicencas} onChange={set("projetosLicencas")} step={1000} />
+          <div className="col-span-full min-w-0"><label className="block text-xs font-bold">Fonte do custo de lançamento<select className={inputCls} value={form.marketingFonte ?? "manual"} onChange={(e) => { setForm({ ...form, marketingFonte: e.target.value as PremissasForm["marketingFonte"] }); setSalvoOk(false); }}><option value="manual">Valor manual</option><option value="fornecedores">Valor total orçado dos fornecedores</option><option value="publicidade">Valor total orçado do material publicitário</option></select></label><p className="mt-1 text-xs text-gray-500">Uma fonte por vez. Se esta despesa já estiver no orçamento de obra importado, mantenha aqui somente o valor adicional para evitar duplicidade.</p></div>
           <Num label="Marketing" sufixo="R$" value={form.marketing} onChange={set("marketing")} step={1000} />
           <Num label="Registro por unidade" sufixo="R$" value={form.registroPorUnidade} onChange={set("registroPorUnidade")} />
           <Num label="Contingência" sufixo="% infra" value={form.contingenciaPctInfra} onChange={set("contingenciaPctInfra")} step={0.5} />

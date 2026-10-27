@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { LinhaOrcamentoExcel, PremissasOrcamentoParametrizado } from "@/lib/orcamento/parametrizado";
-import { lerLinhasOrcamento, type MapeamentoOrcamento } from "@/lib/incorporacao/orcamento-importacao";
+import { matrizOrcamentoAtualizado, lerLinhasOrcamento, type MapeamentoOrcamento } from "@/lib/incorporacao/orcamento-importacao";
 
 type Planilha = { nome: string; base64: string; abas: string[]; matrizPorAba: Record<string, unknown[][]>; formulasPorAba: Record<string, Record<string, string>> };
 const cls = "w-full min-w-0 rounded border border-gray-300 bg-white px-2 py-2 text-sm";
@@ -60,6 +60,15 @@ export function OrcamentoImportacao({ dados, onChange, areaReferencia }: { dados
     if (metodo === "excel" && dados.importacaoExcel) onChange({ ...dados, importacaoExcel: { ...dados.importacaoExcel, itens } });
     else onChange({ ...dados, infraestrutura: itens });
   }
+  async function baixarAtualizado() {
+    try {
+      const xlsx = await import("xlsx");
+      const sheet = xlsx.utils.aoa_to_sheet(matrizOrcamentoAtualizado(linhas));
+      for (const [endereco, celula] of Object.entries(sheet)) if (!endereco.startsWith("!") && celula.t === "n") celula.z = "#,##0.00";
+      sheet["!cols"] = [{ wch: 50 }, { wch: 12 }, { wch: 18 }, { wch: 20 }, { wch: 22 }];
+      const book = xlsx.utils.book_new(); xlsx.utils.book_append_sheet(book, sheet, "Orçamento"); xlsx.writeFile(book, "orcamento-atualizado.xlsx");
+    } catch (e) { setErro(e instanceof Error ? e.message : "Falha ao exportar orçamento."); }
+  }
   function baixarOriginal() {
     const a = dados.importacaoExcel; if (!a) return;
     const bytes = Uint8Array.from(atob(a.originalBase64), (c) => c.charCodeAt(0));
@@ -86,6 +95,7 @@ export function OrcamentoImportacao({ dados, onChange, areaReferencia }: { dados
       }}>Importar itens conferidos</button>
     </div>}
     {metodo !== "construcao" && <>
+      <button type="button" disabled={!linhas.length} className="rounded border px-3 py-2 text-sm disabled:opacity-50" onClick={() => void baixarAtualizado()}>Baixar orçamento atualizado (Excel)</button>
       <label className="block text-sm">Área de referência vendável (m²) — apenas para distribuir o custo na Viabilidade<NumeroBRField value={dados.areaReferenciaM2 ?? areaReferencia} onValueChange={(v) => onChange({ ...dados, areaReferenciaM2: Math.max(0, v) })} className={cls} /></label>
       <p className="text-xs text-gray-600">A área vendável distribui o custo de infraestrutura; não representa área construída. Quantidades e preços podem ser ajustados. Somente o método ativo entra no total.</p>
       <div className="space-y-3">{linhas.map((l, i) => <div key={i} className="grid gap-2 rounded border p-3 sm:grid-cols-2 xl:grid-cols-6">

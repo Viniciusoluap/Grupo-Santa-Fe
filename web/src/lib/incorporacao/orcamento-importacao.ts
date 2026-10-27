@@ -26,3 +26,10 @@ export function lerLinhasOrcamento(matriz: unknown[][], linhaCabecalho: number, 
     return [{ descricao, unidade: String(row[m.unidade] ?? ""), quantidade, unitario, total, ...(formula ? { formula } : {}) }];
   });
 }
+
+/** Exporta os valores editados; o original e suas fórmulas continuam preservados separadamente. */
+export function matrizOrcamentoAtualizado(linhas: LinhaOrcamentoExcel[]): (string | number)[][] {
+  return [["Descrição", "Unidade", "Quantidade", "Preço unitário", "Total"],
+    ...linhas.map((l) => [l.descricao, l.unidade, l.quantidade, l.unitario, l.total]),
+    ["Total geral", "", "", "", Math.round(linhas.reduce((n, l) => n + l.total, 0) * 100) / 100]];
+}

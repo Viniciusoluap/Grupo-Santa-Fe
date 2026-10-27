@@ -44,12 +44,13 @@ export async function salvarSemKml(estudoId: string, semKml: boolean) {
 /** Correção 06: grava a lista de lotes avulsos (validada estritamente). */
 export async function salvarLotesAvulsos(estudoId: string, dadosJson: string) {
   return capturarErroAcao(async () => {
-    await exigirModuloAcao("incorporacao");
+    const u = await exigirModuloAcao("incorporacao");
     await exigirEstudoExistente(estudoId);
     if (typeof dadosJson !== "string" || dadosJson.length > 2_000_000) throw new Error("Lista de lotes grande demais.");
     const preparado = prepararLotesAvulsosParaGravar(dadosJson);
     if (!preparado.ok) throw new Error(preparado.erro);
     await prisma.estudoIncorporacao.update({ where: { id: estudoId }, data: { lotesAvulsosJson: preparado.json } });
+    await sincronizarUnidadesCenario(estudoId, u.id);
     revalidatePath(caminho(estudoId));
     return { ok: true as const };
   });

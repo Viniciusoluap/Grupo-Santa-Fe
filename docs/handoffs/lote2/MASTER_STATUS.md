@@ -3,7 +3,7 @@
 - Branch de continuação (ambos): `codex/continuar-lote2-20261027`
 - Origem preservada: `claude/lote2-22-correcoes-20261027`
 - Base: Prospecta `08fdd3d` · Santa Fé `a696389` (origin/main em 27/10/2026)
-- Agente: Claude Code (orquestração AIOX). Codex trabalha em paralelo em `codex/aiox-16-correcoes-20261026` — **não tocar** nos arquivos dele (ver EXECUTION_LOG).
+- Continuação atual: Codex, a partir dos commits preservados do Claude. Nenhum agente Claude está ativo nesta sessão. Integração de main conciliada sem alterar workspaces de outras frentes.
 - Plano: ver ARCHITECTURE_DECISIONS.md (AD-10 ondas).
 - Autorização do dono (27/10): execução completa, merge e deploy.
 
@@ -13,24 +13,24 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 |---|----------|---------------------------|---------------------|--------|-----|
 | 01 | Remover PLS XLS (manter PLS PDF + PCI XLS) | Existe; remover XLS da UI/rota/e-mail/Drive | Existe (BIFF8 xls+pdf, e-mail pdf+xls) | Testada (auto) | 3d0d3fa / 59abb8a |
 | 02 | Fotos por medição em Detalhes da Obra | Parcial (só Editar Obra agrupa) | Detalhes em grade plana; Editar agrupa | Testada (auto) | 3d0d3fa / 59abb8a |
-| 03 | Gerador de PCI + Sub PCI atual (Integrações) | Parcial (leitor/gravador PLS existem; sem gerador) | Parcial (leitor; sem gerador) | Em implementação | — |
+| 03 | Gerador de PCI + Sub PCI atual (Integrações) | Parcial (leitor/gravador PLS existem; sem gerador) | Parcial (leitor; sem gerador) | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 04 | Perfil Engenheiro + CREA + documentos | Faltante (sem papel engenheiro, sem docs de usuário) | Faltante (sem papel/docs/ZIP) | Testada (auto) | 3d0d3fa / 59abb8a |
 | 05 | Mapa Operacional satélite/ruas + cluster | Parcial (OSM, sem cluster) | OSM, circleMarker, sem cluster | Testada (auto) | 3d0d3fa / 59abb8a |
-| 06 | Incorporação sem KML (checkbox) | Bloqueio por geojson existe | Bloqueio sem KML | Testada (auto) — migrações 0084 / 20261027120000 pendentes em prod | 4a5a561 / 6380e23 |
-| 07 | Projeto Aprovado ↔ Projetos | Não integrado; Projeto exige lead | Separados (lead_id já nulo) | Testada (auto) — migrações 0086 / 20261027140000 pendentes em prod | 003f43d / dfdbcdc |
-| 08 | Dados Gerais (nome empreendimento, responsável por ID, remover campos) | Existe; responsável texto livre | Existe; responsável texto | Testada (auto) — migrações 0084 / 20261027120000 pendentes em prod | 4a5a561 / 6380e23 |
-| 09 | Redesign Incorporação | Grade de botões, 5 fases | 5 fases/22 etapas | Planejado | — |
-| 10 | Estudo de Massa Generativa | Existe com geometria real (turf) | Existe (turf, genético) | Testada (auto) — migrações 0084 / 20261027120000 pendentes em prod | 4a5a561 / 6380e23 |
-| 11 | Estudos Salvos | Persistência simples, sem versões/UX | JSON sobrescreve | Testada (auto) — migrações 0084 / 20261027120000 pendentes em prod | 4a5a561 / 6380e23 |
-| 12 | Orçamento Parametrizado + import Excel | Parcial (sem import) | Parcial (sem import) | Em implementação | — |
+| 06 | Incorporação sem KML (checkbox) | Bloqueio por geojson existe | Bloqueio sem KML | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
+| 07 | Projeto Aprovado ↔ Projetos | Não integrado; Projeto exige lead | Separados (lead_id já nulo) | Testada automaticamente; migrações 0091 / 20261027200000 pendentes em produção | 003f43d / dfdbcdc |
+| 08 | Dados Gerais (nome empreendimento, responsável por ID, remover campos) | Existe; responsável texto livre | Existe; responsável texto | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
+| 09 | Redesign Incorporação | Grade de botões, 5 fases | 5 fases/22 etapas | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
+| 10 | Estudo de Massa Generativa | Existe com geometria real (turf) | Existe (turf, genético) | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
+| 11 | Estudos Salvos | Persistência simples, sem versões/UX | JSON sobrescreve | Testada automaticamente; migrações 0089 / 20261027180000 pendentes em produção | 4a5a561 / 6380e23 |
+| 12 | Orçamento Parametrizado + import Excel | Parcial (sem import) | Parcial (sem import) | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 13 | Negociação responsiva | Existe (cartões) | Existe | Implementada — validar visual/produção | continuação Codex |
 | 14 | Projeto Aprovado responsivo | Existe (tabela) | Existe | Implementada — validar visual/produção | continuação Codex |
-| 15 | Unidades do cenário + comprador CRM | Parcial (manual, comprador texto) | Parcial (manual) | Em implementação | — |
-| 16 | Máscara R$ + editar/excluir unidade | Faltante | Faltante | Em implementação | — |
+| 15 | Unidades do cenário + comprador CRM | Parcial (manual, comprador texto) | Parcial (manual) | Parcial: geração e CRM testados; falta fonte explícita do valor negociado | — |
+| 16 | Máscara R$ + editar/excluir unidade | Faltante | Faltante | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 17 | Planejamento responsivo | Existe | Existe | Implementada — validar visual/produção | continuação Codex |
-| 18 | Fornecedores R$ + Orçado vs Contratado | Parcial | Parcial | Em implementação | — |
-| 19 | Indicadores Fornecedores/Material/Atendimento | Parcial | Parcial | Em implementação | — |
-| 20 | Viabilidade Terreno ↔ cenário | Parcial (% fixos) | % fixos 10/5/25 | Em implementação | — |
+| 18 | Fornecedores R$ + Orçado vs Contratado | Parcial | Parcial | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
+| 19 | Indicadores Fornecedores/Material/Atendimento | Parcial | Parcial | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
+| 20 | Viabilidade Terreno ↔ cenário | Parcial (% fixos) | % fixos 10/5/25 | Implementada; testes automáticos parciais aprovados; aceite visual/produção pendente | — |
 | 21 | Componente global de valor BRL | Fragmentado (≥7 padrões) | ≥10 padrões; formatCurrency centavos×reais | Testada (auto) — base pronta | 3d0d3fa / 59abb8a |
 | 22 | Relatórios da Viabilidade → Relatório Executivo | Duplicado (2 executivos) | Duplicado | Implementada — validar visual/produção | continuação Codex |
 
@@ -98,3 +98,13 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - Branch Neon teste-migrations-0024-0026: migrações 0087–0091 aplicadas duas vezes, sem erro; seis tabelas novas conferidas com RLS habilitada. Branch antiga precisou da base 0045 e coluna de tipologia (só no ambiente de teste). Produção NÃO alterada.
 - Redesign 09 restaurado/preparado: identidade/município/responsável, progresso responsivo, navegação e formulários/cards com estilos restritos à Incorporação e cores da marca. Falta aceite visual.
 - Continuar nesta branch; próximos: testes SF, regressão ampla, vínculo explícito dos custos de lançamento, validação das migrações SF e produção/deploy.
+
+### Checkpoint atual — 27/10/2026, tarde (Fortaleza)
+- Preservados remotos de integração: Prospecta `6800466`, Santa Fé `a30abaa`; builds Vercel **READY** para os dois SHAs.
+- 12: download Excel com valores editados, separado do original preservado. Teste de exportação e reimportação real via XLSX, sem duplicar total geral.
+- 18/19/20: fonte explícita do custo de lançamento na Viabilidade: manual, orçamento de fornecedores ou orçamento de publicidade. Uma única fonte por vez; edição volta a manual. Variações de status não excluem orçamento; não soma orçamento e contrato.
+- 15: gravação de lotes avulsos e rota legada de massa agora disparam sincronização idempotente do inventário.
+- (a) Santa Fé: suíte integrada 135 arquivos aprovados/21 ignorados, 944 testes aprovados/124 ignorados. Ignorados dependem de ambiente específico, não são aprovação. Depois dos ajustes acima: Prospecta 7/7; SF 3/3, incluindo cinco migrações aplicadas duas vezes em PGlite, preservação de legado e RLS. TypeScript SF aprovado; P em execução. Suíte geral Prospecta anterior interrompida sem resumo final, nova rodada em execução.
+- (b) Manual: aceite visual desktop/tablet/mobile/PWA e upload/download autenticado ainda pendentes.
+- (c) Produção: nenhuma migração deste lote aplicada; não foi feito merge final.
+- Próximo passo exato: finalizar suíte Prospecta; completar valor negociado do CRM sem confundir VGV simulado/financiamento; revisar PCI SF/permissões; verificar UI; atualizar evidências; migrações, PRs e deploy autorizados quando validado.

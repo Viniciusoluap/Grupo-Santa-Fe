@@ -1,3 +1,5 @@
+import { resumoFornecedoresLancamento } from "./fornecedores-lancamento";
+import { resumoMaterialPublicitario } from "./material-publicitario";
 import { cenarioPrincipalDe } from "@/lib/incorporacao/estudos-massa";
 // Conversão "formulário salvo (loteamentoJson) → premissas completas do motor
 // de viabilidade" — extraída da aba Viabilidade para ser reaproveitada também
@@ -26,6 +28,7 @@ import type { EstudoData } from "@/app/admin/incorporacao/_components/incorporac
 // Percentuais são representados em % (ex.: 10) neste formulário e convertidos
 // para fração (0..1) só na conversão para o motor (paraMotor).
 export interface PremissasForm {
+  marketingFonte?: "manual" | "fornecedores" | "publicidade";
   custoInfraModo?: "orcamento" | "manual";
   mixModo?: "cenario" | "manual";
   urbanismoModo?: "cenario" | "manual";
@@ -88,7 +91,19 @@ export function urbanismoDoCenario(estudo: EstudoData) {
 }
 
 /** Ajustes manuais e viabilidades legadas salvas nunca são sobrescritos. */
+/** Uma única fonte de custo de lançamento por vez, sem somar orçamento e contrato. */
+export function marketingDoLancamento(estudo: EstudoData, fonte: PremissasForm["marketingFonte"]): number | null {
+  if (!fonte || fonte === "manual") return null;
+  try {
+    if (fonte === "fornecedores") { const d = JSON.parse(estudo.fornecedoresLancamentoJson ?? "{}"); return resumoFornecedoresLancamento(Array.isArray(d.fornecedores) ? d.fornecedores : []).valorTotalOrcado; }
+    const d = JSON.parse(estudo.materialPublicitarioJson ?? "{}"); return resumoMaterialPublicitario(Array.isArray(d.pecas) ? d.pecas : []).valorTotalOrcado;
+  } catch { return 0; }
+}
+
 export function sincronizarUrbanismo(estudo: EstudoData, form: PremissasForm): PremissasForm {
+  const marketing = marketingDoLancamento(estudo, form.marketingFonte);
+  if (marketing !== null) form = { ...form, marketing };
+
   if (form.custoInfraModo === "orcamento") {
     const custo = custoInfraDoOrcamentoParametrizado(estudo);
     if (custo > 0) form = { ...form, custoInfraM2Lote: custo };
