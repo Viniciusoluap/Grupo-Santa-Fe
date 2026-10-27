@@ -72,3 +72,10 @@ Concluir a auditoria das 16 correções nos dois repositórios, publicar a matri
 ### Próximo passo exato
 
 Concluir a paridade de WhatsApp e BPO, finalizar a Correção 16, adicionar testes das regras críticas e executar lint/suíte/build antes de qualquer migração de produção.
+
+## Retomada pelo Claude — 27/10/2026
+- Base `origin/codex/aiox-16-correcoes-20261026` (`edea685`) trazida para `claude/sync-mirrored-repos-bsqnz3` por fast-forward.
+- Alterações locais antigas de agentes interrompidos (porte do lote 25/10 noite) descartadas do working tree: já superadas pelo
+  PR #234 em `main` (cópia guardada fora do repositório, por segurança).
+- Commits locais do Codex posteriores a `edea685` (ex.: lacuna WhatsApp Santa Fé) não chegaram ao GitHub.
+- Aguardando o prompt mestre (01–16) do dono para a matriz de lacunas.
