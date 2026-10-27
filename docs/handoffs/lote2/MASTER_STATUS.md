@@ -87,3 +87,14 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - Última rodada anterior: 158 suítes Prospecta passaram; um worker no teste PCI de 8 MB estourou heap, caso isolado passou 4/4 após Buffer.compare. SF: 125 passaram, 21 ignoradas por ausência de TEST_DATABASE_URL; mesmo caso de 8 MB passou isolado. Os resultados finais precisam ser novamente registrados por comando/commit nesta retomada.
 - Neon: nova branch de teste recusada por limite de branches. Branch de testes existente teste-migrations-0024-0026 (br-cold-feather-an7ecnay) consultada, ainda sem unidades; nenhuma migração de produção aplicada.
 - Próximo passo: restaurar/validar testes SQL e acabamento visual, integrar origin/main, publicar checkpoints, testar migrações na branch existente sem reset/descarte, então produção/deploy.
+
+### Integração com main — conflitos conciliados
+- Mantidos perfil/CREA dos engenheiros do lote 2 e prioridade/contador de revisões do lote anterior; no SF, mantidos os campos de aprovação e contagem de revisões.
+- Migrações renumeradas para não colidir com BPO/WhatsApp adicionados em main: Prospecta **0087 PCI, 0088 engenheiros, 0089 incorporação, 0090 unidades, 0091 projetos**; SF **20261027160000/170000/180000/190000/200000** com os mesmos assuntos. Números antigos nos checkpoints históricos referem-se aos commits anteriores.
+- Ainda sem migração de produção. Testes precisam rodar após esta integração.
+
+### Validação integrada — atualização
+- TypeScript concluído sem erros nos dois repositórios após conciliar main. Prospecta: testes PCI e inventário **19/19** aprovados.
+- Branch Neon teste-migrations-0024-0026: migrações 0087–0091 aplicadas duas vezes, sem erro; seis tabelas novas conferidas com RLS habilitada. Branch antiga precisou da base 0045 e coluna de tipologia (só no ambiente de teste). Produção NÃO alterada.
+- Redesign 09 restaurado/preparado: identidade/município/responsável, progresso responsivo, navegação e formulários/cards com estilos restritos à Incorporação e cores da marca. Falta aceite visual.
+- Continuar nesta branch; próximos: testes SF, regressão ampla, vínculo explícito dos custos de lançamento, validação das migrações SF e produção/deploy.

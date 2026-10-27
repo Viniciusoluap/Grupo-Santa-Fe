@@ -451,7 +451,7 @@ async function reorganizar(fonte: FonteDrive, root: string): Promise<ResultadoOr
 }
 
 /** Portfólio por cliente/projeto/item. Sessão retomável; cada requisição leva até 1 MiB. */
-export async function iniciarUploadProjetoDrive(doc: { projectId: string; clientId: string; clientName: string; projectName: string; itemId: string; itemName: string; kind: "editable" | "pdf"; name: string; mime: string; size: number }): Promise<string> {
+export async function iniciarUploadProjetoDrive(doc: { projectId: string; clientId: string; clientName: string; projectName: string; itemId: string; itemName: string; kind: "editable" | "pdf"; name: string; canonicalName?: string; mime: string; size: number }): Promise<string> {
   const fonte = await fonteObrigatoria();
   const root = await prepararRaiz(fonte);
   const caminho: PastaAlvo[] = [
@@ -466,7 +466,7 @@ export async function iniciarUploadProjetoDrive(doc: { projectId: string; client
   
   const session = await authorized(fonte, "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id&supportsAllDrives=true", {
     method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Content-Type": doc.mime, "X-Upload-Content-Length": String(doc.size) },
-    body: JSON.stringify({ name: nomeArquivo(`${doc.itemName} — ${doc.kind === "pdf" ? "PDF" : "Editável"}`, new Date(), doc.name, doc.mime), parents: [pasta] }),
+    body: JSON.stringify({ name: doc.canonicalName || nomeArquivo(`${doc.itemName} — ${doc.kind === "pdf" ? "PDF" : "Editável"}`, new Date(), doc.name, doc.mime), parents: [pasta] }),
   }, "upload");
   const location = session.headers.get("location");
   if (!location || new URL(location).origin !== "https://www.googleapis.com" || !new URL(location).pathname.startsWith("/upload/drive/")) throw new Error("Sessão de upload inválida.");

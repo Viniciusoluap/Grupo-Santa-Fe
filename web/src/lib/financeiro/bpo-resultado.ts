@@ -2,12 +2,14 @@
 // a partir de bpo_lancamentos — inclusive os gerados pelo extrato bancário. Regras puras.
 // Transferência interna não é receita nem despesa; despesa = "despesa" e "despesa_*".
 import { contaNoResultado, ehDespesa } from "@/lib/bpo-categorias";
+import { valorRealizado } from "@/lib/bpo-parciais";
 
 export type LancamentoResultado = {
   tipo: string;
   valor: number;
   competencia: string;
   pago: boolean;
+  valorRecebido?: number;
   categoria?: string | null;
 };
 
@@ -48,17 +50,19 @@ export function resumoContabil(lancamentos: LancamentoResultado[], de?: string, 
   let receitaRealizada = 0, despesasPagas = 0, impostosPagos = 0;
   const cat = new Map<string, { receitas: number; despesas: number }>();
   for (const l of lancamentos) {
-    if (!l.pago || !contaNoResultado(l)) continue;
+    if (!contaNoResultado(l)) continue;
+    const valor = valorRealizado(l);
+    if (!valor) continue;
     if ((de && l.competencia < de) || (ate && l.competencia > ate)) continue;
     const nome = l.categoria || "Sem categoria";
     const e = cat.get(nome) ?? { receitas: 0, despesas: 0 };
     if (ehDespesa(l.tipo)) {
-      despesasPagas += l.valor;
-      e.despesas += l.valor;
-      if (l.categoria === "Impostos" || l.tipo === "despesa_imposto") impostosPagos += l.valor;
+      despesasPagas += valor;
+      e.despesas += valor;
+      if (l.categoria === "Impostos" || l.tipo === "despesa_imposto") impostosPagos += valor;
     } else {
-      receitaRealizada += l.valor;
-      e.receitas += l.valor;
+      receitaRealizada += valor;
+      e.receitas += valor;
     }
     cat.set(nome, e);
   }

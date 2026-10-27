@@ -3,7 +3,7 @@
 // Pedido de 25/10: Conversas do WhatsApp — ver respostas dos clientes e continuar a conversa pelo sistema.
 // Gêmeo de Prospecta/client/src/components/whatsapp/ConversasWhatsApp.tsx (visual do Santa Fé).
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Download, RefreshCw, Send, Trash2, UserPlus, MessageCircle } from "lucide-react";
+import { Download, RefreshCw, Send, Trash2, UserPlus, MessageCircle, ArrowLeft, X } from "lucide-react";
 import {
   ativarAvisosWhatsapp, baixarMidiaWhatsappDeNovo, conversasWhatsapp, criarLeadDaConversaWhatsapp, excluirConversaWhatsapp,
   mensagensConversaWhatsapp, responderWhatsapp, type ConversaWhatsapp, type MensagemConversa, type MidiaConversa,
@@ -30,13 +30,23 @@ function MidiaMensagem({ id, midia, onAtualizar, onAviso }: { id: string; midia:
     )}</div>;
   }
   const url = `/api/whatsapp/midia/${id}`;
+  if (midia.mime === "application/pdf" || midia.nome?.toLowerCase().endsWith(".pdf")) return <>
+    <button type="button" onClick={() => setGrande(true)} className="mb-1 inline-flex items-center gap-1 text-xs underline"><Download size={12} /> Abrir PDF</button>
+    {grande && <div role="dialog" aria-modal="true" aria-label="Visualizador de PDF" className="fixed inset-0 z-50 flex flex-col bg-black/80 p-3 sm:p-6">
+      <div className="flex items-center justify-between bg-white px-3 py-2"><button type="button" onClick={() => setGrande(false)} className="inline-flex items-center gap-2 font-bold text-sm"><ArrowLeft size={16} /> Voltar à conversa</button><button type="button" aria-label="Fechar PDF" onClick={() => setGrande(false)}><X size={18} /></button></div>
+      <iframe src={url} title={midia.nome ?? "Documento PDF"} className="min-h-0 flex-1 bg-white" />
+    </div>}
+  </>;
   if (midia.tipo === "imagem" || midia.tipo === "figurinha") return <>
     <button type="button" onClick={() => setGrande(true)} className="mb-1 block"><img src={url} alt={midia.nome ?? "Imagem recebida"} loading="lazy" className="max-h-48 max-w-full object-contain" /></button>
     {grande && <div role="dialog" aria-label="Imagem ampliada" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setGrande(false)}><img src={url} alt={midia.nome ?? "Imagem recebida"} className="max-h-full max-w-full object-contain" /></div>}
   </>;
   if (midia.tipo === "audio") return <audio controls preload="none" src={url} className="mb-1 max-w-full" />;
   if (midia.tipo === "video") return <video controls preload="metadata" src={url} className="mb-1 max-h-64 max-w-full" />;
-  return <a href={url} download={midia.nome ?? undefined} className="mb-1 inline-flex items-center gap-1 text-xs underline"><Download size={12} /> {midia.nome ?? "Baixar documento"}</a>;
+  return <>
+    <button type="button" onClick={() => setGrande(true)} className="mb-1 inline-flex items-center gap-1 text-xs underline"><Download size={12} />{midia.nome ?? "Abrir documento"}</button>
+    {grande && <div role="dialog" aria-modal="true" aria-label="Documento recebido" className="fixed inset-0 z-50 flex flex-col bg-black/80 p-3 sm:p-6"><div className="flex items-center justify-between bg-white p-3"><button type="button" onClick={() => setGrande(false)} className="inline-flex items-center gap-2 text-sm font-bold"><ArrowLeft size={16}/>Voltar à conversa</button><button type="button" aria-label="Fechar documento" onClick={() => setGrande(false)}><X size={18}/></button></div><div className="bg-white p-5 text-gray-900"><p>Este tipo de arquivo deve ser aberto no aplicativo compatível.</p><a href={url} target="_blank" rel="noopener noreferrer" download={midia.nome ?? undefined} className="mt-3 inline-block underline">Baixar ou abrir arquivo em outra aba</a></div></div>}
+  </>;
 }
 
 const legenda = (texto: string, midia: MidiaConversa | null) => midia?.baixada ? texto.replace(/^\[(imagem|áudio|vídeo|documento|figurinha)\]\s*/, "") : texto;

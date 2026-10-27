@@ -10,6 +10,7 @@ export type LinhaExtrato = {
   titular?: string;
   detalhe?: string;
   original?: string;
+  identificadorBancario?: string;
 };
 
 /** Saldo informado pelo próprio arquivo (LOTE C): valor com sinal e a data a que se refere. */
@@ -118,8 +119,9 @@ export function lerOfx(texto: string): ResultadoLeitura {
     const tipoOfx = campo(bloco, "TRNTYPE").toUpperCase();
     const assinado = valor !== null && valor > 0 && tipoOfx === "DEBIT" ? -valor : valor;
     const memo = campo(bloco, "MEMO"), nome = campo(bloco, "NAME");
-    const titular = nome && !SO_TIPO.test(nome) ? nome : extrairTitular(memo || nome);
+    const titular = nome && !SO_TIPO.test(sem(nome)) ? nome : extrairTitular(memo || nome);
     const l = linha(dataIso(campo(bloco, "DTPOSTED")), memo || nome, assinado, { titular, original: [nome, memo].filter(Boolean).join(" | ") });
+    if (l && campo(bloco, "FITID")) l.identificadorBancario = campo(bloco, "FITID").slice(0, 255);
     if (l) linhas.push(l); else ignoradas++;
   }
   // LOTE C: saldo do extrato (<LEDGERBAL><BALAMT>…<DTASOF>…).
@@ -137,15 +139,28 @@ const COL_CRED = ["credito", "entrada", "entradas", "creditos", "credito (r$)", 
 const COL_DEB = ["debito", "saida", "saidas", "debitos", "debito (r$)", "saida (r$)"];
 const COL_TIPO = ["tipo", "natureza", "d/c", "c/d", "tipo transacao", "tipo de transacao"];
 const COL_SALDO = ["saldo", "saldo (r$)", "saldo r$", "saldo do dia", "saldo final", "balance"];
-const COL_TITULAR = ["titular", "favorecido", "pagador", "beneficiario", "contraparte", "destinatario", "remetente", "nome do pagador", "nome do favorecido", "recebedor"];
+const COL_TITULAR = [
+  "identificacao", "nome", "titular", "favorecido", "pagador", "beneficiario", "contraparte", "destinatario",
+  "remetente", "origem/destino", "nome do pagador", "nome do favorecido", "razao social", "nome/razao social",
+  "cliente/fornecedor", "pagador/recebedor", "recebedor",
+];
+const COL_DETALHE = [
+  "descricao", "historico", "detalhe", "detalhes", "memo", "observacao", "observacoes", "complemento",
+  "mensagem", "informacoes adicionais", "descricao complementar",
+];
+const COL_ID_BANCARIO = [
+  "identificador bancario", "id transacao", "id da transacao", "codigo transacao", "codigo da transacao",
+  "nsu", "end to end", "endtoendid", "e2eid", "autenticacao", "protocolo",
+];
 
-function acharColuna(cab: string[], nomes: string[]) {
-  const i = cab.findIndex(c => nomes.includes(c));
-  return i >= 0 ? i : cab.findIndex(c => nomes.some(n => n.length > 3 && c.startsWith(n)));
+function acharColuna(cab: string[], nomes: string[], excluir: number[] = []) {
+  const livre = (i: number) => !excluir.includes(i);
+  const i = cab.findIndex((c, k) => livre(k) && nomes.includes(c));
+  return i >= 0 ? i : cab.findIndex((c, k) => livre(k) && nomes.some(n => n.length > 3 && c.startsWith(n)));
 }
 
 export function lerTabela(tabela: unknown[][], formato = "Planilha"): ResultadoLeitura {
-  let cabIdx = -1, iData = -1, iDesc = -1, iValor = -1, iCred = -1, iDeb = -1, iTipo = -1, iSaldo = -1, iTitular = -1;
+  let cabIdx = -1, iData = -1, iDesc = -1, iValor = -1, iCred = -1, iDeb = -1, iTipo = -1, iSaldo = -1, iTitular = -1, iDetalhe = -1, iIdBancario = -1;
   for (let r = 0; r < Math.min(tabela.length, 40); r++) {
     const cab = (tabela[r] ?? []).map(c => sem(String(c ?? "")));
     const d = acharColuna(cab, COL_DATA);
@@ -153,7 +168,10 @@ export function lerTabela(tabela: unknown[][], formato = "Planilha"): ResultadoL
     if (d >= 0 && (v >= 0 || c >= 0 || b >= 0)) {
       cabIdx = r; iData = d; iValor = v; iCred = c; iDeb = b;
       iDesc = acharColuna(cab, COL_DESC); iTipo = acharColuna(cab, COL_TIPO); iSaldo = acharColuna(cab, COL_SALDO);
-      iTitular = acharColuna(cab, COL_TITULAR);
+      const usadas = [d, v, c, b, iDesc, iTipo, iSaldo].filter((x) => x >= 0);
+      iTitular = acharColuna(cab, COL_TITULAR, usadas);
+      iDetalhe = acharColuna(cab, COL_DETALHE, [...usadas, iTitular]);
+      iIdBancario = acharColuna(cab, COL_ID_BANCARIO, [...usadas, iTitular, iDetalhe]);
       break;
     }
   }
@@ -177,8 +195,13 @@ export function lerTabela(tabela: unknown[][], formato = "Planilha"): ResultadoL
     }
     const descricao = iDesc >= 0 ? String(row[iDesc] ?? "") : "";
     if (/^saldo\b/i.test(sem(descricao))) { ignoradas++; continue; }
-    const titular = (iTitular >= 0 ? String(row[iTitular] ?? "").trim() : "") || extrairTitular(descricao);
-    const l = linha(dataIso(row[iData]), descricao, valor, { titular, original: row.map((v) => String(v ?? "")).filter(Boolean).join(" | ") });
+    const detalhe = iDetalhe >= 0 ? String(row[iDetalhe] ?? "") : "";
+    const titular = (iTitular >= 0 ? String(row[iTitular] ?? "").trim() : "") || extrairTitular(detalhe) || extrairTitular(descricao);
+    const identificadorBancario = iIdBancario >= 0 ? String(row[iIdBancario] ?? "").trim() : "";
+    const numericas = new Set([iData, iValor, iCred, iDeb, iSaldo, iTipo]);
+    const original = row.map((v, k) => numericas.has(k) ? "" : String(v ?? "").trim()).filter(Boolean).join(" | ");
+    const l = linha(dataIso(row[iData]), descricao, valor, { titular, detalhe, original });
+    if (l && identificadorBancario) l.identificadorBancario = identificadorBancario.slice(0, 255);
     if (l) linhas.push(l); else ignoradas++;
   }
   return { linhas, ignoradas, formato, saldo: saldoFinal(saldos, linhas) };
@@ -260,6 +283,7 @@ export function aplicarDataInicial<T extends { data: string }>(linhas: T[], data
 export function chavesImportacao(contaId: string | number, linhas: LinhaExtrato[], hash: (s: string) => string): string[] {
   const vistos = new Map<string, number>();
   return linhas.map(l => {
+    if (l.identificadorBancario?.trim()) return `imp:${contaId}:ref:${hash(sem(l.identificadorBancario))}`;
     const base = `${l.data}|${l.tipo}|${l.valor.toFixed(2)}|${sem(l.descricao)}`;
     const n = (vistos.get(base) ?? 0) + 1;
     vistos.set(base, n);

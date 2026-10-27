@@ -60,12 +60,12 @@ describe.skipIf(!url)("WhatsApp › Conversas (banco real)", () => {
   });
 
   const upsert = (instancia: string, id: string, jid: string, extra: Record<string, unknown> = {}) =>
-    wh.processarEventoEvolution({ event: "MESSAGES_UPSERT", instance: instancia, data: { key: { id, remoteJid: jid, fromMe: false }, pushName: "Contato", message: { conversation: `msg ${id}` }, ...extra } });
+    wh.processarEventoEvolution({ event: "MESSAGES_UPSERT", instance: instancia, data: { key: { id, remoteJid: jid, fromMe: false }, pushName: "Nome WhatsApp divergente", message: { conversation: `msg ${id}` }, ...extra } });
 
   it("mensagem recebida: grava entrada não lida, vincula o lead pelo telefone (sem 9º dígito) e avisa o dono", async () => {
     expect(await upsert(conexaoAdmin.instancia!, `e1-${SUF}`, `${JID}@s.whatsapp.net`)).toBe("mensagens:1");
     const m = await prisma.mensagemWhatsapp.findFirstOrThrow({ where: { externalId: `e1-${SUF}` } });
-    expect(m).toMatchObject({ direcao: "entrada", lida: false, status: "recebida", leadId: leadA.id, destinatario: JID, mensagem: `msg e1-${SUF}` });
+    expect(m).toMatchObject({ direcao: "entrada", lida: false, status: "recebida", leadId: leadA.id, destinatario: JID, nomeDestinatario: `Cliente Zap ${SUF}`, mensagem: `msg e1-${SUF}` });
     const n = await prisma.notificacao.findFirstOrThrow({ where: { usuarioId: admin.id } });
     expect(n.link).toBe(`/admin/whatsapp?aba=conversas&numero=${JID}`);
     expect(n.titulo).toContain(`Cliente Zap ${SUF}`);

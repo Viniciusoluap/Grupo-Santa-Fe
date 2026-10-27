@@ -27,6 +27,7 @@ import {
 } from "@/lib/pdf/loteamento";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
+import { NumeroInput } from "@/components/ui/numero-input";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
 
@@ -62,13 +63,7 @@ function Num({
       <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
         {label}{sufixo ? <span className="text-gray-500 normal-case font-normal"> ({sufixo})</span> : null}
       </label>
-      <input
-        type="number"
-        value={Number.isFinite(value) ? value : ""}
-        step={step}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className={inputCls}
-      />
+      <NumeroInput aria-label={label} value={Number.isFinite(value) ? value : 0} casas={sufixo === "meses" || sufixo === "mês" ? 0 : 2} onChange={(v) => onChange(v ?? 0)} className={inputCls} />
     </div>
   );
 }

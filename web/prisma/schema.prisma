@@ -488,6 +488,7 @@ model ProjetoRevisao {
   solicitadoPorNome   String
   texto               String
   status              String    @default("pendente") // pendente | entregue
+  statusAnteriorProjeto String?
   colaboradorId       String?
   colaborador         Usuario?  @relation("RevisaoColaborador", fields: [colaboradorId], references: [id], onDelete: SetNull)
   situacaoNotificacao String // enviado | sem_destinatario | falhou
@@ -501,6 +502,32 @@ model ProjetoRevisao {
 
   @@index([projetoId, criadoEm(sort: Desc)])
   @@map("projeto_revisoes")
+}
+
+/// Arquivos normalizados do módulo Projetos. `Projeto.arquivos` permanece como cache legado.
+model ProjetoDocumento {
+  id               String   @id @default(cuid())
+  projetoId        String
+  revisaoId        String?
+  itemId           String
+  tipo             String
+  nomeOriginal     String
+  nomeCanonico     String
+  mime             String
+  tamanho          Int
+  versao           Int
+  driveFileId      String?
+  url              String?
+  status           String   @default("uploading")
+  substituidoPorId String?
+  enviadoPorId     String?
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
+  excluidoEm       DateTime?
+
+  @@unique([projetoId, itemId, tipo, versao])
+  @@index([projetoId, itemId, tipo, status])
+  @@map("projeto_documentos")
 }
 
 // ─── REGULARIZAÇÃO ───────────────────────────────────────────────────────────
@@ -702,21 +729,19 @@ model BpoCliente {
   responsavel        String
   email              String?
   telefone           String
-  servicos           String              @default("[]") // JSON: ["contas_pagar","contas_receber","folha","fiscal","conciliacao"]
   status             String              @default("ativo") // ativo, pausado, encerrado
   honorarios         Float
   diaVencimento      Int                 @default(10)
   dataInicio         DateTime
   observacoes        String              @default("")
   lancamentos        BpoLancamento[]
-  leadId             String?
+  leadId             String?             @unique
   lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
   regrasTitular      BpoRegraTitular[]
   criadoEm           DateTime            @default(now())
   atualizadoEm       DateTime            @updatedAt
   transacaoBancarias TransacaoBancaria[]
 
-  @@index([leadId])
   @@map("bpo_clientes")
 }
 
@@ -733,17 +758,78 @@ model BpoLancamento {
   vencimento                DateTime
   pago                      Boolean                    @default(false)
   pagoEm                    DateTime?
+  valorRecebido             Float                      @default(0)
+  baixas                    BpoBaixa[]
   competencia               String // "2026-06"
   centroCustos              String?
   /// LOTE C (25/10): categoria padrão (src/lib/bpo-categorias.ts) e vínculo 1:1 com a
   /// movimentação bancária que gerou este lançamento (extrato alimentando o BPO).
   categoria                 String?
+  /// Categoria usada no fluxo operacional (ex.: despesa de obra); independente da contábil.
+  categoriaOperacional      String?
+  vinculoOperacionalId      String?
+  vinculoOperacionalRotulo  String?
+  tipoDespesaObra           String?
+  requestKey                String?                    @unique
+  origemEfetiva             String                     @default("manual")
+  origemTransacaoKey        String?                    @unique
+  categoriaContabil         String?
+  etapa                    String? // chave de SERVICOS_PROGRESSO quando a despesa pertence à obra
+  version                   Int                        @default(1)
+  atualizadoEm              DateTime                   @updatedAt
   transacaoId               String?                    @unique
   transacao                 TransacaoBancaria?         @relation(fields: [transacaoId], references: [id], onDelete: Cascade)
   asaasPaymentId            String?                    @unique
   criadoEm                  DateTime                   @default(now())
 
   @@map("bpo_lancamentos")
+}
+
+model BpoBaixa {
+  id            String        @id @default(cuid())
+  lancamentoId  String
+  lancamento    BpoLancamento @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  requestKey    String        @unique
+  valor         Float
+  data          DateTime
+  motivo        String
+  usuarioId     String
+  criadoEm      DateTime      @default(now())
+
+  @@index([lancamentoId, data])
+  @@map("bpo_baixas")
+}
+
+/// Snapshot recuperável criado antes da limpeza de movimentações de uma conta bancária.
+model BpoContaLimpezaBackup {
+  id                     String   @id @default(cuid())
+  contaReferencia        String
+  contaRotulo            String
+  snapshotJson           String
+  transacoes             Int
+  lancamentosRemovidos   Int
+  lancamentosPreservados Int
+  criadoPorUsuarioId     String?
+  criadoEm               DateTime @default(now())
+
+  @@index([contaReferencia, criadoEm])
+  @@map("bpo_conta_limpeza_backups")
+}
+
+/// Registro imutável das alterações manuais em lançamentos BPO.
+model BpoLancamentoHistorico {
+  id                  String   @id @default(cuid())
+  lancamentoId        String
+  lancamentoReferencia String
+  versaoAnterior      Int
+  alteradoPorUsuarioId String?
+  motivo              String
+  antesJson           String
+  depoisJson          String
+  criadoEm            DateTime @default(now())
+
+  @@index([lancamentoReferencia, criadoEm])
+  @@map("bpo_lancamento_historico")
 }
 
 // ─── AVALIAÇÃO DE IMÓVEIS ─────────────────────────────────────────────────────
@@ -881,6 +967,7 @@ model TransacaoBancaria {
   origem            String         @default("manual")
   titular           String?
   descricaoOriginal String?
+  identificadorBancario String?   @map("identificador_bancario")
   bpoClienteId      String?
   bpoCliente        BpoCliente?    @relation(fields: [bpoClienteId], references: [id], onDelete: SetNull)
   asaasPaymentId    String?
@@ -889,6 +976,7 @@ model TransacaoBancaria {
   criadoEm          DateTime       @default(now())
 
   @@index([titular])
+  @@index([identificadorBancario])
   @@index([asaasPaymentId])
   @@map("transacoes_bancarias")
 }
@@ -973,6 +1061,22 @@ model WhatsappMidia {
   conteudo   Bytes
 
   @@map("whatsapp_midias")
+}
+
+model WhatsappTemplate {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  nome             String
+  finalidade       String
+  conteudo         String
+  ativo            Boolean  @default(true)
+  criadoPorId      String?
+  atualizadoPorId  String?
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
+
+  @@index([finalidade, ativo])
+  @@map("whatsapp_templates")
 }
 
 // ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ export default async function ProjetosPage() {
   await exigirModuloPagina("projetos");
 
   const projetos = await prisma.projeto.findMany({
+    include: { _count: { select: { revisoes: { where: { status: "pendente" } } } } },
     orderBy: { criadoEm: "desc" },
   });
 

@@ -2,7 +2,7 @@
 
 ## Status
 - [x] Prospecta: shared/engenheiro.ts, drizzle/0083_perfil_engenheiro.sql, schema.ts, server/usuario-documentos.ts (router tRPC `engenheiros` + rota Express GET /api/usuarios/:userId/documentos/:docId registrada em api/index.ts e server/_core/index.ts), configuracoes-router (engenheiro em create/update/listUsers), operacional-router (projetos.engenheiros → listarEngenheiros), AdminProjetos (CREA automático), AdminConfiguracoes + components/admin/PerfilEngenheiroPanel.tsx, client/src/lib/documentos-usuario.ts. pnpm check OK (só erros de massa-tab, de outro agente); vitest server/engenheiro.test.ts 8/8 + 6 suítes vizinhas 67/67.
-- [ ] SF: lógica, migração 20261027110000_perfil_engenheiro, schema, actions, route handler, UI, Projetos
+- [ ] SF: lógica, migração 20261027170000_perfil_engenheiro, schema, actions, route handler, UI, Projetos
 - [ ] Testes / typecheck
 
 ## Decisões

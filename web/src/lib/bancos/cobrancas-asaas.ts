@@ -46,6 +46,7 @@ export async function sincronizarCobrancasAsaas(apiKey: string, desde: string, f
     }
     await prisma.bpoLancamento.create({ data: {
       asaasPaymentId: cobranca.id,
+      origemEfetiva: "asaas",
       tipo: "recebimento",
       categoria: "Recebimento de cliente",
       descricao,

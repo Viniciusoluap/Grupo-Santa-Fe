@@ -56,6 +56,7 @@ export async function mensagemWhatsappAcessivel(id: string) {
 }
 
 export function tipoDeEntrega(mime: string | null, tipo: string | null): { mime: string; inline: boolean } {
+  if (mime?.toLowerCase().split(";")[0].trim() === "application/pdf") return { mime: "application/pdf", inline: true };
   const m = (mime ?? "").toLowerCase();
   const seguro = /^(image\/(jpeg|png|webp|gif)|audio\/[\w.+-]+|video\/[\w.+-]+)$/.test(m);
   return seguro && tipo !== "documento" ? { mime: m, inline: true } : { mime: "application/octet-stream", inline: false };

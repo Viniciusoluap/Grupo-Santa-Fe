@@ -5,20 +5,12 @@ import { ArrowLeft, Phone, Mail, CheckCircle2, Clock } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { criarLancamentoBpo, marcarLancamentoPago, atualizarStatusBpoCliente } from "@/lib/actions/bpo";
+import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
 
 const STATUS_CONFIG = {
   ativo:     { label: "Ativo",     bg: "bg-green-100",  text: "text-green-700" },
   pausado:   { label: "Pausado",   bg: "bg-yellow-100", text: "text-yellow-700" },
   encerrado: { label: "Encerrado", bg: "bg-gray-100",   text: "text-gray-500" },
-};
-
-const SERVICO_LABELS: Record<string, string> = {
-  contas_pagar:   "Contas a Pagar",
-  contas_receber: "Contas a Receber",
-  conciliacao:    "Conciliação",
-  folha:          "Folha de Pagamento",
-  fiscal:         "Obrigações Fiscais",
-  honorarios:     "Honorários",
 };
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -33,14 +25,12 @@ export default async function BpoClientePage({ params }: PageProps) {
   });
   if (!cliente) notFound();
 
-  let servicos: string[] = [];
-  try { servicos = JSON.parse(cliente.servicos) as string[]; } catch { /* ignore */ }
 
   const cfg = STATUS_CONFIG[cliente.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.ativo;
   const pendentes = cliente.lancamentos.filter((l) => !l.pago);
   const pagos = cliente.lancamentos.filter((l) => l.pago);
-  const totalPendente = pendentes.reduce((s, l) => s + l.valor, 0);
-  const totalPago = pagos.reduce((s, l) => s + l.valor, 0);
+  const totalPendente = pendentes.reduce((s, l) => s + saldoLancamento(l), 0);
+  const totalPago = cliente.lancamentos.reduce((s, l) => s + valorRealizado(l), 0);
 
   const now = new Date();
   const competencia = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -81,18 +71,6 @@ export default async function BpoClientePage({ params }: PageProps) {
                 <p className="text-xs text-gray-500">{cliente.observacoes}</p>
               </div>
             )}
-          </div>
-
-          <div className="bg-white border border-gray-100 p-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Serviços</p>
-            <div className="space-y-1.5">
-              {servicos.map((s) => (
-                <div key={s} className="flex items-center gap-2">
-                  <CheckCircle2 size={12} className="text-green-500" />
-                  <span className="text-sm text-gray-700">{SERVICO_LABELS[s] ?? s}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -180,6 +158,7 @@ export default async function BpoClientePage({ params }: PageProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{l.descricao}</p>
                       <p className="text-xs text-gray-600">{l.competencia} · Venc. {new Date(l.vencimento).toLocaleDateString("pt-BR")}</p>
+                      {!l.pago && valorRealizado(l) > 0 && <p className="text-xs font-bold text-orange-700">Parcial: {formatCurrency(valorRealizado(l))} · Saldo: {formatCurrency(saldoLancamento(l))}</p>}
                     </div>
                     <p className="font-bold text-[var(--brand-dark)] shrink-0">{formatCurrency(l.valor)}</p>
                     {l.pago ? (

@@ -1,0 +1,17 @@
+.incorporacao-workspace{min-width:0;color:var(--brand-dark)}
+.incorporacao-workspace .incorporacao-intro{border:1px solid #e5e7eb;border-radius:1.25rem;background:linear-gradient(120deg,#fff,#f7f7f5);padding:1.25rem;margin-bottom:1rem}
+.incorporacao-workspace .bg-white.border{border-radius:1rem;border-color:#e5e7eb;box-shadow:0 3px 14px rgb(0 0 0 / 3%)}
+.incorporacao-workspace nav[aria-label="Módulos da incorporação"]{gap:.65rem}
+.incorporacao-workspace nav[aria-label="Módulos da incorporação"] button{border-radius:.85rem;min-height:5rem;line-height:1.45;transition:border-color .15s,box-shadow .15s}
+.incorporacao-workspace nav[aria-label="Módulos da incorporação"] button[aria-current="page"]{border-color:var(--brand-yellow);box-shadow:inset 0 0 0 1px var(--brand-yellow)}
+.incorporacao-workspace :is(input,select,textarea){max-width:100%;min-width:0;border-radius:.5rem}
+.incorporacao-workspace :is(input:not([type="checkbox"]):not([type="radio"]),select){min-height:2.5rem}
+.incorporacao-workspace input[type="date"]{appearance:none;-webkit-appearance:none}
+.incorporacao-workspace :is(input,select,textarea,button):focus-visible{outline:2px solid var(--brand-yellow);outline-offset:3px}
+.incorporacao-workspace button:not(:disabled){cursor:pointer}
+.incorporacao-workspace .overflow-x-auto{max-width:100%;overscroll-behavior-inline:contain}
+.incorporacao-workspace table{border-collapse:separate;border-spacing:0}
+.incorporacao-workspace :is(th,td){vertical-align:top}
+.incorporacao-workspace .text-gray-400{color:#6b7280}
+@media(max-width:639px){.incorporacao-workspace .incorporacao-intro,.incorporacao-workspace .bg-white.border{padding:1rem}.incorporacao-workspace nav[aria-label="Módulos da incorporação"] button{min-height:4.5rem;padding:.75rem}.incorporacao-workspace :is(input:not([type="checkbox"]):not([type="radio"]),select){min-height:2.75rem}}
+@media(prefers-reduced-motion:reduce){.incorporacao-workspace *{transition:none!important}}

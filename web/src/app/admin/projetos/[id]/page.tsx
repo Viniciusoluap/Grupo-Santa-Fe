@@ -72,6 +72,7 @@ export default async function ProjetoDetailPage({ params, searchParams }: PagePr
         <div className="lg:col-span-2 space-y-5">
           {/* Interactive sections: status, checklist, arquivos */}
           <ProjetoDetailClient
+            readOnly={false}
             tipos={(() => { try { const v = JSON.parse(p.tipo || "[]"); return Array.isArray(v) ? v : []; } catch { return p.tipo ? [p.tipo] : []; } })()}
             projetoId={p.id}
             checklistJson={p.checklist}

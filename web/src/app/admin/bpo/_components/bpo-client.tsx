@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   FileText, Plus, Upload, Wrench, CheckCircle2, Clock,
   AlertCircle, Search, X, Building2, ArrowUpRight, ArrowDownRight,
@@ -12,13 +13,16 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { criarCobranca, pagarLancamento } from "@/lib/actions/bpo";
+import { criarCobranca, editarLancamentoBpo, importarClientesCrmBpo, pagarLancamento, registrarBaixaBpo } from "@/lib/actions/bpo";
+import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
 import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
 import { CATEGORIAS_BPO, ehDespesa, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
+import { CamposOperacionais } from "./campos-operacionais";
+import { ROTULOS_OPERACIONAIS, type CatalogoBpo } from "@/lib/bpo-operacional";
 
 export interface LancamentoComCliente {
   id: string;
@@ -28,6 +32,7 @@ export interface LancamentoComCliente {
   tipo: string;
   descricao: string;
   valor: number;
+  valorRecebido: number;
   vencimento: string;
   pago: boolean;
   pagoEm: string | null;
@@ -35,6 +40,13 @@ export interface LancamentoComCliente {
   centroCustos: string | null;
   /** LOTE C: categoria padrão e se o lançamento veio do extrato bancário. */
   categoria: string | null;
+  categoriaContabil: string | null;
+  categoriaOperacional: string | null;
+  vinculoOperacionalId?: string | null;
+  vinculoOperacionalRotulo?: string | null;
+  tipoDespesaObra?: string | null;
+  etapa?: string | null;
+  version: number;
   doExtrato: boolean;
 }
 
@@ -88,10 +100,12 @@ interface RelatoriosData {
 }
 
 interface Props {
+  filtroOperacional?: { categoria: string; id: string };
+  catalogoOperacional: CatalogoBpo;
   lancamentos: LancamentoComCliente[];
   dre: LinhaDre[];
   contabilidade: ResumoContabil & { ano: string };
-  clientes: { id: string; razaoSocial: string }[];
+  clientes: { id: string; razaoSocial: string; leadId: string | null }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
   pluggy: { configured: boolean; active: boolean };
@@ -304,7 +318,8 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+  const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
@@ -320,14 +335,42 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
   // Pedido de 25/10: o botão "Adicionar Conta" do topo abre o cadastro dentro do BancosPanel.
   const [abrirNovaConta, setAbrirNovaConta] = useState(0);
   const [modalFeedback, setModalFeedback] = useState<string | null>(null);
+  const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoComCliente | null>(null);
+  const [baixa, setBaixa] = useState<{ lancamento: LancamentoComCliente; requestKey: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function importarClientesCrm() {
+    startTransition(async () => {
+      try {
+        const resumo = await importarClientesCrmBpo();
+        setModalFeedback(`CRM: ${resumo.encontradasNoCrm} analisado(s), ${resumo.criadas} importado(s), ${resumo.atualizadas} atualizado(s), ${resumo.inalteradas} sem alteração e ${resumo.conflitos} conflito(s) de documento para revisão.`);
+        router.refresh();
+      } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao importar clientes do CRM."); }
+    });
+  }
+
+  function editarLancamento(l: LancamentoComCliente) { setLancamentoEditando(l); }
+
+  function handleSalvarEdicao(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    startTransition(async () => {
+      try {
+        const campo = (nome: string) => String(form.get(nome) ?? "") || null;
+        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoria: String(form.get("categoria")), categoriaContabil: String(form.get("categoria")), categoriaOperacional: campo("categoriaOperacional"), vinculoOperacionalId: campo("vinculoOperacionalId"), tipoDespesaObra: campo("tipoDespesaObra"), etapa: campo("etapa"), clienteId: campo("clienteId"), clienteNomeLivre: campo("clienteNomeLivre"), centroCustos: campo("centroCustos") });
+        setModalFeedback("Lançamento atualizado e auditado.");
+        setLancamentoEditando(null);
+        router.refresh();
+      } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao editar lançamento."); }
+    });
+  }
 
   // KPIs cobranças
   const cobracasAll = lancamentos.filter((l) => !ehDespesa(l.tipo));
   const totalEsperado = cobracasAll.reduce((s, l) => s + l.valor, 0);
-  const recebido = cobracasAll.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
-  const pendente = cobracasAll.filter(isPendente).reduce((s, l) => s + l.valor, 0);
-  const vencido = cobracasAll.filter(isVencido).reduce((s, l) => s + l.valor, 0);
+  const recebido = cobracasAll.reduce((s, l) => s + valorRealizado(l), 0);
+  const pendente = cobracasAll.filter(isPendente).reduce((s, l) => s + saldoLancamento(l), 0);
+  const vencido = cobracasAll.filter(isVencido).reduce((s, l) => s + saldoLancamento(l), 0);
 
   const allCompetencias = [...new Set(lancamentos.map((l) => l.competencia))].sort().reverse();
   const allMeses = [...new Set(allCompetencias.map((c) => c.split("-")[1]))].sort();
@@ -335,6 +378,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
 
   function filterByCommon(items: LancamentoComCliente[]) {
     return items.filter((l) => {
+      if (filtroOperacional && (l.categoriaOperacional !== filtroOperacional.categoria || l.vinculoOperacionalId !== filtroOperacional.id)) return false;
       if (search && !l.clienteNome.toLowerCase().includes(search.toLowerCase()) && !l.descricao.toLowerCase().includes(search.toLowerCase())) return false;
       if (clienteFilter && l.clienteId !== clienteFilter) return false;
       if (mesFilter && !l.competencia.endsWith(`-${mesFilter}`)) return false;
@@ -348,7 +392,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
     if (statusFilter === "pendentes") return isPendente(l);
     if (statusFilter === "pagas") return l.pago;
     if (statusFilter === "vencidas") return isVencido(l);
-    if (statusFilter === "parciais") return false;
+    if (statusFilter === "parciais") return !l.pago && valorRealizado(l) > 0;
     return true;
   }).filter((l) => {
     if (tipoFilter === "todos") return true;
@@ -367,8 +411,8 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
   });
 
   const despesaTotal = despesasBase.reduce((s, l) => s + l.valor, 0);
-  const despesaPaga = despesasBase.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
-  const despesaPendente = despesasBase.filter(isPendente).reduce((s, l) => s + l.valor, 0);
+  const despesaPaga = despesasBase.reduce((s, l) => s + valorRealizado(l), 0);
+  const despesaPendente = despesasBase.filter(isPendente).reduce((s, l) => s + saldoLancamento(l), 0);
   const despesaVencida = despesasBase.filter(isVencido).reduce((s, l) => s + l.valor, 0);
 
   // LOTE C: DRE calculado no servidor sobre todos os lançamentos (sem transferências internas).
@@ -383,7 +427,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
   const transacoesPendentes = contas.flatMap((c) => c.transacoes).filter((t) => t.status === "pendente").length;
 
   function handlePagar(id: string) {
-    startTransition(async () => { await pagarLancamento(id); });
+    startTransition(async () => { try { await pagarLancamento(id); router.refresh(); } catch (e) { setModalFeedback(e instanceof Error ? e.message : "Falha ao registrar quitação."); } });
   }
 
   function closeModal() {
@@ -392,6 +436,13 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
     setLeadSearch("");
     setLeadSelectedId("");
     setLeadSelectedNome("");
+  }
+
+  function selecionarLead(lead: Props["leads"][number]) {
+    const clienteBpo = clientes.find((cliente) => cliente.leadId === lead.id);
+    setLeadSelectedId(clienteBpo?.id ?? "");
+    setLeadSelectedNome(lead.nome);
+    setLeadSearch(lead.nome);
   }
 
   async function handleCriarCobranca(e: React.FormEvent<HTMLFormElement>) {
@@ -419,6 +470,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
 
   function getStatusBadge(l: LancamentoComCliente) {
     if (l.pago) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-green-100 text-green-700 uppercase"><CheckCircle2 size={10} /> Pago</span>;
+    if (valorRealizado(l) > 0) return <span className="text-xs font-bold text-orange-700">Parcial · saldo {formatCurrency(saldoLancamento(l))}</span>;
     if (isVencido(l)) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-700 uppercase"><AlertCircle size={10} /> Vencido</span>;
     return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-yellow-100 text-yellow-700 uppercase"><Clock size={10} /> Pendente</span>;
   }
@@ -447,21 +499,25 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                   <td className="px-4 py-3"><p className="font-medium text-[var(--brand-dark)] text-xs">{l.clienteNome}</p></td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p>
-                    {(l.categoria || l.doExtrato) && (
-                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoria ?? ""}{l.doExtrato ? `${l.categoria ? " · " : ""}extrato bancário` : ""}</p>
+                    {(l.categoriaContabil || l.categoriaOperacional || l.doExtrato) && (
+                      <p className="text-[10px] text-gray-700 mt-0.5">{l.categoriaContabil ?? l.categoria ?? ""}{l.categoriaOperacional ? ` · ${ROTULOS_OPERACIONAIS[l.categoriaOperacional] ?? l.categoriaOperacional}` : ""}{l.doExtrato ? " · extrato bancário" : ""}</p>
                     )}
+                    {l.vinculoOperacionalId && l.categoriaOperacional && (() => { const chave = ehDespesa(l.tipo) && l.categoriaOperacional === "comissoes" ? "imoveis" : l.categoriaOperacional; const registro = catalogoOperacional[chave]?.find((r) => r.id === l.vinculoOperacionalId); return registro ? <Link className="text-xs text-blue-700 underline" href={registro.href}>{l.vinculoOperacionalRotulo ?? registro.rotulo}</Link> : <span className="text-xs text-gray-500">{l.vinculoOperacionalRotulo}</span>; })()}
                   </td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500 hidden sm:table-cell">{l.competencia}</td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500">{new Date(l.vencimento).toLocaleDateString("pt-BR")}</td>
                   <td className="px-4 py-3 text-right font-bold text-[var(--brand-dark)] text-xs">{formatCurrency(l.valor)}</td>
                   <td className="px-4 py-3 text-center">{getStatusBadge(l)}</td>
                   <td className="px-4 py-3 text-center">
-                    {!l.pago ? (
+                    <button onClick={() => editarLancamento(l)} disabled={isPending}
+                      className="text-xs font-bold text-blue-700 border border-blue-200 px-2 py-1 hover:bg-blue-50 disabled:opacity-50 mr-2">Editar</button>
+                    {!l.pago ? (<>
+                      <button onClick={() => setBaixa({ lancamento: l, requestKey: crypto.randomUUID() })} disabled={isPending} className="mr-2 border px-2 py-1 text-xs font-bold">Registrar baixa</button>
                       <button onClick={() => handlePagar(l.id)} disabled={isPending}
                         className="text-xs font-bold text-[var(--brand-dark)] bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] px-3 py-1 transition-colors disabled:opacity-50">
-                        Pagar
+                        Quitar saldo
                       </button>
-                    ) : <span className="text-xs text-gray-600">—</span>}
+                    </>) : <span className="text-xs text-gray-600">—</span>}
                   </td>
                 </tr>
               ))}
@@ -475,6 +531,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
   return (
     <div className="space-y-5">
       {/* Header */}
+      {filtroOperacional && <div className="rounded border border-blue-200 bg-blue-50 p-3 text-sm">Lançamentos vinculados a {ROTULOS_OPERACIONAIS[filtroOperacional.categoria] ?? filtroOperacional.categoria} · {catalogoOperacional[filtroOperacional.categoria]?.find((r) => r.id === filtroOperacional.id)?.rotulo ?? filtroOperacional.id}. <Link className="font-bold underline" href="/admin/bpo">Ver todos</Link></div>}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">BPO Financeiro</h1>
@@ -506,6 +563,9 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
         <button onClick={() => alert("Funcionalidade em breve")}
           className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
           <Wrench size={13} /> Corrigir Dados/BPO
+        </button>
+        <button onClick={importarClientesCrm} disabled={isPending} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors disabled:opacity-50">
+          <Users size={13} /> Importar Clientes CRM
         </button>
       </div>
 
@@ -732,6 +792,31 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
       )}
 
       {/* ─── MODAL: Novo (Cobrança ou Despesa) ─── */}
+      {baixa && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><form className="w-full max-w-md space-y-4 bg-white p-6" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); startTransition(async () => { try { await registrarBaixaBpo({ id: baixa.lancamento.id, version: baixa.lancamento.version, requestKey: baixa.requestKey, valor: Number(form.get("valor")), data: String(form.get("data")), motivo: String(form.get("motivo")) }); setBaixa(null); router.refresh(); setModalFeedback("Baixa registrada e auditada."); } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao registrar baixa."); } }); }}><h2 className="font-bold">Registrar recebimento/pagamento</h2><p className="text-sm">{baixa.lancamento.descricao}<br/>Total: {formatCurrency(baixa.lancamento.valor)} · Realizado: {formatCurrency(valorRealizado(baixa.lancamento))}<br/>Saldo: {formatCurrency(saldoLancamento(baixa.lancamento))}</p><label className="block text-xs font-bold">Valor desta baixa<CurrencyInput name="valor" required className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Data<input type="date" name="data" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Motivo/referência<input name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border p-2"/></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setBaixa(null)} className="border px-3 py-2">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-3 py-2 font-bold">Registrar baixa</button></div></form></div>}
+      {lancamentoEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form onSubmit={handleSalvarEdicao} className="bg-white w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase">Editar lançamento</h2>
+            <p className="text-xs text-gray-500">A alteração exige motivo e será salva no histórico com controle de versão.</p>
+            <input type="hidden" name="id" value={lancamentoEditando.id} />
+            <input type="hidden" name="version" value={lancamentoEditando.version} />
+            <input type="hidden" name="clienteId" value={lancamentoEditando.clienteId ?? ""} />
+            <input type="hidden" name="clienteNomeLivre" value={lancamentoEditando.clienteNomeLivre ?? ""} />
+            <label className="block text-xs font-bold text-gray-500 uppercase">Descrição<input name="descricao" required defaultValue={lancamentoEditando.descricao} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs font-bold text-gray-500 uppercase">Valor<input name="valor" type="number" min="0.01" step="0.01" required defaultValue={lancamentoEditando.valor} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Competência<input name="competencia" type="month" required defaultValue={lancamentoEditando.competencia} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Categoria contábil<select name="categoria" defaultValue={lancamentoEditando.categoriaContabil ?? lancamentoEditando.categoria ?? "Outros"} className="mt-1 w-full border px-3 py-2 text-sm normal-case">{CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+            </div>
+            <CamposOperacionais key={lancamentoEditando.id} tipo={lancamentoEditando.tipo} catalogo={catalogoOperacional} inicial={lancamentoEditando} obrigatorio={false}/>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Centro de custos<input name="centroCustos" defaultValue={lancamentoEditando.centroCustos ?? ""} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
+          </form>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -767,6 +852,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
             {modalTipo === "cobranca" && (
               <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
                 <input type="hidden" name="tipo" value="cobranca" />
+                <CamposOperacionais tipo="cobranca" catalogo={catalogoOperacional}/>
 
                 {/* Client: BPO client or lead */}
                 <div>
@@ -792,7 +878,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                         ))}
                         {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
                           <button key={l.id} type="button"
-                            onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
+                            onClick={() => selecionarLead(l)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{l.nome}</span>
                             <span className="text-gray-600 text-xs ml-2">Lead</span>
@@ -806,7 +892,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria contábil *</label>
                   <select name="categoria" required defaultValue="Recebimento de cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
                     {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
                   </select>
@@ -841,7 +927,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setModalTipo(null)}
                     className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
-                  <button type="submit" disabled={isPending || (!leadSelectedId && !leadSelectedNome)}
+                  <button type="submit" disabled={isPending}
                     className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
                     {isPending ? "Salvando..." : "Criar Cobrança"}
                   </button>
@@ -853,6 +939,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
             {modalTipo === "despesa" && (
               <form onSubmit={handleCriarCobranca} className="px-6 py-5 space-y-4">
                 <input type="hidden" name="tipo" value="despesa" />
+                <CamposOperacionais tipo="despesa" catalogo={catalogoOperacional}/>
                 {/* Client: BPO client or lead */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente / Referência *</label>
@@ -877,7 +964,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                         ))}
                         {leads.filter((l) => l.nome.toLowerCase().includes(leadSearch.toLowerCase())).map((l) => (
                           <button key={l.id} type="button"
-                            onClick={() => { setLeadSelectedId(""); setLeadSelectedNome(l.nome); setLeadSearch(l.nome); }}
+                            onClick={() => selecionarLead(l)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
                             <span className="font-medium">{l.nome}</span>
                             <span className="text-gray-600 text-xs ml-2">Lead</span>
@@ -891,7 +978,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria contábil *</label>
                   <select name="categoria" required defaultValue="Outros" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
                     {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
                   </select>
@@ -926,7 +1013,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setModalTipo(null)}
                     className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
-                  <button type="submit" disabled={isPending || (!leadSelectedId && !leadSelectedNome)}
+                  <button type="submit" disabled={isPending}
                     className="flex-1 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider py-2.5 transition-colors disabled:opacity-50">
                     {isPending ? "Salvando..." : "Registrar Despesa"}
                   </button>
@@ -949,7 +1036,7 @@ export function BpoClient({ lancamentos, dre, contabilidade, clientes, leads, co
 
           {/* LOTE C: realizado no ano a partir dos lançamentos do BPO (inclusive os do extrato bancário). */}
           <div className="bg-white border border-gray-100 p-6">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Realizado em {contabilidade.ano} (lançamentos pagos, sem transferências internas)</p>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Realizado em {contabilidade.ano} (valores recebidos/pagos, inclusive parciais, sem transferências internas)</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Receita realizada</p><p className="font-black text-green-700 text-lg leading-none">{formatCurrency(contabilidade.receitaRealizada)}</p></div>
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Despesas pagas</p><p className="font-black text-red-700 text-lg leading-none">{formatCurrency(contabilidade.despesasPagas)}</p></div>

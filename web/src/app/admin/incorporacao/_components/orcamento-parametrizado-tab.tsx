@@ -174,7 +174,7 @@ function Num({ label, value, onChange, sufixo, step = 1 }: { label: string; valu
       <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
         {label}{sufixo ? <span className="text-gray-500 normal-case font-normal"> ({sufixo})</span> : null}
       </label>
-      <input type="number" value={Number.isFinite(value) ? value : ""} step={step} onChange={(e) => onChange(e.target.value)} className={inputCls} />
+      <NumeroBRField value={Number.isFinite(value) ? value : 0} onValueChange={(v) => onChange(String(v))} className={inputCls} />
     </div>
   );
 }

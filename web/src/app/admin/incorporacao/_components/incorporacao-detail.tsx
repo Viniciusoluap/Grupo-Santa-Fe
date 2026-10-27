@@ -1,5 +1,6 @@
 "use client";
 
+import "./incorporacao-workspace.css";
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { TerrenoTab } from "./terreno-tab";
@@ -349,19 +350,23 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
   }, [alterado]);
 
   return (
-    <div>
+    <div className="incorporacao-workspace">
+      <header className="incorporacao-intro flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Desenvolvimento imobiliário</p><h2 className="mt-1 break-words text-xl font-black">{estudo.nome}</h2><p className="mt-1 text-sm text-gray-600">{estudo.municipio}/{estudo.estado}{estudo.responsavel ? ` · ${estudo.responsavel}` : ""}</p></div>
+        <span className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold">{progresso.geral.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% concluído</span>
+      </header>
       {/* Progresso — auto-computado, sem checklist manual */}
       <div className="bg-white border border-gray-100 p-3 mb-3">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Progresso do estudo</p>
           <p className="text-xs font-black text-[var(--brand-dark)]">{progresso.geral}% concluído</p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {FASES.map((f, i) => {
             const pf = progresso.porFase[i];
             return (
               <div key={f.id} className="flex-1 min-w-0">
-                <div className="h-1.5 bg-gray-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
                   <div className="h-full bg-[var(--brand-yellow)] transition-all" style={{ width: `${pf.pct}%` }} />
                 </div>
                 <p className="text-[9px] text-gray-600 mt-1 truncate">{f.numero}. {f.titulo} ({pf.concluidas}/{pf.total})</p>
