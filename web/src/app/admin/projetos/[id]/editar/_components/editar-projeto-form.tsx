@@ -7,11 +7,12 @@ import { PROJETO_TIPO_CONFIG, PROJETO_STATUS_CONFIG } from "@/lib/types/projeto"
 import { editarProjeto } from "@/lib/actions/projetos";
 import { PhoneInput } from "@/components/ui/phone-input";
 import ProjetoDetailClient from "../../_components/projeto-detail-client";
+import { creaAoTrocarEngenheiro, formatarCrea } from "@/lib/engenheiro";
 
 const campo = "w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50";
 const rotulo = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1";
 
-interface Engenheiro { id: string; nome: string; papel: string }
+interface Engenheiro { id: string; nome: string; papel: string; crea?: string | null; creaUf?: string | null }
 
 /**
  * Item 07 — valida os tipos antes de enviar, mostra o erro em português e
@@ -28,6 +29,8 @@ export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheir
 }) {
   const [tipos, setTipos] = useState<string[]>(tiposSelecionados);
   const [engenheiroId, setEngenheiroId] = useState(projeto.engenheiroId ?? "");
+  // Lote 2, correção 04: o CREA do perfil Engenheiro preenche a habilitação (sem inventar quando não houver).
+  const [registro, setRegistro] = useState(projeto.engenheiroRegistro ?? "");
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, startTransition] = useTransition();
@@ -82,15 +85,20 @@ export function EditarProjetoForm({ projeto, tiposSelecionados, prazo, engenheir
         <div>
           <label className={rotulo} htmlFor="busca-engenheiro">Engenheiro Responsável *</label>
           <input id="busca-engenheiro" type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar colaborador" className={campo} />
-          <select name="engenheiroId" aria-label="Engenheiro responsável" value={engenheiroId} onChange={(e) => setEngenheiroId(e.target.value)} className={`${campo} mt-1`}>
+          <select name="engenheiroId" aria-label="Engenheiro responsável" value={engenheiroId} onChange={(e) => {
+            const anterior = engenheiros.find((u) => u.id === engenheiroId);
+            const novo = engenheiros.find((u) => u.id === e.target.value);
+            setRegistro((atual) => creaAoTrocarEngenheiro(atual, anterior ? { crea: anterior.crea ?? null, creaUf: anterior.creaUf ?? null } : null, novo ? { crea: novo.crea ?? null, creaUf: novo.creaUf ?? null } : null));
+            setEngenheiroId(e.target.value);
+          }} className={`${campo} mt-1`}>
             <option value="">{legado ? `Registro anterior: ${legado}` : "Selecione um colaborador"}</option>
-            {visiveis.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.papel === "admin" ? " (admin)" : ""}</option>)}
+            {visiveis.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.papel === "admin" ? " (admin)" : ""}{u.crea ? ` · ${formatarCrea(u.crea, u.creaUf)}` : ""}</option>)}
           </select>
           {legado && <input type="hidden" name="engenheiro" value={legado} />}
         </div>
         <div>
           <label className={rotulo}>Habilitação técnica (CREA/CAU)</label>
-          <input name="engenheiroRegistro" type="text" maxLength={60} defaultValue={projeto.engenheiroRegistro ?? ""} placeholder="Se necessário" className={campo} />
+          <input name="engenheiroRegistro" type="text" maxLength={60} value={registro} onChange={(e) => setRegistro(e.target.value)} placeholder="Se necessário" className={campo} />
         </div>
 
       </div>

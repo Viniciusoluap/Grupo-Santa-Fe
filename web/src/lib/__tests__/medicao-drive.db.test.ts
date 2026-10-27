@@ -1,4 +1,4 @@
-// Pedido de 18/10 — a PCI original (intacta) e cada medição preenchida (.xls/.pdf)
+// Pedido de 18/10 — a PCI original (intacta) e cada medição preenchida (.pdf; Lote 02 sem .xls)
 // ficam no Google Drive da obra: Obras/<Obra (nº)>/Medições CAIXA. Drive simulado.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -73,7 +73,7 @@ describe.skipIf(!url)("Medições CAIXA no Google Drive (banco real)", () => {
     expect(await acoes.salvarProgressoObra(obraId, itens, "pls")).toEqual({ ok: false, erro: "Vincule a PCI e use as incidências da planilha antes de salvar." });
   });
 
-  it("medição salva: .xls e .pdf preenchidos ficam na mesma pasta; a PCI original não muda", async () => {
+  it("medição salva: só o .pdf preenchido (Lote 02, sem .xls) fica na mesma pasta; a PCI original não muda", async () => {
     const acoes = await import("@/lib/actions/obra-progresso");
     expect((await acoes.vincularPciObra(obraId)).ok).toBe(true);
     const itens = (await prisma.obraProgressoItem.findMany({ where: { obraId }, orderBy: { chave: "asc" } }))
@@ -84,11 +84,11 @@ describe.skipIf(!url)("Medições CAIXA no Google Drive (banco real)", () => {
     const r = await acoes.copiarMedicaoNoDrive(medicaoId);
     expect(r).toMatchObject({ ok: true, drive: "ok" });
     const nomes = nomesNaPasta();
-    expect(nomes).toHaveLength(3);
-    expect(nomes.filter(n => /\/PLS \(levantamento \d{2}-\d{2}-\d{4}\) — .+\.(xls|pdf)$/.test(n))).toHaveLength(2);
-    const xls = [...drive.arquivos.values()].find(a => a.name.startsWith("PLS") && a.name.endsWith(".xls"))!;
-    expect(xls.dados!.subarray(0, 8).toString("hex")).toBe("d0cf11e0a1b11ae1"); // .xls (OLE2), aceito no SIOPI
-    expect(Buffer.compare(xls.dados!, PCI)).not.toBe(0);
+    expect(nomes).toHaveLength(2);
+    expect(nomes.filter(n => /\/PLS \(levantamento \d{2}-\d{2}-\d{4}\) — .+\.pdf$/.test(n))).toHaveLength(1);
+    expect(nomes.some(n => n.startsWith(`${pasta}/PLS`) && n.endsWith(".xls"))).toBe(false);
+    const pdf = [...drive.arquivos.values()].find(a => a.name.startsWith("PLS") && a.name.endsWith(".pdf"))!;
+    expect(pdf.dados!.subarray(0, 4).toString()).toBe("%PDF");
     const pci = await prisma.obraPci.findUnique({ where: { obraId }, include: { versao: true } });
     expect(Buffer.compare(Buffer.from(pci!.versao.dados), PCI)).toBe(0);
   });

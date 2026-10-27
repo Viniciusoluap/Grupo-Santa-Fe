@@ -10,6 +10,7 @@ import { SugestaoAvaliacaoBtn } from "./_components/sugestao-btn";
 import { ZapComparaveisBtn } from "./_components/zap-btn";
 import { DocumentosAvaliacao } from "./_components/documentos-avaliacao";
 import { ValorEstimadoCard } from "./_components/valor-estimado-card";
+import { NumeroInput } from "@/components/ui/numero-input";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; order: number }> = {
   solicitada:  { label: "Solicitada",    bg: "bg-gray-100",   text: "text-gray-600",   order: 1 },
@@ -157,7 +158,7 @@ export default async function AvaliacaoDetailPage({ params }: PageProps) {
                 <input type="hidden" name="status" value={a.status} />
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Registrar valor (R$)</label>
-                  <input name="valorEstimado" type="number" step="0.01" placeholder="Ex: 450000" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                  <NumeroInput name="valorEstimado" prefixo="R$" negativo={false} placeholder="Ex: 450.000,00" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
                 <button type="submit" className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] font-bold text-xs uppercase tracking-wider px-4 py-2 transition-colors hover:bg-black">
                   Salvar

@@ -808,6 +808,10 @@ model Usuario {
   eventosUnidadesIncorporacao EstudoUnidadeEvento[]
   imoveisCadastrados          Imovel[]              @relation("ImovelCadastradoPor")
   avisosImovelRecusado        ImovelRecusadoAviso[]
+  /// Lote 2, correção 04: perfil Engenheiro (colaborador + dados profissionais) e documentos.
+  perfilEngenheiro            PerfilEngenheiro?
+  documentosUsuario           DocumentoUsuario[]    @relation("DocumentoDoUsuario")
+  documentosUsuarioEnviados   DocumentoUsuario[]    @relation("DocumentoEnviadoPor")
 
   @@map("usuarios")
 }
@@ -1447,4 +1451,50 @@ model DocumentoClienteVersao {
 
   @@index([leadId, itemId])
   @@map("documentos_cliente_versoes")
+}
+
+// ─── Lote 2, correção 04 (AD-02): perfil Engenheiro e documentos do usuário ────
+
+/// Engenheiro = colaborador (permissões por módulo) + estes dados. `ativo` false =
+/// deixou de ser engenheiro (dados preservados para reativar sem redigitar).
+model PerfilEngenheiro {
+  usuarioId       String   @id
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  ativo           Boolean  @default(true)
+  telefone        String?  @db.VarChar(20)
+  cep             String?  @db.VarChar(9)
+  logradouro      String?  @db.VarChar(255)
+  numero          String?  @db.VarChar(20)
+  complemento     String?  @db.VarChar(120)
+  bairro          String?  @db.VarChar(120)
+  cidade          String?  @db.VarChar(120)
+  uf              String?  @db.VarChar(2)
+  crea            String?  @db.VarChar(30)
+  creaUf          String?  @db.VarChar(2)
+  /// [{ "numero": "...", "uf": "SP" }] — CREAs de outros estados
+  creasAdicionais Json     @default("[]")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  atualizadoPorId String?
+
+  @@map("perfis_engenheiro")
+}
+
+/// Documento do usuário (documento_pessoal, anuidade_crea, carteirinha_crea, outros);
+/// arquivo original guardado no banco e servido por /api/usuarios/[id]/documentos.
+model DocumentoUsuario {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  usuario      Usuario  @relation("DocumentoDoUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  categoria    String   @db.VarChar(30)
+  nomeOriginal String   @db.VarChar(255)
+  mime         String   @db.VarChar(150)
+  tamanho      Int
+  conteudo     Bytes
+  enviadoPorId String?
+  enviadoPor   Usuario? @relation("DocumentoEnviadoPor", fields: [enviadoPorId], references: [id], onDelete: SetNull)
+  enviadoEm    DateTime @default(now())
+
+  @@index([usuarioId, categoria])
+  @@map("documentos_usuario")
 }

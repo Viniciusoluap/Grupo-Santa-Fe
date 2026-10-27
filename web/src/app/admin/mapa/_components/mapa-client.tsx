@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { MapPin, Filter } from "lucide-react";
@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { MapPin as MapPinType } from "@/components/map/property-map";
 import type { PontoMapa } from "@/lib/mapa-operacional";
 import { rotulo } from "@/lib/rotulos";
+import { categoriaDoPonto } from "@/lib/mapa-alfinetes";
 
 const PropertyMap = dynamic(
   () => import("@/components/map/property-map").then((m) => m.PropertyMap),
@@ -38,10 +39,19 @@ export function MapaClient({ pontos }: { pontos: PontoMapa[] }) {
       `${p.titulo} ${p.endereco ?? ""} ${p.tipo}`.toLowerCase().includes(busca.trim().toLowerCase())
   );
   const comPonto = filtrados.filter((p) => p.latitude !== null && p.longitude !== null);
-  const pins: MapPinType[] = comPonto.map((p) => ({
-    id: p.key, lat: p.latitude!, lng: p.longitude!, title: p.titulo, price: p.valor ?? undefined,
-    type: p.kind === "obra" ? "obra" : p.tipo, href: p.href ?? undefined,
-  }));
+  // Lote 02, correção 05: cor do alfinete por tipo/status; memorizado para o mapa
+  // só reenquadrar quando a seleção/filtro mudar de fato.
+  const pins: MapPinType[] = useMemo(() => {
+    const todos = pontos.filter(
+      (p) => p.latitude !== null && p.longitude !== null && (filtro === "todos" || p.kind === filtro) &&
+        `${p.titulo} ${p.endereco ?? ""} ${p.tipo}`.toLowerCase().includes(busca.trim().toLowerCase())
+    ).map((p) => ({
+      id: p.key, lat: p.latitude!, lng: p.longitude!, title: p.titulo, price: p.valor ?? undefined,
+      type: p.kind === "obra" ? "obra" : rotulo(p.tipo), href: p.href ?? undefined,
+      categoria: categoriaDoPonto(p), endereco: p.endereco,
+    }));
+    return selecionado ? todos.filter((p) => p.id === selecionado) : todos;
+  }, [pontos, filtro, busca, selecionado]);
   const atual = selecionado ? filtrados.find((p) => p.key === selecionado) ?? null : null;
 
   return (
@@ -78,8 +88,9 @@ export function MapaClient({ pontos }: { pontos: PontoMapa[] }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white border border-gray-100 overflow-hidden">
           <PropertyMap
-            pins={selecionado ? pins.filter((p) => p.id === selecionado) : pins}
+            pins={pins}
             height="480px"
+            legenda
             onPinClick={(pin) => setSelecionado(selecionado === pin.id ? null : pin.id)}
           />
         </div>

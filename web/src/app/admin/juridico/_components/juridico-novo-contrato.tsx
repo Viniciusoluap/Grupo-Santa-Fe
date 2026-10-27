@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { criarContrato } from "@/lib/actions/contratos";
 import { TIPOS_CONTRATO } from "@/lib/juridico/tipos-contrato";
+import { NumeroInput } from "@/components/ui/numero-input";
 
 interface Lead {
   id: string;
@@ -158,12 +159,12 @@ export function JuridicoNovoContrato({ leads, empresa }: Props) {
 
       <div>
         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
-        <input
+        <NumeroInput
           name="valor"
-          type="number"
-          step="0.01"
+          prefixo="R$"
+          negativo={false}
           required
-          placeholder="Ex: 350000"
+          placeholder="Ex: 350.000,00"
           className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
         />
       </div>

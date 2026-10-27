@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { EditarProjetoForm } from "./_components/editar-projeto-form";
 import { diaPrazoProjeto } from "@/lib/projetos-prazo";
+import { listarEngenheiros } from "@/lib/engenheiros";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -20,10 +21,8 @@ export default async function EditarProjetoPage({ params }: PageProps) {
   try { tiposSelecionados = JSON.parse(p.tipo ?? "[]") as string[]; } catch { tiposSelecionados = p.tipo ? [p.tipo] : []; }
 
   // Item 07: colaboradores (e admins) ativos que podem ser engenheiro responsável.
-  const engenheiros = await prisma.usuario.findMany({
-    where: { ativo: true, papel: { in: ["colaborador", "admin"] } },
-    select: { id: true, nome: true, papel: true }, orderBy: { nome: "asc" },
-  });
+  // Lote 2, correção 04: com o perfil Engenheiro (CREA) quando houver.
+  const engenheiros = await listarEngenheiros();
 
   const prazoValue = diaPrazoProjeto(p.prazoEntrega) ?? "";
 

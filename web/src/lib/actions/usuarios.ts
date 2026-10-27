@@ -7,6 +7,8 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { validarPerfilEngenheiro } from "@/lib/engenheiro";
+import { definirPerfilEngenheiroAtivo } from "@/lib/engenheiros";
 
 const TOKEN_PRIMEIRO_ACESSO_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
@@ -31,14 +33,18 @@ async function enviarLinkPrimeiroAcesso(nome: string, email: string, link: strin
  * Sem senha digitada, a conta nasce com link de primeiro acesso.
  */
 export async function criarUsuario(formData: FormData) {
-  await exigirAdminAtivo();
+  const admin = await exigirAdminAtivo();
   const nome = String(formData.get("nome") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const senha = String(formData.get("senha") ?? "");
-  const papel = String(formData.get("papel") ?? "");
+  // Lote 2, correção 04: "Engenheiro" = colaborador (módulos) + perfil profissional.
+  const engenheiro = String(formData.get("papel") ?? "") === "engenheiro";
+  const papel = engenheiro ? "colaborador" : String(formData.get("papel") ?? "");
   const creci = String(formData.get("creci") ?? "").trim() || null;
   const telefone = String(formData.get("telefone") ?? "").trim() || null;
   const leadId = String(formData.get("leadId") ?? "").trim() || null;
+  const perfilEngenheiro = engenheiro ? validarPerfilEngenheiro({ telefone, crea: formData.get("crea"), creaUf: formData.get("creaUf") }) : null;
+  if (perfilEngenheiro && !perfilEngenheiro.ok) return { error: perfilEngenheiro.erro };
 
   if (!nome || !email || !papel) return { error: "Preencha nome, e-mail e perfil." };
   if (!ehPerfil(papel)) return { error: "Perfil inválido." };
@@ -81,6 +87,10 @@ export async function criarUsuario(formData: FormData) {
         if (corretor) await tx.corretor.update({ where: { id: corretor.id }, data: { usuarioId: usuario.id, creci: creci!, telefone: telefone! } });
         else await tx.corretor.create({ data: { nome, email, telefone: telefone!, creci: creci!, usuarioId: usuario.id } });
       }
+      if (perfilEngenheiro?.ok) {
+        const d = perfilEngenheiro.dados;
+        await tx.perfilEngenheiro.create({ data: { usuarioId: usuario.id, ativo: true, telefone: d.telefone, crea: d.crea, creaUf: d.creaUf, creasAdicionais: [], atualizadoPorId: admin.id } });
+      }
     });
   } catch (erro) {
     return { error: erro instanceof Error ? erro.message : "Não foi possível cadastrar." };
@@ -99,8 +109,11 @@ export async function criarUsuario(formData: FormData) {
  * usuário é encerrada (sessionVersion) e as permissões de colaborador só ficam
  * para colaborador.
  */
-export async function alterarPerfilUsuario(id: string, papel: string, leadId: string | null = null) {
+export async function alterarPerfilUsuario(id: string, papelEscolhido: string, leadId: string | null = null) {
   const admin = await exigirAdminAtivo();
+  // Lote 2, correção 04: "Engenheiro" = colaborador + perfil profissional (dados preservados ao trocar).
+  const engenheiro = papelEscolhido === "engenheiro";
+  const papel = engenheiro ? "colaborador" : papelEscolhido;
   if (!ehPerfil(papel)) return { error: "Perfil inválido." };
   const alvo = await prisma.usuario.findUnique({ where: { id }, select: { id: true, papel: true, ativo: true, permissoes: true, corretor: { select: { id: true } } } });
   if (!alvo) return { error: "Usuário não encontrado." };
@@ -129,6 +142,7 @@ export async function alterarPerfilUsuario(id: string, papel: string, leadId: st
       sessionVersion: { increment: 1 },
     },
   });
+  await definirPerfilEngenheiroAtivo(id, engenheiro, admin.id);
   revalidatePath("/admin/configuracoes");
   return { success: true };
 }

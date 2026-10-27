@@ -56,7 +56,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
       orderBy: { criadoEm: "asc" },
-      include: { leadCliente: { select: { nome: true, telefone: true } } },
+      include: { leadCliente: { select: { nome: true, telefone: true } }, perfilEngenheiro: { select: { ativo: true } } },
     }),
     prisma.lead.findMany({
       where: { excluidoEm: null, contaCliente: null },
@@ -109,6 +109,8 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
         leadId: u.leadId,
         leadNome: u.leadCliente?.nome ?? null,
         leadTelefone: u.leadCliente?.telefone ?? null,
+        // Lote 2, correção 04: "Engenheiro" = colaborador com perfil de engenheiro ativo.
+        engenheiro: u.papel === "colaborador" && u.perfilEngenheiro?.ativo === true,
       }))} leadsSemConta={leadsSemConta} />
     </div>
   );
