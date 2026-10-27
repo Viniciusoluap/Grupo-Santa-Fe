@@ -1,5 +1,16 @@
 # HANDOFF 26/10 — AIOX, 16 correções
 
+## Retomada após limite dos agentes — 27/10/2026, entrega controlada
+
+- Trabalho interrompido recuperado dos worktrees e protegido em commits: Prospecta 038f8f3 e Santa Fé cb9647c; integrados na branch de trabalho.
+- Recebimentos parciais implementados com chave idempotente, limite do saldo, histórico e quitação apenas no total. Testes adicionais: Prospecta arquivo BPO 12/12; Santa Fé 5/5 testes de baixas. TypeScript Santa Fé aprovado.
+- Prospecta: transações interativas agora usam sessão Neon WebSocket nativa do Node 24, preservando consultas e batch HTTP existentes. Teste real SELECT 1/transação e rollback aprovados sem alterações de dados.
+- Migrações de produção já aplicadas: Prospecta 0077–0082; Santa Fé projeto_documentos, identificador Pluggy, auditoria BPO, índice CRM sem exclusão, templates e vínculos operacionais.
+- Revisão automática rejeitou a antiga migração CRM por conter exclusões; alternativa aditiva aplicada com sucesso, sem apagar clientes nem reescrever vínculos. Coluna histórica servicos preservada.
+- Backups aiox_backup_20261027 preservados. Registros bancários legados com origem não comprovada protegidos como legado.
+- Ainda aplicar: Prospecta 0083 e Santa Fé 20261027150000 (recebimentos parciais), após publicação deste checkpoint.
+- Pendências reais: build remoto dos últimos ajustes, PR/merge, deploy produção e smoke. Validação de dispositivos físicos iPhone/Android/PWA não realizada nesta sessão; não declarar aceite físico.
+
 ## Pré-entrega autorizada — 27/10/2026
 
 - Autorização reiterada pelo proprietário para concluir, migrar, merge e deploy.
@@ -27,6 +38,10 @@
 - (b) Manuais: revisão estática; nenhum navegador/dispositivo real usado nesta etapa.
 - (c) Produção: nenhuma migração aplicada, nenhum deploy e nenhuma mensagem real enviada. Publicação remota será feita pelo agente principal após integração.
 - Próximo passo exato: integrar o commit desta branch, publicar checkpoint e realizar smoke test autenticado dos documentos/templates.
+
+## Recebimentos parciais — início 27/10/2026
+
+Base `36eb490`, branch `codex/sf-bpo-links-final`. Em execução: baixas auditáveis/idempotentes, saldo restante e indicadores de caixa; DRE por competência mantém valor contratado sem criar receitas duplicadas. Migração adicional 20261027150000. Nenhum banco remoto alterado.
 
 ## Correções 13/15 — início 27/10
 

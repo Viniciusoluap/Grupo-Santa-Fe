@@ -743,6 +743,8 @@ model BpoLancamento {
   vencimento                DateTime
   pago                      Boolean                    @default(false)
   pagoEm                    DateTime?
+  valorRecebido             Float                      @default(0)
+  baixas                    BpoBaixa[]
   competencia               String // "2026-06"
   centroCustos              String?
   /// LOTE C (25/10): categoria padrão (src/lib/bpo-categorias.ts) e vínculo 1:1 com a
@@ -766,6 +768,21 @@ model BpoLancamento {
   criadoEm                  DateTime                   @default(now())
 
   @@map("bpo_lancamentos")
+}
+
+model BpoBaixa {
+  id            String        @id @default(cuid())
+  lancamentoId  String
+  lancamento    BpoLancamento @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  requestKey    String        @unique
+  valor         Float
+  data          DateTime
+  motivo        String
+  usuarioId     String
+  criadoEm      DateTime      @default(now())
+
+  @@index([lancamentoId, data])
+  @@map("bpo_baixas")
 }
 
 /// Snapshot recuperável criado antes da limpeza de movimentações de uma conta bancária.

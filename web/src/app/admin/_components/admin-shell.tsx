@@ -8,6 +8,7 @@ import { Menu, Bell, X, Camera, User } from "lucide-react";
 import { Sidebar } from "@/components/admin/sidebar";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/auth";
+import { FinanceiroServico } from "@/components/admin/financeiro-servico";
 
 interface NotificacaoItem {
   id: string;
@@ -314,7 +315,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 print:p-0">{children}</main>
+        <main className="flex-1 p-4 md:p-6 print:p-0"><FinanceiroServico permitido={rotasPermitidas.includes("/admin/bpo")}/>{children}</main>
       </div>
 
       {/* Photo upload modal */}

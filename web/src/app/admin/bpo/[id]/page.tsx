@@ -5,6 +5,7 @@ import { ArrowLeft, Phone, Mail, CheckCircle2, Clock } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { criarLancamentoBpo, marcarLancamentoPago, atualizarStatusBpoCliente } from "@/lib/actions/bpo";
+import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
 
 const STATUS_CONFIG = {
   ativo:     { label: "Ativo",     bg: "bg-green-100",  text: "text-green-700" },
@@ -28,8 +29,8 @@ export default async function BpoClientePage({ params }: PageProps) {
   const cfg = STATUS_CONFIG[cliente.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.ativo;
   const pendentes = cliente.lancamentos.filter((l) => !l.pago);
   const pagos = cliente.lancamentos.filter((l) => l.pago);
-  const totalPendente = pendentes.reduce((s, l) => s + l.valor, 0);
-  const totalPago = pagos.reduce((s, l) => s + l.valor, 0);
+  const totalPendente = pendentes.reduce((s, l) => s + saldoLancamento(l), 0);
+  const totalPago = cliente.lancamentos.reduce((s, l) => s + valorRealizado(l), 0);
 
   const now = new Date();
   const competencia = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -157,6 +158,7 @@ export default async function BpoClientePage({ params }: PageProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{l.descricao}</p>
                       <p className="text-xs text-gray-600">{l.competencia} · Venc. {new Date(l.vencimento).toLocaleDateString("pt-BR")}</p>
+                      {!l.pago && valorRealizado(l) > 0 && <p className="text-xs font-bold text-orange-700">Parcial: {formatCurrency(valorRealizado(l))} · Saldo: {formatCurrency(saldoLancamento(l))}</p>}
                     </div>
                     <p className="font-bold text-[var(--brand-dark)] shrink-0">{formatCurrency(l.valor)}</p>
                     {l.pago ? (
