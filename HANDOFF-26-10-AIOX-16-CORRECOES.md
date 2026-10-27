@@ -1,5 +1,24 @@
 # HANDOFF 26/10 — AIOX, 16 correções
 
+## Smoke e proteção PWA pós-deploy — 27/10/2026
+
+- Ambos os merges/deploys iniciais estão READY: Prospecta #172 / 66c064b7; Santa Fé #235 / 8e809239.
+- Navegador: Santa Fé público funcionando, painel solicita login. Prospecta acesso antigo em www ficou em branco, enquanto o MESMO deploy carregou em acesso limpo em site-prospecta.vercel.app. Bundle servido respondeu 200/JavaScript e passou análise de sintaxe.
+- Evidência indica cache do acesso antigo; não foi possível provar conteúdo do cache. Achado concreto: service workers aceitavam HTTP200 HTML como JS/CSS. Implementada renovação para v2 e validação MIME, descartando entradas incompatíveis e nunca armazenando fallback HTML.
+- Teste de regressão simula HTML indevido já cacheado e confirma descarte, nova busca e cache de JS válido. Teste Prospecta aprovado; espelhado Santa Fé.
+- As matrizes de implementação continuam válidas, com aceite físico/autenticado pendente. Próximo passo: publicar/mergear proteção PWA e conferir READY e acesso www.
+
+## Entrega de código em produção — 27/10/2026
+
+- PR #235 mergeado: 8e80923916d1e248f396c5b3143ce3b8131c853e em main.
+- Deploy produção READY: dpl_9sEcUz14d8H3X8kPZQggJHDCCfaU (grupo-santa-ek5prwgw4-viniciusoluaps-projects.vercel.app), commit de merge confirmado.
+- Migrações de código completas, incluindo 20261027150000/bpo_baixas_parciais. Banco preserva 5 lançamentos e 6 templates; backups privados preservados.
+- Smoke navegador: página pública carregou normalmente, incluindo consulta dos imóveis; /admin/bpo redirecionou a /login. Sem sessão autenticada Santa Fé disponível para testar as telas internas.
+- Observabilidade: consulta Vercel runtime errors dos últimos 15 minutos não encontrou erros; janela curta, sem comprovar todos os fluxos.
+- Matriz individual das 16 correções em docs/handoff/IMPLEMENTATION_STATUS.md. Código e deploy entregues; aceite autenticado/móvel e arquivo Cora real ainda pendentes.
+- Este é checkpoint documental pós-merge na branch codex/aiox-16-correcoes-20261026. Não refazer o código nem repetir migrações por histórico Prisma divergente.
+- Retomada: ler matriz, confirmar main/produção pelo SHA acima e executar apenas os aceites pendentes com usuário real. Não limpar contas/lançamentos reais como teste.
+
 ## Retomada após limite dos agentes — 27/10/2026, entrega controlada
 
 - Trabalho interrompido recuperado dos worktrees e protegido em commits: Prospecta 038f8f3 e Santa Fé cb9647c; integrados na branch de trabalho.
