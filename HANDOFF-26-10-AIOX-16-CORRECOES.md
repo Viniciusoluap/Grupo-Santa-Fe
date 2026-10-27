@@ -1,5 +1,14 @@
 # HANDOFF 26/10 — AIOX, 16 correções
 
+## Publicação remota confirmada — 27/10/2026
+
+- Branch: `codex/aiox-16-correcoes-20261026`.
+- Checkpoint publicado: `4d8b190e60952d1dd5cf7f20a0205a8077dfb4a1`.
+- HEAD local de origem preservado: `9004c0d7dae2d2ce24bbe597aeb81a98fa931fc7`.
+- Publicação por conector GitHub em commit consolidado; a árvore remota foi comparada com a árvore local e é idêntica (`f98be4fa948e3eb849c1d64eeeeafb235de83c6d`).
+- Todos os arquivos e Handoffs pendentes deste HEAD estão protegidos no GitHub. Os hashes dos commits locais originais não foram reescritos.
+- Este checkpoint não representa merge, aplicação de migrações nem deploy. Pendências de validação permanecem registradas abaixo.
+
 ## Identificação
 
 - Repositório: `Viniciusoluap/Grupo-Santa-Fe`
