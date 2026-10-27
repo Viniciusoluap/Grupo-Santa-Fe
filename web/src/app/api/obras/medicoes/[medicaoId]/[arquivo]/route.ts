@@ -7,12 +7,14 @@ export const runtime = "nodejs";
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ medicaoId: string; arquivo: string }> }) {
   try {
     const { medicaoId, arquivo } = await params;
-    if (arquivo !== "arquivo.xls" && arquivo !== "arquivo.pdf") return NextResponse.json({ error: "Formato inválido." }, { status: 404 });
+    // Lote 02, correção 01: a medição (PLS/Repactuação/Alteração) só é gerada em .pdf.
+    // Cópias .xls já gravadas no Drive e e-mails já enviados seguem preservados.
+    if (arquivo !== "arquivo.pdf") return NextResponse.json({ error: "Formato inválido." }, { status: 404 });
     // Ler somente a obra antes de autorizar; bytes privados só após a autorização.
     const referencia = await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, select: { obraId: true } });
     if (!referencia) return NextResponse.json({ error: "Medição não encontrada." }, { status: 404 });
     await exigirObraOuEmpreiteiro(referencia.obraId);
-    const r = await gerarArquivoMedicao(medicaoId, arquivo === "arquivo.xls" ? "xls" : "pdf");
+    const r = await gerarArquivoMedicao(medicaoId, "pdf");
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
     if (r.bytes.length > LIMITE_DOWNLOAD) return NextResponse.json({ error: MENSAGEM_LIMITE_DOWNLOAD }, { status: 413 });
     return arquivoResposta(r.bytes, r.nome, r.mime);

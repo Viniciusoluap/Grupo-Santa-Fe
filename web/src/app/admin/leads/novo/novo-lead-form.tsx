@@ -100,6 +100,9 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
             </select>
           </div>
           <div>
+            <label htmlFor="novo-lead-negociado" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Valor negociado para venda (R$)</label>
+            <CurrencyInput id="novo-lead-negociado" name="valorNegociado" className="w-full pr-3 py-2.5 border border-gray-200 text-sm bg-gray-50" />
+          </div><div>
             <label htmlFor="novo-lead-vgv" className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">VGV simulado (R$)</label>
             <CurrencyInput id="novo-lead-vgv" name="orcamento"
               className="w-full pr-3 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />

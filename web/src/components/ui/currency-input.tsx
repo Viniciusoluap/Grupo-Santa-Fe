@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { dinheiroParaCampo, mascararDinheiro } from "@/lib/utils";
+import { NumeroInput } from "@/components/ui/numero-input";
 
 interface Props {
   name?: string;
@@ -16,45 +15,24 @@ interface Props {
 
 // Pedido de 15/10: valor sempre exibido como "R$ 1.000.000,00" — pontos de
 // milhar já durante a digitação ("180000" -> "180.000") e duas casas ao sair do
-// campo. Mesmo comportamento do CurrencyInput da Prospecta.
+// campo. Desde 27/10 (correção 21/AD-01) é um wrapper do `NumeroInput` (máscara
+// única, cursor estável, colagem de "R$ 1.234,56") — mesma API e mesmo número
+// entregue/enviado no `FormData` (vazio → ""). Mesmo comportamento do
+// CurrencyInput da Prospecta.
 export function CurrencyInput({ name, defaultValue, value, onValueChange, placeholder = "0,00", className = "", required, id }: Props) {
-  const inicial = value ?? defaultValue ?? 0;
-  const [numero, setNumero] = useState<number>(inicial);
-  const [texto, setTexto] = useState(() => dinheiroParaCampo(inicial));
-
-  // Controlado: valor mudou por fora (ex.: cálculo automático) -> ressincroniza
-  // durante a renderização (padrão do React para estado derivado de props).
-  const [ultimoExterno, setUltimoExterno] = useState(value);
-  if (value !== undefined && value !== ultimoExterno) {
-    setUltimoExterno(value);
-    const externo = value ?? 0;
-    if (externo !== numero) {
-      setNumero(externo);
-      setTexto(dinheiroParaCampo(externo));
-    }
-  }
-
+  const modo = value !== undefined ? { value: value ?? 0 } : { defaultValue: defaultValue ?? 0 };
   return (
-    <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">R$</span>
-      <input
-        id={id}
-        type="text"
-        inputMode="decimal"
-        placeholder={placeholder}
-        value={texto}
-        onChange={(e) => {
-          const m = mascararDinheiro(e.target.value);
-          setTexto(m.texto);
-          setNumero(m.numero);
-          onValueChange?.(m.numero);
-        }}
-        onBlur={() => setTexto(dinheiroParaCampo(numero))}
-        required={required}
-        className={`w-full min-w-0 ${className}`}
-        style={{ paddingInlineStart: "2.75rem" }}
-      />
-      {name && <input type="hidden" name={name} value={texto ? String(numero) : ""} />}
-    </div>
+    <NumeroInput
+      {...modo}
+      id={id}
+      name={name}
+      onChange={(v) => onValueChange?.(v ?? 0)}
+      prefixo="R$"
+      casas={2}
+      vazioQuandoZero
+      placeholder={placeholder}
+      required={required}
+      className={`w-full min-w-0 ${className}`}
+    />
   );
 }

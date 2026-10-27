@@ -10,6 +10,8 @@ import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import type { Indicador } from "@/lib/financeiro/obra";
 import { carregarProgressoObra, calculoDoProgresso } from "@/lib/obras/progresso-dados";
 import { montarDetalheObra } from "@/lib/financeiro/detalhe-obra";
+import { carregarGaleriaObra } from "@/lib/obras/galeria-dados";
+import { GaleriaMedicoes } from "@/components/obras/galeria-medicoes";
 
 const exibir = (i: Indicador) => (i.ok ? formatCurrency(i.centavos / 100) : "Não calculado");
 
@@ -48,6 +50,9 @@ export async function ObraDetalhe({ id, voltarHref = "/admin/obras", voltarRotul
   // Etapas, Resumo Financeiro e Estatísticas espelham o editor da obra
   // (Acompanhar Progresso + Valores da Operação/Custos) — igual à Prospecta.
   const dadosProgresso = await carregarProgressoObra(o.id);
+  // Lote 02, correção 02: mesma galeria por medição do Editar Obra (só visualização;
+  // a página que chama já conferiu o acesso à obra).
+  const galeria = await carregarGaleriaObra(o.id);
   const detalhe = montarDetalheObra(calculoDoProgresso(dadosProgresso!), resumo!.calculo, o._count.fotos);
   const f = detalhe.financeiro;
   const progresso = progressoDaObra(o.progressoMedido?.toString(), o.progresso);
@@ -113,6 +118,15 @@ export async function ObraDetalhe({ id, voltarHref = "/admin/obras", voltarRotul
                 })}
               </div>
             )}
+          </div>
+
+          {/* Fotos por medição — mesmos dados e componente do Editar Obra */}
+          <div className="bg-white border border-gray-100 p-5">
+            <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest mb-1">Galeria de Fotos ({galeria.fotos.length})</h2>
+            <p className="text-xs text-gray-600 mb-4 pb-2 border-b border-gray-100">Fotos organizadas por medição. A gestão das fotos é feita em Editar Obra › Progresso.</p>
+            <div className="text-[var(--brand-dark)]">
+              <GaleriaMedicoes fotos={galeria.fotos} medicoes={galeria.medicoes} tema="claro" vazio="Nenhuma foto adicionada ainda." />
+            </div>
           </div>
 
           {/* Diário de obra */}

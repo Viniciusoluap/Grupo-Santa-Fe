@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Trash2, Save, Loader2, CheckCircle2, Headset } from "lucide-react";
 import {
   resumoAtendimentoClientes,
@@ -10,6 +10,8 @@ import {
   type TipoChamado,
 } from "@/lib/incorporacao/atendimento-clientes";
 import { salvarAtendimentoClientes } from "@/lib/actions/incorporacao";
+import { clientesUnidades, listarUnidades } from "@/lib/actions/unidades-incorporacao";
+import { exigirResultado } from "@/lib/acao-resultado";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Atendimento aos Clientes (5.4 Projetos Executivos e Obras) — central de
@@ -46,6 +48,15 @@ export function AtendimentoClientesTab({ estudo }: { estudo: EstudoData }) {
     }
     return defaults();
   });
+  const [clientes, setClientes] = useState<{ id: string; nome: string; telefone: string }[]>([]);
+  const [unidades, setUnidades] = useState<{ id: string; codigo: string; status: string; comprador: string | null }[]>([]);
+  const [busca, setBusca] = useState("");
+  const [erroUnidades, setErroUnidades] = useState("");
+  useEffect(() => { let ativo = true;
+    void listarUnidades(estudo.id).then((r) => { if (ativo) setUnidades(exigirResultado(r).unidades); }).catch((e) => { if (ativo) setErroUnidades(e instanceof Error ? e.message : "Falha ao consultar unidades."); });
+    return () => { ativo = false; };
+  }, [estudo.id]);
+  useEffect(() => { let ativo = true; const timer = setTimeout(() => { void clientesUnidades(busca).then((r) => { if (ativo) setClientes(exigirResultado(r)); }).catch(() => { if (ativo) setClientes([]); }); }, 250); return () => { ativo = false; clearTimeout(timer); }; }, [busca]);
   const [pending, startTransition] = useTransition();
   const [salvo, setSalvo] = useState(false);
 
@@ -100,6 +111,9 @@ export function AtendimentoClientesTab({ estudo }: { estudo: EstudoData }) {
         </div>
       )}
 
+      <label className="block text-sm">Buscar cliente no CRM<input value={busca} onChange={(e) => setBusca(e.target.value)} className={inputCls} placeholder="Digite o nome do cliente" /></label>
+      <p className="text-xs text-gray-600">Registrar um atendimento não altera a disponibilidade, reserva ou venda da unidade.</p>
+      {erroUnidades && <p role="alert" className="text-sm text-red-700">{erroUnidades}</p>}
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
           <table className="text-xs min-w-[680px] w-full">
@@ -115,8 +129,15 @@ export function AtendimentoClientesTab({ estudo }: { estudo: EstudoData }) {
             <tbody>
               {dados.chamados.map((c) => (
                 <tr key={c.id}>
-                  <td className="px-1 py-1"><input value={c.cliente} onChange={(e) => upd(c.id, "cliente", e.target.value)} className={inputCls} placeholder="Nome do cliente" /></td>
-                  <td className="px-1 py-1"><input value={c.unidade ?? ""} onChange={(e) => upd(c.id, "unidade", e.target.value)} className={inputCls} placeholder="Ex.: Lote 12" /></td>
+                  <td className="px-1 py-1 space-y-1">
+                    <select aria-label="Cliente do CRM" value={c.clienteLeadId ?? ""} className={inputCls} onChange={(e) => { const lead = clientes.find((l) => l.id === e.target.value); setDados((d) => ({ chamados: d.chamados.map((item) => item.id === c.id ? { ...item, clienteLeadId: lead?.id, cliente: lead?.nome ?? item.cliente } : item) })); marcarAlterado(); }}>
+                      <option value="">Cliente avulso</option>{c.clienteLeadId && !clientes.some((l) => l.id === c.clienteLeadId) && <option value={c.clienteLeadId}>{c.cliente}</option>}{clientes.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                    </select>
+                    <input aria-label="Nome do cliente avulso" disabled={!!c.clienteLeadId} value={c.cliente} onChange={(e) => upd(c.id, "cliente", e.target.value)} className={inputCls} placeholder="Nome do cliente" />
+                  </td>
+                  <td className="px-1 py-1"><select aria-label="Unidade do empreendimento" value={c.unidadeId ?? ""} className={inputCls} onChange={(e) => { const unit = unidades.find((u) => u.id === e.target.value); setDados((d) => ({ chamados: d.chamados.map((item) => item.id === c.id ? { ...item, unidadeId: unit?.id, unidade: unit?.codigo ?? item.unidade } : item) })); marcarAlterado(); }}>
+                    <option value="">{c.unidade && !c.unidadeId ? `Registro anterior: ${c.unidade}` : "Sem unidade"}</option>{c.unidadeId && !unidades.some((u) => u.id === c.unidadeId) && <option value={c.unidadeId}>{c.unidade ?? "Unidade anterior"}</option>}{unidades.map((u) => <option key={u.id} value={u.id}>{u.codigo} · {u.status} · {u.comprador || "sem comprador"}</option>)}
+                  </select></td>
                   <td className="px-1 py-1">
                     <select value={c.tipo} onChange={(e) => upd(c.id, "tipo", e.target.value as TipoChamado)} className={inputCls}>
                       {TIPOS_CHAMADO.map((t) => <option key={t} value={t}>{t}</option>)}

@@ -17,6 +17,8 @@ export type TipoChamado = (typeof TIPOS_CHAMADO)[number];
 export interface ChamadoAtendimento {
   id: string;
   cliente: string;
+  clienteLeadId?: string;
+  unidadeId?: string;
   unidade?: string;
   tipo: TipoChamado;
   status: StatusChamado;
@@ -53,4 +55,20 @@ export function atendimentoTodosConcluidosDoJson(json: string | null | undefined
   } catch {
     return false;
   }
+}
+
+/** Somente referências: nunca muda o status comercial das unidades consultadas. */
+export function referenciasAtendimento(json: string) {
+  const dados = JSON.parse(json) as { chamados?: ChamadoAtendimento[] };
+  if (!Array.isArray(dados.chamados)) throw new Error("Lista de atendimentos inválida.");
+  return { dados, clientes: Array.from(new Set(dados.chamados.map((c) => c.clienteLeadId).filter((id): id is string => !!id))), unidades: Array.from(new Set(dados.chamados.map((c) => c.unidadeId).filter((id): id is string => !!id))) };
+}
+export function vincularAtendimento(json: string, clientes: { id: string; nome: string }[], unidades: { id: string; codigo: string }[]): string {
+  const { dados } = referenciasAtendimento(json);
+  const cs = new Map(clientes.map((c) => [c.id, c.nome])); const us = new Map(unidades.map((u) => [u.id, u.codigo]));
+  return JSON.stringify({ ...dados, chamados: dados.chamados!.map((c) => {
+    if (c.clienteLeadId && !cs.has(c.clienteLeadId)) throw new Error("Cliente do CRM não encontrado ou sem acesso.");
+    if (c.unidadeId && !us.has(c.unidadeId)) throw new Error("Unidade não encontrada neste empreendimento ou foi excluída.");
+    return { ...c, cliente: c.clienteLeadId ? cs.get(c.clienteLeadId)! : c.cliente, unidade: c.unidadeId ? us.get(c.unidadeId)! : c.unidade };
+  }) });
 }

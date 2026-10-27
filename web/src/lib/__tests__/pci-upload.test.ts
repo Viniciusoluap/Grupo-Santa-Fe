@@ -37,7 +37,7 @@ describe("PCI 8 MB e precisão da vinculação", () => {
       for(let i=0;i<8;i++) await db.query(`INSERT INTO pci_upload_chunks(upload_id,chunk_index,total_chunks,user_id,project_id,file_name,data) VALUES($1,$2,8,'u1','o1','PCI.xls',decode($3,'base64'))`,["upload-12345678901234567890",i,original.subarray(i*PARTE_PCI_BYTES,(i+1)*PARTE_PCI_BYTES).toString("base64")]);
       const r=await db.query<{chunk_index:number;total_chunks:number;file_name:string;b64:string}>(`SELECT chunk_index,total_chunks,file_name,encode(data,'base64') AS b64 FROM pci_upload_chunks WHERE user_id='u1' AND project_id='o1' AND created_at > now()-interval '30 minutes' ORDER BY chunk_index`);
       validarMontagemPci(r.rows);
-      expect(Buffer.concat(r.rows.map(p=>Buffer.from(p.b64,"base64")))).toEqual(original);
+      expect(Buffer.compare(Buffer.concat(r.rows.map(p=>Buffer.from(p.b64,"base64"))), original)).toBe(0);
       expect((await db.query(`SELECT * FROM pci_upload_chunks WHERE user_id='u2' AND project_id='o1'`)).rows).toEqual([]);
       await expect(db.query(`INSERT INTO pci_upload_chunks(upload_id,chunk_index,total_chunks,user_id,project_id,file_name,data) VALUES('too-big',0,1,'u1','o1','p.xls',decode($1,'base64'))`,[Buffer.alloc(PARTE_PCI_BYTES+1).toString("base64")])).rejects.toThrow();
       await db.exec(`UPDATE pci_upload_chunks SET created_at=now()-interval '31 minutes'; DELETE FROM pci_upload_chunks WHERE created_at <= now()-interval '30 minutes'`);

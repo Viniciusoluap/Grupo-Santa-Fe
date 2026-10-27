@@ -1,6 +1,6 @@
-// Contratação de Fornecedores (4.2 Lançamento, Marketing e Vendas) — gestão
-// dos fornecedores de marketing, estande de vendas, decoração e eventos do
-// lançamento.
+// Contratação de Fornecedores do Lançamento — gestão dos fornecedores de
+// marketing, estande de vendas, decoração e eventos. Função pura, portada
+// do Grupo Santa Fé sem alteração de lógica.
 
 export type StatusFornecedor = "nao_contratado" | "orcamento" | "contratado" | "entregue";
 
@@ -20,6 +20,8 @@ export interface FornecedorLancamento {
   categoria: CategoriaFornecedor;
   nome: string;
   contato?: string;
+  /** Ausente nos dados antigos: o valor único anterior é a referência de orçamento. */
+  valorOrcado?: number;
   valorContratado: number;
   status: StatusFornecedor;
 }
@@ -28,6 +30,7 @@ export interface ResumoFornecedoresLancamento {
   total: number;
   contratados: number;
   pctContratado: number;
+  valorTotalOrcado: number;
   valorTotalContratado: number;
 }
 
@@ -38,6 +41,11 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** Valores inválidos nunca contaminam os indicadores financeiros. */
+function valorSeguro(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
+}
+
 export function resumoFornecedoresLancamento(lista: FornecedorLancamento[]): ResumoFornecedoresLancamento {
   const total = lista.length;
   const contratados = lista.filter((f) => f.status === "contratado" || f.status === "entregue").length;
@@ -45,8 +53,9 @@ export function resumoFornecedoresLancamento(lista: FornecedorLancamento[]): Res
     total,
     contratados,
     pctContratado: total > 0 ? round1((contratados / total) * 100) : 0,
+    valorTotalOrcado: round2(lista.reduce((s, f) => s + valorSeguro(f.valorOrcado ?? f.valorContratado), 0)),
     valorTotalContratado: round2(
-      lista.filter((f) => f.status === "contratado" || f.status === "entregue").reduce((s, f) => s + f.valorContratado, 0)
+      lista.filter((f) => f.status === "contratado").reduce((s, f) => s + valorSeguro(f.valorContratado), 0)
     ),
   };
 }

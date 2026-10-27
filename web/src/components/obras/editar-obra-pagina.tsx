@@ -6,9 +6,11 @@ import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { OBRA_STATUS_SELECIONAVEIS, isObraStatusSelecionavel, obraStatusLabel, tipoProjetoObra } from "@/lib/types/obra";
 import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { carregarProgressoObra } from "@/lib/obras/progresso-dados";
+import { carregarGaleriaObra } from "@/lib/obras/galeria-dados";
 import { EditarObraClient } from "@/app/admin/obras/[id]/editar/_components/editar-obra-client";
 import { LocalizacaoPicker } from "@/app/admin/imoveis/_components/localizacao-picker";
 import { coordenadasDaPci, coordenadasSalvas } from "@/lib/obra-localizacao";
+import { NumeroInput } from "@/components/ui/numero-input";
 
 /**
  * Painel "Editar Obra". A mesma tela serve o painel e o Portal do Empreiteiro
@@ -27,16 +29,11 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
     },
   });
   if (!o) notFound();
-  const [resumo, empreiteiros, progresso, fotos, medicoesGaleria] = await Promise.all([
+  const [resumo, empreiteiros, progresso, galeria] = await Promise.all([
     carregarResumoObra(id),
     prisma.usuario.findMany({ where: { papel: "empreiteiro", ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
     carregarProgressoObra(id),
-    prisma.obraFoto.findMany({
-      where: { obraId: id },
-      orderBy: [{ tiradaEm: "desc" }, { criadoEm: "desc" }],
-      select: { id: true, medicaoId: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },
-    }),
-    prisma.obraProgressoHistorico.findMany({ where: { obraId: id }, select: { id: true, progresso: true, criadoEm: true } }),
+    carregarGaleriaObra(id),
   ]);
   if (!resumo || !progresso) notFound();
   const tipoProjeto = tipoProjetoObra(o);
@@ -67,8 +64,8 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
         cancelarHref={detalhesHref}
         modoEmpreiteiro={ehEmpreiteiro}
         progresso={progresso}
-        medicoesGaleria={medicoesGaleria.map(m => ({ id: m.id, progresso: Number(m.progresso), criadoEm: m.criadoEm.toISOString() }))}
-        fotos={fotos.map((f) => ({ id: f.id, medicaoId: f.medicaoId, url: `/api/obras/fotos/${f.id}`, legenda: f.legenda, tiradaEm: f.tiradaEm.toISOString(), incluirNoRelatorio: f.incluirNoRelatorio }))}
+        medicoesGaleria={galeria.medicoes}
+        fotos={galeria.fotos}
       >
           <input type="hidden" name="id" value={id} />
 
@@ -138,7 +135,7 @@ export async function EditarObraPagina({ id, modo = "admin" }: { id: string; mod
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Área (m²) *</label>
-              <input name="area" type="number" step="0.01" required defaultValue={o.area ?? ""}
+              <NumeroInput name="area" sufixo="m²" negativo={false} required defaultValue={o.area ?? null}
                 className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
             </div>
             <div className="sm:col-span-2">

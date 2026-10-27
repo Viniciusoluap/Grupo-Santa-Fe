@@ -4,8 +4,11 @@ import { useState, useTransition } from "react";
 import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield } from "lucide-react";
 import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes, alterarPerfilUsuario } from "@/lib/actions/usuarios";
 import { MODULOS_PAINEL } from "@/lib/auth/modulos-lista";
+import { UFS } from "@/lib/engenheiro";
+import { PerfilEngenheiro } from "./perfil-engenheiro";
 
-type Papel = "admin" | "colaborador" | "corretor" | "cliente" | "empreiteiro";
+// Lote 2, correção 04: "engenheiro" é perfil da tela — no acesso é colaborador + perfil profissional.
+type Papel = "admin" | "colaborador" | "engenheiro" | "corretor" | "cliente" | "empreiteiro";
 
 interface Usuario {
   id: string;
@@ -19,6 +22,7 @@ interface Usuario {
   leadId: string | null;
   leadNome: string | null;
   leadTelefone: string | null;
+  engenheiro: boolean;
 }
 
 interface LeadOpcao { id: string; nome: string; email: string | null; telefone: string | null }
@@ -26,6 +30,7 @@ interface LeadOpcao { id: string; nome: string; email: string | null; telefone: 
 const PAPEIS: { value: Papel; label: string; cor: string }[] = [
   { value: "admin",       label: "Admin",       cor: "bg-red-100 text-red-700" },
   { value: "colaborador", label: "Colaborador", cor: "bg-purple-100 text-purple-700" },
+  { value: "engenheiro",  label: "Engenheiro",  cor: "bg-teal-100 text-teal-800" },
   { value: "corretor",    label: "Corretor",    cor: "bg-blue-100 text-blue-700" },
   { value: "cliente",     label: "Cliente",     cor: "bg-green-100 text-green-700" },
   { value: "empreiteiro", label: "Empreiteiro", cor: "bg-amber-100 text-amber-800" },
@@ -60,10 +65,12 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [resetId, setResetId] = useState<string | null>(null);
   const [permissoesId, setPermissoesId] = useState<string | null>(null);
+  const [engenheiroId, setEngenheiroId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
 
-  const filtrados = aba === "todos" ? usuarios : usuarios.filter((u) => u.papel === aba);
+  const perfilDe = (u: Usuario): Papel => (u.engenheiro ? "engenheiro" : (u.papel as Papel));
+  const filtrados = aba === "todos" ? usuarios : usuarios.filter((u) => perfilDe(u) === aba);
 
   function feedback(texto: string) {
     setMsg(texto);
@@ -164,7 +171,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
 
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap border-b border-gray-100 pb-0">
-        {(["todos", "admin", "colaborador", "corretor", "cliente", "empreiteiro"] as const).map((p) => (
+        {(["todos", "admin", "colaborador", "engenheiro", "corretor", "cliente", "empreiteiro"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setAba(p)}
@@ -176,7 +183,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
           >
             {p === "todos" ? "Todos" : PAPEIS.find((x) => x.value === p)?.label}
             <span className="ml-1 text-[10px]">
-              ({p === "todos" ? usuarios.length : usuarios.filter((u) => u.papel === p).length})
+              ({p === "todos" ? usuarios.length : usuarios.filter((u) => perfilDe(u) === p).length})
             </span>
           </button>
         ))}
@@ -192,7 +199,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-[var(--brand-dark)] text-sm">{u.nome}</span>
-                <Badge papel={u.papel} />
+                <Badge papel={perfilDe(u)} />
                 {!u.ativo && <span className="text-[10px] text-red-500 font-bold uppercase">Inativo</span>}
               </div>
               <p className="text-xs text-gray-600 mt-0.5">{u.email}</p>
@@ -215,6 +222,15 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
               >
                 Perfil
               </button>
+              {u.engenheiro && (
+                <button
+                  onClick={() => setEngenheiroId(engenheiroId === u.id ? null : u.id)}
+                  title="Dados do engenheiro (CREA, endereço) e documentos"
+                  className="text-gray-600 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
+                >
+                  Engenheiro
+                </button>
+              )}
               <button
                 onClick={() => setPermissoesId(permissoesId === u.id ? null : u.id)}
                 title="Módulos liberados (só colaborador)"
@@ -244,7 +260,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             {perfilId === u.id && (
               <form onSubmit={(e) => handleAlterarPerfil(e, u.id)} className="w-full flex flex-wrap gap-2 pt-2 border-t border-gray-100 mt-1 items-end">
                 <label className="text-xs font-bold text-gray-500 uppercase">Perfil
-                  <select name="papel" defaultValue={u.papel} className="block mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case">
+                  <select name="papel" defaultValue={perfilDe(u)} className="block mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case">
                     {PAPEIS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </label>
@@ -259,6 +275,9 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <button type="button" onClick={() => setPerfilId(null)} className="text-xs text-gray-600">Fechar</button>
               </form>
             )}
+
+            {/* Lote 2, correção 04: dados profissionais e documentos do engenheiro */}
+            {engenheiroId === u.id && u.engenheiro && <PerfilEngenheiro usuarioId={u.id} />}
 
             {/* Permissões inline */}
             {permissoesId === u.id && u.papel === "colaborador" && (
@@ -357,6 +376,22 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                   <input name="creci" type="text" required placeholder="CRECI do corretor" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
                 </div>
               )}
+              {papelNovo === "engenheiro" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nº do CREA</label>
+                    <input name="crea" type="text" maxLength={40} className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">UF do CREA</label>
+                    <select name="creaUf" defaultValue="" className="w-full border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--brand-yellow)]">
+                      <option value="">—</option>
+                      {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                    </select>
+                  </div>
+                  <p className="col-span-2 text-xs text-gray-500">Engenheiro tem os mesmos acessos do colaborador (módulos abaixo). Endereço, CREAs de outros estados e documentos ficam no botão &quot;Engenheiro&quot; do usuário, depois de criado.</p>
+                </div>
+              )}
               {papelNovo === "cliente" && (
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente do CRM *</label>
@@ -377,7 +412,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                   </select>
                 </div>
               )}
-              {papelNovo === "colaborador" && (
+              {(papelNovo === "colaborador" || papelNovo === "engenheiro") && (
                 <fieldset>
                   <legend className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Módulos liberados</legend>
                   <div className="grid grid-cols-2 gap-1">

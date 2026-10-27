@@ -379,8 +379,8 @@ export async function desvincularPciObra(obraId: string): Promise<Resultado<{ so
 }
 
 /**
- * Pedido de 18/10: depois de salvar a medição (e enviar as fotos), guarda o .xls
- * e o .pdf preenchidos no Google Drive da obra. A medição já está salva; isto
+ * Pedido de 18/10: depois de salvar a medição (e enviar as fotos), guarda o
+ * .pdf preenchido no Google Drive da obra (Lote 02, correção 01: sem .xls). A medição já está salva; isto
  * nunca a desfaz.
  */
 export async function copiarMedicaoNoDrive(medicaoId: string): Promise<Resultado<ResultadoDrive>> {

@@ -2,25 +2,26 @@ import { describe, expect, it, vi } from "vitest";
 import { solicitarComAnexos, DESTINO_MEDICOES, AVISO_EMAIL } from "@/lib/obras/medicao-solicitacao";
 function dependencias() {
   return {
-    gerar: vi.fn(async (formato: "pdf" | "xls") => ({ ok: true as const, nome: `Repactuacao.${formato}`, mime: formato === "pdf" ? "application/pdf" : "application/vnd.ms-excel", bytes: new Uint8Array([1,2,3]) })),
+    gerar: vi.fn(async (formato: "pdf") => ({ ok: true as const, nome: `Repactuacao.${formato}`, mime: "application/pdf", bytes: new Uint8Array([1,2,3]) })),
     reservar: vi.fn(async () => true), enviar: vi.fn(async () => true), concluir: vi.fn(async (_enviado: boolean) => {}),
   };
 }
 describe("solicitação de medição com anexos", () => {
-  it("envia ambos os anexos com bytes e MIME preservados para a empresa solicitada", async () => {
+  it("envia só o PDF (Lote 02, correção 01: sem XLS) com bytes e MIME preservados para a empresa solicitada", async () => {
     const d = dependencias();
     await expect(solicitarComAnexos(d)).resolves.toEqual({ aviso: undefined });
     expect(DESTINO_MEDICOES).toBe("atendimento@prospectaconstrucoes.com");
     expect(d.enviar).toHaveBeenCalledWith([
       { filename: "Repactuacao.pdf", content: Buffer.from([1,2,3]), contentType: "application/pdf" },
-      { filename: "Repactuacao.xls", content: Buffer.from([1,2,3]), contentType: "application/vnd.ms-excel" },
     ]);
+    expect(d.gerar).toHaveBeenCalledTimes(1);
+    expect(d.gerar).toHaveBeenCalledWith("pdf");
     expect(d.concluir).toHaveBeenCalledWith(true);
   });
-  it("não registra nem envia quando falta qualquer anexo", async () => {
+  it("não registra nem envia quando o PDF não pode ser gerado", async () => {
     const d = dependencias();
-    const gerar = vi.fn(async (f: "pdf" | "xls") => f === "xls" ? { ok: false as const, error: "PCI incompatível com XLS" } : d.gerar(f));
-    await expect(solicitarComAnexos({ ...d, gerar })).rejects.toThrow("PCI incompatível");
+    const gerar = vi.fn(async (_f: "pdf") => ({ ok: false as const, error: "PCI ausente" }));
+    await expect(solicitarComAnexos({ ...d, gerar })).rejects.toThrow("PCI ausente");
     expect(d.reservar).not.toHaveBeenCalled(); expect(d.enviar).not.toHaveBeenCalled();
   });
   it("não envia novamente quando outra requisição já reservou a solicitação", async () => {

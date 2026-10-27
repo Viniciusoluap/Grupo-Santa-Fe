@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Loader2, X } from "lucide-react";
 import { editarContrato, excluirContrato } from "@/lib/actions/contratos";
+import { NumeroInput } from "@/components/ui/numero-input";
 
 const TIPOS_CONTRATO = [
   { value: "compra_venda",             label: "Compra e Venda" },
@@ -160,7 +161,7 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
               </Campo>
 
               <Campo label="Valor (R$)">
-                <input name="valor" type="number" step="0.01" defaultValue={contrato.valor} className={inputCls} />
+                <NumeroInput name="valor" prefixo="R$" negativo={false} defaultValue={contrato.valor} className={inputCls} />
               </Campo>
               <Campo label="Vencimento">
                 <input name="vencimento" type="date" defaultValue={contrato.vencimento ?? ""} className={inputCls} />

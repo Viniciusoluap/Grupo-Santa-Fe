@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { lerPercentualDigitado } from "@/lib/financeiro/obra";
-
-// Percentual: ponto é decimal ("2.345" = 2,345%), igual à Prospecta.
-const lerPercentual = (t: string) => lerPercentualDigitado(t) ?? 0;
+import { NumeroInput } from "@/components/ui/numero-input";
 
 interface Props {
   /** Nome do campo no FormData (uso em formulário nativo, como `CurrencyInput`). */
@@ -21,18 +17,13 @@ interface Props {
   disabled?: boolean;
 }
 
-/** Formata um número para exibição no padrão brasileiro, sem o símbolo "%". */
-function formatarCampo(v: number): string {
-  return Number.isFinite(v) && v !== 0 ? v.toLocaleString("pt-BR", { maximumFractionDigits: 4 }) : "";
-}
-
 /**
- * Campo de percentual compartilhado — mesma API/estilo visual do
- * `CurrencyInput`: buffer de texto livre (aceita vírgula), convertido com
- * `lerPercentualDigitado` (ponto = decimal) a cada digitação e reformatado no blur. Funciona tanto em
- * formulários nativos não controlados (via `name`/`defaultValue`, com input
- * oculto para o `FormData`) quanto em estado React controlado (via
- * `value`/`onValueChange`).
+ * Campo de percentual compartilhado — mesma API de antes. Desde 27/10
+ * (correção 21/AD-01) é um wrapper do `NumeroInput`: até 4 casas (exibe no
+ * mínimo 2), ponto digitado/colado é decimal ("2.345" = 2,345%, igual a
+ * `lerPercentualDigitado` e à Prospecta), zero exibido como campo vazio.
+ * Funciona controlado (`value`/`onValueChange`) ou não controlado
+ * (`name`/`defaultValue`, com input oculto para o `FormData`).
  */
 export function PercentInput({
   name,
@@ -44,36 +35,22 @@ export function PercentInput({
   required,
   disabled,
 }: Props) {
-  const inicial = value ?? defaultValue ?? null;
-  const [display, setDisplay] = useState(() => (inicial != null ? formatarCampo(inicial) : ""));
-
-  function handleChange(texto: string) {
-    setDisplay(texto);
-    onValueChange?.(lerPercentual(texto));
-  }
-
-  function handleBlur() {
-    const numero = value ?? lerPercentual(display);
-    setDisplay(formatarCampo(numero));
-  }
-
-  const numeroAtual = value ?? lerPercentual(display);
-
+  const modo = value != null ? { value } : { defaultValue: defaultValue ?? null };
   return (
-    <div className="relative">
-      <input
-        type="text"
-        inputMode="decimal"
-        placeholder={placeholder}
-        value={display}
-        onChange={(e) => handleChange(e.target.value)}
-        onBlur={handleBlur}
-        required={required}
-        disabled={disabled}
-        className={`pr-7 ${className}`}
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">%</span>
-      {name && <input type="hidden" name={name} value={String(numeroAtual)} />}
-    </div>
+    <NumeroInput
+      {...modo}
+      name={name}
+      valorOcultoVazio="0"
+      onChange={(v) => onValueChange?.(v ?? 0)}
+      sufixo="%"
+      casas={4}
+      casasMinimas={2}
+      pontoDecimal
+      vazioQuandoZero
+      placeholder={placeholder}
+      className={className}
+      required={required}
+      disabled={disabled}
+    />
   );
 }

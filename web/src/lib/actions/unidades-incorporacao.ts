@@ -2,6 +2,7 @@
 
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { capturarErroAcao } from "@/lib/acao-resultado";
+import { sincronizarUnidadesCenario } from "@/lib/incorporacao/unidades-cenario-db";
 import { prisma } from "@/lib/db";
 import { chaveUnidade, vendasLegadas } from "@/lib/incorporacao/unidades";
 import { revalidatePath } from "next/cache";
@@ -13,7 +14,6 @@ async function admin() {
 
 function validarEstudo(estudo: { tipoIncorporacao: string | null; lancamentoImobiliarioJson: string | null } | null) {
   if (!estudo) throw new Error("Estudo não encontrado.");
-  if (estudo.tipoIncorporacao !== "desmembramento_simples") throw new Error("Inventário exclusivo de Desmembramento Simples.");
   return estudo;
 }
 
@@ -21,7 +21,7 @@ async function listarUnidadesImpl(estudoId: string) {
   await admin();
   const estudo = validarEstudo(await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { tipoIncorporacao: true, lancamentoImobiliarioJson: true } }));
   const [unidades, eventos] = await Promise.all([
-    prisma.estudoUnidade.findMany({ where: { estudoId }, orderBy: { codigo: "asc" } }),
+    prisma.estudoUnidade.findMany({ where: { estudoId, excluidoEm: null }, orderBy: { codigo: "asc" } }),
     prisma.estudoUnidadeEvento.findMany({ where: { unidade: { estudoId }, vendaLegadaId: { not: null } }, select: { vendaLegadaId: true } }),
   ]);
   const legacy = vendasLegadas(estudo.lancamentoImobiliarioJson);
@@ -58,11 +58,11 @@ async function mudarEstadoUnidadeImpl(estudoId: string, unidadeId: string, acao:
     const done = await tx.estudoUnidadeEvento.findMany({ where: { unidade: { estudoId }, vendaLegadaId: { not: null } }, select: { vendaLegadaId: true } });
     const reconciled = new Set(done.map((e) => e.vendaLegadaId));
     if (legacy.vendas.some((v) => !reconciled.has(v.id))) throw new Error("Concilie as vendas históricas antes de alterar o inventário.");
-    const atual = await tx.estudoUnidade.findFirst({ where: { id: unidadeId, estudoId }, select: { status: true } });
+    const atual = await tx.estudoUnidade.findFirst({ where: { id: unidadeId, estudoId, excluidoEm: null }, select: { status: true } });
     if (!atual) throw new Error("Unidade não encontrada.");
     const estados = acao === "reservar" ? ["disponivel"] : acao === "vender" ? ["disponivel", "reservada"] : ["reservada"];
     const proximo = acao === "reservar" ? "reservada" : acao === "vender" ? "vendida" : "disponivel";
-    const result = await tx.estudoUnidade.updateMany({ where: { id: unidadeId, estudoId, status: { in: estados } },
+    const result = await tx.estudoUnidade.updateMany({ where: { id: unidadeId, estudoId, excluidoEm: null, status: { in: estados } },
       data: { status: proximo, comprador: acao === "vender" ? buyer : null, valorVenda: acao === "vender" ? valor : null } });
     if (result.count !== 1) throw new Error("A unidade foi alterada em outra sessão. Atualize a lista.");
     await tx.estudoUnidadeEvento.create({ data: { unidadeId, statusAnterior: atual.status, statusNovo: proximo,
@@ -106,4 +106,56 @@ export async function mudarEstadoUnidade(estudoId: string, unidadeId: string, ac
 
 export async function conciliarVendaLegada(estudoId: string, vendaId: string, tipo: string) {
   return capturarErroAcao(() => conciliarVendaLegadaImpl(estudoId, vendaId, tipo));
+}
+
+export async function clientesUnidades(query = "") {
+  return capturarErroAcao(async () => {
+    await admin(); await exigirModuloAcao("crm");
+    const clientes = await prisma.lead.findMany({ where: { excluidoEm: null, ...(query ? { nome: { contains: query.slice(0, 120), mode: "insensitive" as const } } : {}) }, select: { id: true, nome: true, telefone: true, valorNegociado: true }, orderBy: { nome: "asc" }, take: 200 });
+    return clientes.map(c => ({...c, valorNegociado: c.valorNegociado?.toString() ?? null}));
+  });
+}
+export async function sincronizarUnidades(estudoId: string) {
+  return capturarErroAcao(async () => { const u = await admin(); const r = await sincronizarUnidadesCenario(estudoId, u); revalidatePath(`/admin/incorporacao/${estudoId}`); return r; });
+}
+export async function editarUnidade(estudoId: string, unidadeId: string, d: { status: "disponivel" | "reservada" | "vendida"; comprador: string | null; compradorLeadId: string | null; valor: string | null; revisao: number }) {
+  return capturarErroAcao(async () => {
+    const usuarioId = await admin();
+    if (!["disponivel", "reservada", "vendida"].includes(d.status)) throw new Error("Status inválido.");
+    if (d.valor !== null && (!/^\d{1,13}(\.\d{1,2})?$/.test(d.valor) || Number(d.valor) <= 0)) throw new Error("Valor inválido.");
+    if (!Number.isInteger(d.revisao) || d.revisao < 0) throw new Error("Versão inválida.");
+    const legacy = await listarUnidadesImpl(estudoId);
+    if (legacy.legacyInvalid || legacy.legacyPending.length) throw new Error("Concilie as vendas históricas antes de alterar o inventário.");
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM estudos_incorporacao WHERE id = ${estudoId} FOR UPDATE`;
+      const atual = await tx.estudoUnidade.findFirst({ where: { id: unidadeId, estudoId, excluidoEm: null } });
+      if (!atual) throw new Error("Unidade não encontrada.");
+      if (atual.status === "vendida" && d.status !== "vendida") throw new Error("Venda concluída só permite corrigir comprador e valor. Revise os vínculos comerciais para desfazer a venda.");
+      let comprador = d.comprador?.trim().slice(0, 255) || null;
+      if (d.compradorLeadId) {
+        await exigirModuloAcao("crm");
+        const lead = await tx.lead.findFirst({ where: { id: d.compradorLeadId, excluidoEm: null }, select: { nome: true } });
+        if (!lead) throw new Error("Cliente do CRM não encontrado."); comprador = lead.nome;
+      }
+      if (d.status === "vendida" && (!comprador || !d.valor)) throw new Error("Informe comprador e valor para vender.");
+      const r = await tx.estudoUnidade.updateMany({ where: { id: unidadeId, estudoId, excluidoEm: null, revisao: d.revisao }, data: { status: d.status, comprador, compradorLeadId: d.compradorLeadId, valorVenda: d.valor } });
+      if (r.count !== 1) throw new Error("A unidade mudou em outra sessão. Atualize antes de salvar.");
+      await tx.estudoUnidadeEvento.create({ data: { unidadeId, statusAnterior: atual.status, statusNovo: d.status, comprador, valorVenda: d.valor, usuarioId } });
+    });
+    revalidatePath(`/admin/incorporacao/${estudoId}`); return { ok: true };
+  });
+}
+export async function excluirUnidade(estudoId: string, unidadeId: string) {
+  return capturarErroAcao(async () => {
+    const usuarioId = await admin();
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM estudos_incorporacao WHERE id = ${estudoId} FOR UPDATE`;
+      const comercial = await tx.estudoUnidadeEvento.findFirst({ where: { unidadeId, statusNovo: { in: ["reservada", "vendida"] } }, select: { id: true } });
+      if (comercial) throw new Error("Exclusão bloqueada: há histórico comercial. Revise reservas, vendas e documentos vinculados.");
+      const r = await tx.estudoUnidade.updateMany({ where: { id: unidadeId, estudoId, excluidoEm: null, status: "disponivel" }, data: { excluidoEm: new Date() } });
+      if (r.count !== 1) throw new Error("Exclusão bloqueada: unidade reservada, vendida, excluída ou alterada em outra sessão.");
+      await tx.estudoUnidadeEvento.create({ data: { unidadeId, statusAnterior: "disponivel", statusNovo: "excluida", usuarioId } });
+    });
+    revalidatePath(`/admin/incorporacao/${estudoId}`); return { ok: true };
+  });
 }

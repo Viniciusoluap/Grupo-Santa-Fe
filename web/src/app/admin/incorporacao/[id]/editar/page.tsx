@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { editarEstudo } from "@/lib/actions/incorporacao";
 import { BackButton } from "@/components/ui/back-button";
 import { SeletorLocalizacao } from "../../_components/seletor-localizacao";
-import { CadastroFormalFields } from "../../_components/cadastro-formal-fields";
+import { SeletorResponsavel } from "../../_components/seletor-responsavel";
+import { listarResponsaveisEstudo } from "@/lib/incorporacao/responsaveis";
 import { SITUACOES_ESTUDO, situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 import { TIPOS_INCORPORACAO, tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
 
@@ -18,6 +19,7 @@ export default async function EditarEstudoPage({
   const { id } = await params;
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id } });
   if (!estudo) notFound();
+  const responsaveis = await listarResponsaveisEstudo(estudo.responsavelId);
 
   return (
     <div className="space-y-5 max-w-xl">
@@ -37,7 +39,7 @@ export default async function EditarEstudoPage({
           </select>
         </div>
         <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome do estudo *</label>
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome do empreendimento *</label>
           <input name="nome" required defaultValue={estudo.nome}
             className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
         </div>
@@ -64,11 +66,7 @@ export default async function EditarEstudoPage({
             enderecoInicial={estudo.endereco ?? ""}
           />
         </div>
-        <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Responsável</label>
-          <input name="responsavel" defaultValue={estudo.responsavel ?? ""} placeholder="Opcional"
-            className="w-full text-sm border border-gray-200 px-3 py-2 focus:outline-none focus:border-[var(--brand-yellow)]" />
-        </div>
+        <SeletorResponsavel opcoes={responsaveis} atualId={estudo.responsavelId} textoLegado={estudo.responsavel} />
         <div>
           <label htmlFor="situacao-estudo" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Situação *</label>
           <select id="situacao-estudo" name="status" required defaultValue={situacaoEstudoValida(estudo.status) ? estudo.status : ""}
@@ -77,8 +75,6 @@ export default async function EditarEstudoPage({
             {SITUACOES_ESTUDO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </div>
-        <CadastroFormalFields matriculaImovel={estudo.matriculaImovel} carRegistro={estudo.carRegistro}
-          zoneamentoOficial={estudo.zoneamentoOficial} zoneamentoFonte={estudo.zoneamentoFonte} />
         <button type="submit"
           className="text-xs font-bold px-5 py-2.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 transition-opacity">
           Salvar alterações

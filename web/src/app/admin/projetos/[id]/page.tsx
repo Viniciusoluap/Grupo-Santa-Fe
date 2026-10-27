@@ -9,6 +9,7 @@ import ProjetoDetailClient from "./_components/projeto-detail-client";
 import { exibirDiaPrazoProjeto } from "@/lib/projetos-prazo";
 import ProjetoRevisoes from "./_components/projeto-revisoes";
 import { lerEntregas } from "@/lib/projeto-revisao";
+import { rotuloStatusAprovacao } from "@/lib/incorporacao/projeto-sincronizacao";
 
 interface PageProps { params: Promise<{ id: string }>; searchParams?: Promise<{ solicitarRevisao?: string }> }
 
@@ -16,7 +17,7 @@ export default async function ProjetoDetailPage({ params, searchParams }: PagePr
   await exigirModuloPagina("projetos");
 
   const { id } = await params;
-  const p = await prisma.projeto.findUnique({ where: { id } });
+  const p = await prisma.projeto.findUnique({ where: { id }, include: { estudoIncorporacao: { select: { id: true, nome: true } } } });
   if (!p) notFound();
   const revisoes = await prisma.projetoRevisao.findMany({ where: { projetoId: id }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }] });
   const abrirPedido = (await searchParams)?.solicitarRevisao === "1";
@@ -107,6 +108,27 @@ export default async function ProjetoDetailPage({ params, searchParams }: PagePr
               </a>
             </div>
           </div>
+
+          {/* Correção 07: processo de Incorporação › Projeto Aprovado */}
+          {p.estudoIncorporacao && (
+            <div className="bg-white border border-sky-100 p-5">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Aprovação externa (Incorporação)</p>
+              {[
+                { label: "Órgão", value: p.aprovacaoOrgao || "—" },
+                { label: "Protocolo", value: p.aprovacaoProtocolo || "—" },
+                { label: "Situação", value: p.processoAprovacaoId ? rotuloStatusAprovacao(p.aprovacaoStatus) : "Processo excluído na Incorporação" },
+                { label: "Observações", value: p.aprovacaoObservacoes || "—" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0 gap-2">
+                  <span className="text-xs text-gray-500 shrink-0">{item.label}</span>
+                  <span className="text-xs text-right whitespace-pre-line">{item.value}</span>
+                </div>
+              ))}
+              <Link href={`/admin/incorporacao/${p.estudoIncorporacao.id}`} className="mt-3 block text-xs font-bold underline">
+                Abrir o estudo: {p.estudoIncorporacao.nome}
+              </Link>
+            </div>
+          )}
 
           {/* Info */}
           <div className="bg-white border border-gray-100 p-5">

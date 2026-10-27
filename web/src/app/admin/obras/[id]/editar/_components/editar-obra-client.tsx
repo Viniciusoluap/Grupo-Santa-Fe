@@ -10,6 +10,7 @@ import { ProgressoObra } from "./progresso-obra";
 import type { MedicaoGaleria } from "@/lib/obras/galeria-medicoes";
 import { FotosObra, type FotoObra } from "./fotos-obra";
 import { RelatorioObraBotao } from "./relatorio-obra-botao";
+import { GeradorPci } from "@/components/obras/gerador-pci";
 import { Custos, ValoresOperacao, calcularAoVivo, formInicial, inputCls, labelCls, type FormFinanceiro } from "./financeiro-obra";
 
 type Aba = "info" | "valores" | "custos" | "progresso" | "fotos" | "relatorios";
@@ -18,7 +19,9 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "valores", label: "Valores da Operação" },
   { id: "custos", label: "Custos" },
   { id: "progresso", label: "Progresso" },
-  { id: "fotos", label: "Fotos" },
+  // Lote 02, correção 03: "Fotos" virou "Gerador de PCI" (a galeria por medição continua
+  // em Detalhes da Obra e logo abaixo do gerador). Para o empreiteiro segue "Fotos" (só galeria).
+  { id: "fotos", label: "Gerador de PCI" },
   { id: "relatorios", label: "Relatórios" },
 ];
 // Progresso, Fotos e Relatórios gravam por conta própria (fora do formulário).
@@ -76,12 +79,13 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
         {ABAS.map((a) => (
           <button key={a.id} type="button" role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
             className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${aba === a.id ? "border-b-2 border-[var(--brand-yellow)] text-[var(--brand-dark)]" : "text-gray-600"}`}>
-            {a.label}
+            {modoEmpreiteiro && a.id === "fotos" ? "Fotos" : a.label}
           </button>
         ))}
       </div>
 
       {aba === "progresso" && <ProgressoObra obraId={resumo.obra.id} dados={progresso} />}
+      {aba === "fotos" && !modoEmpreiteiro && <GeradorPci obraId={resumo.obra.id} />}
       {aba === "fotos" && <FotosObra fotos={fotos} medicoes={medicoesGaleria} />}
       {aba === "relatorios" && <RelatorioObraBotao obraId={resumo.obra.id} />}
 

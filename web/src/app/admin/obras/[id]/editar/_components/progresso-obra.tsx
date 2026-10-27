@@ -102,11 +102,11 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
         router.refresh(); return;
       }
       fotosNovas.forEach(f => URL.revokeObjectURL(f.previa)); setFotosNovas([]);
-      // Pedido de 18/10: cópia preenchida (.xls/.pdf) no Google Drive da obra.
+      // Pedido de 18/10: cópia preenchida (.pdf; Lote 02 sem .xls) no Google Drive da obra.
       const drive = id && dados.pci ? await copiarMedicaoNoDrive(id).catch(() => null) : null;
-      const notaDrive = !drive ? "" : drive.ok && drive.drive === "ok" ? " Arquivos .xls e .pdf salvos no Google Drive da obra."
-        : drive.ok && drive.drive === "indisponivel" ? " Google Drive não conectado: baixe os arquivos pelos botões da medição."
-        : " Não foi possível copiar para o Google Drive agora: baixe os arquivos pelos botões da medição.";
+      const notaDrive = !drive ? "" : drive.ok && drive.drive === "ok" ? " Arquivo .pdf salvo no Google Drive da obra."
+        : drive.ok && drive.drive === "indisponivel" ? " Google Drive não conectado: baixe o arquivo pelo botão da medição."
+        : " Não foi possível copiar para o Google Drive agora: baixe o arquivo pelo botão da medição.";
       setMensagem({ tipo: "ok", texto: `Medição salva.${notaDrive}` }); setUltimaSalva(id); setEditando(null);
       setVersaoFormulario(v => v + 1);
       // Após salvar, já usar as datas desta medição na próxima, sem aguardar o refresh.
@@ -281,8 +281,8 @@ export function ProgressoObra({ obraId, dados }: { obraId: string; dados: Progre
                   <div className="flex min-w-0 flex-wrap items-start gap-3 lg:col-span-2">
                     {dados.pci && <BotoesArquivosMedicao medicaoId={h.id} />}
                     <div className="min-w-0">
-                    {h.emailStatus && <p className="text-xs text-gray-500">E-mail: {h.emailStatus === "sent" ? "enviado com PDF e XLS" : h.emailStatus === "failed" ? "falhou — tente reenviar" : h.emailStatus === "pending" ? "alterações pendentes de envio" : "processando"}</p>}
-                    {h.emailPodeReenviar && <button type="button" disabled={pendente} onClick={() => acao(() => solicitarMedicao(h.id), "E-mail enviado com PDF e XLS.")} className="text-sm underline">{h.emailStatus === "pending" ? "Enviar versão atualizada" : "Reenviar e-mail"}</button>}
+                    {h.emailStatus && <p className="text-xs text-gray-500">E-mail: {h.emailStatus === "sent" ? "enviado" : h.emailStatus === "failed" ? "falhou — tente reenviar" : h.emailStatus === "pending" ? "alterações pendentes de envio" : "processando"}</p>}
+                    {h.emailPodeReenviar && <button type="button" disabled={pendente} onClick={() => acao(() => solicitarMedicao(h.id), "E-mail enviado com o PDF.")} className="text-sm underline">{h.emailStatus === "pending" ? "Enviar versão atualizada" : "Reenviar e-mail"}</button>}
                     {h.solicitadaEm ? (
                       <p className="text-xs text-amber-800"><Send size={12} className="mr-1 inline" />Solicitada em {dataHora(h.solicitadaEm)}{h.solicitadaPor ? ` por ${h.solicitadaPor}` : ""}</p>
                     ) : (

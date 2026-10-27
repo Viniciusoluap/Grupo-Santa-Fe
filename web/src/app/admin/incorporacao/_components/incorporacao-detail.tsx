@@ -1,5 +1,6 @@
 "use client";
 
+import "./incorporacao-workspace.css";
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { TerrenoTab } from "./terreno-tab";
@@ -41,6 +42,7 @@ import { orcamentoObraPreenchidoDoJson } from "@/lib/incorporacao/orcamento-obra
 import { obraConcluidaDoJson } from "@/lib/incorporacao/cronograma-obra";
 import { atendimentoTodosConcluidosDoJson } from "@/lib/incorporacao/atendimento-clientes";
 import { UnidadesTab } from "./unidades-tab";
+import { terrenoLiberado } from "@/lib/incorporacao/lotes-avulsos";
 
 export interface EstudoData {
   id: string;
@@ -51,6 +53,11 @@ export interface EstudoData {
   tipoIncorporacao?: string | null;
   dueDiligenceJson?: string | null;
   responsavel: string | null;
+  /** Correção 08: responsável por ID de usuário (o texto acima é o legado/exibição). */
+  responsavelId?: string | null;
+  /** Correção 06 (AD-03): estudo sem KML + lotes avulsos (JSON). */
+  semKml?: boolean;
+  lotesAvulsosJson?: string | null;
   versaoNumero?: number | null;
   colaboradores?: { id: string; nome: string }[];
   matriculaImovel?: string | null;
@@ -149,7 +156,7 @@ const FASES: Fase[] = [
     numero: 2,
     titulo: "Novos Negócios",
     etapas: [
-      { id: "terreno", numero: "2.1", titulo: "Documentos do Terreno", componente: TerrenoTab, concluida: (e) => !!e.geojson },
+      { id: "terreno", numero: "2.1", titulo: "Documentos do Terreno", componente: TerrenoTab, concluida: (e) => !!e.geojson || (!!e.semKml && !!e.lotesAvulsosJson && e.lotesAvulsosJson !== "[]") },
       { id: "topografia", numero: "2.1", titulo: "Topografia 3D", componente: TopografiaTab, concluida: (e) => !!e.elevacaoJson },
       { id: "mercado", numero: "2.2", titulo: "Inteligência de Mercado", componente: MercadoTab, concluida: (e) => !!e.pesquisaCidadeJson || !!e.estudoMercadoJson || !!e.precificacaoComparaveisJson || pesquisaPrimariaPreenchidaDoJson(e.pesquisaPrimariaJson) },
       { id: "massa", numero: "2.3", titulo: "Estudo de Massa e Quadro de Áreas", componente: MassaTab, concluida: (e) => !!e.massaCenariosJson },
@@ -330,7 +337,8 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
     alteradoRef.current = true;
     setTimeout(() => setAlterado(true), 0);
   };
-  const temTerreno = !!estudo.geojson;
+  // Correção 06: com KML ou com "não possui KML", as etapas dependentes do terreno ficam liberadas.
+  const temTerreno = terrenoLiberado(estudo);
 
   const progresso = useMemo(() => calcularProgresso(estudo), [estudo]);
 
@@ -342,19 +350,23 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
   }, [alterado]);
 
   return (
-    <div>
+    <div className="incorporacao-workspace">
+      <header className="incorporacao-intro flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Desenvolvimento imobiliário</p><h2 className="mt-1 break-words text-xl font-black">{estudo.nome}</h2><p className="mt-1 text-sm text-gray-600">{estudo.municipio}/{estudo.estado}{estudo.responsavel ? ` · ${estudo.responsavel}` : ""}</p></div>
+        <span className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold">{progresso.geral.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% concluído</span>
+      </header>
       {/* Progresso — auto-computado, sem checklist manual */}
       <div className="bg-white border border-gray-100 p-3 mb-3">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Progresso do estudo</p>
           <p className="text-xs font-black text-[var(--brand-dark)]">{progresso.geral}% concluído</p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {FASES.map((f, i) => {
             const pf = progresso.porFase[i];
             return (
               <div key={f.id} className="flex-1 min-w-0">
-                <div className="h-1.5 bg-gray-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
                   <div className="h-full bg-[var(--brand-yellow)] transition-all" style={{ width: `${pf.pct}%` }} />
                 </div>
                 <p className="text-[9px] text-gray-600 mt-1 truncate">{f.numero}. {f.titulo} ({pf.concluidas}/{pf.total})</p>
@@ -404,8 +416,8 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
       <div className="pt-5" onInputCapture={marcarAlterado} onChangeCapture={marcarAlterado}>
         <div hidden={relatorioAtivo || etapaId !== "dados"} className="bg-white border border-gray-100 p-4 text-sm">
           <h2 className="font-bold text-[var(--brand-dark)] mb-2">Dados Gerais</h2>
-          <p>{estudo.nome} · {estudo.municipio}/{estudo.estado}</p>
-          <p>Responsável: {estudo.responsavel || "Não informado"}</p>
+          <p><span className="text-gray-600">Nome do empreendimento:</span> {estudo.nome} · {estudo.municipio}/{estudo.estado}</p>
+          <p><span className="text-gray-600">Responsável:</span> {estudo.responsavel || "Não informado"}</p>
           <Link href={`/admin/incorporacao/${estudo.id}/editar`} className="inline-block mt-3 font-bold underline text-[var(--brand-dark)]">Editar dados gerais</Link>
         </div>
         {estudo.tipoIncorporacao === "desmembramento_simples" && <div hidden={relatorioAtivo || etapaId !== "diligencia"}><DueDiligenceTab estudoId={estudo.id} json={estudo.dueDiligenceJson ?? null} /></div>}
@@ -417,7 +429,7 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
         {visitados.includes("relatorio") && <div hidden={!relatorioAtivo}><RelatorioTab estudo={estudo} /></div>}
       </div>
       {!temTerreno && etapaId !== "terreno" && etapaId !== "dados" && (
-        <p className="text-xs text-gray-500 mt-3">Envie o KML do terreno para habilitar as análises.</p>
+        <p className="text-xs text-gray-500 mt-3">Envie o KML do terreno ou marque &quot;Este empreendimento não possui KML&quot; na aba Terreno para habilitar as análises.</p>
       )}
     </div>
   );

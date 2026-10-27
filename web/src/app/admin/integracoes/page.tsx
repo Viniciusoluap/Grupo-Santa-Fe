@@ -7,6 +7,7 @@ import { destinoDoUsuario, usuarioAtual } from "@/lib/auth/modulos";
 import { podeAdministrarSeguranca } from "@/lib/perfis-acesso";
 import { statusIntegracoes } from "@/lib/integracoes";
 import { IntegracoesClient } from "./_components/integracoes-client";
+import { SubPciAtual } from "@/components/admin/sub-pci-atual";
 
 // LOTE B (25/10): Configurações › Integrações — Asaas, Pluggy e WhatsApp (Evolution) num lugar só.
 // Só o admin (igual a Configurações). Gêmeo de Prospecta/client/src/pages/admin/AdminIntegracoes.tsx.
@@ -28,6 +29,7 @@ export default async function IntegracoesPage() {
         </div>
       </div>
       <IntegracoesClient inicial={status} />
+      <SubPciAtual />
     </div>
   );
 }

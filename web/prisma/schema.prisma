@@ -86,6 +86,7 @@ model ImovelRecusadoAviso {
 // ─── LEADS / CRM ─────────────────────────────────────────────────────────────
 
 model Lead {
+  unidadesCompradas EstudoUnidade[] @relation("CompradorUnidade")
   id                   String          @id @default(cuid())
   vencimentoCard       DateTime?       @db.Date
   nome                 String
@@ -112,6 +113,7 @@ model Lead {
   orcamento            Float?
   // Pedido de 15/10: Valor Aprovado do cliente; é o VGV das obras dele (fonte única).
   valorAprovado        Decimal?        @db.Decimal(15, 2)
+  valorNegociado       Decimal?        @db.Decimal(15, 2)
   notas                String          @default("")
   senhaAcesso          String?
   interacoes           Interacao[]
@@ -388,6 +390,9 @@ model Obra {
   progressoMedido                 Decimal?                 @db.Decimal(9, 6)
   pci                             ObraPci?
   pciVersoes                      ObraPciVersao[]
+  /// Lote 2, correção 03: Gerador de PCI (rascunho e PCIs geradas).
+  pciRascunho                     PciGeradorRascunho?
+  pciGeradas                      PciGerada[]
   progressoItens                  ObraProgressoItem[]
   progressoHistorico              ObraProgressoHistorico[]
   fotos                           ObraFoto[]
@@ -456,10 +461,21 @@ model Projeto {
   arquivos           String           @default("[]")
   checklist          String           @default("[]")
   revisoes           ProjetoRevisao[]
+  /// Lote 2, correção 07: projeto gerado por um processo de Incorporação › Projeto Aprovado.
+  /// Chave única (estudo, processo) → upsert, nunca duplica.
+  estudoIncorporacaoId String?
+  estudoIncorporacao   EstudoIncorporacao? @relation("ProjetoEstudoIncorporacao", fields: [estudoIncorporacaoId], references: [id], onDelete: SetNull)
+  processoAprovacaoId  String?          @db.VarChar(100)
+  /// Situação de aprovação externa (órgão) — separada do andamento técnico em `status`.
+  aprovacaoOrgao       String?          @db.VarChar(120)
+  aprovacaoProtocolo   String?          @db.VarChar(120)
+  aprovacaoStatus      String?          @db.VarChar(30)
+  aprovacaoObservacoes String?
   criadoEm           DateTime         @default(now())
   atualizadoEm       DateTime         @updatedAt
 
   @@unique([servicoLeadId, leadId])
+  @@unique([estudoIncorporacaoId, processoAprovacaoId])
   @@map("projetos")
 }
 
@@ -894,6 +910,13 @@ model Usuario {
   eventosUnidadesIncorporacao EstudoUnidadeEvento[]
   imoveisCadastrados          Imovel[]              @relation("ImovelCadastradoPor")
   avisosImovelRecusado        ImovelRecusadoAviso[]
+  /// Lote 2, correção 04: perfil Engenheiro (colaborador + dados profissionais) e documentos.
+  estudosResponsavel          EstudoIncorporacao[]  @relation("EstudoResponsavel")
+  estudosMassaCriados         EstudoMassaSalvo[]    @relation("EstudoMassaAutor")
+  estudosMassaExcluidos       EstudoMassaSalvo[]    @relation("EstudoMassaExcluidoPor")
+  perfilEngenheiro            PerfilEngenheiro?
+  documentosUsuario           DocumentoUsuario[]    @relation("DocumentoDoUsuario")
+  documentosUsuarioEnviados   DocumentoUsuario[]    @relation("DocumentoEnviadoPor")
 
   @@map("usuarios")
 }
@@ -1096,22 +1119,32 @@ model ResumoVencimentoCard {
 // ─── INCORPORAÇÃO (estudos de viabilidade / massa / topografia / urbanístico) ──
 
 model EstudoIncorporacao {
-  id                String          @id @default(cuid())
-  nome              String
-  municipio         String
-  estado            String          @default("PA")
-  endereco          String? // endereço/logradouro (opcional)
-  latitude          Float? // localização exata (Google Maps)
-  longitude         Float?
-  responsavel       String?
-  status            String          @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
-  tipoIncorporacao  String? // legado NULL: não inferir tipo pelo nome ou pelo status
-  dueDiligenceJson  String?
-  unidades          EstudoUnidade[]
-  matriculaImovel   String?
-  carRegistro       String?
-  zoneamentoOficial String?
-  zoneamentoFonte   String?
+  id                 String             @id @default(cuid())
+  nome               String
+  municipio          String
+  estado             String             @default("PA")
+  endereco           String? // endereço/logradouro (opcional)
+  latitude           Float? // localização exata (Google Maps)
+  longitude          Float?
+  responsavel        String?
+  /// Lote 2, correção 08: responsável por ID (o texto `responsavel` é o legado/exibição).
+  responsavelId      String?
+  responsavelUsuario Usuario?           @relation("EstudoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  /// Lote 2, correção 06 (AD-03): empreendimento sem KML + lotes avulsos (JSON).
+  semKml             Boolean            @default(false)
+  lotesAvulsosJson   String?
+  /// Lote 2, correção 11 (AD-04): estudos de massa salvos (o principal é espelhado em massaCenariosJson/cenarioEscolhidoId/mixJson).
+  estudosMassa       EstudoMassaSalvo[]
+  /// Correção 07: projetos gerados pelos processos do Projeto Aprovado.
+  projetosAprovacao  Projeto[]       @relation("ProjetoEstudoIncorporacao")
+  status             String             @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
+  tipoIncorporacao   String? // legado NULL: não inferir tipo pelo nome ou pelo status
+  dueDiligenceJson   String?
+  unidades           EstudoUnidade[]
+  matriculaImovel    String?
+  carRegistro        String?
+  zoneamentoOficial  String?
+  zoneamentoFonte    String?
 
   // Terreno / geometria
   imovelId   String?
@@ -1224,6 +1257,36 @@ model EstudoIncorporacao {
   @@map("estudos_incorporacao")
 }
 
+/// Lote 2, correção 11 (AD-04): estudo de massa salvo (versões, cenários, poligonal de
+/// referência, indicadores, quadro de áreas, autor, exclusão lógica).
+model EstudoMassaSalvo {
+  id                  String             @id @default(cuid())
+  estudoId            String
+  estudo              EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  nome                String             @db.VarChar(120)
+  versao              Int                @default(1)
+  origemId            String?
+  origem              EstudoMassaSalvo?  @relation("EstudoMassaOrigem", fields: [origemId], references: [id], onDelete: SetNull)
+  derivados           EstudoMassaSalvo[] @relation("EstudoMassaOrigem")
+  parametrosJson      String?
+  cenariosJson        String
+  poligonalReferencia String?
+  cenarioEscolhidoId  String?            @db.VarChar(120)
+  indicadoresJson     String?
+  quadroAreasJson     String?
+  principal           Boolean            @default(false)
+  criadoPorId         String?
+  criadoPor           Usuario?           @relation("EstudoMassaAutor", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  criadoEm            DateTime           @default(now())
+  atualizadoEm        DateTime           @updatedAt
+  excluidoEm          DateTime?
+  excluidoPorId       String?
+  excluidoPor         Usuario?           @relation("EstudoMassaExcluidoPor", fields: [excluidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([estudoId])
+  @@map("estudos_massa_salvos")
+}
+
 // Snapshots imutáveis a cada alteração do estudo, preservados inclusive após
 // exclusão do registro principal. Criados por trigger no banco.
 model EstudoIncorporacaoVersao {
@@ -1274,6 +1337,12 @@ model EstudoUnidade {
   codigoChave  String                @db.VarChar(120)
   tipo         String                @db.VarChar(40)
   status       String                @default("disponivel") @db.VarChar(20)
+  compradorLeadId String?
+  compradorLead Lead? @relation("CompradorUnidade", fields: [compradorLeadId], references: [id], onDelete: SetNull)
+  revisao Int @default(0)
+  origemChave String? @db.VarChar(255)
+  cenarioId String? @db.VarChar(120)
+  excluidoEm DateTime?
   comprador    String?               @db.VarChar(255)
   valorVenda   Decimal?              @db.Decimal(15, 2)
   criadoEm     DateTime              @default(now())
@@ -1522,6 +1591,59 @@ model ObraPci {
   @@map("obra_pci")
 }
 
+// ─── Lote 2, correção 03 (AD-06): Gerador de PCI ─────────────────────────────
+
+/// Modelo oficial da PCI (CAIXA), versionado. No máximo um `atual` (índice parcial na migração).
+model PciModelo {
+  id           String      @id @default(cuid())
+  versao       Int         @unique
+  nome         String      @db.VarChar(255)
+  formato      String      @db.VarChar(5)
+  tamanho      Int
+  hash         String      @db.VarChar(64)
+  dados        Bytes
+  atual        Boolean     @default(false)
+  observacao   String?
+  enviadoPorId String?
+  enviadoEm    DateTime    @default(now())
+  geradas      PciGerada[]
+
+  @@map("pci_modelos")
+}
+
+/// Rascunho do formulário do Gerador de PCI (um por obra).
+model PciGeradorRascunho {
+  obraId          String   @id
+  obra            Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  dados           Json     @db.JsonB
+  atualizadoPorId String?
+  atualizadoEm    DateTime @default(now())
+
+  @@map("pci_gerador_rascunhos")
+}
+
+/// PCI gerada (histórico por obra): dados do formulário, planilha e PDF.
+model PciGerada {
+  id              String     @id @default(cuid())
+  obraId          String
+  obra            Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  modeloId        String?
+  modelo          PciModelo? @relation(fields: [modeloId], references: [id], onDelete: SetNull)
+  modeloVersao    Int
+  dados           Json       @db.JsonB
+  avisos          Json       @default("[]") @db.JsonB
+  planilhaNome    String     @db.VarChar(255)
+  planilhaFormato String     @db.VarChar(5)
+  planilha        Bytes
+  pdfNome         String     @db.VarChar(255)
+  pdf             Bytes
+  criadoPorId     String?
+  criadoEm        DateTime   @default(now())
+
+  @@index([obraId, criadoEm])
+  @@map("pci_geradas")
+}
+
 // Checklist pessoal do CRM; preferências existem mesmo antes da solicitação.
 model DocumentoCliente {
   id                String    @id @default(cuid())
@@ -1551,4 +1673,50 @@ model DocumentoClienteVersao {
 
   @@index([leadId, itemId])
   @@map("documentos_cliente_versoes")
+}
+
+// ─── Lote 2, correção 04 (AD-02): perfil Engenheiro e documentos do usuário ────
+
+/// Engenheiro = colaborador (permissões por módulo) + estes dados. `ativo` false =
+/// deixou de ser engenheiro (dados preservados para reativar sem redigitar).
+model PerfilEngenheiro {
+  usuarioId       String   @id
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  ativo           Boolean  @default(true)
+  telefone        String?  @db.VarChar(20)
+  cep             String?  @db.VarChar(9)
+  logradouro      String?  @db.VarChar(255)
+  numero          String?  @db.VarChar(20)
+  complemento     String?  @db.VarChar(120)
+  bairro          String?  @db.VarChar(120)
+  cidade          String?  @db.VarChar(120)
+  uf              String?  @db.VarChar(2)
+  crea            String?  @db.VarChar(30)
+  creaUf          String?  @db.VarChar(2)
+  /// [{ "numero": "...", "uf": "SP" }] — CREAs de outros estados
+  creasAdicionais Json     @default("[]")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  atualizadoPorId String?
+
+  @@map("perfis_engenheiro")
+}
+
+/// Documento do usuário (documento_pessoal, anuidade_crea, carteirinha_crea, outros);
+/// arquivo original guardado no banco e servido por /api/usuarios/[id]/documentos.
+model DocumentoUsuario {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  usuario      Usuario  @relation("DocumentoDoUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  categoria    String   @db.VarChar(30)
+  nomeOriginal String   @db.VarChar(255)
+  mime         String   @db.VarChar(150)
+  tamanho      Int
+  conteudo     Bytes
+  enviadoPorId String?
+  enviadoPor   Usuario? @relation("DocumentoEnviadoPor", fields: [enviadoPorId], references: [id], onDelete: SetNull)
+  enviadoEm    DateTime @default(now())
+
+  @@index([usuarioId, categoria])
+  @@map("documentos_usuario")
 }

@@ -8,8 +8,10 @@ import {
   length as turfLength, polygonToLine,
 } from "@turf/turf";
 import { salvarApp } from "@/lib/actions/incorporacao";
+import { adicionarCamadasBase } from "./camadas-base";
 
-// Mapa do terreno com base de SATÉLITE colorida (Esri World Imagery, keyless) e
+// Mapa do terreno com base de SATÉLITE colorida (Esri World Imagery + ruas/rótulos,
+// alternável para OpenStreetMap — ver camadas-base.ts) e
 // camadas de estudo sobre o KML: cursos d'água/nascentes, APP (faixa de proteção
 // calculada por buffer dos rios), rodovias e linhas de transmissão — obtidas do
 // OpenStreetMap via Overpass API (sem chave). Tudo best-effort: se o Overpass
@@ -122,20 +124,11 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
         mapRef.current = null;
       }
 
-      const map = L.map(ref.current).setView(center ?? [-6.5, -49.879], 15);
+      const map = L.map(ref.current, { maxZoom: 20, zoomSnap: 0.5 }).setView(center ?? [-6.5, -49.879], 15);
       mapRef.current = map;
 
-      // Base satélite colorida + rótulos/vias por cima (keyless).
-      L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        // Esri não tem foto acima do zoom 17 em boa parte do interior (devolve o
-        // ladrilho "Map data not yet available"); acima disso o Leaflet amplia o 17.
-        { attribution: "© Esri, Maxar, Earthstar Geographics", maxZoom: 19, maxNativeZoom: 17 }
-      ).addTo(map);
-      L.tileLayer(
-        "https://stamen-tiles.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png",
-        { attribution: "© Stamen · OSM", maxZoom: 19, opacity: 0.85 }
-      ).addTo(map);
+      // Base satélite + ruas/rótulos com alternância para mapa de ruas (correção 10).
+      adicionarCamadasBase(L, map);
 
       const terrenoLayer = L.geoJSON(feature, {
         style: { color: CORES.terreno, weight: 3, fillColor: CORES.terreno, fillOpacity: 0.12 },

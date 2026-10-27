@@ -10,6 +10,8 @@ import {
 import { salvarOrcamentoParametrizado } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
+import { urbanismoDoCenario } from "@/lib/incorporacao/premissas-loteamento";
+import { OrcamentoImportacao } from "./orcamento-importacao";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Orçamento Parametrizado (2.4 Novos Negócios) — custo de obra por m²
@@ -38,10 +40,19 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
     if (estudo.orcamentoParametrizadoJson) {
       try {
         const salvo = JSON.parse(estudo.orcamentoParametrizadoJson) as Partial<PremissasOrcamentoParametrizado>;
-        if (salvo.itens?.length) return { ...defaults(), ...salvo };
+        if (Array.isArray(salvo.itens) || salvo.metodo) return { ...defaults(), ...salvo };
       } catch { /* JSON corrompido → defaults */ }
     }
-    return defaults();
+    const base = defaults();
+    const c = urbanismoDoCenario(estudo);
+    const tipo = estudo.tipoIncorporacao ?? "";
+    if (["loteamento", "desmembramento_simples", "condominio_lotes"].includes(tipo)) return { ...base, metodo: "infraestrutura", areaReferenciaM2: c?.quadroAreas?.areaLiquidaVendavelM2 ?? 0,
+      infraestrutura: c?.quadroAreas ? [
+        { descricao: "Sistema viário", unidade: "m²", quantidade: c.quadroAreas.sistemaViarioM2, unitario: 0, total: 0 },
+        { descricao: "Terraplanagem", unidade: "m²", quantidade: c.quadroAreas.areaParcelavelM2, unitario: 0, total: 0 },
+        { descricao: "Infraestrutura por lote", unidade: "un", quantidade: c.lotes.length, unitario: 0, total: 0 },
+      ] : [] };
+    return { ...base, metodo: "construcao" };
   });
   const [pending, startTransition] = useTransition();
   const [salvo, setSalvo] = useState(false);
@@ -94,10 +105,12 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
           </button>
         </div>
         <p className="text-[11px] text-gray-600 max-w-xl">
-          Um pavimento por linha, cada um com seu coeficiente de equivalência de custo (1,0 = padrão; menor para garagem/áreas externas, maior para acabamentos superiores). O custo/m² real resultante alimenta automaticamente o custo de infraestrutura da Viabilidade, enquanto você não definir um valor próprio lá.
+          Selecione o método conforme o empreendimento. Lotes usam infraestrutura e quantidades do cenário; edificações usam área construída equivalente. A importação Excel tem conferência antes de aplicar e preserva o arquivo original. Salve para integrar os custos à Viabilidade.
         </p>
       </div>
 
+      <OrcamentoImportacao dados={dados} onChange={(d) => { setDados(d); marcarAlterado(); }} areaReferencia={urbanismoDoCenario(estudo)?.quadroAreas?.areaLiquidaVendavelM2 ?? 0} />
+      {(dados.metodo ?? "construcao") === "construcao" && <>
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
           <table className="text-xs min-w-[520px] w-full">
@@ -142,6 +155,8 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
         </div>
       </div>
 
+      </>}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Área total" valor={`${Math.round(resultado.areaTotalM2).toLocaleString("pt-BR")} m²`} />
         <Kpi label="Área equivalente total" valor={`${Math.round(resultado.areaEquivalenteTotalM2).toLocaleString("pt-BR")} m²`} />
@@ -159,7 +174,7 @@ function Num({ label, value, onChange, sufixo, step = 1 }: { label: string; valu
       <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
         {label}{sufixo ? <span className="text-gray-500 normal-case font-normal"> ({sufixo})</span> : null}
       </label>
-      <input type="number" value={Number.isFinite(value) ? value : ""} step={step} onChange={(e) => onChange(e.target.value)} className={inputCls} />
+      <NumeroBRField value={Number.isFinite(value) ? value : 0} onValueChange={(v) => onChange(String(v))} className={inputCls} />
     </div>
   );
 }

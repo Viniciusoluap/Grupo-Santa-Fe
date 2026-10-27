@@ -35,7 +35,7 @@ const STATUS: { value: StatusMarco; label: string }[] = [
   { value: "concluido", label: "Concluído" },
 ];
 
-const inputCls = "w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
+const inputCls = "min-w-0 max-w-full w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
 
 export function PlanejamentoLancamentoTab({ estudo }: { estudo: EstudoData }) {
   const [dados, setDados] = useState<Dados>(() => {
@@ -99,8 +99,8 @@ export function PlanejamentoLancamentoTab({ estudo }: { estudo: EstudoData }) {
 
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
-          <table className="text-xs min-w-[840px] w-full">
-            <thead>
+          <table className="block w-full text-xs 2xl:table 2xl:table-fixed">
+            <thead className="hidden 2xl:table-header-group">
               <tr>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-72">Marco</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Data prevista</th>
@@ -109,18 +109,18 @@ export function PlanejamentoLancamentoTab({ estudo }: { estudo: EstudoData }) {
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Responsável pelo marco</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="grid gap-3 2xl:table-row-group">
               {dados.marcos.map((m) => (
-                <tr key={m.id}>
-                  <td className="px-1 py-1.5 text-gray-600">{m.nome}</td>
-                  <td className="px-1 py-1"><input type="date" value={m.dataPrevista ?? ""} onChange={(e) => upd(m.id, "dataPrevista", e.target.value)} className={inputCls} /></td>
-                  <td className="px-1 py-1"><input type="date" value={m.dataRealizada ?? ""} onChange={(e) => upd(m.id, "dataRealizada", e.target.value)} className={inputCls} /></td>
-                  <td className="px-1 py-1">
+                <tr key={m.id} className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 sm:grid-cols-2 2xl:table-row 2xl:border-0 2xl:p-0 [&>td]:min-w-0">
+                  <td data-label="Marco" className="px-1 py-1.5 text-gray-600 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">{m.nome}</td>
+                  <td data-label="Data prevista" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input type="date" value={m.dataPrevista ?? ""} onChange={(e) => upd(m.id, "dataPrevista", e.target.value)} className={inputCls} /></td>
+                  <td data-label="Data realizada" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input type="date" value={m.dataRealizada ?? ""} onChange={(e) => upd(m.id, "dataRealizada", e.target.value)} className={inputCls} /></td>
+                  <td data-label="Status" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <select value={m.status} onChange={(e) => upd(m.id, "status", e.target.value)} className={inputCls}>
                       {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><select value={m.responsavelId ?? ""} onChange={(e) => upd(m.id, "responsavelId", e.target.value)} className={inputCls}>
+                  <td data-label="Responsável pelo marco" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><select value={m.responsavelId ?? ""} onChange={(e) => upd(m.id, "responsavelId", e.target.value)} className={inputCls}>
                     <option value="">Não atribuído</option>
                     {(estudo.colaboradores ?? []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                   </select></td>

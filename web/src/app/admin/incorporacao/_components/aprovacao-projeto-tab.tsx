@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Plus, Trash2, Save, Loader2, CheckCircle2, Stamp, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { Plus, Trash2, Save, Loader2, CheckCircle2, Stamp, AlertTriangle, ExternalLink } from "lucide-react";
+import { creaAoTrocarEngenheiro, formatarCrea } from "@/lib/engenheiro";
+import { PROJETO_STATUS_CONFIG } from "@/lib/types/projeto";
 import {
   resumoAprovacaoProjeto,
   ORGAOS_APROVACAO,
@@ -9,7 +12,7 @@ import {
   type ProcessoAprovacao,
   type StatusAprovacao,
 } from "@/lib/incorporacao/aprovacao-projeto";
-import { salvarAprovacaoProjeto } from "@/lib/actions/incorporacao";
+import { dadosProjetosDaAprovacao, salvarAprovacaoProjeto } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Projeto Aprovado (3.2 Incorporação e Produto) — controle da aprovação do
@@ -28,6 +31,8 @@ const STATUS: { value: StatusAprovacao; label: string }[] = [
 interface Dados {
   processos: ProcessoAprovacao[];
 }
+type Engenheiro = { id: string; nome: string; crea: string | null; creaUf: string | null };
+type Vinculo = { processoId: string; projetoId: string; status: string };
 
 function defaults(): Dados {
   return { processos: [] };
@@ -41,7 +46,7 @@ function novoProcesso(): ProcessoAprovacao {
   };
 }
 
-const inputCls = "w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
+const inputCls = "min-w-0 max-w-full w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
 
 export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
   const [dados, setDados] = useState<Dados>(() => {
@@ -57,6 +62,33 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
   const [salvo, setSalvo] = useState(false);
 
   const resumo = useMemo(() => resumoAprovacaoProjeto(dados.processos), [dados]);
+  // Correção 07: cada processo salvo é também um registro em Projetos.
+  const [erro, setErro] = useState<string | null>(null);
+  const [engenheiros, setEngenheiros] = useState<Engenheiro[]>([]);
+  const [vinculos, setVinculos] = useState<Vinculo[]>([]);
+  useEffect(() => {
+    let ativo = true;
+    dadosProjetosDaAprovacao(estudo.id).then((r) => {
+      if (!ativo || "erroAcao" in r) return;
+      setEngenheiros(r.engenheiros);
+      setVinculos(r.vinculos);
+    }).catch(() => { /* sem lista: o seletor fica vazio, o salvamento continua */ });
+    return () => { ativo = false; };
+  }, [estudo.id]);
+  const projetoDoProcesso = useMemo(() => new Map(vinculos.map((v) => [v.processoId, v])), [vinculos]);
+
+  function escolherEngenheiro(id: string, valor: string) {
+    setDados((d) => ({
+      processos: d.processos.map((p) => {
+        if (p.id !== id) return p;
+        const anterior = engenheiros.find((u) => u.id === p.engenheiroId);
+        const novo = engenheiros.find((u) => u.id === valor);
+        const registro = creaAoTrocarEngenheiro(p.engenheiroRegistro ?? "", anterior, novo);
+        return { ...p, engenheiroId: novo?.id, engenheiro: novo?.nome, engenheiroRegistro: registro || undefined };
+      }),
+    }));
+    marcarAlterado();
+  }
 
   function marcarAlterado() { setSalvo(false); }
 
@@ -65,6 +97,8 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
     marcarAlterado();
   }
   function removerProcesso(id: string) {
+    // Correção 07: o projeto vinculado não é apagado — perde o vínculo e fica cancelado, com documentos preservados.
+    if (projetoDoProcesso.has(id) && !window.confirm("Excluir este processo? Ao salvar, o projeto vinculado em Projetos será arquivado como cancelado (checklist e documentos são preservados).")) return;
     setDados((d) => ({ processos: d.processos.filter((p) => p.id !== id) }));
     marcarAlterado();
   }
@@ -75,7 +109,10 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
 
   function salvarDados() {
     startTransition(async () => {
-      await salvarAprovacaoProjeto(estudo.id, JSON.stringify(dados));
+      setErro(null);
+      const r = await salvarAprovacaoProjeto(estudo.id, JSON.stringify(dados));
+      if ("erroAcao" in r) { setErro(r.erroAcao); return; }
+      setVinculos(r.vinculos);
       setSalvo(true);
     });
   }
@@ -95,7 +132,9 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
         </div>
         <p className="text-[11px] text-gray-600 max-w-xl">
           Um processo por órgão. A etapa fica concluída quando todos os processos cadastrados estiverem aprovados.
+          Cada processo salvo aparece também em Projetos (checklist, documentos e revisões).
         </p>
+        {erro && <p role="alert" className="mt-2 text-xs text-red-700">{erro}</p>}
       </div>
 
       {dados.processos.length > 0 && (
@@ -118,35 +157,49 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
 
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
-          <table className="text-xs min-w-[760px] w-full">
-            <thead>
+          <table className="block w-full text-xs 2xl:table 2xl:table-fixed">
+            <thead className="hidden 2xl:table-header-group">
               <tr>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-52">Órgão</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Protocolo</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Prazo previsto</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Status</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-40">Observações</th>
+                <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-44">Engenheiro</th>
                 <th />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="grid gap-3 2xl:table-row-group">
               {dados.processos.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-1 py-1">
+                <tr key={p.id} className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 sm:grid-cols-2 2xl:table-row 2xl:border-0 2xl:p-0 [&>td]:min-w-0">
+                  <td data-label="Órgão" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <select value={p.orgao} onChange={(e) => upd(p.id, "orgao", e.target.value as OrgaoAprovacao)} className={inputCls}>
                       {ORGAOS_APROVACAO.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><input value={p.numeroProtocolo ?? ""} onChange={(e) => upd(p.id, "numeroProtocolo", e.target.value)} className={inputCls} placeholder="Nº" /></td>
-                  <td className="px-1 py-1"><input type="date" value={p.prazoPrevisto ?? ""} onChange={(e) => upd(p.id, "prazoPrevisto", e.target.value)} className={inputCls} /></td>
-                  <td className="px-1 py-1">
+                  <td data-label="Protocolo" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input value={p.numeroProtocolo ?? ""} onChange={(e) => upd(p.id, "numeroProtocolo", e.target.value)} className={inputCls} placeholder="Nº" /></td>
+                  <td data-label="Prazo previsto" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input type="date" value={p.prazoPrevisto ?? ""} onChange={(e) => upd(p.id, "prazoPrevisto", e.target.value)} className={inputCls} /></td>
+                  <td data-label="Status" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <select value={p.status} onChange={(e) => upd(p.id, "status", e.target.value as StatusAprovacao)} className={inputCls}>
                       {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><input value={p.observacoes ?? ""} onChange={(e) => upd(p.id, "observacoes", e.target.value)} className={inputCls} placeholder="Observações" /></td>
-                  <td className="px-1 py-1">
-                    <button type="button" onClick={() => removerProcesso(p.id)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                  <td data-label="Observações" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input value={p.observacoes ?? ""} onChange={(e) => upd(p.id, "observacoes", e.target.value)} className={inputCls} placeholder="Observações" /></td>
+                  <td data-label="Engenheiro" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
+                    <select value={p.engenheiroId ?? ""} onChange={(e) => escolherEngenheiro(p.id, e.target.value)} className={inputCls} aria-label="Engenheiro do processo">
+                      <option value="">{p.engenheiro && !p.engenheiroId ? p.engenheiro : "Selecione"}</option>
+                      {engenheiros.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.crea ? ` · ${formatarCrea(u.crea, u.creaUf)}` : ""}</option>)}
+                    </select>
+                  </td>
+                  <td data-label="Ações" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
+                    <div className="flex items-center gap-2">
+                      {projetoDoProcesso.get(p.id) && (
+                        <Link href={`/admin/projetos/${projetoDoProcesso.get(p.id)!.projetoId}`}
+                          title={`Abrir em Projetos — andamento: ${PROJETO_STATUS_CONFIG[projetoDoProcesso.get(p.id)!.status as keyof typeof PROJETO_STATUS_CONFIG]?.label ?? projetoDoProcesso.get(p.id)!.status}`}
+                          className="text-gray-500 hover:text-[var(--brand-dark)]"><ExternalLink size={14} /></Link>
+                      )}
+                      <button type="button" onClick={() => removerProcesso(p.id)} title="Excluir processo (o projeto vinculado é arquivado como cancelado)" className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+                    </div>
                   </td>
                 </tr>
               ))}

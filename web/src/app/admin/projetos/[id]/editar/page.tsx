@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { ClienteVinculadoInfo } from "@/components/crm/cliente-vinculado-info";
 import { EditarProjetoForm } from "./_components/editar-projeto-form";
 import { diaPrazoProjeto } from "@/lib/projetos-prazo";
+import { listarEngenheiros } from "@/lib/engenheiros";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -13,17 +14,15 @@ export default async function EditarProjetoPage({ params }: PageProps) {
   await exigirModuloPagina("projetos");
 
   const { id } = await params;
-  const p = await prisma.projeto.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } } } });
+  const p = await prisma.projeto.findUnique({ where: { id } , include: { leadVinculado: { select: { id: true, nome: true, telefone: true, email: true } }, estudoIncorporacao: { select: { id: true, nome: true } } } });
   if (!p) notFound();
 
   let tiposSelecionados: string[] = [];
   try { tiposSelecionados = JSON.parse(p.tipo ?? "[]") as string[]; } catch { tiposSelecionados = p.tipo ? [p.tipo] : []; }
 
   // Item 07: colaboradores (e admins) ativos que podem ser engenheiro responsável.
-  const engenheiros = await prisma.usuario.findMany({
-    where: { ativo: true, papel: { in: ["colaborador", "admin"] } },
-    select: { id: true, nome: true, papel: true }, orderBy: { nome: "asc" },
-  });
+  // Lote 2, correção 04: com o perfil Engenheiro (CREA) quando houver.
+  const engenheiros = await listarEngenheiros();
 
   const prazoValue = diaPrazoProjeto(p.prazoEntrega) ?? "";
 
@@ -43,6 +42,10 @@ export default async function EditarProjetoPage({ params }: PageProps) {
           prazo={prazoValue}
           engenheiros={engenheiros}
           cliente={p.leadVinculado ? <ClienteVinculadoInfo lead={p.leadVinculado} className="sm:col-span-2" /> : null}
+          aprovacao={p.estudoIncorporacao && p.processoAprovacaoId ? {
+            estudoId: p.estudoIncorporacao.id, estudoNome: p.estudoIncorporacao.nome, orgao: p.aprovacaoOrgao ?? "Outro",
+            protocolo: p.aprovacaoProtocolo ?? "", status: p.aprovacaoStatus ?? "nao_protocolado", observacoes: p.aprovacaoObservacoes ?? "",
+          } : null}
         />
       </div>
     </div>
