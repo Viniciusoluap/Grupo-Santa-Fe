@@ -46,7 +46,7 @@ function novoProcesso(): ProcessoAprovacao {
   };
 }
 
-const inputCls = "w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
+const inputCls = "min-w-0 max-w-full w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]";
 
 export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
   const [dados, setDados] = useState<Dados>(() => {
@@ -157,8 +157,8 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
 
       <div className="bg-white border border-gray-100 p-4">
         <div className="overflow-x-auto">
-          <table className="text-xs min-w-[940px] w-full">
-            <thead>
+          <table className="block w-full text-xs 2xl:table 2xl:table-fixed">
+            <thead className="hidden 2xl:table-header-group">
               <tr>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-52">Órgão</th>
                 <th className="text-left text-[10px] font-bold text-gray-600 uppercase tracking-wide px-1 pb-1 w-32">Protocolo</th>
@@ -169,29 +169,29 @@ export function AprovacaoProjetoTab({ estudo }: { estudo: EstudoData }) {
                 <th />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="grid gap-3 2xl:table-row-group">
               {dados.processos.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-1 py-1">
+                <tr key={p.id} className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 sm:grid-cols-2 2xl:table-row 2xl:border-0 2xl:p-0 [&>td]:min-w-0">
+                  <td data-label="Órgão" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <select value={p.orgao} onChange={(e) => upd(p.id, "orgao", e.target.value as OrgaoAprovacao)} className={inputCls}>
                       {ORGAOS_APROVACAO.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><input value={p.numeroProtocolo ?? ""} onChange={(e) => upd(p.id, "numeroProtocolo", e.target.value)} className={inputCls} placeholder="Nº" /></td>
-                  <td className="px-1 py-1"><input type="date" value={p.prazoPrevisto ?? ""} onChange={(e) => upd(p.id, "prazoPrevisto", e.target.value)} className={inputCls} /></td>
-                  <td className="px-1 py-1">
+                  <td data-label="Protocolo" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input value={p.numeroProtocolo ?? ""} onChange={(e) => upd(p.id, "numeroProtocolo", e.target.value)} className={inputCls} placeholder="Nº" /></td>
+                  <td data-label="Prazo previsto" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input type="date" value={p.prazoPrevisto ?? ""} onChange={(e) => upd(p.id, "prazoPrevisto", e.target.value)} className={inputCls} /></td>
+                  <td data-label="Status" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <select value={p.status} onChange={(e) => upd(p.id, "status", e.target.value as StatusAprovacao)} className={inputCls}>
                       {STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1"><input value={p.observacoes ?? ""} onChange={(e) => upd(p.id, "observacoes", e.target.value)} className={inputCls} placeholder="Observações" /></td>
-                  <td className="px-1 py-1">
+                  <td data-label="Observações" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden"><input value={p.observacoes ?? ""} onChange={(e) => upd(p.id, "observacoes", e.target.value)} className={inputCls} placeholder="Observações" /></td>
+                  <td data-label="Engenheiro" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <select value={p.engenheiroId ?? ""} onChange={(e) => escolherEngenheiro(p.id, e.target.value)} className={inputCls} aria-label="Engenheiro do processo">
                       <option value="">{p.engenheiro && !p.engenheiroId ? p.engenheiro : "Selecione"}</option>
                       {engenheiros.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.crea ? ` · ${formatarCrea(u.crea, u.creaUf)}` : ""}</option>)}
                     </select>
                   </td>
-                  <td className="px-1 py-1">
+                  <td data-label="Ações" className="px-1 py-1 block 2xl:table-cell before:mb-1 before:block before:text-[10px] before:font-bold before:uppercase before:tracking-wide before:text-gray-500 before:content-[attr(data-label)] 2xl:before:hidden">
                     <div className="flex items-center gap-2">
                       {projetoDoProcesso.get(p.id) && (
                         <Link href={`/admin/projetos/${projetoDoProcesso.get(p.id)!.projetoId}`}

@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { Save, Loader2, CheckCircle2, FileText, Download, Plus, Trash2 } from "lucide-react";
+import { Save, Loader2, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import {
   calcularCenarios,
   type ResultadoLoteamento,
@@ -19,12 +19,8 @@ import {
   type PremissasForm,
 } from "@/lib/incorporacao/premissas-loteamento";
 import {
-  gerarRelatorioExecutivo,
-  gerarRelatorioCustos,
-  gerarRelatorioTerreneiro,
   recebimentosPorAno,
   custosPorAno,
-  type MetaRelatorio,
 } from "@/lib/pdf/loteamento";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
 import { formatCurrency } from "@/lib/utils";
@@ -154,13 +150,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const anosReceita = useMemo(() => recebimentosPorAno(r), [r]);
   const anosCusto = useMemo(() => custosPorAno(r), [r]);
 
-  const metaRelatorio: MetaRelatorio = {
-    nome: estudo.nome,
-    municipio: estudo.municipio,
-    estado: estudo.estado,
-    permutaPct: form.permutaPctVgv,
-    taxaDescontoAnual: form.taxaDescontoAnual,
-  };
+
 
   function salvar() {
     startTransition(async () => {
@@ -527,39 +517,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         </div>
       </div>
 
-      {/* ── Relatórios PDF ── */}
-      <div className="bg-white border border-gray-100 p-4">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Relatórios</p>
-        <p className="text-[10px] text-gray-600 mb-3">Gerados na hora, no seu navegador, a partir das premissas atuais — sem custo.</p>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "Relatório Executivo", acao: () => gerarRelatorioExecutivo(metaRelatorio, cenarios) },
-            {
-              label: "Relatório de Custos",
-              acao: () => gerarRelatorioCustos(metaRelatorio, cenarios, {
-                projetosLicencas: form.projetosLicencas,
-                marketing: form.marketing,
-                registroPorUnidade: form.registroPorUnidade,
-                contingenciaPct: form.contingenciaPctInfra,
-                bdiPct: form.bdiPct,
-                comissaoPct: form.comissaoPctVgv,
-                despesasPct: form.despesasGeraisPctVgv,
-                impostosPct: form.impostosPctVgv,
-              }),
-            },
-            { label: "Relatório do Terreneiro", acao: () => gerarRelatorioTerreneiro(metaRelatorio, cenarios) },
-          ].map(({ label, acao }) => (
-            <button
-              key={label}
-              type="button"
-              onClick={acao}
-              className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 border border-gray-200 text-[var(--brand-dark)] hover:border-[var(--brand-yellow)] transition-colors"
-            >
-              <FileText size={13} /> {label} <Download size={11} className="text-gray-600" />
-            </button>
-          ))}
-        </div>
-      </div>
+
     </div>
   );
 }

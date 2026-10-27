@@ -23,16 +23,16 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 | 10 | Estudo de Massa Generativa | Existe com geometria real (turf) | Existe (turf, genético) | Testada (auto) — migrações 0084 / 20261027120000 pendentes em prod | 4a5a561 / 6380e23 |
 | 11 | Estudos Salvos | Persistência simples, sem versões/UX | JSON sobrescreve | Testada (auto) — migrações 0084 / 20261027120000 pendentes em prod | 4a5a561 / 6380e23 |
 | 12 | Orçamento Parametrizado + import Excel | Parcial (sem import) | Parcial (sem import) | Em implementação | — |
-| 13 | Negociação responsiva | Existe (cartões) | Existe | Planejado | — |
-| 14 | Projeto Aprovado responsivo | Existe (tabela) | Existe | Planejado | — |
+| 13 | Negociação responsiva | Existe (cartões) | Existe | Implementada — validar visual/produção | continuação Codex |
+| 14 | Projeto Aprovado responsivo | Existe (tabela) | Existe | Implementada — validar visual/produção | continuação Codex |
 | 15 | Unidades do cenário + comprador CRM | Parcial (manual, comprador texto) | Parcial (manual) | Em implementação | — |
 | 16 | Máscara R$ + editar/excluir unidade | Faltante | Faltante | Em implementação | — |
-| 17 | Planejamento responsivo | Existe | Existe | Planejado | — |
+| 17 | Planejamento responsivo | Existe | Existe | Implementada — validar visual/produção | continuação Codex |
 | 18 | Fornecedores R$ + Orçado vs Contratado | Parcial | Parcial | Em implementação | — |
 | 19 | Indicadores Fornecedores/Material/Atendimento | Parcial | Parcial | Em implementação | — |
 | 20 | Viabilidade Terreno ↔ cenário | Parcial (% fixos) | % fixos 10/5/25 | Em implementação | — |
 | 21 | Componente global de valor BRL | Fragmentado (≥7 padrões) | ≥10 padrões; formatCurrency centavos×reais | Testada (auto) — base pronta | 3d0d3fa / 59abb8a |
-| 22 | Relatórios da Viabilidade → Relatório Executivo | Duplicado (2 executivos) | Duplicado | Planejado | — |
+| 22 | Relatórios da Viabilidade → Relatório Executivo | Duplicado (2 executivos) | Duplicado | Implementada — validar visual/produção | continuação Codex |
 
 ## Próximo passo exato (atualizado 27/10 02:15 UTC)
 - SHAs na coluna: Prospecta / Santa Fé (checkpoint da Onda 1).
@@ -57,3 +57,10 @@ Estados: `Auditoria` · `Planejado` · `Em andamento` · `Implementado` · `Test
 - (a) testes: 10/10 em cada repositório; PCI 15/15 Prospecta e 11/11 SF. Typecheck detectou dependência leaflet.markercluster ausente neste ambiente recuperado; instalar dependência já declarada antes de repetir. (b) sem teste visual; (c) sem deploy/migrações.
 - 19.3 (Atendimento CRM/unidades) continua pendente; 18 ainda precisa validar integração com Viabilidade. PCI SF ainda precisa testes de persistência/permissões; geração pura validada.
 - Push Git por HTTPS sem credencial; checkpoints são publicados pela integração GitHub (API Git Trees/Commits/Refs, sem force). Branch remota de continuação já criada e primeiro checkpoint confirmado.
+
+### Checkpoint — responsividade e relatórios
+- 13: Negociação empilha campos no mobile; tablet em duas colunas e desktop em quatro, sem mínimos intrínsecos invadindo células.
+- 14/17: Projeto Aprovado e Planejamento usam cartões com campos identificados em telas menores e tabela no desktop amplo; datas e responsáveis com largura limitada. Sem mudar persistência/sincronização da 07.
+- 22: removidos os três botões da Viabilidade; seção Relatórios da Viabilidade e Negociação abaixo do Executivo Completo, reutilizando os geradores e o motor atuais. Base é a viabilidade SALVA (instrução na tela); gerador específico do terreneiro mantido intacto.
+- (a) 45/45 testes relacionados em cada repositório; TypeScript sem erros nos dois após restaurar a dependência leaflet.markercluster já declarada. (b) sem teste visual/navegador. (c) sem produção/deploy/migrações.
+- Próximo passo vigente: concluir unidades 15/16/19.3, orçamento 12 e cenário/viabilidade 20; depois redesign 09 e auditoria ampla, integração com origin/main, migrações e deploy. Gerador PCI SF ainda exige persistência/permissões. Nenhum agente Claude permanece rodando nesta sessão.

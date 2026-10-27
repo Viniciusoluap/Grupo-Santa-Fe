@@ -53,7 +53,7 @@ function novaProposta(): Proposta {
   };
 }
 
-const inputCls = "w-full text-sm border border-gray-200 px-2.5 py-2 focus:outline-none focus:border-[var(--brand-yellow)]";
+const inputCls = "min-w-0 max-w-full w-full text-sm border border-gray-200 px-2.5 py-2 focus:outline-none focus:border-[var(--brand-yellow)]";
 
 export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
   const [dados, setDados] = useState<DadosNegociacao>(() => {
@@ -161,7 +161,7 @@ export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
           )}
           {dados.propostas.map((p) => (
             <div key={p.id} className="border border-gray-100 p-3 space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 [&>div]:min-w-0">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Data</label>
                   <input type="date" value={p.data} onChange={(e) => updProposta(p.id, "data", e.target.value)} className={inputCls} />
@@ -186,11 +186,11 @@ export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
                   </select>
                 </div>
                 <div className="flex items-end justify-end">
-                  <button type="button" onClick={() => removerProposta(p.id)} className="text-gray-500 hover:text-red-500 p-2"><Trash2 size={16} /></button>
+                  <button type="button" aria-label="Excluir proposta" onClick={() => removerProposta(p.id)} className="text-gray-500 hover:text-red-500 p-2"><Trash2 size={16} /></button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 [&>div]:min-w-0">
                 {(p.tipo === "compra_avista" || p.tipo === "compra_parcelada" || p.tipo === "permuta_fisica" || p.tipo === "misto") && (
                   <div>
                     <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Valor (R$)</label>
@@ -221,7 +221,7 @@ export function NegociacaoTerrenoTab({ estudo }: { estudo: EstudoData }) {
                     <input type="number" value={p.unidadesPermuta ?? ""} onChange={(e) => updProposta(p.id, "unidadesPermuta", parseFloat(e.target.value) || 0)} className={inputCls} />
                   </div>
                 )}
-                <div className="col-span-2 md:col-span-4">
+                <div className="sm:col-span-2 xl:col-span-4">
                   <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1">Condições / observações</label>
                   <input value={p.condicoes ?? ""} onChange={(e) => updProposta(p.id, "condicoes", e.target.value)} className={inputCls} placeholder="Ex.: prazo de escritura, cláusulas específicas..." />
                 </div>

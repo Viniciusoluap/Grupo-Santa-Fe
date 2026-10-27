@@ -24,6 +24,7 @@ import {
   type DadoCronograma,
   type DadoPremissasFontesVersao,
 } from "@/lib/incorporacao/relatorio-executivo";
+import { RelatoriosViabilidade } from "./relatorios-viabilidade";
 import type { EstudoData } from "./incorporacao-detail";
 import { ROTULO_ESTUDO_PRELIMINAR } from "@/lib/geo/massa";
 
@@ -115,7 +116,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
       <div className="bg-white border border-gray-100 p-6">
         <div className="text-center mb-5">
           <FileText size={28} className="text-gray-500 mx-auto mb-3" />
-          <p className="font-bold text-[var(--brand-dark)]">Relatório executivo de incorporação</p>
+          <p className="font-bold text-[var(--brand-dark)]">Relatório Executivo Completo da Incorporação</p>
           <p className="text-gray-600 text-sm mt-1">
             Consolida terreno, mercado, massa, quadro de áreas, mix, custos/VGV, indicadores financeiros,
             impostos/comissões/permutas, negociação, documentos/licenças, cronograma e premissas em um único PDF.
@@ -143,6 +144,7 @@ export function RelatorioTab({ estudo }: { estudo: EstudoData }) {
           </p>
         </div>
       </div>
+      <RelatoriosViabilidade estudo={estudo} />
     </div>
   );
 }
