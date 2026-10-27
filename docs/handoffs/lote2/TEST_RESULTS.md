@@ -13,3 +13,9 @@
 - Prospecta geral: `vitest run --maxWorkers=2 --minWorkers=1` — 162 arquivos/1219 testes aprovados, duração 212,71 s. Execução anterior à adição do campo de preço comercial.
 - Após campo comercial: P `incorporacao-unidades-cenario.test.ts` + `lead-vgv-cadastro.test.ts` — 17/17; SF `unidades-crm.test.ts` + `lote2-migrations.test.ts` — 4/4. Ambos TypeScript sem erros.
 - SF `pci-gerador-acesso-persistencia.test.ts` — 3/3, dependências de banco mockadas: regra de perfis, gravação/recarga de rascunho e isolamento do download pelo par obra/PCI.
+
+### Verificação de preview e bloqueio de aceite visual
+- Builds do código com preço comercial: Prospecta `59255e7` e SF `b503d7f`, ambos READY na Vercel.
+- Browser abriu a home do preview Prospecta com sucesso; acesso a `/admin/incorporacao` redirecionou corretamente para `/login`. A sessão deste navegador ainda não está autenticada. Não alterar autenticação nem gerar sessão artificial para testes.
+- Tentativa de navegador local não pôde instalar o binário (download retornou arquivo inválido); não foi realizada validação local por screenshot. Browser remoto funciona, mas os testes de incorporação exigem autenticação legítima.
+- Próximo passo: autenticar pelo formulário seguro do navegador no preview e validar desktop/tablet/mobile/PWA, upload/download, persistência e relatórios. PRs ficam em rascunho até concluir esse aceite. Não marcar as 22 correções integralmente aprovadas apenas pelos testes automáticos.
