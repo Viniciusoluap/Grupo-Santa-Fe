@@ -42,11 +42,12 @@ export async function GET(
     if (!autorizado) return NextResponse.json({error:"Documento não disponível."},{status:403});
   }
 
-  // Contratos gravados no Google Drive são lidos de lá; os demais, do banco.
+  // Bytes no banco servem o app (pedido de 29/10: o Drive guarda uma cópia
+  // organizada); contratos gravados só no Google Drive são lidos de lá.
   let body: Uint8Array<ArrayBuffer>;
   try {
-    body = arquivo.driveFileId ? new Uint8Array(await lerDocumentoRegistro(arquivo.driveFileId))
-      : arquivo.dados ? new Uint8Array(arquivo.dados) : new Uint8Array();
+    body = arquivo.dados ? new Uint8Array(arquivo.dados)
+      : arquivo.driveFileId ? new Uint8Array(await lerDocumentoRegistro(arquivo.driveFileId)) : new Uint8Array();
   } catch {
     return NextResponse.json({ error: "Arquivo indisponível no Google Drive no momento." }, { status: 502 });
   }

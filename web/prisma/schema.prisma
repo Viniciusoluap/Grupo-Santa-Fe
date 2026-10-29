@@ -1057,9 +1057,11 @@ model MensagemWhatsapp {
 }
 
 model WhatsappMidia {
-  mensagemId String           @id
-  mensagem   MensagemWhatsapp @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
-  conteudo   Bytes
+  mensagemId  String           @id
+  mensagem    MensagemWhatsapp @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
+  conteudo    Bytes
+  /// Pedido de 29/10: cópia organizada no Google Drive (o banco continua servindo o app).
+  driveFileId String?
 
   @@map("whatsapp_midias")
 }
@@ -1208,6 +1210,7 @@ model EstudoIncorporacao {
   // Registro da Incorporação (3.4 Incorporação e Produto)
   registroIncorporacaoJson String?
   documentosRegistro       EstudoDocumentoRegistro[]
+  orcamentoPlanilhas       EstudoOrcamentoPlanilha[]
 
   // Orçamento Preliminar e EVE (3.5 Incorporação e Produto)
   orcamentoPreliminarJson String?
@@ -1386,8 +1389,26 @@ model Arquivo {
   obraFoto          ObraFoto?
   documentoRegistro EstudoDocumentoRegistro?
   checklistItem     ChecklistItem?
+  orcamentoPlanilha EstudoOrcamentoPlanilha?
 
   @@map("arquivos")
+}
+
+/// Pedido de 29/10: planilha importada no Orçamento do estudo (o original segue no
+/// JSON do orçamento). Cópia em `arquivos` para o Drive: Incorporação/<Estudo (nº)>/Orçamento.
+model EstudoOrcamentoPlanilha {
+  id           String             @id @default(cuid())
+  estudoId     String
+  estudo       EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  arquivoId    String             @unique
+  arquivo      Arquivo            @relation(fields: [arquivoId], references: [id], onDelete: Cascade)
+  sha256       String             @db.VarChar(64)
+  enviadoPorId String?
+  criadoEm     DateTime           @default(now())
+
+  @@unique([estudoId, sha256])
+  @@index([estudoId, criadoEm])
+  @@map("estudo_orcamento_planilhas")
 }
 
 // ========== EPIC-020 Lote 4 — progresso por incidência e fotos da obra ==========
@@ -1572,6 +1593,8 @@ model ObraPciVersao {
   parsed       Json                     @db.JsonB
   enviadoPorId String?
   criadoEm     DateTime                 @default(now())
+  /// Pedido de 29/10: cópia em Obras/<Obra>/Medições CAIXA.
+  driveFileId  String?
   atuais       ObraPci[]
   medicoes     ObraProgressoHistorico[]
 
@@ -1606,6 +1629,8 @@ model PciModelo {
   observacao   String?
   enviadoPorId String?
   enviadoEm    DateTime    @default(now())
+  /// Pedido de 29/10: cópia em Modelos/PCI CAIXA.
+  driveFileId  String?
   geradas      PciGerada[]
 
   @@map("pci_modelos")
@@ -1637,6 +1662,9 @@ model PciGerada {
   planilha        Bytes
   pdfNome         String     @db.VarChar(255)
   pdf             Bytes
+  /// Pedido de 29/10: cópias em Obras/<Obra>/Gerador de PCI.
+  planilhaDriveFileId String?
+  pdfDriveFileId      String?
   criadoPorId     String?
   criadoEm        DateTime   @default(now())
 
@@ -1713,10 +1741,26 @@ model DocumentoUsuario {
   mime         String   @db.VarChar(150)
   tamanho      Int
   conteudo     Bytes
+  /// Pedido de 29/10: cópia em Equipe/<Nome (nº)>/<Categoria>.
+  driveFileId  String?
   enviadoPorId String?
   enviadoPor   Usuario? @relation("DocumentoEnviadoPor", fields: [enviadoPorId], references: [id], onDelete: SetNull)
   enviadoEm    DateTime @default(now())
 
   @@index([usuarioId, categoria])
   @@map("documentos_usuario")
+}
+
+/// Pedido de 29/10 (gêmeo de drive_trash_queue da Prospecta): lixeira do Drive que
+/// falhou na hora da exclusão. `tipo` = "arquivo" (alvo = ID do arquivo no Drive) ou
+/// "pasta" (alvo = etiqueta, ex.: "cliente:<id>"). O "Organizar Drive" reprocessa.
+model DriveLixeiraPendente {
+  id         Int      @id @default(autoincrement())
+  tipo       String   @db.VarChar(10)
+  alvo       String
+  tentativas Int      @default(0)
+  criadoEm   DateTime @default(now())
+
+  @@unique([tipo, alvo])
+  @@map("drive_lixeira_pendente")
 }

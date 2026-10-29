@@ -90,6 +90,9 @@ export async function gravarModeloPci(nome: string, bytes: Uint8Array, autorId: 
       select: { id: true, versao: true },
     });
   });
+  // Pedido de 29/10: cópia em Modelos/PCI CAIXA (sem Drive fica pendente para o "Organizar Drive").
+  const { copiarParaDrive } = await import("@/lib/drive-organizacao");
+  await copiarParaDrive("pciModelo", novo.id);
   return { id: novo.id, versao: novo.versao, formato, repetido: false };
 }
 
@@ -211,6 +214,9 @@ export async function gerarPciDaObra(obraId: string, entrada: unknown, autor: { 
     },
     select: { id: true },
   });
+  // Pedido de 29/10: planilha e PDF também em Obras/<Obra>/Gerador de PCI.
+  const { copiarParaDrive } = await import("@/lib/drive-organizacao");
+  await copiarParaDrive("pciGerada", g.id);
   return { id: g.id, avisos: planilha.avisos, pendencias: pendenciasPci(form) };
 }
 

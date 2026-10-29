@@ -78,10 +78,11 @@ async function diagnosticarDriveImpl() {
   // Pedido de 15/10: com o Drive funcionando, envia as fotos de imóveis pendentes.
   if (!r.configurado || !r.etapas.some((e) => e.etapa === "Gravação de arquivo de teste" && e.ok)) return r;
   const { enviarFotosPendentesAoDrive } = await import("@/lib/imovel-fotos");
-  const fotos = await enviarFotosPendentesAoDrive();
-  if (fotos.enviadas || fotos.falhas) {
+  // Com prazo (a função tem tempo limitado): o restante segue no "Organizar Drive".
+  const fotos = await enviarFotosPendentesAoDrive({ prazo: Date.now() + 30_000 });
+  if (fotos.enviadas || fotos.falhas || !fotos.concluido) {
     r.etapas.push({
-      etapa: `Fotos de imóveis enviadas ao Drive: ${fotos.enviadas}${fotos.falhas ? `, ${fotos.falhas} pendente(s) — será tentado de novo` : ""}`,
+      etapa: `Fotos de imóveis enviadas ao Drive: ${fotos.enviadas}${fotos.falhas ? `, ${fotos.falhas} pendente(s) — será tentado de novo` : ""}${fotos.concluido ? "" : " (o restante segue no Organizar Drive)"}`,
       ok: fotos.falhas === 0,
     });
   }

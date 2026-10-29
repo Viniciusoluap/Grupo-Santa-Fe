@@ -3,6 +3,7 @@ import { usuarioAtual } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { guardarParte, limparPartes, montarPartes } from "@/lib/documentos-upload-partes";
 import { acessoDocumentosUsuario, ehCategoriaDocumento, validarArquivoDocumento } from "@/lib/engenheiro";
+import { copiarParaDrive, lixeiraDeArquivosSemUso } from "@/lib/drive-organizacao";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -32,9 +33,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const arquivo = await montarPartes(uploadId, u.id, "usuario", itemId);
     const v = validarArquivoDocumento(arquivo.nome, arquivo.bytes);
     if (!v.ok) throw new Error(v.erro);
-    const dados = { categoria: b.categoria, nomeOriginal: v.nome, mime: v.mime, tamanho: arquivo.bytes.length, conteudo: new Uint8Array(arquivo.bytes), enviadoPorId: u.id, enviadoEm: new Date() };
+    const dados = { categoria: b.categoria, nomeOriginal: v.nome, mime: v.mime, tamanho: arquivo.bytes.length, conteudo: new Uint8Array(arquivo.bytes), enviadoPorId: u.id, enviadoEm: new Date(), driveFileId: null };
     let id: string;
+    let copiaAnterior: string | null = null;
     if (typeof b.substituirId === "string" && b.substituirId) {
+      copiaAnterior = (await prisma.documentoUsuario.findFirst({ where: { id: b.substituirId, usuarioId }, select: { driveFileId: true } }))?.driveFileId ?? null;
       const r = await prisma.documentoUsuario.updateMany({ where: { id: b.substituirId, usuarioId }, data: dados });
       if (!r.count) throw new Error("Documento a substituir não encontrado.");
       id = b.substituirId;
@@ -42,6 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       id = (await prisma.documentoUsuario.create({ data: { usuarioId, ...dados }, select: { id: true } })).id;
     }
     await limparPartes(uploadId, u.id, "usuario", itemId);
+    // Pedido de 29/10: cópia em Equipe/<Nome (nº)>/<Categoria>; a versão substituída vai para a lixeira do Drive.
+    if (copiaAnterior) await lixeiraDeArquivosSemUso([copiaAnterior]);
+    await copiarParaDrive("documentoUsuario", id);
     return NextResponse.json({ ok: true, id, nome: v.nome });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Falha no envio." }, { status: 400 });

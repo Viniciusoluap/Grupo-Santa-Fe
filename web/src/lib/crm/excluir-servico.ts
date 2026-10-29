@@ -1,5 +1,9 @@
 import { transacaoCRM, type TransacaoCRM } from "@/lib/crm/vinculo-lead";
 import type { ModuloExclusao } from "@/lib/exclusao";
+import { chaveEstudo, chaveObra } from "@/lib/drive-estrutura";
+
+/** Pedido de 29/10: o que vai para a lixeira do Drive depois da exclusão no banco. */
+interface LixeiraDrive { pastas: string[]; arquivos: (string | null)[] }
 
 // Exclusão definitiva (item 03 + pedido A6; mesma regra da Prospecta:
 // server/exclusao-definitiva.ts). Remove o registro e tudo o que só existe por
@@ -18,10 +22,11 @@ async function existe(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
   }
 }
 
-async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Promise<string | null> {
+async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string, lixeira: LixeiraDrive): Promise<string | null> {
   switch (modulo) {
     case "obra": {
       const { servicoLeadId } = await tx.obra.findUniqueOrThrow({ where: { id }, select: { servicoLeadId: true } });
+      lixeira.pastas.push(chaveObra(id));
       // Fotos guardam os bytes em `arquivos`; apagar o arquivo apaga a foto.
       const fotos = await tx.obraFoto.findMany({ where: { obraId: id }, select: { arquivoId: true } });
       if (fotos.length) await tx.arquivo.deleteMany({ where: { id: { in: fotos.map((f) => f.arquivoId) } } });
@@ -37,7 +42,11 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
       // Documentos enviados pelo cliente no checklist guardam os bytes em `arquivos`.
       const docs = await tx.checklistItem.findMany({ where: { financiamentoId: id, arquivoId: { not: null } }, select: { arquivoId: true } });
       const arquivos = docs.map((d) => d.arquivoId).filter((a): a is string => Boolean(a));
-      if (arquivos.length) await tx.arquivo.deleteMany({ where: { id: { in: arquivos } } });
+      if (arquivos.length) {
+        const noDrive = await tx.arquivo.findMany({ where: { id: { in: arquivos }, driveFileId: { not: null } }, select: { driveFileId: true } });
+        lixeira.arquivos.push(...noDrive.map((a) => a.driveFileId));
+        await tx.arquivo.deleteMany({ where: { id: { in: arquivos } } });
+      }
       await tx.financiamento.delete({ where: { id } }); // checklist sai em cascata
       return servicoLeadId;
     }
@@ -49,6 +58,7 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
     }
     case "projeto": {
       const { servicoLeadId } = await tx.projeto.findUniqueOrThrow({ where: { id }, select: { servicoLeadId: true } });
+      lixeira.pastas.push(`projeto-${id}`); // Portfólio de projetos (registro-drive.ts)
       await tx.projeto.delete({ where: { id } });
       return servicoLeadId;
     }
@@ -59,7 +69,8 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
     }
     case "estudo": {
       // Unidades (inclusive vendidas/reservadas), seus eventos e as referências de
-      // documentos; os bytes guardados no banco saem junto. Arquivos no Drive ficam lá.
+      // documentos; os bytes guardados no banco saem junto. A pasta do estudo no
+      // Drive vai para a lixeira depois (pedido de 29/10).
       await tx.estudoUnidadeEvento.deleteMany({ where: { unidade: { estudoId: id } } });
       await tx.estudoUnidade.deleteMany({ where: { estudoId: id } });
       const docs = await tx.estudoDocumentoRegistro.findMany({ where: { estudoId: id }, select: { arquivoId: true } });
@@ -67,6 +78,7 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
       const arquivos = docs.map((d) => d.arquivoId).filter((a): a is string => Boolean(a));
       if (arquivos.length) await tx.arquivo.deleteMany({ where: { id: { in: arquivos } } });
       await tx.estudoIncorporacao.delete({ where: { id } });
+      lixeira.pastas.push(chaveEstudo(id));
       return null;
     }
     case "comissao": {
@@ -82,12 +94,21 @@ async function apagar(tx: TransacaoCRM, modulo: ModuloExclusao, id: string): Pro
  */
 export async function excluirServicoDefinitivo(modulo: ModuloExclusao, id: string): Promise<{ excluido: boolean }> {
   if (!id || id.length > 100) throw new Error("Registro inválido.");
-  return transacaoCRM(async (tx) => {
+  const lixeira: LixeiraDrive = { pastas: [], arquivos: [] };
+  const r = await transacaoCRM(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`excluir:${modulo}:${id}`}))`;
     if (!(await existe(tx, modulo, id))) return { excluido: false };
-    const servicoLeadId = await apagar(tx, modulo, id);
+    const servicoLeadId = await apagar(tx, modulo, id, lixeira);
     // O vínculo de serviço só existia para este registro; o lead permanece.
     if (servicoLeadId) await tx.servicoLead.deleteMany({ where: { id: servicoLeadId } });
     return { excluido: true };
   });
+  // Pedido de 29/10: depois do banco, pasta/arquivos para a lixeira do Drive (30 dias).
+  // Falha no Drive não desfaz a exclusão: o sincronizador "Organizar Drive" resolve.
+  if (r.excluido && (lixeira.pastas.length || lixeira.arquivos.length)) {
+    const { lixeiraDaPasta, lixeiraDeArquivosSemUso } = await import("@/lib/drive-organizacao");
+    for (const chave of lixeira.pastas) await lixeiraDaPasta(chave);
+    await lixeiraDeArquivosSemUso(lixeira.arquivos);
+  }
+  return r;
 }
