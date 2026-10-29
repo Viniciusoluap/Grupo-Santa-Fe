@@ -82,3 +82,7 @@
 - Agentes em execução (sem commit; orquestrador commita): whatsapp (01-04, 09a), bpo (12, 17, 13, 16, 15), relatorios (14, 18). Checkpoints em `agentes/`.
 - Depois: grupo PCI (05, 06, 07, 08, 09b, 10) com o mapeamento; grupo layout+numérico (11) por último; L9 testes/paridade; L10 PRs/migrações/merge/deploy.
 - Migrações reservadas: P 0093 (Drive), 0094 whatsapp, 0095 bpo, 0096+ PCI; SF 20261029100000 (Drive), 20261029110000 whatsapp, 20261029111000 bpo, 2026102912xxxx PCI.
+## L10 — publicação (29/10 ~21:40 UTC)
+- Migrações aplicadas em produção: Neon 0094, 0095, 0096; Supabase 20261029110000, 20261029111000, 20261029112000 (todas aditivas/idempotentes).
+- PRs abertos (rascunho): Prospecta #180, Santa Fé #242 — aguardando build da Vercel e revisão automática.
+- Próximo passo exato: build verde + achados de revisão tratados → marcar pronto, merge, conferir deploy de produção READY e erros de runtime na Vercel; depois relatório final (a)/(b)/(c). Pendências de produção: Safari real, Pluggy real, m² com 2 casas na incorporação (decisão do dono), CSV de comissões no SF.
