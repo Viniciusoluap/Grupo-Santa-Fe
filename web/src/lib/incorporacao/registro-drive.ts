@@ -218,6 +218,106 @@ export async function enviarParaLixeira(fileId: string): Promise<void> {
   });
 }
 
+// ─── Pedido de 29/10: primitivas da organização completa do Drive ────────────
+// Usadas por `lib/drive-organizacao.ts` (cópia de cada tipo, exclusões e o
+// sincronizador). Pastas sempre achadas pela etiqueta interna, nunca pelo nome.
+
+/** Pastas já resolvidas numa mesma execução (evita repetir buscas por etiqueta). */
+export type CachePastas = Map<string, string>;
+
+async function pastaDoCaminhoCache(fonte: FonteDrive, root: string, caminho: PastaAlvo[], cache?: CachePastas): Promise<string> {
+  const k = caminho.map((p) => `${p.chave}\u0000${p.nome}`).join("\u0001");
+  const salvo = cache?.get(k);
+  if (salvo) return salvo;
+  const id = await pastaDoCaminho(fonte, root, caminho);
+  cache?.set(k, id);
+  return id;
+}
+
+/** Grava um arquivo no caminho indicado (cria/renomeia as pastas) e devolve o ID no Drive. */
+export async function enviarArquivoNoCaminho(caminho: PastaAlvo[], nome: string, mime: string, bytes: Buffer, cache?: CachePastas): Promise<string> {
+  const fonte = await fonteObrigatoria();
+  const root = await prepararRaiz(fonte);
+  const pasta = await pastaDoCaminhoCache(fonte, root, caminho, cache);
+  return enviarParaPasta(fonte, pasta, nome, mime || "application/octet-stream", bytes);
+}
+
+/** Leva o arquivo ao caminho certo com o nome certo; false quando já estava assim. */
+export async function moverArquivoParaCaminho(fileId: string, caminho: PastaAlvo[], nome: string, cache?: CachePastas): Promise<boolean> {
+  const fonte = await fonteObrigatoria();
+  const root = await prepararRaiz(fonte);
+  const pasta = await pastaDoCaminhoCache(fonte, root, caminho, cache);
+  return moverArquivo(fonte, fileId, pasta, nome);
+}
+
+/** Arquivo (não pasta) com este nome exato no caminho, fora da lixeira. */
+export async function buscarArquivoNoCaminho(caminho: PastaAlvo[], nome: string, cache?: CachePastas): Promise<string | null> {
+  const fonte = await fonteObrigatoria();
+  const root = await prepararRaiz(fonte);
+  const pasta = await pastaDoCaminhoCache(fonte, root, caminho, cache);
+  const q = new URLSearchParams({
+    q: `'${escapar(pasta)}' in parents and name = '${escapar(nome)}' and mimeType != '${PASTA_MIME}' and trashed = false`,
+    fields: "files(id)", pageSize: "10", supportsAllDrives: "true", includeItemsFromAllDrives: "true",
+  });
+  const r = await authorized(fonte, `${DRIVE}/drive/v3/files?${q}`);
+  return ((await r.json()) as { files?: ArquivoDrive[] }).files?.[0]?.id ?? null;
+}
+
+async function pastasComEtiqueta(fonte: FonteDrive, chave: string, dentroDe?: string): Promise<string[]> {
+  const pai = dentroDe ? ` and '${escapar(dentroDe)}' in parents` : "";
+  const q = new URLSearchParams({
+    q: `appProperties has { key='${PROPRIEDADE_PASTA}' and value='${escapar(chave)}' } and mimeType = '${PASTA_MIME}' and trashed = false${pai}`,
+    fields: "files(id)", orderBy: "createdTime", pageSize: "100", supportsAllDrives: "true", includeItemsFromAllDrives: "true",
+  });
+  const r = await authorized(fonte, `${DRIVE}/drive/v3/files?${q}`);
+  return (((await r.json()) as { files?: ArquivoDrive[] }).files ?? []).map((f) => f.id);
+}
+
+/** Pasta do sistema com esta etiqueta (ex.: "cliente:<id>"), ou null. */
+export async function pastaPorChave(chave: string): Promise<string | null> {
+  const fonte = await fonteDrive();
+  if (!fonte) return null;
+  return (await pastasComEtiqueta(fonte, chave))[0] ?? null;
+}
+
+/**
+ * Manda para a lixeira do Drive (recuperável por 30 dias) toda pasta com esta
+ * etiqueta. Nunca exclui de forma permanente; sem Drive configurado não faz nada.
+ */
+export async function enviarPastaParaLixeira(chave: string): Promise<number> {
+  const fonte = await fonteDrive();
+  if (!fonte) return 0;
+  const ids = await pastasComEtiqueta(fonte, chave);
+  for (const id of ids) {
+    await authorized(fonte, `${DRIVE}/drive/v3/files/${encodeURIComponent(id)}?supportsAllDrives=true&fields=id`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trashed: true }),
+    });
+  }
+  return ids.length;
+}
+
+/**
+ * Subpastas (uma página) da pasta de topo `chavePai` que fica DENTRO da raiz
+ * atual (outra raiz — ex.: ambiente de teste — nunca é varrida), com a etiqueta.
+ */
+export async function listarSubpastasDoSistema(chavePai: string, pageToken?: string | null): Promise<{ pastas: { id: string; chave: string | null }[]; proxima: string | null }> {
+  const fonte = await fonteObrigatoria();
+  const root = await prepararRaiz(fonte);
+  const pai = (await pastasComEtiqueta(fonte, chavePai, root))[0];
+  if (!pai) return { pastas: [], proxima: null };
+  const q = new URLSearchParams({
+    q: `'${escapar(pai)}' in parents and mimeType = '${PASTA_MIME}' and trashed = false`,
+    fields: "nextPageToken,files(id,appProperties)", orderBy: "createdTime", pageSize: "200", supportsAllDrives: "true", includeItemsFromAllDrives: "true",
+  });
+  if (pageToken) q.set("pageToken", pageToken);
+  const r = await authorized(fonte, `${DRIVE}/drive/v3/files?${q}`);
+  const corpo = (await r.json()) as { files?: ArquivoDrive[]; nextPageToken?: string };
+  return {
+    pastas: (corpo.files ?? []).map((f) => ({ id: f.id, chave: f.appProperties?.[PROPRIEDADE_PASTA] ?? null })),
+    proxima: corpo.nextPageToken ?? null,
+  };
+}
+
 /** Lê pela fonte atual; arquivo gravado antes por outra fonte (ex.: conta de serviço) é lido por ela. */
 export async function lerDocumentoRegistro(fileId: string) {
   const lista = await fontes();
