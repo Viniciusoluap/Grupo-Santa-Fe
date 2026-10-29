@@ -231,7 +231,7 @@ export function GeradorPci({ obraId }: { obraId: string }) {
                 </table>
                 <p className={`${rotuloCls} mt-3`}>Serviços adicionais (somam no item 20 &quot;Outros&quot;)</p>
                 {form.adicionais.map((a, i) => (
-                  <div key={i} className="mt-1 grid grid-cols-[1fr_160px] gap-2">
+                  <div key={i} className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px]">
                     <input aria-label={`Serviço adicional ${i + 1}`} value={a.descricao} placeholder={`Serviço adicional ${i + 1}`} className={campoCls}
                       onChange={(e) => setForm({ ...form, adicionais: form.adicionais.map((x, k) => (k === i ? { ...x, descricao: e.target.value } : x)) })} />
                     <NumeroInput aria-label={`Custo do serviço adicional ${i + 1}`} value={a.valor} negativo={false} className={campoCls}

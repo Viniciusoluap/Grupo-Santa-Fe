@@ -27,7 +27,7 @@ export function ObrasClient({ obras }: Props) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 [&>*]:min-w-0 [&_p]:break-words">
         {[
           { label: "Em Andamento", value: emAndamento, sub: "obras ativas" },
           { label: "Concluídas", value: obras.filter((o) => o.status === "concluida").length, sub: "no histórico" },

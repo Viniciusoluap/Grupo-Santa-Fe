@@ -344,7 +344,7 @@ function Investidores({ form, setForm, calculo }: { form: FormFinanceiro; setFor
       </div>
       {form.investidores.length === 0 && <p className="text-xs text-gray-600">Nenhum investidor nesta obra.</p>}
       {form.investidores.map((inv, idx) => (
-        <div key={inv.investidorId} className="grid grid-cols-1 md:grid-cols-[1fr_160px_1fr_auto] gap-3 items-end">
+        <div key={inv.investidorId} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_160px_minmax(0,1fr)_auto] gap-3 items-end">
           <Leitura label="Investidor" valor={inv.nome} />
           <div>
             <p className={labelCls}>Participação</p>
