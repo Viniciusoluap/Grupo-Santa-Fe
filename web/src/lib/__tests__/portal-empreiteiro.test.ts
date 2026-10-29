@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   transacao: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+// obra-progresso importa @/lib/drive-organizacao (server-only) desde a organização do Drive.
+vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/db", () => ({
   prisma: {
