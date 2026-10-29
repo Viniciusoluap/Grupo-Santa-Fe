@@ -17,7 +17,27 @@ export function periodoUltimos12Meses(agora = new Date()): Periodo {
   return { de: chaveData(inicio)!, ate: chaveData(agora)! };
 }
 
-export const ETAPAS_FUNIL_CRM = LEAD_STAGES.map((key) => ({ key, label: LEAD_STAGE_CONFIG[key].label }));
+/** Data "AAAA-MM-DD" válida (calendário real) ou null. */
+function dataValida(v: string | undefined): string | null {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null;
+}
+
+/**
+ * Filtro De/Até da aba Relatórios (searchParams `relDe`/`relAte`, paridade com a
+ * Prospecta). Ausente ou inválido → ponta padrão dos últimos 12 meses; De depois
+ * de Até → as datas são trocadas.
+ */
+export function periodoDosParametros(relDe?: string, relAte?: string, agora = new Date()): Periodo & { personalizado: boolean } {
+  const padrao = periodoUltimos12Meses(agora);
+  const de = dataValida(relDe);
+  const ate = dataValida(relAte);
+  const p = { de: de ?? padrao.de, ate: ate ?? padrao.ate };
+  return { ...(p.de > p.ate ? { de: p.ate, ate: p.de } : p), personalizado: de !== null || ate !== null };
+}
+
+export const ETAPAS_FUNIL_CRM =LEAD_STAGES.map((key) => ({ key, label: LEAD_STAGE_CONFIG[key].label }));
 
 export async function carregarIndicadoresRelatorios(periodo: Periodo) {
   const [obras, leads, pagamentosObra, comissoes, unidadesIncorporacao, imoveis] = await Promise.all([

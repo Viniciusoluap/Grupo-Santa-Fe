@@ -24,6 +24,7 @@ import type { IndicadoresRelatorios } from "@/lib/financeiro/relatorios-bpo-dado
 import { ehDespesa } from "@/lib/bpo-categorias";
 import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { CamposOperacionais } from "./campos-operacionais";
+import { SugerirVinculosModal, VinculoClienteLancamento } from "./vinculo-cliente";
 import { ROTULOS_OPERACIONAIS, type CatalogoBpo } from "@/lib/bpo-operacional";
 
 export interface LancamentoComCliente {
@@ -839,6 +840,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             </div>
             <CamposOperacionais key={lancamentoEditando.id} tipo={lancamentoEditando.tipo} catalogo={catalogoOperacional} inicial={lancamentoEditando} obrigatorio={false}/>
+            {!lancamentoEditando.clienteId && <VinculoClienteLancamento lancamento={lancamentoEditando} onVinculado={(r) => { setLancamentoEditando({ ...lancamentoEditando, clienteId: r.clienteId, clienteNomeLivre: null, version: r.version }); router.refresh(); }} />}
             <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
           </form>
