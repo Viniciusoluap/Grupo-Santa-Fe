@@ -6,6 +6,7 @@ import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPerm
 import { MODULOS_PAINEL } from "@/lib/auth/modulos-lista";
 import { UFS } from "@/lib/engenheiro";
 import { PerfilEngenheiro } from "./perfil-engenheiro";
+import { Modal } from "@/components/ui/modal";
 
 // Lote 2, correção 04: "engenheiro" é perfil da tela — no acesso é colaborador + perfil profissional.
 type Papel = "admin" | "colaborador" | "engenheiro" | "corretor" | "cliente" | "empreiteiro";
@@ -338,8 +339,8 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
 
       {/* Modal novo usuário */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+        <Modal rotulo="Novo Usuário" onFechar={() => setShowForm(false)} tamanho="md">
+          <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-widest">Novo Usuário</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-600"><X size={18} /></button>
@@ -434,7 +435,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

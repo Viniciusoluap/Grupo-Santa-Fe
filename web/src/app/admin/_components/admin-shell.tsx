@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/admin/sidebar";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/auth";
 import { FinanceiroServico } from "@/components/admin/financeiro-servico";
+import { Modal } from "@/components/ui/modal";
 
 interface NotificacaoItem {
   id: string;
@@ -320,8 +321,8 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
 
       {/* Photo upload modal */}
       {fotoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-sm mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
+        <Modal rotulo="Alterar Foto de Perfil" onFechar={() => { setFotoModal(false); setPreviewFoto(null); }} tamanho="sm">
+          <div>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-black text-[var(--brand-dark)] text-sm uppercase tracking-wide">
                 Alterar Foto de Perfil
@@ -391,7 +392,7 @@ export function AdminShell({ children, rotasPermitidas }: { children: React.Reac
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -38,3 +38,27 @@ describe("Modal compartilhado — padrão responsivo", () => {
     expect(h).toContain('aria-label="Excluir"');
   });
 });
+
+// L9 (lote 3): nenhum overlay próprio `fixed inset-0` sobra nas telas do painel.
+// Exceções: o fundo do menu lateral (drawer) e o "clique fora" dos menus do cabeçalho
+// em admin-shell — não são modais e não têm painel que possa estourar a tela.
+describe("Modal compartilhado — telas sem overlay próprio", () => {
+  it("só admin-shell mantém `fixed inset-0` (fundo do drawer e clique-fora dos menus)", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join, relative } = await import("node:path");
+    const raiz = join(process.cwd(), "src", "app");
+    const achados: string[] = [];
+    const varrer = (dir: string) => {
+      for (const nome of readdirSync(dir)) {
+        const p = join(dir, nome);
+        if (statSync(p).isDirectory()) varrer(p);
+        else if (p.endsWith(".tsx")) {
+          const n = readFileSync(p, "utf8").split("fixed inset-0").length - 1;
+          if (n) achados.push(`${relative(raiz, p)}:${n}`);
+        }
+      }
+    };
+    varrer(raiz);
+    expect(achados).toEqual(["admin/_components/admin-shell.tsx:2"]);
+  });
+});

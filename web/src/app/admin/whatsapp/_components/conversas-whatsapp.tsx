@@ -12,6 +12,7 @@ import {
   type ConversaWhatsapp, type MensagemConversa, type MidiaConversa,
 } from "@/lib/actions/whatsapp";
 import { alternarItem, alternarTodosVisiveis, chaveTelefone, podarSelecao, textoConfirmacaoExclusao, type LeadCandidato } from "@/lib/whatsapp/conversas";
+import { Modal } from "@/components/ui/modal";
 
 const hora = (d: string) => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const formatar = (n: string) => {
@@ -36,20 +37,20 @@ function MidiaMensagem({ id, midia, onAtualizar, onAviso }: { id: string; midia:
   const url = `/api/whatsapp/midia/${id}`;
   if (midia.mime === "application/pdf" || midia.nome?.toLowerCase().endsWith(".pdf")) return <>
     <button type="button" onClick={() => setGrande(true)} className="mb-1 inline-flex items-center gap-1 text-xs underline"><Download size={12} /> Abrir PDF</button>
-    {grande && <div role="dialog" aria-modal="true" aria-label="Visualizador de PDF" className="fixed inset-0 z-50 flex flex-col bg-black/80 p-3 sm:p-6">
+    {grande && <Modal rotulo="Visualizador de PDF" onFechar={() => setGrande(false)} tamanho="4xl" className="h-[calc(100dvh-1.5rem)] bg-transparent shadow-none sm:h-[calc(100dvh-2rem)]">
       <div className="flex items-center justify-between bg-white px-3 py-2"><button type="button" onClick={() => setGrande(false)} className="inline-flex items-center gap-2 font-bold text-sm"><ArrowLeft size={16} /> Voltar à conversa</button><button type="button" aria-label="Fechar PDF" onClick={() => setGrande(false)}><X size={18} /></button></div>
       <iframe src={url} title={midia.nome ?? "Documento PDF"} className="min-h-0 flex-1 bg-white" />
-    </div>}
+    </Modal>}
   </>;
   if (midia.tipo === "imagem" || midia.tipo === "figurinha") return <>
     <button type="button" onClick={() => setGrande(true)} className="mb-1 block"><img src={url} alt={midia.nome ?? "Imagem recebida"} loading="lazy" className="max-h-48 max-w-full object-contain" /></button>
-    {grande && <div role="dialog" aria-label="Imagem ampliada" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setGrande(false)}><img src={url} alt={midia.nome ?? "Imagem recebida"} className="max-h-full max-w-full object-contain" /></div>}
+    {grande && <Modal rotulo="Imagem ampliada" onFechar={() => setGrande(false)} fecharAoClicarFora tamanho="4xl" className="items-center bg-transparent shadow-none"><button type="button" aria-label="Fechar imagem" onClick={() => setGrande(false)} className="flex justify-center"><img src={url} alt={midia.nome ?? "Imagem recebida"} className="max-h-[calc(100dvh-2rem)] max-w-full object-contain" /></button></Modal>}
   </>;
   if (midia.tipo === "audio") return <audio controls preload="none" src={url} className="mb-1 max-w-full" />;
   if (midia.tipo === "video") return <video controls preload="metadata" src={url} className="mb-1 max-h-64 max-w-full" />;
   return <>
     <button type="button" onClick={() => setGrande(true)} className="mb-1 inline-flex items-center gap-1 text-xs underline"><Download size={12} />{midia.nome ?? "Abrir documento"}</button>
-    {grande && <div role="dialog" aria-modal="true" aria-label="Documento recebido" className="fixed inset-0 z-50 flex flex-col bg-black/80 p-3 sm:p-6"><div className="flex items-center justify-between bg-white p-3"><button type="button" onClick={() => setGrande(false)} className="inline-flex items-center gap-2 text-sm font-bold"><ArrowLeft size={16}/>Voltar à conversa</button><button type="button" aria-label="Fechar documento" onClick={() => setGrande(false)}><X size={18}/></button></div><div className="bg-white p-5 text-gray-900"><p>Este tipo de arquivo deve ser aberto no aplicativo compatível.</p><a href={url} target="_blank" rel="noopener noreferrer" download={midia.nome ?? undefined} className="mt-3 inline-block underline">Baixar ou abrir arquivo em outra aba</a></div></div>}
+    {grande && <Modal rotulo="Documento recebido" onFechar={() => setGrande(false)} tamanho="lg"><div className="flex items-center justify-between bg-white p-3"><button type="button" onClick={() => setGrande(false)} className="inline-flex items-center gap-2 text-sm font-bold"><ArrowLeft size={16}/>Voltar à conversa</button><button type="button" aria-label="Fechar documento" onClick={() => setGrande(false)}><X size={18}/></button></div><div className="bg-white p-5 text-gray-900"><p>Este tipo de arquivo deve ser aberto no aplicativo compatível.</p><a href={url} target="_blank" rel="noopener noreferrer" download={midia.nome ?? undefined} className="mt-3 inline-block underline">Baixar ou abrir arquivo em outra aba</a></div></Modal>}
   </>;
 }
 
@@ -89,8 +90,8 @@ function VincularLeadDialog({ numero, modo, onFechar, onVinculado, onCriarMesmoA
     onVinculado();
   }
   return (
-    <div role="dialog" aria-modal="true" aria-label={modo === "duplicado" ? "Já existe lead com este telefone" : "Vincular lead"} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onFechar}>
-      <div className="w-full max-w-lg bg-white p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+    <Modal rotulo={modo === "duplicado" ? "Já existe lead com este telefone" : "Vincular lead"} onFechar={onFechar} fecharAoClicarFora tamanho="lg">
+      <div className="p-5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h2 className="font-black uppercase text-[var(--brand-dark)]">{modo === "duplicado" ? "Já existe lead com este telefone" : "Vincular lead"}</h2>
@@ -117,7 +118,7 @@ function VincularLeadDialog({ numero, modo, onFechar, onVinculado, onCriarMesmoA
         </div>
         {modo === "duplicado" && <button type="button" onClick={onCriarMesmoAssim} className={botaoCls}><UserPlus size={12} /> Criar lead novo mesmo assim</button>}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -354,8 +355,8 @@ export function ConversasWhatsApp({ numeroInicial, onAviso }: {
       )}
 
       {confirmarLote && (
-        <div role="alertdialog" aria-modal="true" aria-label="Excluir conversas selecionadas" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md bg-white p-5 space-y-4">
+        <Modal papel="alertdialog" rotulo="Excluir conversas selecionadas" onFechar={() => setConfirmarLote(null)} tamanho="md">
+          <div className="p-5 space-y-4">
             <h2 className="font-black uppercase text-[var(--brand-dark)]">Excluir conversas selecionadas</h2>
             <p className="text-sm text-gray-800">{textoConfirmacaoExclusao(confirmarLote.conversas, confirmarLote.mensagens)}</p>
             <div className="flex justify-end gap-2">
@@ -365,7 +366,7 @@ export function ConversasWhatsApp({ numeroInicial, onAviso }: {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

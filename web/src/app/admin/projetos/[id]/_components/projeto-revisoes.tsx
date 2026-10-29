@@ -7,6 +7,7 @@ import { solicitarRevisaoProjeto } from "@/lib/actions/projetos";
 import { exigirResultado } from "@/lib/acao-resultado";
 import { uploadProjectDocument } from "@/lib/project-upload";
 import { LIMITE_PEDIDO_REVISAO, ROTULO_SITUACAO_REVISAO, rotuloCanal, validarPedidoRevisao, type EntregaRevisao, type SituacaoRevisao } from "@/lib/projeto-revisao";
+import { Modal } from "@/components/ui/modal";
 
 export type RevisaoView = { id: string; texto: string; status: string; solicitadoPorNome: string; criadoEm: string; situacaoNotificacao: string; situacaoEmail: string; entregas: EntregaRevisao[] };
 
@@ -74,8 +75,8 @@ export default function ProjetoRevisoes({ projetoId, projetoNome, engenheiro, re
       ))}
       {enviando && <p role="status" className="text-sm">Enviando ao Google Drive: {progresso}%</p>}
       {aberto && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Solicitar revisão">
-          <form onSubmit={enviarPedido} className="mx-auto my-10 max-w-xl space-y-3 rounded bg-white p-6 text-gray-900">
+        <Modal rotulo="Solicitar revisão" onFechar={() => !pending && setAberto(false)} tamanho="xl" className="rounded text-gray-900">
+          <form onSubmit={enviarPedido} className="space-y-3 p-6">
             <h2 className="text-xl font-bold">Solicitar revisão — {projetoNome}</h2>
             <p className="text-sm text-gray-600">Colaborador vinculado: {engenheiro?.trim() || "nenhum (o pedido será salvo, mas ninguém será notificado)"}</p>
             <label className="block text-sm font-semibold" htmlFor="pedido-revisao">Modificação solicitada</label>
@@ -86,7 +87,7 @@ export default function ProjetoRevisoes({ projetoId, projetoNome, engenheiro, re
               <button type="submit" disabled={pending} className="rounded bg-[var(--brand-dark)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">{pending ? "Salvando…" : "Enviar pedido"}</button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
     </section>
   );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Loader2, X } from "lucide-react";
 import { editarContrato, excluirContrato } from "@/lib/actions/contratos";
 import { NumeroInput } from "@/components/ui/numero-input";
+import { Modal } from "@/components/ui/modal";
 
 const TIPOS_CONTRATO = [
   { value: "compra_venda",             label: "Compra e Venda" },
@@ -110,14 +111,8 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
       </div>
 
       {aberto && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
-          onClick={() => setAberto(false)}
-        >
-          <div
-            className="bg-white text-slate-900 w-full max-w-2xl my-8 border border-gray-200 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal rotulo={`Editar contrato ${contrato.numero}`} onFechar={() => setAberto(false)} fecharAoClicarFora tamanho="2xl" className="text-slate-900 border border-gray-200">
+          <div>
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
               <p className="font-bold text-[var(--brand-dark)] text-sm uppercase tracking-wide">
                 Editar contrato <span className="font-mono text-gray-600">{contrato.numero}</span>
@@ -198,7 +193,7 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );
