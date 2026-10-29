@@ -290,11 +290,14 @@ export async function salvarQuadroAreas(estudoId: string, dadosJson: string) {
 
 /** Salva o Orçamento Parametrizado — etapa 2.4. */
 export async function salvarOrcamentoParametrizado(estudoId: string, dadosJson: string) {
-  await exigirModuloAcao("incorporacao");
+  const u = await exigirModuloAcao("incorporacao");
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: { orcamentoParametrizadoJson: dadosJson },
   });
+  // Pedido de 29/10: a planilha importada também vai para Incorporação/<Estudo>/Orçamento.
+  const { copiarPlanilhaOrcamento } = await import("@/lib/drive-organizacao");
+  await copiarPlanilhaOrcamento(estudoId, dadosJson, u.id);
   revalidatePath(`/admin/incorporacao/${estudoId}`);
   return { ok: true };
 }

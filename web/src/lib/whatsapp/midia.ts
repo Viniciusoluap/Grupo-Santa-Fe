@@ -6,18 +6,23 @@ import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
 import { baixarMidiaEvolution, LIMITE_MIDIA, mesmoTelefone } from "@/lib/evolution";
 import { configEvolution } from "@/lib/whatsapp/evolution-config";
 import { chaveTelefone } from "@/lib/whatsapp/conversas";
+import { copiarParaDrive, lixeiraDeArquivosSemUso } from "@/lib/drive-organizacao";
 
 export async function guardarMidia(mensagemId: string, base64: string, dados: { mime?: string | null; nome?: string | null }): Promise<boolean> {
   const conteudo = Buffer.from(base64, "base64");
   if (!conteudo.length || conteudo.length > LIMITE_MIDIA) return false;
+  const anterior = (await prisma.whatsappMidia.findUnique({ where: { mensagemId }, select: { driveFileId: true } }))?.driveFileId ?? null;
   await prisma.$transaction([
-    prisma.whatsappMidia.upsert({ where: { mensagemId }, create: { mensagemId, conteudo }, update: { conteudo } }),
+    prisma.whatsappMidia.upsert({ where: { mensagemId }, create: { mensagemId, conteudo }, update: { conteudo, driveFileId: null } }),
     prisma.mensagemWhatsapp.update({ where: { id: mensagemId }, data: {
       midiaTamanho: conteudo.length,
       ...(dados.mime ? { midiaMime: dados.mime } : {}),
       ...(dados.nome ? { midiaNome: dados.nome } : {}),
     } }),
   ]);
+  // Pedido de 29/10: cópia em Clientes/<Nome>/Atendimento/WhatsApp ou WhatsApp sem cliente/<número>.
+  if (anterior) await lixeiraDeArquivosSemUso([anterior]);
+  await copiarParaDrive("whatsapp", mensagemId);
   return true;
 }
 

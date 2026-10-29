@@ -6,6 +6,7 @@ import { exigirAdminAtivo } from "@/lib/auth/modulos";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { origemDaRequisicao } from "@/lib/google-drive-oauth";
 import { desconectarOAuth, estadoOAuth, salvarCredencialOAuth } from "@/lib/google-drive-conexao";
+import { sincronizarDrive, ultimoRelatorioDrive } from "@/lib/drive-organizacao";
 
 // Configurações → Google Drive (só administrador). O JSON do cliente OAuth chega
 // aqui, é validado e guardado criptografado; o arquivo nunca é devolvido à tela.
@@ -37,4 +38,17 @@ export async function desconectarGoogleDrive() {
     revalidatePath("/admin/configuracoes");
     return { ok: true };
   });
+}
+
+/** Pedido de 29/10: último relatório do "Organizar Drive" (cron diário ou botão). */
+export async function relatorioOrganizacaoDrive() {
+  return capturarErroAcao(async () => { await exigirAdminAtivo(); return ultimoRelatorioDrive(); });
+}
+
+/**
+ * Botão "Organizar Drive agora": uma rodada com prazo (~45 s); o que faltar continua
+ * na próxima rodada (botão de novo ou cron diário), de onde parou.
+ */
+export async function organizarDriveAgora() {
+  return capturarErroAcao(async () => { await exigirAdminAtivo(); return sincronizarDrive({ prazoMs: 45_000 }); });
 }

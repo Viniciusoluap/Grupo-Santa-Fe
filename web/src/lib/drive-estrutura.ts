@@ -8,6 +8,15 @@
 //                                     /02 - Documentos do imóvel, 03 - Plantas e projetos, 04 - Propostas e contratos
 //     Obras/<Nome da obra (nº id)>/Medições CAIXA/<PCI original | PLS … — dd-mm-aaaa.xls/.pdf>
 //
+// Pedido de 29/10 (organização completa — SPEC-DRIVE-ORGANIZACAO.md):
+//     Clientes/<Nome (nº id)>/Atendimento/WhatsApp/<Mídia — dd-mm-aaaa.ext>
+//     WhatsApp sem cliente/<+55 número>/<Mídia — dd-mm-aaaa.ext>
+//     Obras/<Obra (nº id)>/Fotos/<Medição 01 — dd-mm-aaaa | Sem medição>/<Foto 01 — dd-mm-aaaa.jpg>
+//     Obras/<Obra (nº id)>/Gerador de PCI/<PCI gerada — dd-mm-aaaa.xls|.xlsm|.pdf>
+//     Incorporação/<Estudo (nº id)>/Orçamento/<Planilha importada — dd-mm-aaaa.xlsx>
+//     Equipe/<Nome do usuário (nº id)>/<Documento pessoal|Anuidade CREA|Carteirinha CREA|Outros>/<Rótulo — dd-mm-aaaa.ext>
+//     Modelos/PCI CAIXA/<PCI modelo v01 — dd-mm-aaaa.ext>
+//
 // Cada pasta criada pelo sistema leva uma etiqueta interna do Drive
 // (appProperties[PROPRIEDADE_PASTA] = chave). A pasta é achada pela etiqueta,
 // nunca pelo nome: renomear o cliente renomeia a pasta, sem duplicar.
@@ -23,6 +32,19 @@ export const PASTA_IMOVEIS = "Imóveis";
 export const CHAVE_OBRAS = "obras";
 export const PASTA_OBRAS = "Obras";
 export const PASTA_MEDICOES_CAIXA = "Medições CAIXA";
+export const CHAVE_EQUIPE = "equipe";
+export const PASTA_EQUIPE = "Equipe";
+export const CHAVE_MODELOS = "modelos";
+export const PASTA_MODELOS = "Modelos";
+export const CHAVE_MODELOS_PCI = "modelos:pci";
+export const PASTA_MODELOS_PCI = "PCI CAIXA";
+export const PASTA_FOTOS_OBRA = "Fotos";
+export const PASTA_SEM_MEDICAO = "Sem medição";
+export const PASTA_GERADOR_PCI = "Gerador de PCI";
+export const PASTA_WHATSAPP = "WhatsApp";
+export const CHAVE_WHATSAPP_SEM_CLIENTE = "whatsapp-sem-cliente";
+export const PASTA_WHATSAPP_SEM_CLIENTE = "WhatsApp sem cliente";
+export const PASTA_ORCAMENTO = "Orçamento";
 
 /**
  * Pedido de 15/10: checklist fixo de pastas de cada imóvel, numeradas para
@@ -108,6 +130,9 @@ export function dataArquivo(data: Date): string {
 const EXTENSAO_DO_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
   "application/vnd.ms-excel": ".xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+  "application/vnd.ms-excel.sheet.macroEnabled.12": ".xlsm",
+  "application/vnd.ms-excel.sheet.binary.macroEnabled.12": ".xlsb",
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
@@ -134,6 +159,26 @@ export const chaveImovel = (id: string | number) => `imovel:${id}`;
 export const chavePastaImovel = (id: string | number, pasta: PastaImovel) => `imovel:${id}:${pasta}`;
 export const chaveObra = (id: string | number) => `obra:${id}`;
 export const chaveMedicoesObra = (id: string | number) => `obra:${id}:medicoes-caixa`;
+export const chaveFotosObra = (id: string | number) => `obra:${id}:fotos`;
+export const chaveFotosMedicao = (id: string | number, medicaoId: string | number | null) => `obra:${id}:fotos:medicao:${medicaoId ?? "sem"}`;
+export const chaveGeradorPci = (id: string | number) => `obra:${id}:gerador-pci`;
+export const chaveEquipe = (id: string | number) => `equipe:${id}`;
+export const chaveCategoriaEquipe = (id: string | number, categoria: CategoriaEquipe) => `equipe:${id}:${categoria}`;
+export const chaveWhatsappCliente = (id: string | number) => `cliente:${id}:atendimento:whatsapp`;
+export const chaveWhatsappSemCliente = (numero: string) => `whatsapp-sem-cliente:${apenasDigitos(numero)}`;
+export const chaveOrcamentoEstudo = (id: string | number) => `incorporacao:${id}:orcamento`;
+
+/** Categorias dos documentos do usuário (mesmas chaves de engenheiro.ts). */
+export const NOME_CATEGORIA_EQUIPE = {
+  documento_pessoal: "Documento pessoal",
+  anuidade_crea: "Anuidade CREA",
+  carteirinha_crea: "Carteirinha CREA",
+  outros: "Outros",
+} as const;
+export type CategoriaEquipe = keyof typeof NOME_CATEGORIA_EQUIPE;
+
+const apenasDigitos = (numero: string) => (numero ?? "").replace(/\D/g, "") || "sem-numero";
+const doisDigitos = (n: number) => String(n).padStart(2, "0");
 
 /** Um nível da árvore: a etiqueta interna e o nome exibido. */
 export interface PastaAlvo { chave: string; nome: string }
@@ -173,6 +218,117 @@ export function caminhoMedicoesObra(obra: { id: string | number; numero: string 
     { chave: chaveObra(obra.id), nome: nomeComNumero(obra.nome, obra.numero) },
     { chave: chaveMedicoesObra(obra.id), nome: PASTA_MEDICOES_CAIXA },
   ];
+}
+
+// ─── Pedido de 29/10: novos tipos de arquivo ─────────────────────────────────
+
+type Entidade = { id: string | number; numero: string | number; nome: string | null };
+
+/** Obras/<Obra (nº)>/Fotos/<Medição 01 — dd-mm-aaaa | Sem medição> */
+export function caminhoFotosObra(obra: Entidade, medicao: { id: string | number; ordem: number; data: Date } | null): PastaAlvo[] {
+  return [
+    { chave: CHAVE_OBRAS, nome: PASTA_OBRAS },
+    { chave: chaveObra(obra.id), nome: nomeComNumero(obra.nome, obra.numero) },
+    { chave: chaveFotosObra(obra.id), nome: PASTA_FOTOS_OBRA },
+    medicao
+      ? { chave: chaveFotosMedicao(obra.id, medicao.id), nome: `Medição ${doisDigitos(medicao.ordem)} — ${dataArquivo(medicao.data)}` }
+      : { chave: chaveFotosMedicao(obra.id, null), nome: PASTA_SEM_MEDICAO },
+  ];
+}
+
+/** Obras/<Obra (nº)>/Gerador de PCI */
+export function caminhoGeradorPci(obra: Entidade): PastaAlvo[] {
+  return [
+    { chave: CHAVE_OBRAS, nome: PASTA_OBRAS },
+    { chave: chaveObra(obra.id), nome: nomeComNumero(obra.nome, obra.numero) },
+    { chave: chaveGeradorPci(obra.id), nome: PASTA_GERADOR_PCI },
+  ];
+}
+
+/** Equipe/<Nome do usuário (nº)>/<Categoria> */
+export function caminhoEquipe(usuario: Entidade, categoria: string): PastaAlvo[] {
+  const cat: CategoriaEquipe = categoria in NOME_CATEGORIA_EQUIPE ? (categoria as CategoriaEquipe) : "outros";
+  return [
+    { chave: CHAVE_EQUIPE, nome: PASTA_EQUIPE },
+    { chave: chaveEquipe(usuario.id), nome: nomeComNumero(usuario.nome, usuario.numero) },
+    { chave: chaveCategoriaEquipe(usuario.id, cat), nome: NOME_CATEGORIA_EQUIPE[cat] },
+  ];
+}
+
+/** Modelos/PCI CAIXA */
+export function caminhoModeloPci(): PastaAlvo[] {
+  return [
+    { chave: CHAVE_MODELOS, nome: PASTA_MODELOS },
+    { chave: CHAVE_MODELOS_PCI, nome: PASTA_MODELOS_PCI },
+  ];
+}
+
+/** Clientes/<Nome (nº)>/Atendimento/WhatsApp */
+export function caminhoWhatsappCliente(cliente: Entidade): PastaAlvo[] {
+  return [...caminhoCliente(cliente, "atendimento"), { chave: chaveWhatsappCliente(cliente.id), nome: PASTA_WHATSAPP }];
+}
+
+/** WhatsApp sem cliente/<+55 número> */
+export function caminhoWhatsappSemCliente(numero: string): PastaAlvo[] {
+  return [
+    { chave: CHAVE_WHATSAPP_SEM_CLIENTE, nome: PASTA_WHATSAPP_SEM_CLIENTE },
+    { chave: chaveWhatsappSemCliente(numero), nome: `+${apenasDigitos(numero)}` },
+  ];
+}
+
+/** Incorporação/<Estudo (nº)>/Orçamento */
+export function caminhoOrcamentoEstudo(estudo: Entidade): PastaAlvo[] {
+  return caminhoEstudo(estudo, { chave: "orcamento", nome: PASTA_ORCAMENTO });
+}
+
+/** "Foto 01 — 15-10-2026.jpg" (fotos de obra, numeradas dentro da medição). */
+export function nomeFotoObra(ordem: number, data: Date, mime: string): string {
+  return `Foto ${doisDigitos(ordem)} — ${dataArquivo(data)}${extensaoArquivo(null, mime)}`;
+}
+
+/** "PCI gerada — 29-10-2026.xls" */
+export function nomePciGerada(data: Date, formato: string): string {
+  return nomeArquivo("PCI gerada", data, `pci.${formato}`, "");
+}
+
+/** "PCI modelo v01 — 29-10-2026.xls" */
+export function nomeModeloPci(versao: number, data: Date, nomeOriginal: string | null, mime: string): string {
+  return nomeArquivo(`PCI modelo v${doisDigitos(versao)}`, data, nomeOriginal, mime);
+}
+
+/** "Mídia — 29-10-2026.jpg" */
+export function nomeMidiaWhatsapp(data: Date, nomeOriginal: string | null, mime: string): string {
+  return nomeArquivo("Mídia", data, nomeOriginal, (mime ?? "").split(";")[0].trim());
+}
+
+/** "Planilha importada — 29-10-2026.xlsx" */
+export function nomePlanilhaOrcamento(data: Date, nomeOriginal: string | null, mime: string): string {
+  return nomeArquivo("Planilha importada", data, nomeOriginal, mime);
+}
+
+/** "Documento pessoal — 29-10-2026.pdf" */
+export function nomeDocumentoEquipe(categoria: string, data: Date, nomeOriginal: string | null, mime: string): string {
+  const rotulo = categoria in NOME_CATEGORIA_EQUIPE ? NOME_CATEGORIA_EQUIPE[categoria as CategoriaEquipe] : NOME_CATEGORIA_EQUIPE.outros;
+  return nomeArquivo(rotulo, data, nomeOriginal, mime);
+}
+
+/**
+ * Pastas de topo que o sincronizador varre atrás de órfãs (registro apagado).
+ * A etiqueta da pasta da entidade é sempre "<prefixo>:<id>" (sem outro ":").
+ */
+export const TOPOS_ORFAOS = [
+  { chave: CHAVE_CLIENTES, prefixo: "cliente" },
+  { chave: CHAVE_OBRAS, prefixo: "obra" },
+  { chave: CHAVE_INCORPORACAO, prefixo: "incorporacao" },
+  { chave: CHAVE_IMOVEIS, prefixo: "imovel" },
+  { chave: CHAVE_EQUIPE, prefixo: "equipe" },
+] as const;
+export type PrefixoEntidade = (typeof TOPOS_ORFAOS)[number]["prefixo"];
+
+/** "cliente:abc" → { prefixo: "cliente", id: "abc" }; subpastas ("cliente:abc:juridico") e outras etiquetas → null. */
+export function entidadeDaChave(chave: string | null | undefined): { prefixo: PrefixoEntidade; id: string } | null {
+  const m = /^(cliente|obra|incorporacao|imovel|equipe):([^:]+)$/.exec(chave ?? "");
+  return m ? { prefixo: m[1] as PrefixoEntidade, id: m[2] } : null;
 }
 
 /** "Foto 01 — 15-10-2026.jpg": numeradas na ordem em que aparecem no anúncio. */

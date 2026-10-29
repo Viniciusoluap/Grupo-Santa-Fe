@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { rotulo } from "@/lib/rotulos";
 import type { Prisma } from "@/generated/prisma/client";
 import { mensagemBloqueioExclusao, type VinculosLead } from "@/lib/crm/lead-exclusao-definitiva";
+import { chaveCliente } from "@/lib/drive-estrutura";
 import { notificarAdmins } from "@/lib/notificacoes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -398,20 +399,48 @@ export async function agendarVisitaDoLead(formData: FormData) {
   await criarVisita(campos);
 }
 
-/** Pedido de 23/10 (H3): o que impede a exclusão definitiva (mesma regra da Prospecta). */
+/** Arquivos dos documentos do lead (atual e versões anteriores). */
+async function arquivosDoLead(tx: Prisma.TransactionClient | typeof prisma, leadId: string): Promise<string[]> {
+  const [docs, versoes] = await Promise.all([
+    tx.documentoCliente.findMany({ where: { leadId, arquivoId: { not: null } }, select: { arquivoId: true } }),
+    tx.documentoClienteVersao.findMany({ where: { leadId }, select: { arquivoId: true } }),
+  ]);
+  return [...new Set([...docs.map((d) => d.arquivoId!), ...versoes.map((v) => v.arquivoId)])];
+}
+
+/** Arquivos que outro registro (ex.: lead duplicado) ainda usa: não são apagados com o lead. */
+async function arquivosCompartilhados(tx: Prisma.TransactionClient | typeof prisma, leadId: string, arquivoIds: string[]): Promise<Set<string>> {
+  if (!arquivoIds.length) return new Set();
+  const [docs, versoes, checklist] = await Promise.all([
+    tx.documentoCliente.findMany({ where: { arquivoId: { in: arquivoIds }, leadId: { not: leadId } }, select: { arquivoId: true } }),
+    tx.documentoClienteVersao.findMany({ where: { arquivoId: { in: arquivoIds }, leadId: { not: leadId } }, select: { arquivoId: true } }),
+    tx.checklistItem.findMany({ where: { arquivoId: { in: arquivoIds } }, select: { arquivoId: true } }),
+  ]);
+  return new Set([...docs, ...versoes, ...checklist].map((d) => d.arquivoId!));
+}
+
+/**
+ * Pedido de 23/10 (H3): o que impede a exclusão definitiva (mesma regra da Prospecta).
+ * Pedido de 29/10: documento com cópia no Google Drive (ou usado por outro lead) não
+ * impede mais — ele sai junto e a pasta do cliente vai para a lixeira do Drive (30
+ * dias). Só bloqueia o documento que existe apenas no banco.
+ */
 async function vinculosDoLead(tx: Prisma.TransactionClient | typeof prisma, leadId: string): Promise<VinculosLead> {
-  const [obras, financiamentos, regularizacoes, projetos, avaliacoes, contratos, versoes, docsComArquivo, contas] = await Promise.all([
+  const arquivoIds = await arquivosDoLead(tx, leadId);
+  const compartilhados = await arquivosCompartilhados(tx, leadId, arquivoIds);
+  const soNoBanco = arquivoIds.length
+    ? await tx.arquivo.count({ where: { id: { in: arquivoIds.filter((a) => !compartilhados.has(a)) }, driveFileId: null } })
+    : 0;
+  const [obras, financiamentos, regularizacoes, projetos, avaliacoes, contratos, contas] = await Promise.all([
     tx.obra.count({ where: { leadId } }),
     tx.financiamento.count({ where: { leadId } }),
     tx.regularizacao.count({ where: { leadId } }),
     tx.projeto.count({ where: { leadId } }),
     tx.avaliacao.count({ where: { leadId } }),
     tx.contrato.count({ where: { leadId } }),
-    tx.documentoClienteVersao.count({ where: { leadId } }),
-    tx.documentoCliente.count({ where: { leadId, arquivoId: { not: null } } }),
     tx.usuario.count({ where: { leadId } }),
   ]);
-  return { obras, financiamentos, regularizacoes, projetos, avaliacoes, contratos, documentos: Math.max(versoes, docsComArquivo), contas };
+  return { obras, financiamentos, regularizacoes, projetos, avaliacoes, contratos, documentos: soNoBanco, contas };
 }
 
 async function exigirAdministradorCrm() {
@@ -432,6 +461,8 @@ export async function consultarExclusaoDefinitivaLead(id: string): Promise<{ blo
  * chat; visitas e mensagens de WhatsApp ficam, apenas sem o vínculo.
  */
 export async function excluirLeadDefinitivamente(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  let compartilhados: string[] = [];
+  let midias: string[] = [];
   try {
     await exigirAdministradorCrm();
     await transacaoCRM(async (tx) => {
@@ -442,9 +473,17 @@ export async function excluirLeadDefinitivamente(id: string): Promise<{ ok: true
       if (!foraDaOperacao) throw new RecusaExclusaoLead("Só leads arquivados podem ser excluídos definitivamente. Arquive o lead primeiro.");
       const bloqueio = mensagemBloqueioExclusao(await vinculosDoLead(tx, id));
       if (bloqueio) throw new RecusaExclusaoLead(bloqueio);
+      const arquivoIds = await arquivosDoLead(tx, id);
+      const usados = await arquivosCompartilhados(tx, id, arquivoIds);
+      compartilhados = [...usados];
+      midias = (await tx.whatsappMidia.findMany({ where: { mensagem: { leadId: id }, driveFileId: { not: null } }, select: { mensagemId: true } })).map((m) => m.mensagemId);
       await tx.tarefaCrm.deleteMany({ where: { leadId: id } });
       await tx.servicoLead.deleteMany({ where: { leadId: id } });
+      await tx.documentoClienteVersao.deleteMany({ where: { leadId: id } });
       await tx.documentoCliente.deleteMany({ where: { leadId: id } });
+      // Só sobram aqui arquivos com cópia no Drive (os só do banco bloqueiam acima).
+      const apagar = arquivoIds.filter((a) => !usados.has(a));
+      if (apagar.length) await tx.arquivo.deleteMany({ where: { id: { in: apagar } } });
       await tx.avisoVencimentoCard.deleteMany({ where: { leadId: id } });
       await tx.visita.updateMany({ where: { leadId: id }, data: { leadId: null } });
       await tx.mensagemWhatsapp.updateMany({ where: { leadId: id }, data: { leadId: null } });
@@ -454,6 +493,15 @@ export async function excluirLeadDefinitivamente(id: string): Promise<{ ok: true
     if (e instanceof RecusaExclusaoLead || (e instanceof Error && e.message.startsWith("Só o administrador"))) return { ok: false, erro: e.message };
     throw e;
   }
+  // Pedido de 29/10: depois do banco, a pasta Clientes/<Nome (nº)> vai para a lixeira
+  // do Drive. Antes, o que continua em uso (documento de lead duplicado, mídia do
+  // WhatsApp que fica sem cliente) sai da pasta. A lixeira da pasta confere de novo
+  // todos os arquivos dentro dela: se algum ainda em uso não sair, a pasta fica e
+  // entra na fila do sincronizador "Organizar Drive" (nunca vai para a lixeira em uso).
+  const { lixeiraDaPasta, reorganizarItens } = await import("@/lib/drive-organizacao");
+  await reorganizarItens("arquivo", compartilhados);
+  await reorganizarItens("whatsapp", midias);
+  await lixeiraDaPasta(chaveCliente(id));
   revalidatePath("/admin/leads");
   return { ok: true };
 }

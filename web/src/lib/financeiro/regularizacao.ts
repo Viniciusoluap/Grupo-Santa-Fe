@@ -141,6 +141,30 @@ export const ITENS_FINANCEIROS_PADRAO: { chave: string; nome: string; grupo: Gru
   { chave: "averbacao", nome: "Averbação", grupo: "casa_pronta", ordem: 17 },
 ];
 
+/** Configuração independente de valores previstos, em reais decimais. */
+export const VALORES_PREVISTOS_PADRAO: Readonly<Record<string, string>> = Object.freeze({
+  projetos: "2500.00", pci: "2000.00", impressoes: "100.00", agua: "300.00",
+  despachante: "2000.00", cert_inteiro_teor: "102.00", art: "400.00", alvara: "600.00",
+  vistoria_cef: "750.00", tx_ass_cef: "2000.00", seguro_cef: "700.00", itbi: "700.00",
+  registro_cartorio: "2000.00", encargos_obra: "0.00", habite_se: "700.00",
+  cnd_cno: "2000.00", averbacao: "2000.00",
+});
+
+const normalizarNomePadrao = (nome: string) => nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Planeja somente itens padrão; itens personalizados e recebimentos ficam intactos. */
+export function planejarValoresPadrao(itens: { id: string; chavePadrao: string | null; nome: string; grupo: string; previsto: string }[]) {
+  return ITENS_FINANCEIROS_PADRAO.map((padrao) => {
+    const encontrados = itens.filter((item) => item.chavePadrao === padrao.chave ||
+      (!item.chavePadrao && item.grupo === padrao.grupo && normalizarNomePadrao(item.nome) === normalizarNomePadrao(padrao.nome)));
+    if (encontrados.length > 1) throw new Error(`Existem itens duplicados para ${padrao.nome}. Revise antes de gerar os valores padrão.`);
+    const atual = encontrados[0];
+    const previsto = VALORES_PREVISTOS_PADRAO[padrao.chave];
+    return { ...padrao, id: atual?.id, previsto,
+      requerConfirmacao: !!atual && (centavosDe(atual.previsto) ?? 0) !== 0 && centavosDe(atual.previsto) !== centavosDe(previsto) };
+  });
+}
+
 export const LIMITE_NOME_ITEM = 120;
 
 export interface ItemFinanceiroEntrada {

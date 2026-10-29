@@ -23,6 +23,12 @@ export async function excluirCorretor(id: string) {
     // completamente desligados e o Usuario sobrevivia por conta propria).
     ...(corretor?.usuarioId ? [prisma.usuario.delete({ where: { id: corretor.usuarioId } })] : []),
   ]);
+  // Pedido de 29/10: pasta Equipe/<Nome (nº)> do acesso excluído → lixeira do Drive.
+  if (corretor?.usuarioId) {
+    const { lixeiraDaPasta } = await import("@/lib/drive-organizacao");
+    const { chaveEquipe } = await import("@/lib/drive-estrutura");
+    await lixeiraDaPasta(chaveEquipe(corretor.usuarioId));
+  }
   revalidatePath("/admin/corretores");
 }
 

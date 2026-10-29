@@ -15,6 +15,7 @@ import { carregarResumoObra } from "@/lib/financeiro/obra-dados";
 import { tipoProjetoObra } from "@/lib/types/obra";
 import { exigirObraOuEmpreiteiro } from "@/lib/obras/acesso-empreiteiro";
 import { invalidarAnexosMedicao } from "@/lib/obras/medicao-email-estado";
+import { lixeiraDeArquivosSemUso } from "@/lib/drive-organizacao";
 import { sendEmail, adminNotificationTemplate } from "@/lib/email";
 import { solicitarComAnexos, DESTINO_MEDICOES } from "@/lib/obras/medicao-solicitacao";
 import { gerarArquivoMedicao, copiarMedicaoParaDrive, type ResultadoDrive } from "@/lib/obras/medicao-gerar";
@@ -266,12 +267,14 @@ export async function atualizarFotoObra(fotoId: string, legenda: string | null, 
 
 export async function excluirFotoObra(fotoId: string): Promise<Resultado> {
   await exigirObraOuEmpreiteiro(await obraDaFoto(fotoId));
-  const foto = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { arquivoId: true, obraId: true, medicaoId: true } });
+  const foto = await prisma.obraFoto.findUnique({ where: { id: fotoId }, select: { arquivoId: true, obraId: true, medicaoId: true, arquivo: { select: { driveFileId: true } } } });
   if (!foto) return { ok: false, erro: "Foto não encontrada." };
   await prisma.$transaction(async tx => {
     await tx.arquivo.delete({ where: { id: foto.arquivoId } });
     if (foto.medicaoId) await invalidarAnexosMedicao(tx, foto.medicaoId);
   });
+  // Pedido de 29/10: a cópia no Drive vai para a lixeira (depois da exclusão no banco).
+  await lixeiraDeArquivosSemUso([foto.arquivo.driveFileId]);
   revalidar(foto.obraId);
   return { ok: true };
 }

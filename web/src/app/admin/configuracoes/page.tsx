@@ -10,6 +10,10 @@ import { GoogleDriveCard } from "./_components/google-drive-card";
 import { headers } from "next/headers";
 import { estadoOAuth } from "@/lib/google-drive-conexao";
 import { origemDaRequisicao } from "@/lib/google-drive-oauth";
+import { ultimoRelatorioDrive } from "@/lib/drive-organizacao";
+
+// Pedido de 29/10: o botão "Organizar Drive agora" roda aqui (rodada de até ~45 s).
+export const maxDuration = 60;
 
 const SECTIONS = [
   {
@@ -72,6 +76,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
   const { drive, motivo } = await searchParams;
   const h = await headers();
   const statusDrive = await estadoOAuth(origemDaRequisicao(h.get("x-forwarded-host") ?? h.get("host") ?? undefined));
+  const relatorioDrive = await ultimoRelatorioDrive().catch(() => null);
   const retornoDrive = drive === "ok" ? { tipo: "ok" as const, texto: "Google Drive conectado! Os próximos arquivos vão para o seu Drive." }
     : drive === "erro" ? { tipo: "erro" as const, texto: (motivo ?? "Não foi possível conectar o Google Drive.").slice(0, 300) } : null;
 
@@ -95,7 +100,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
 
       <ConfiguracoesClient sections={SECTIONS} valoresSalvos={valoresSalvos} />
 
-      <GoogleDriveCard retorno={retornoDrive} inicial={statusDrive} />
+      <GoogleDriveCard retorno={retornoDrive} inicial={statusDrive} relatorioInicial={relatorioDrive} />
 
       <UsuariosClient usuarios={usuarios.map((u) => ({
         id: u.id,

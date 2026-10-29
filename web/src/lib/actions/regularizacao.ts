@@ -11,6 +11,7 @@ import {
   ehStatusProcesso,
   LIMITE_NOME_ITEM,
   mensagemErroRegularizacao,
+  planejarValoresPadrao,
   reordenarEtapas,
   validarEtapa,
 } from "@/lib/financeiro/regularizacao";
@@ -168,6 +169,32 @@ async function excluirItemImpl(id: string) {
 export async function criarItemFinanceiroRegularizacao(regularizacaoId: string, dados: ItemFinanceiroInput) { return capturarErroAcao(() => criarItemImpl(regularizacaoId, dados)); }
 export async function editarItemFinanceiroRegularizacao(id: string, dados: ItemFinanceiroInput) { return capturarErroAcao(() => editarItemImpl(id, dados)); }
 export async function excluirItemFinanceiroRegularizacao(id: string) { return capturarErroAcao(() => excluirItemImpl(id)); }
+
+/** Aplica os previstos em uma transação, sem alterar recebimentos ou itens personalizados. */
+export async function gerarValoresPadraoRegularizacao(regularizacaoId: string, confirmarSubstituicao = false) {
+  return capturarErroAcao(async () => {
+    await exigirAdmin();
+    if (typeof regularizacaoId !== "string" || !regularizacaoId.trim()) throw new Error("Regularização inválida.");
+    if (typeof confirmarSubstituicao !== "boolean") throw new Error("Confirmação inválida.");
+    const resultado = await prisma.$transaction(async (tx) => {
+      const registros = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM regularizacoes WHERE id = ${regularizacaoId} FOR UPDATE`;
+      if (!registros.length) throw new Error("Regularização não encontrada.");
+      const itens = await tx.regularizacaoItemFinanceiro.findMany({ where: { regularizacaoId } });
+      const plano = planejarValoresPadrao(itens.map((item) => ({ ...item, previsto: item.previsto.toString() })));
+      if (!confirmarSubstituicao && plano.some((item) => item.requerConfirmacao)) return { requerConfirmacao: true };
+      for (const item of plano) {
+        if (item.id) {
+          await tx.regularizacaoItemFinanceiro.update({ where: { id: item.id }, data: { previsto: item.previsto, chavePadrao: item.chave } });
+        } else {
+          await tx.regularizacaoItemFinanceiro.create({ data: { regularizacaoId, chavePadrao: item.chave, nome: item.nome, grupo: item.grupo, ordem: item.ordem, previsto: item.previsto } });
+        }
+      }
+      return { requerConfirmacao: false };
+    });
+    if (!resultado.requerConfirmacao) revalidar(regularizacaoId);
+    return resultado;
+  });
+}
 
 /** Receitas do BPO já recebidas e com saldo (descontado o que obras e regularizações já usaram). */
 async function bpoDisponiveisImpl() {
