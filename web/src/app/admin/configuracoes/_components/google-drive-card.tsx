@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { CheckCircle2, CloudUpload, HardDrive, Link2, Loader2, Unplug } from "lucide-react";
+import { CheckCircle2, CloudUpload, FolderSync, HardDrive, Link2, Loader2, Unplug } from "lucide-react";
 import { exigirResultado } from "@/lib/acao-resultado";
-import { desconectarGoogleDrive, salvarCredencialGoogleDrive, statusGoogleDrive } from "@/lib/actions/google-drive";
+import { desconectarGoogleDrive, organizarDriveAgora, salvarCredencialGoogleDrive, statusGoogleDrive } from "@/lib/actions/google-drive";
+import type { RelatorioDrive } from "@/lib/drive-organizacao";
 import { testarGoogleDrive } from "@/lib/actions/documentos-registro";
 
 type Status = Awaited<ReturnType<typeof import("@/lib/google-drive-conexao").estadoOAuth>>;
@@ -15,10 +16,13 @@ type Teste = Exclude<Awaited<ReturnType<typeof testarGoogleDrive>>, { erroAcao: 
  */
 type Mensagem = { tipo: "ok" | "erro" | "aviso"; texto: string };
 
-export function GoogleDriveCard({ retorno, inicial }: { retorno: Mensagem | null; inicial: Status }) {
+const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
+
+export function GoogleDriveCard({ retorno, inicial, relatorioInicial }: { retorno: Mensagem | null; inicial: Status; relatorioInicial: RelatorioDrive | null }) {
   const [status, setStatus] = useState<Status | null>(inicial);
   const [msg, setMsg] = useState<Mensagem | null>(retorno);
-  const [pendente, setPendente] = useState<"json" | "teste" | "desconectar" | null>(null);
+  const [pendente, setPendente] = useState<"json" | "teste" | "desconectar" | "organizar" | null>(null);
+  const [relatorio, setRelatorio] = useState<RelatorioDrive | null>(relatorioInicial);
   const [teste, setTeste] = useState<Teste | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
 
@@ -48,6 +52,12 @@ export function GoogleDriveCard({ retorno, inicial }: { retorno: Mensagem | null
   async function testar() {
     setPendente("teste");
     try { setTeste(exigirResultado(await testarGoogleDrive())); } catch (e) { setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Falha no teste." }); }
+    finally { setPendente(null); }
+  }
+
+  async function organizar() {
+    setPendente("organizar"); setMsg(null);
+    try { setRelatorio(exigirResultado(await organizarDriveAgora())); } catch (e) { setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Falha ao organizar o Drive." }); }
     finally { setPendente(null); }
   }
 
@@ -92,6 +102,17 @@ export function GoogleDriveCard({ retorno, inicial }: { retorno: Mensagem | null
             </button>
             {status?.conectado && <button type="button" className={botao} disabled={pendente !== null} onClick={() => void desconectar()}><Unplug size={12} /> Desconectar</button>}
           </div>
+        </li>
+        <li className="border border-gray-100 p-3"><p className="font-bold text-[var(--brand-dark)]">3. Organização do Drive</p>
+          <p className="text-xs text-gray-500">Todo dia o sistema copia para o Drive o que ficou só no banco, coloca cada arquivo na pasta certa e manda para a lixeira (recuperável por 30 dias) as pastas de registros excluídos. Pastas criadas por você nunca são tocadas.</p>
+          <button type="button" className={`${botao} mt-2`} disabled={!status?.conectado || pendente !== null} onClick={() => void organizar()}>
+            {pendente === "organizar" ? <Loader2 size={12} className="animate-spin" /> : <FolderSync size={12} />}Organizar Drive agora
+          </button>
+          {relatorio && <div role="status" className="mt-2 text-xs text-gray-700">
+            <p>Última organização: {dataHora(relatorio.terminadoEm || relatorio.iniciadoEm)} — {relatorio.enviados} arquivo(s) enviado(s), {relatorio.movidos} movido(s), {relatorio.pastasOrfas} pasta(s) de registros excluídos na lixeira{relatorio.falhas ? `, ${relatorio.falhas} falha(s) — será tentado de novo` : ""}.</p>
+            {!relatorio.cicloConcluido && !relatorio.aviso && <p className="text-amber-800">Ainda há itens para organizar: continua na próxima rodada (clique de novo ou aguarde a rotina diária).</p>}
+            {relatorio.aviso && <p className="text-amber-800">{relatorio.aviso}</p>}
+          </div>}
         </li>
       </ol>
       {msg && <p role={msg.tipo === "erro" ? "alert" : "status"} className={`text-xs ${msg.tipo === "ok" ? "text-emerald-700" : msg.tipo === "aviso" ? "text-amber-800" : "text-red-700"}`}>{msg.texto}</p>}
