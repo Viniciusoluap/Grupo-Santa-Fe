@@ -781,8 +781,11 @@ model BpoLancamento {
   transacaoId               String?                    @unique
   transacao                 TransacaoBancaria?         @relation(fields: [transacaoId], references: [id], onDelete: Cascade)
   asaasPaymentId            String?                    @unique
+  /// Lote 3, item 16: cobrança combinada em outra (a nova cobrança soma as originais; nada é apagado).
+  combinadaEmId             String?
   criadoEm                  DateTime                   @default(now())
 
+  @@index([combinadaEmId])
   @@map("bpo_lancamentos")
 }
 
@@ -815,6 +818,22 @@ model BpoContaLimpezaBackup {
 
   @@index([contaReferencia, criadoEm])
   @@map("bpo_conta_limpeza_backups")
+}
+
+/// Lote 3, item 16: backup recuperável das exclusões em lote de cobranças/despesas.
+model BpoLancamentoExclusaoBackup {
+  id                 String   @id @default(cuid())
+  modo               String // selecionados | tudo
+  aba                String // cobrancas | despesas
+  filtrosJson        String   @default("{}")
+  quantidade         Int
+  protegidos         Int      @default(0)
+  snapshotJson       String
+  criadoPorUsuarioId String?
+  criadoEm           DateTime @default(now())
+
+  @@index([criadoEm])
+  @@map("bpo_lancamento_exclusoes_backup")
 }
 
 /// Registro imutável das alterações manuais em lançamentos BPO.

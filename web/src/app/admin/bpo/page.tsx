@@ -7,8 +7,7 @@ import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
 import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
-
-const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
+import { carregarIndicadoresRelatorios, periodoUltimos12Meses } from "@/lib/financeiro/relatorios-bpo-dados";
 
 export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string }> }) {
   await exigirModuloPagina("bpo");
@@ -21,13 +20,10 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     leads,
     contasRaw,
     totalImoveis,
-    totalLeads,
-    leadsPorStatus,
     comissoesPagas,
-    imoveisPorTipo,
     totalFinanciamentos,
-    corretores,
     pluggy,
+    indicadoresRelatorios,
   ] = await Promise.all([
     // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
@@ -53,17 +49,11 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       include: { transacoes: { orderBy: { data: "desc" }, take: 30 } },
     }),
     prisma.imovel.count(),
-    prisma.lead.count(),
-    prisma.lead.groupBy({ by: ["status"], _count: { id: true } }),
     prisma.comissao.findMany({ where: { status: "paga" }, orderBy: { pagamentoEm: "asc" }, take: 500 }),
-    prisma.imovel.groupBy({ by: ["tipo"], _count: { id: true } }),
     prisma.financiamento.count(),
-    prisma.corretor.findMany({
-      where: { ativo: true },
-      include: { comissoes: { where: { status: "paga" } } },
-      take: 10,
-    }),
     statusPluggy(),
+    // Lote 03 (14 e 18): VGV de Obras, Números de Obra, Funil, Ranking e Unidades.
+    carregarIndicadoresRelatorios(periodoUltimos12Meses()),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
   const { aba, categoriaOperacional, vinculoOperacionalId } = await searchParams;
@@ -88,32 +78,6 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     });
   }
 
-  const propertyTypeData = imoveisPorTipo.map((g, idx) => ({
-    name: g.tipo.charAt(0).toUpperCase() + g.tipo.slice(1),
-    value: g._count.id,
-    color: PIE_COLORS[idx % PIE_COLORS.length],
-  }));
-
-  const totalLeadsCount = totalLeads || 1;
-  const statusMap: Record<string, string> = {
-    novo: "Captados", contato: "Em Contato", visita: "Visitas",
-    proposta: "Proposta", fechado: "Fechados", perdido: "Perdidos",
-  };
-  const leadFunnelData = leadsPorStatus.map((s) => ({
-    stage: statusMap[s.status] ?? s.status,
-    count: s._count.id,
-    pct: Math.round((s._count.id / totalLeadsCount) * 100),
-  }));
-
-  const corretorRanking = corretores
-    .map((c) => ({
-      name: c.nome,
-      comissoes: c.comissoes.reduce((s, com) => s + com.valor, 0),
-      vendas: c.comissoes.length,
-    }))
-    .sort((a, b) => b.comissoes - a.comissoes)
-    .slice(0, 5);
-
   const serviceRevenue = [
     { service: "Corretagem", receita: comissoesPagas.reduce((s, c) => s + c.valor, 0) },
   ];
@@ -125,12 +89,10 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
   const relatoriosData = {
     dreMensal: dreUltimos12Meses(todosLancamentos, now),
     totalImoveis,
-    totalLeads,
+    totalLeads: indicadoresRelatorios.funilLeads.total,
     totalFinanciamentos,
     monthlySales,
-    propertyTypeData,
-    leadFunnelData,
-    corretorRanking,
+    ...indicadoresRelatorios,
     serviceRevenue,
   };
 

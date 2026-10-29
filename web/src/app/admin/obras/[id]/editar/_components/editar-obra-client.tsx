@@ -19,8 +19,9 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "valores", label: "Valores da Operação" },
   { id: "custos", label: "Custos" },
   { id: "progresso", label: "Progresso" },
-  // Lote 02, correção 03: "Fotos" virou "Gerador de PCI" (a galeria por medição continua
-  // em Detalhes da Obra e logo abaixo do gerador). Para o empreiteiro segue "Fotos" (só galeria).
+  // Lote 02, correção 03: "Fotos" virou "Gerador de PCI". Lote 03, correção 05: a galeria
+  // saiu desta aba para admin/colaborador (segue em Detalhes da Obra/Progresso). Para o
+  // empreiteiro segue "Fotos" (só a galeria).
   { id: "fotos", label: "Gerador de PCI" },
   { id: "relatorios", label: "Relatórios" },
 ];
@@ -86,7 +87,7 @@ export function EditarObraClient({ resumo, empreiteiros, clienteNome, corretor, 
 
       {aba === "progresso" && <ProgressoObra obraId={resumo.obra.id} dados={progresso} />}
       {aba === "fotos" && !modoEmpreiteiro && <GeradorPci obraId={resumo.obra.id} />}
-      {aba === "fotos" && <FotosObra fotos={fotos} medicoes={medicoesGaleria} />}
+      {aba === "fotos" && modoEmpreiteiro && <FotosObra fotos={fotos} medicoes={medicoesGaleria} />}
       {aba === "relatorios" && <RelatorioObraBotao obraId={resumo.obra.id} />}
 
     <form action={salvar} onInvalidCapture={() => setAba("info")} className={ABAS_DO_FORMULARIO.includes(aba) ? "space-y-5" : "hidden"}>
