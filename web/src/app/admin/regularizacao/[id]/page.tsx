@@ -8,7 +8,7 @@ import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { alterarStatusRegularizacao } from "@/lib/actions/regularizacao";
 import { STATUS_PROCESSO } from "@/lib/financeiro/regularizacao";
 import { carregarProcessoRegularizacao } from "@/lib/regularizacao/processo-dados";
-import { EtapasProcesso, FinanceiroRegularizacaoTabela } from "./_components/processo-regularizacao";
+import { EtapasProcesso, FinanceiroRegularizacaoTabela, GerarValorPadrao } from "./_components/processo-regularizacao";
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -55,6 +55,7 @@ export default async function RegDetailPage({ params }: PageProps) {
           <ArrowLeft size={14} /> Regularização
         </Link>
         <h1 className="font-black text-[var(--brand-dark)] text-xl uppercase flex-1">{r.nome}</h1>
+        <GerarValorPadrao regularizacaoId={r.id} />
         <span className={`text-xs font-bold px-2 py-0.5 uppercase ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
       </div>
       <p className="text-xs text-gray-500">

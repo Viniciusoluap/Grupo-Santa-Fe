@@ -13,10 +13,16 @@
 ## Plano de implementação
 Reutilizar componentes e regras existentes; implementar os requisitos, revisar o diff e executar as verificações adequadas. Manter equivalência de comportamento entre os sistemas e preservar suas identidades visuais.
 
+## Implementação
+Indicadores, contagem filtrada, paginação e preenchimento padrão implementados. Valores previstos continuam editáveis; operação preserva recebimentos e evita duplicações. Integração Asaas inclui manutenção administrativa autenticada e validação dos eventos recebidos.
+
+## AIOX
+Definições versionadas consultadas e trabalho separado entre desenvolvimento, QA e DevOps. Recursos centrais referenciados pelas definições (core-config, gotchas e technical-preferences) não estavam disponíveis no checkout; sua execução não é afirmada. CodeRabbit CLI indisponível; revisão independente realizada pelos agentes.
+
 ## Validações
-(a) Automáticas: whitespace do checkpoint verificado; testes funcionais pendentes.
-(b) Manuais: aceite visual e de navegação pendente.
-(c) Publicação: pendente de implementação e validação.
+(a) Automáticas: git diff --check aprovado; revisão independente QA aprovada. Santa Fé: 19 testes de regularização e 25 testes da integração aprovados; TypeScript e ESLint dos arquivos alterados aprovados.
+(b) Manuais: aceite visual autenticado e de navegação ainda pendente.
+(c) Publicação: PR e build de publicação ainda em preparação.
 
 ## Próximo passo
-Concluir implementação e revisão, executar testes, registrar resultados e preparar entrega pelos procedimentos do projeto.
+Confirmar checks do PR e builds; efetuar merge autorizado, acompanhar publicação e validar navegação autenticada. Registrar limitações reais sem declarar aceite visual integral antecipadamente.

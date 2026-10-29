@@ -4,6 +4,9 @@
 // lançados em server actions; por isso todas devolvem { erro } com o motivo legível.
 import { revalidatePath } from "next/cache";
 import { exigirAdminAtivo } from "@/lib/auth/modulos";
+import { chaveAsaasCentral, tokenWebhookAsaasCentral } from "@/lib/bancos/asaas-central";
+import { URL_WEBHOOK_ASAAS } from "@/lib/bancos";
+import { verificarWebhookAsaas, WebhookRecoveryError, type WebhookDiagnostic } from "@/lib/bancos/asaas-webhook-recovery";
 import {
   salvarAsaasIntegracao, salvarEvolutionIntegracao, salvarPluggyIntegracao, statusIntegracoes, testarIntegracao,
   type ResultadoTeste, type ServicoIntegracao, type StatusIntegracoes,
@@ -12,6 +15,18 @@ import {
 const ROTA = "/admin/integracoes";
 const SERVICOS: readonly ServicoIntegracao[] = ["asaas", "pluggy", "whatsapp"];
 const motivo = (e: unknown, padrao = "Operação falhou.") => (e instanceof Error && e.message ? e.message : padrao);
+
+export async function verificarWebhookAsaasAcao(recuperar = false): Promise<{ status?: WebhookDiagnostic; erro?: string }> {
+  try {
+    await exigirAdminAtivo();
+    const [asaas, webhook] = await Promise.all([chaveAsaasCentral(), tokenWebhookAsaasCentral()]);
+    if (!asaas || !webhook) return { erro: "Configure a chave de API e o token do webhook antes de verificar a sincronização." };
+    const status = await verificarWebhookAsaas({ apiKey: asaas.apiKey, token: webhook.token,
+      environment: asaas.environment, canonicalUrl: URL_WEBHOOK_ASAAS(), legacyHosts: [],
+    }, recuperar);
+    return { status };
+  } catch (error) { return { erro: error instanceof WebhookRecoveryError ? error.message : "Não foi possível verificar ou recuperar o webhook. Confira a configuração e tente novamente." }; }
+}
 
 export async function statusIntegracoesAcao(): Promise<{ status?: StatusIntegracoes; erro?: string }> {
   try { await exigirAdminAtivo(); return { status: await statusIntegracoes() }; }

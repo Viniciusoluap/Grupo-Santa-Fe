@@ -8,9 +8,10 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { CheckCircle2, Copy, Loader2, XCircle } from "lucide-react";
 import {
-  salvarAsaasIntegracaoAcao, salvarEvolutionIntegracaoAcao, salvarPluggyIntegracaoAcao, statusIntegracoesAcao, testarIntegracaoAcao,
+  salvarAsaasIntegracaoAcao, salvarEvolutionIntegracaoAcao, salvarPluggyIntegracaoAcao, statusIntegracoesAcao, testarIntegracaoAcao, verificarWebhookAsaasAcao,
 } from "@/lib/actions/integracoes";
 import type { ResultadoTeste, ServicoIntegracao, StatusIntegracoes } from "@/lib/integracoes";
+import type { WebhookDiagnostic } from "@/lib/bancos/asaas-webhook-recovery";
 
 type Campo = { nome: string; rotulo: string; segredo?: boolean; placeholder?: string; opcional?: boolean };
 type Mensagem = { tipo: "ok" | "erro"; texto: string };
@@ -110,6 +111,18 @@ function Bloco({ titulo, servico, salvo, extra, campos, onSalvar, onSalvo }: {
 export function IntegracoesClient({ inicial }: { inicial: StatusIntegracoes }) {
   const [status, setStatus] = useState<StatusIntegracoes>(inicial);
   const [copiado, setCopiado] = useState(false);
+  const [verificandoWebhook, setVerificandoWebhook] = useState(false);
+  const [webhook, setWebhook] = useState<WebhookDiagnostic | null>(null);
+  const [erroWebhook, setErroWebhook] = useState<string | null>(null);
+  async function verificarWebhook(recuperar = false) {
+    if (recuperar && !window.confirm("Conferir o endpoint e atualizar somente o webhook deste sistema com a URL e o token salvos, ativando a fila? Os eventos pendentes poderão ser reenviados.")) return;
+    setVerificandoWebhook(true); setErroWebhook(null);
+    try {
+      const result = await verificarWebhookAsaasAcao(recuperar);
+      setWebhook(result.status ?? null); setErroWebhook(result.erro ?? null);
+    } catch { setErroWebhook("Não foi possível verificar a sincronização agora."); }
+    finally { setVerificandoWebhook(false); }
+  }
   const recarregar = useCallback(async () => {
     const r = await statusIntegracoesAcao().catch(() => null);
     if (r?.status) setStatus(r.status);
@@ -139,6 +152,15 @@ export function IntegracoesClient({ inicial }: { inicial: StatusIntegracoes }) {
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-700">No Asaas: Integrações › Webhooks, use o mesmo token salvo aqui. O ambiente (produção/sandbox) é reconhecido pela chave ($aact_prod… = produção). Contas Asaas do BPO sem chave própria usam esta chave.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className={botaoSec} disabled={verificandoWebhook} onClick={() => void verificarWebhook()}>Verificar webhook</button>
+              <button type="button" className={botaoSec} disabled={verificandoWebhook || !asaas.webhookConfigurado} onClick={() => void verificarWebhook(true)}>{verificandoWebhook ? "Verificando…" : "Recuperar sincronização"}</button>
+            </div>
+            {erroWebhook && <p role="alert" className="mt-2 text-red-700">{erroWebhook}</p>}
+            {webhook && <div role="status" className="mt-2 space-y-1 text-gray-800">
+              <p>{webhook.mensagem}</p>
+              {webhook.encontrado && <p>Ambiente: {webhook.ambiente}. URL: {webhook.urlCorreta ? "correta" : "precisa atualizar"}. Token: {webhook.tokenConfere === null ? "não informado pelo provedor" : webhook.tokenConfere ? "confere" : "divergente"}. Fila: {webhook.interrompido ? "interrompida" : "ativa"}. Webhook: {webhook.ativo ? "habilitado" : "desabilitado"}.</p>}
+            </div>}
           </div>
         }
         campos={[

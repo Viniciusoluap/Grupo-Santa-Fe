@@ -23,6 +23,7 @@ import {
   excluirItemFinanceiroRegularizacao,
   listarBpoDisponiveisRegularizacao,
   moverEtapaRegularizacao,
+  gerarValoresPadraoRegularizacao,
 } from "@/lib/actions/regularizacao";
 
 // EPIC-020 Lote 6 — Etapas do Processo (30) e Tabela financeira (31).
@@ -157,6 +158,21 @@ export interface RecebimentoTela {
 }
 
 const ORIGEM_LABEL: Record<string, string> = { manual: "Manual", bpo: "BPO", migracao: "Migrado" };
+
+export function GerarValorPadrao({ regularizacaoId }: { regularizacaoId: string }) {
+  const { pendente, erro, executar } = useAcao();
+  const gerarPadrao = () => executar(async () => {
+    const resultado = exigirResultado(await gerarValoresPadraoRegularizacao(regularizacaoId));
+    if (resultado.requerConfirmacao && window.confirm("Substituir os valores previstos já preenchidos pelos valores padrão? Os recebimentos serão preservados.")) {
+      return gerarValoresPadraoRegularizacao(regularizacaoId, true);
+    }
+    return resultado;
+  });
+  return <div className="space-y-1">
+    <button type="button" className={`${botaoSec} disabled:opacity-50`} disabled={pendente} onClick={gerarPadrao}>{pendente ? "Gerando..." : "Gerar valor padrão"}</button>
+    {erro && <p role="alert" className="text-xs text-red-600">{erro}</p>}
+  </div>;
+}
 
 export function FinanceiroRegularizacaoTabela({ regularizacaoId, financeiro, recebimentos, itensComRecebimento }: {
   regularizacaoId: string;
