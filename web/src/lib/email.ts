@@ -1,9 +1,13 @@
 import nodemailer from "nodemailer";
-import { descreverErroSmtp } from "@/lib/email-erro";
+import { descreverErroSmtp, falhaTemporariaSmtp } from "@/lib/email-erro";
 
 type EmailDependencies = {
   transport: Pick<ReturnType<typeof nodemailer.createTransport>, "sendMail">;
+  /** Pausa antes de repetir uma falha temporária; injetável nos testes. */
+  esperar?: (ms: number) => Promise<void>;
 };
+
+const esperarPadrao = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function defaultDependencies(): EmailDependencies | null {
   const { SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_PORT } = process.env;
@@ -32,14 +36,22 @@ export async function sendEmail(
   if (!deps) return false;
 
   try {
-    await deps.transport.sendMail({
+    const mensagem = {
       from: `"Grupo Santa Fé" <${process.env.SMTP_USER ?? "no-reply@gruposantafee.com.br"}>`,
       to: data.to,
       subject: data.subject,
       html: data.html,
       text: data.html.replace(/<[^>]*>/g, ""),
       attachments: data.attachments,
-    });
+    };
+    try {
+      await deps.transport.sendMail(mensagem);
+    } catch (erro) {
+      // Recusa temporária do provedor: repete uma vez (paridade com a Prospecta).
+      if (!falhaTemporariaSmtp(erro)) throw erro;
+      await (deps.esperar ?? esperarPadrao)(3_000);
+      await deps.transport.sendMail(mensagem);
+    }
     return true;
   } catch (erro) {
     console.error(`[email] envio falhou: ${descreverErroSmtp(erro)}`);

@@ -71,3 +71,25 @@ it("preserva PDF e XLS anexados no transporte SMTP", async () => {
     await expect(sendEmail({ to: "empresa@example.test", subject: "Medição", html: "<p>Solicitação</p>",  attachments }, deps)).resolves.toBe(true);
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ attachments }));
 });
+
+describe("sendEmail — falha temporária do provedor", () => {
+  const dados = { to: "x@example.test", subject: "Aviso", html: "<p>Aviso</p>" };
+
+  it("repete uma vez quando o provedor recusa a mensagem (EMESSAGE)", async () => {
+    const sendMail = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error("rejected"), { code: "EMESSAGE", responseCode: 550 }))
+      .mockResolvedValueOnce({ messageId: "retry-ok" });
+    const esperar = vi.fn().mockResolvedValue(undefined);
+    await expect(sendEmail(dados, { transport: { sendMail }, esperar })).resolves.toBe(true);
+    expect(sendMail).toHaveBeenCalledTimes(2);
+    expect(esperar).toHaveBeenCalledTimes(1);
+  });
+
+  it("não repete falha de autenticação", async () => {
+    const sendMail = vi.fn().mockRejectedValue(Object.assign(new Error("auth"), { code: "EAUTH", responseCode: 535 }));
+    const esperar = vi.fn().mockResolvedValue(undefined);
+    await expect(sendEmail(dados, { transport: { sendMail }, esperar })).resolves.toBe(false);
+    expect(sendMail).toHaveBeenCalledTimes(1);
+    expect(esperar).not.toHaveBeenCalled();
+  });
+});
