@@ -5,6 +5,7 @@ import { usuarioAtual } from "@/lib/auth/modulos";
 import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 import { lerDataUrl, podeGerenciarFotos, validarFotoObra } from "@/lib/obras/fotos";
+import { copiarParaDrive } from "@/lib/drive-organizacao";
 
 export const runtime = "nodejs";
 
@@ -50,12 +51,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await invalidarAnexosMedicao(tx, medicaoId);
       return tx.obraFoto.create({
         data: { medicaoId, obraId, arquivoId: arquivo.id, legenda, tiradaEm, incluirNoRelatorio: body?.includeInReport !== false, enviadoPorId: user.id },
-        select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true },
+        select: { id: true, legenda: true, tiradaEm: true, incluirNoRelatorio: true, arquivoId: true },
       });
     });
+    // Pedido de 29/10: cópia em Obras/<Obra>/Fotos/<Medição NN — data>; sem Drive fica pendente.
+    await copiarParaDrive("arquivo", foto.arquivoId);
     revalidatePath(`/admin/obras/${obraId}/editar`);
     revalidatePath(`/empreiteiro/obras/${obraId}/editar`);
-    return NextResponse.json({ ...foto, url: `/api/obras/fotos/${foto.id}` });
+    return NextResponse.json({ id: foto.id, legenda: foto.legenda, tiradaEm: foto.tiradaEm, incluirNoRelatorio: foto.incluirNoRelatorio, url: `/api/obras/fotos/${foto.id}` });
   } catch (error) {
     console.error("[obra-fotos] envio:", error);
     return NextResponse.json({ error: "Erro ao gravar a foto. Tente novamente." }, { status: 500 });

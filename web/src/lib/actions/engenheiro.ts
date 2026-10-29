@@ -6,6 +6,7 @@ import { usuarioAtual } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { acessoDocumentosUsuario, lerCreasAdicionais, podeVisualizarNoNavegador, validarPerfilEngenheiro } from "@/lib/engenheiro";
 import { gravarPerfilEngenheiro } from "@/lib/engenheiros";
+import { lixeiraDeArquivosSemUso } from "@/lib/drive-organizacao";
 
 async function acessar(usuarioId: string, gerenciar: boolean) {
   const u = await usuarioAtual();
@@ -69,8 +70,11 @@ export async function salvarPerfilEngenheiro(usuarioId: string, entrada: Record<
 export async function excluirDocumentoUsuario(usuarioId: string, documentoId: string) {
   try {
     await acessar(usuarioId, true);
+    const doc = await prisma.documentoUsuario.findFirst({ where: { id: documentoId, usuarioId }, select: { driveFileId: true } });
     const r = await prisma.documentoUsuario.deleteMany({ where: { id: documentoId, usuarioId } });
     if (!r.count) return { erro: "Documento não encontrado." };
+    // Pedido de 29/10: a cópia no Drive vai para a lixeira (depois da exclusão no banco).
+    await lixeiraDeArquivosSemUso([doc?.driveFileId]);
     return { ok: true as const };
   } catch (e) {
     return { erro: e instanceof Error ? e.message : "Falha ao excluir." };

@@ -19,7 +19,7 @@ export async function gravarPci(obraId: string, nome: string, bytes: Uint8Array,
   let parsed: DadosPci;
   try { parsed = lerPci(bytes); } catch (e) { throw new PciInvalida(e instanceof Error ? e.message : "PCI inválida."); }
   const hash = createHash("sha256").update(bytes).digest("hex");
-  const nova = await prisma.$transaction(async tx => {
+  const { nova, versaoId } = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM obras WHERE id = ${obraId} FOR UPDATE`;
     const existia = await tx.obraPciVersao.findUnique({ where: { obraId_hash: { obraId, hash } }, select: { id: true } });
     const versao = await tx.obraPciVersao.upsert({
@@ -34,11 +34,11 @@ export async function gravarPci(obraId: string, nome: string, bytes: Uint8Array,
         update: { versaoId: versao.id, enviadaEm: new Date(), vinculadaEm: null, vinculadaPorId: null },
       });
     }
-    return !existia;
+    return { nova: !existia, versaoId: versao.id };
   });
   // Pedido de 18/10: a PCI original (intacta) também fica no Google Drive da obra,
   // uma cópia por versão. Sem Drive, a versão continua guardada no banco.
-  const drive = nova ? await copiarPciParaDrive(obraId, nome, bytes, parsed.formato) : null;
+  const drive = nova ? await copiarPciParaDrive(obraId, nome, bytes, parsed.formato, versaoId) : null;
   return { parsed, drive };
 }
 
@@ -46,11 +46,13 @@ export function mimePci(formato: string) {
   return formato === "xlsb" ? "application/vnd.ms-excel.sheet.binary.macroEnabled.12" : "application/vnd.ms-excel";
 }
 
-async function copiarPciParaDrive(obraId: string, nome: string, bytes: Uint8Array, formato: string) {
+async function copiarPciParaDrive(obraId: string, nome: string, bytes: Uint8Array, formato: string, versaoId: string) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true, nome: true } });
   if (!obra) return null;
   const { tentarUploadDrive, uploadArquivoMedicaoObra } = await import("@/lib/incorporacao/registro-drive");
   const mime = mimePci(formato);
   const r = await tentarUploadDrive(() => uploadArquivoMedicaoObra(obra, { rotulo: "PCI original", nomeOriginal: nome, mime, bytes: Buffer.from(bytes) }));
+  // Pedido de 29/10: o ID fica na versão; sem ele o sincronizador "Organizar Drive" envia depois.
+  if (r.fileId) await prisma.obraPciVersao.updateMany({ where: { id: versaoId, driveFileId: null }, data: { driveFileId: r.fileId } });
   return r.fileId ? "ok" as const : r.nota ? "erro" as const : "indisponivel" as const;
 }
