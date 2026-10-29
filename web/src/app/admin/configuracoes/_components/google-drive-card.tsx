@@ -109,7 +109,7 @@ export function GoogleDriveCard({ retorno, inicial, relatorioInicial }: { retorn
             {pendente === "organizar" ? <Loader2 size={12} className="animate-spin" /> : <FolderSync size={12} />}Organizar Drive agora
           </button>
           {relatorio && <div role="status" className="mt-2 text-xs text-gray-700">
-            <p>Última organização: {dataHora(relatorio.terminadoEm || relatorio.iniciadoEm)} — {relatorio.enviados} arquivo(s) enviado(s), {relatorio.movidos} movido(s), {relatorio.pastasOrfas} pasta(s) de registros excluídos na lixeira{relatorio.falhas ? `, ${relatorio.falhas} falha(s) — será tentado de novo` : ""}.</p>
+            <p>Última organização: {dataHora(relatorio.terminadoEm || relatorio.iniciadoEm)} — {relatorio.enviados} arquivo(s) enviado(s), {relatorio.movidos} movido(s), {relatorio.pastasOrfas} pasta(s) de registros excluídos na lixeira{relatorio.arquivosNaLixeira ? `, ${relatorio.arquivosNaLixeira} arquivo(s) pendente(s) na lixeira` : ""}{relatorio.pastasMantidasEmUso ? `, ${relatorio.pastasMantidasEmUso} pasta(s) mantida(s) por arquivo em uso` : ""}{relatorio.falhas ? `, ${relatorio.falhas} falha(s) — será tentado de novo` : ""}.</p>
             {!relatorio.cicloConcluido && !relatorio.aviso && <p className="text-amber-800">Ainda há itens para organizar: continua na próxima rodada (clique de novo ou aguarde a rotina diária).</p>}
             {relatorio.aviso && <p className="text-amber-800">{relatorio.aviso}</p>}
           </div>}

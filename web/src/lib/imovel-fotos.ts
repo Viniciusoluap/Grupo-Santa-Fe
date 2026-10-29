@@ -143,38 +143,73 @@ async function organizarFotos(imovelId: string) {
   await organizarFotosImovel({ id: imovel.id, titulo: imovel.titulo }, ordem);
 }
 
+/** Fotos do imóvel no lugar certo (ex.: antes de uma pasta órfã ir para a lixeira). */
+export async function organizarFotosDoImovel(imovelId: string): Promise<void> {
+  await organizarFotos(imovelId);
+}
+
+export interface OpcoesFotosPendentes {
+  /** Linhas por consulta (padrão 25). */
+  lote?: number;
+  /** Instante (ms) em que para; o restante (driveFileId nulo) fica para a próxima execução. */
+  prazo?: number;
+}
+
 /**
- * "Testar Google Drive": envia ao Drive as fotos que ficaram no banco (Drive
- * fora do ar no envio ou cadastros antigos com a foto dentro do anúncio).
+ * "Testar Google Drive" e "Organizar Drive": envia ao Drive as fotos que ficaram
+ * no banco (Drive fora do ar no envio ou cadastros antigos com a foto dentro do
+ * anúncio). Em lotes e com prazo; retomável (só pega o que ainda não tem driveFileId).
  */
-export async function enviarFotosPendentesAoDrive(): Promise<{ enviadas: number; falhas: number }> {
+export async function enviarFotosPendentesAoDrive(opcoes: OpcoesFotosPendentes = {}): Promise<{ enviadas: number; falhas: number; concluido: boolean }> {
+  const lote = Math.max(1, opcoes.lote ?? 25);
+  const expirou = () => opcoes.prazo !== undefined && Date.now() >= opcoes.prazo;
   let enviadas = 0;
   let falhas = 0;
-  const antigos = await prisma.imovel.findMany({ where: { imagens: { contains: "data:image/" } }, select: { id: true, imagens: true } });
-  for (const im of antigos) {
-    try {
-      const fotos = lerFotos(im.imagens);
-      await aplicarFotosImovel(im.id, fotos, null);
-      enviadas += fotos.filter((u) => u.startsWith("data:")).length;
-    } catch (erro) {
-      falhas += 1;
-      console.error("[imovel-fotos] cadastro antigo não migrado:", erro instanceof Error ? erro.message : "erro");
+  const parcial = () => ({ enviadas, falhas, concluido: false });
+  // Cursor só dentro desta execução: o que falhar não é repetido agora, mas volta na próxima.
+  let depoisDe: string | null = null;
+  for (;;) {
+    if (expirou()) return parcial();
+    const antigos: { id: string; imagens: string }[] = await prisma.imovel.findMany({
+      where: { imagens: { contains: "data:image/" }, ...(depoisDe ? { id: { gt: depoisDe } } : {}) },
+      orderBy: { id: "asc" }, take: lote, select: { id: true, imagens: true },
+    });
+    if (!antigos.length) break;
+    for (const im of antigos) {
+      if (expirou()) return parcial();
+      depoisDe = im.id;
+      try {
+        const fotos = lerFotos(im.imagens);
+        await aplicarFotosImovel(im.id, fotos, null);
+        enviadas += fotos.filter((u) => u.startsWith("data:")).length;
+      } catch (erro) {
+        falhas += 1;
+        console.error("[imovel-fotos] cadastro antigo não migrado:", erro instanceof Error ? erro.message : "erro");
+      }
     }
   }
-  const pendentes = await prisma.imovelFoto.findMany({
-    where: { driveFileId: null, dados: { not: null } },
-    select: { id: true, imovelId: true, mime: true, dados: true, imovel: { select: { titulo: true } } },
-  });
-  for (const p of pendentes) {
-    try {
-      const [fileId] = await uploadFotosImovel({ id: p.imovelId, titulo: p.imovel.titulo }, [{ ordem: 1, mime: p.mime, bytes: Buffer.from(p.dados!) }]);
-      await prisma.imovelFoto.update({ where: { id: p.id }, data: { driveFileId: fileId, dados: null } });
-      await organizarFotos(p.imovelId).catch(() => undefined);
-      enviadas += 1;
-    } catch (erro) {
-      falhas += 1;
-      console.error("[imovel-fotos] foto pendente não enviada:", erro instanceof Error ? erro.message : "erro");
+  depoisDe = null;
+  for (;;) {
+    if (expirou()) return parcial();
+    const pendentes: { id: string; imovelId: string; mime: string; dados: Uint8Array | null; imovel: { titulo: string } }[] = await prisma.imovelFoto.findMany({
+      where: { driveFileId: null, dados: { not: null }, ...(depoisDe ? { id: { gt: depoisDe } } : {}) },
+      orderBy: { id: "asc" }, take: lote,
+      select: { id: true, imovelId: true, mime: true, dados: true, imovel: { select: { titulo: true } } },
+    });
+    if (!pendentes.length) break;
+    for (const p of pendentes) {
+      if (expirou()) return parcial();
+      depoisDe = p.id;
+      try {
+        const [fileId] = await uploadFotosImovel({ id: p.imovelId, titulo: p.imovel.titulo }, [{ ordem: 1, mime: p.mime, bytes: Buffer.from(p.dados!) }]);
+        await prisma.imovelFoto.update({ where: { id: p.id }, data: { driveFileId: fileId, dados: null } });
+        await organizarFotos(p.imovelId).catch(() => undefined);
+        enviadas += 1;
+      } catch (erro) {
+        falhas += 1;
+        console.error("[imovel-fotos] foto pendente não enviada:", erro instanceof Error ? erro.message : "erro");
+      }
     }
   }
-  return { enviadas, falhas };
+  return { enviadas, falhas, concluido: true };
 }

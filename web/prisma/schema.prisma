@@ -1750,3 +1750,17 @@ model DocumentoUsuario {
   @@index([usuarioId, categoria])
   @@map("documentos_usuario")
 }
+
+/// Pedido de 29/10 (gêmeo de drive_trash_queue da Prospecta): lixeira do Drive que
+/// falhou na hora da exclusão. `tipo` = "arquivo" (alvo = ID do arquivo no Drive) ou
+/// "pasta" (alvo = etiqueta, ex.: "cliente:<id>"). O "Organizar Drive" reprocessa.
+model DriveLixeiraPendente {
+  id         Int      @id @default(autoincrement())
+  tipo       String   @db.VarChar(10)
+  alvo       String
+  tentativas Int      @default(0)
+  criadoEm   DateTime @default(now())
+
+  @@unique([tipo, alvo])
+  @@map("drive_lixeira_pendente")
+}

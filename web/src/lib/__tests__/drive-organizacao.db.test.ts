@@ -213,4 +213,145 @@ describe.skipIf(!url)("Drive: organização completa (banco real, Drive simulado
     await prisma.conexaoWhatsApp.delete({ where: { id: conexao.id } });
     await prisma.lead.delete({ where: { id: lead.id } });
   });
+  // ─── Revisão do PR #239 ────────────────────────────────────────────────────
+  /** Drive simulado que recusa (500) os PATCH do arquivo indicado — mover ou mandar para a lixeira. */
+  const recusarPatchDe = (ids: string[]) => vi.stubGlobal("fetch", async (entrada: string | URL, init: RequestInit = {}) => {
+    const u = new URL(String(entrada));
+    if ((init.method ?? "GET").toUpperCase() === "PATCH" && ids.some((id) => u.pathname.endsWith(`/files/${id}`)))
+      return Response.json({ error: { code: 500, message: "falha simulada" } }, { status: 500 });
+    return drive.fetchFake(entrada, init);
+  });
+  const driveNormal = () => vi.stubGlobal("fetch", drive.fetchFake);
+
+  it("P1: lead excluído com documento compartilhado que não sai da pasta — a pasta fica, entra na fila e o sincronizador só a apaga depois de tirar o arquivo", async () => {
+    const original = await prisma.lead.create({ data: { nome: "Original P1", telefone: "1", servico: "construcao", arquivadoEm: new Date() } });
+    const copia = await prisma.lead.create({ data: { nome: "Cópia P1", telefone: "1", servico: "construcao" } });
+    const pasta = pastaSistema(`cliente:${original.id}`, "Original P1", clientes);
+    const atendimento = pastaSistema(`cliente:${original.id}:atendimento`, "Atendimento", pasta);
+    const doc = drive.novo({ name: "CNH.pdf", mimeType: "application/pdf", parents: [atendimento] });
+    const a = await prisma.arquivo.create({ data: { nome: "cnh.pdf", mime: "application/pdf", driveFileId: doc } });
+    await prisma.documentoCliente.create({ data: { leadId: original.id, tipo: "address_proof", arquivoId: a.id } });
+    await prisma.documentoCliente.create({ data: { leadId: copia.id, tipo: "address_proof", arquivoId: a.id } });
+
+    recusarPatchDe([doc]);
+    try {
+      expect(await (await import("@/lib/actions/leads")).excluirLeadDefinitivamente(original.id)).toEqual({ ok: true });
+    } finally { driveNormal(); }
+    // O documento não saiu: a pasta NÃO foi para a lixeira e ficou na fila durável.
+    expect(drive.arquivos.get(pasta)!.trashed).toBe(false);
+    expect(await prisma.driveLixeiraPendente.findUnique({ where: { tipo_alvo: { tipo: "pasta", alvo: `cliente:${original.id}` } } })).not.toBeNull();
+
+    // Ainda falhando: a varredura (fila e órfãs) mantém a pasta e conta no relatório.
+    recusarPatchDe([doc]);
+    let r: Awaited<ReturnType<typeof org.sincronizarDrive>>;
+    try { r = await org.sincronizarDrive({ prazoMs: 30_000 }); } finally { driveNormal(); }
+    expect(r.pastasMantidasEmUso).toBeGreaterThanOrEqual(1);
+    expect(drive.arquivos.get(pasta)!.trashed).toBe(false);
+    expect(drive.arquivos.get(doc)!.trashed).toBe(false);
+
+    // Drive de volta: o arquivo vai para a pasta do dono e só então a pasta vai para a lixeira.
+    r = await org.sincronizarDrive({ prazoMs: 30_000 });
+    expect(drive.caminho(doc, raiz)).toBe(`Clientes/Cópia P1 (nº ${curto(copia.id)})/Atendimento/Comprovante de endereço atualizado — ${dataArquivo(a.criadoEm)}.pdf`);
+    expect(drive.arquivos.get(pasta)!.trashed).toBe(true);
+    expect(drive.arquivos.get(doc)!.trashed).toBe(false);
+    expect(await prisma.driveLixeiraPendente.count({ where: { alvo: `cliente:${original.id}` } })).toBe(0);
+    await prisma.documentoCliente.deleteMany({ where: { leadId: copia.id } });
+    await prisma.arquivo.delete({ where: { id: a.id } });
+    await prisma.lead.delete({ where: { id: copia.id } });
+  });
+
+  it("P1: pasta órfã com arquivo em uso em subpasta (sem destino conhecido) fica; sem ele, vai para a lixeira", async () => {
+    const orfa = pastaSistema("cliente:lead-apagado-p1", "Apagado P1", clientes);
+    const sub = drive.novo({ name: "Sub", mimeType: PASTA, parents: [orfa] });
+    const subsub = drive.novo({ name: "Mais fundo", mimeType: PASTA, parents: [sub] });
+    const usado = drive.novo({ name: "contrato.pdf", mimeType: "application/pdf", parents: [subsub] });
+    drive.novo({ name: "solto.pdf", mimeType: "application/pdf", parents: [orfa] });
+    const a = await prisma.arquivo.create({ data: { nome: "contrato.pdf", mime: "application/pdf", driveFileId: usado } });
+
+    const r = await org.sincronizarDrive({ prazoMs: 30_000 });
+    expect(r.pastasMantidasEmUso).toBeGreaterThanOrEqual(1);
+    expect(drive.arquivos.get(orfa)!.trashed).toBe(false);
+    expect(drive.arquivos.get(usado)!.trashed).toBe(false);
+    expect(await org.ultimoRelatorioDrive()).toMatchObject({ pastasMantidasEmUso: r.pastasMantidasEmUso });
+
+    await prisma.arquivo.delete({ where: { id: a.id } });
+    const r2 = await org.sincronizarDrive({ prazoMs: 30_000 });
+    expect(r2.pastasOrfas).toBeGreaterThanOrEqual(1);
+    expect(drive.arquivos.get(orfa)!.trashed).toBe(true);
+  });
+
+  it("P2: lixeira de arquivo que falha vai para a fila durável; o sincronizador reprocessa (sucesso, 404 e arquivo voltou a ser usado)", async () => {
+    const falha = drive.novo({ name: "a.pdf", mimeType: "application/pdf", parents: [raiz] });
+    const emUso = drive.novo({ name: "b.pdf", mimeType: "application/pdf", parents: [raiz] });
+    recusarPatchDe([falha]);
+    try { expect(await org.lixeiraDeArquivosSemUso([falha])).toBe(false); } finally { driveNormal(); }
+    expect(drive.arquivos.get(falha)!.trashed).toBe(false);
+    expect(await prisma.driveLixeiraPendente.findUnique({ where: { tipo_alvo: { tipo: "arquivo", alvo: falha } } })).not.toBeNull();
+    await prisma.driveLixeiraPendente.createMany({ data: [{ tipo: "arquivo", alvo: "nao-existe-no-drive" }, { tipo: "arquivo", alvo: emUso }] });
+    const a = await prisma.arquivo.create({ data: { nome: "b.pdf", mime: "application/pdf", driveFileId: emUso } });
+
+    // Ainda falhando: continua na fila com mais uma tentativa.
+    recusarPatchDe([falha]);
+    try { await org.sincronizarDrive({ prazoMs: 30_000 }); } finally { driveNormal(); }
+    expect((await prisma.driveLixeiraPendente.findUniqueOrThrow({ where: { tipo_alvo: { tipo: "arquivo", alvo: falha } } })).tentativas).toBe(1);
+
+    const r = await org.sincronizarDrive({ prazoMs: 30_000 });
+    expect(r.arquivosNaLixeira).toBe(1);
+    expect(drive.arquivos.get(falha)!.trashed).toBe(true);
+    expect(drive.arquivos.get(emUso)!.trashed).toBe(false); // usado por um registro: sai da fila sem ir para a lixeira
+    expect(await prisma.driveLixeiraPendente.count({ where: { alvo: { in: [falha, emUso, "nao-existe-no-drive"] } } })).toBe(0);
+    await prisma.arquivo.delete({ where: { id: a.id } });
+  });
+
+  it("P2: prazo esgotado não processa a fila", async () => {
+    const alvo = drive.novo({ name: "c.pdf", mimeType: "application/pdf", parents: [raiz] });
+    await prisma.driveLixeiraPendente.create({ data: { tipo: "arquivo", alvo } });
+    await org.sincronizarDrive({ prazoMs: 0 });
+    expect(drive.arquivos.get(alvo)!.trashed).toBe(false);
+    expect(await prisma.driveLixeiraPendente.count({ where: { alvo } })).toBe(1);
+    await org.sincronizarDrive({ prazoMs: 30_000 });
+    expect(drive.arquivos.get(alvo)!.trashed).toBe(true);
+    expect(await prisma.driveLixeiraPendente.count({ where: { alvo } })).toBe(0);
+  });
+
+  it("P3: fotos de imóveis pendentes respeitam o lote e o prazo e continuam de onde pararam", async () => {
+    const imovel = await prisma.imovel.create({ data: { slug: `imovel-fotos-p3-${sufixo}`, titulo: "Imóvel P3", tipo: "casa", status: "venda", descricao: "x", preco: 1, area: 1, bairro: "Centro" } });
+    const fotos = [];
+    for (let i = 0; i < 3; i++) fotos.push(await prisma.imovelFoto.create({ data: { imovelId: imovel.id, mime: "image/jpeg", tamanho: 4, dados: new Uint8Array([255, 216, 255, i]) } }));
+    const pendentes = () => prisma.imovelFoto.count({ where: { imovelId: imovel.id, driveFileId: null } });
+    const { enviarFotosPendentesAoDrive } = await import("@/lib/imovel-fotos");
+
+    // Sincronizador sem prazo: nenhuma foto é enviada.
+    await org.sincronizarDrive({ prazoMs: 0 });
+    expect(await pendentes()).toBe(3);
+    // Prazo já vencido: nada; concluido = false.
+    expect(await enviarFotosPendentesAoDrive({ lote: 1, prazo: Date.now() })).toMatchObject({ enviadas: 0, concluido: false });
+
+    // Prazo vence depois da 1ª foto: só ela vai; as outras ficam pendentes (driveFileId nulo).
+    let chamadas = 0;
+    const agora = Date.now;
+    const relogio = vi.spyOn(Date, "now").mockImplementation(() => agora() + (chamadas > 0 ? 3_600_000 : 0));
+    const upload = vi.spyOn(prisma.imovelFoto, "update").mockImplementation(((args: Parameters<typeof prisma.imovelFoto.update>[0]) => {
+      chamadas += 1;
+      upload.mockRestore();
+      return prisma.imovelFoto.update(args);
+    }) as never);
+    const parcial = await enviarFotosPendentesAoDrive({ lote: 1, prazo: agora() + 60_000 });
+    relogio.mockRestore();
+    upload.mockRestore();
+    expect(parcial).toMatchObject({ enviadas: 1, concluido: false });
+    expect(await pendentes()).toBe(2);
+
+    // Retoma: lote 1 por consulta até acabar.
+    const consulta = vi.spyOn(prisma.imovelFoto, "findMany");
+    const r = await org.sincronizarDrive({ prazoMs: 30_000, lote: 1 });
+    const daFila = consulta.mock.calls.filter(([a]) => (a?.where as { driveFileId?: unknown } | undefined)?.driveFileId === null);
+    consulta.mockRestore();
+    expect(daFila.length).toBeGreaterThan(0);
+    expect(daFila.every(([a]) => a?.take === 1)).toBe(true);
+    expect(r.enviados).toBeGreaterThanOrEqual(2);
+    expect(await pendentes()).toBe(0);
+    for (const f of await prisma.imovelFoto.findMany({ where: { imovelId: imovel.id } })) expect(drive.caminho(f.driveFileId!, raiz)).toContain("Imóvel P3");
+    await prisma.imovel.delete({ where: { id: imovel.id } });
+  });
 });

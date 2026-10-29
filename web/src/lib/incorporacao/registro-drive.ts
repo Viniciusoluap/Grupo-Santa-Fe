@@ -286,19 +286,38 @@ export async function pastaPorChave(chave: string): Promise<string | null> {
 }
 
 /**
- * Manda para a lixeira do Drive (recuperável por 30 dias) toda pasta com esta
- * etiqueta. Nunca exclui de forma permanente; sem Drive configurado não faz nada.
+ * Todas as pastas com esta etiqueta (pode haver duplicadas antigas). Sem Drive
+ * configurado devolve []. Quem chama decide se vão para a lixeira (só sem arquivo em uso).
  */
-export async function enviarPastaParaLixeira(chave: string): Promise<number> {
+export async function pastasDoSistemaPorChave(chave: string): Promise<string[]> {
   const fonte = await fonteDrive();
-  if (!fonte) return 0;
-  const ids = await pastasComEtiqueta(fonte, chave);
-  for (const id of ids) {
-    await authorized(fonte, `${DRIVE}/drive/v3/files/${encodeURIComponent(id)}?supportsAllDrives=true&fields=id`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trashed: true }),
-    });
-  }
-  return ids.length;
+  if (!fonte) return [];
+  return pastasComEtiqueta(fonte, chave);
+}
+
+/** IDs de todos os arquivos (não pastas) dentro da pasta, em qualquer nível, com paginação. */
+export async function arquivosNaPasta(pastaId: string): Promise<string[]> {
+  const fonte = await fonteObrigatoria();
+  const ids: string[] = [];
+  const visitar = async (pasta: string) => {
+    let pageToken: string | undefined;
+    do {
+      const q = new URLSearchParams({
+        q: `'${escapar(pasta)}' in parents and trashed = false`,
+        fields: "nextPageToken,files(id,mimeType)", pageSize: "1000", supportsAllDrives: "true", includeItemsFromAllDrives: "true",
+      });
+      if (pageToken) q.set("pageToken", pageToken);
+      const r = await authorized(fonte, `${DRIVE}/drive/v3/files?${q}`);
+      const corpo = (await r.json()) as { files?: ArquivoDrive[]; nextPageToken?: string };
+      for (const f of corpo.files ?? []) {
+        if (f.mimeType === PASTA_MIME) await visitar(f.id);
+        else ids.push(f.id);
+      }
+      pageToken = corpo.nextPageToken;
+    } while (pageToken);
+  };
+  await visitar(pastaId);
+  return ids;
 }
 
 /**

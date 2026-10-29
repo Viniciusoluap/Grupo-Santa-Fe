@@ -493,11 +493,13 @@ export async function excluirLeadDefinitivamente(id: string): Promise<{ ok: true
   }
   // Pedido de 29/10: depois do banco, a pasta Clientes/<Nome (nº)> vai para a lixeira
   // do Drive. Antes, o que continua em uso (documento de lead duplicado, mídia do
-  // WhatsApp que fica sem cliente) sai da pasta; se isso falhar, a pasta fica e o
-  // sincronizador "Organizar Drive" termina o trabalho.
+  // WhatsApp que fica sem cliente) sai da pasta. A lixeira da pasta confere de novo
+  // todos os arquivos dentro dela: se algum ainda em uso não sair, a pasta fica e
+  // entra na fila do sincronizador "Organizar Drive" (nunca vai para a lixeira em uso).
   const { lixeiraDaPasta, reorganizarItens } = await import("@/lib/drive-organizacao");
-  const realocados = (await reorganizarItens("arquivo", compartilhados)) && (await reorganizarItens("whatsapp", midias));
-  if (realocados) await lixeiraDaPasta(chaveCliente(id));
+  await reorganizarItens("arquivo", compartilhados);
+  await reorganizarItens("whatsapp", midias);
+  await lixeiraDaPasta(chaveCliente(id));
   revalidatePath("/admin/leads");
   return { ok: true };
 }

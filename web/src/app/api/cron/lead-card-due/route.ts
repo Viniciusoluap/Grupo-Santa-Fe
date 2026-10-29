@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     });
     const restante = LIMITE_FUNCAO_MS - (Date.now() - inicio);
     const drive = restante < 10_000 ? { adiado: true } : await sincronizarDrive({ prazoMs: Math.min(45_000, restante - 5_000) })
-      .then((r) => ({ enviados: r.enviados, movidos: r.movidos, pastasOrfas: r.pastasOrfas, falhas: r.falhas, cicloConcluido: r.cicloConcluido }))
+      .then((r) => ({ enviados: r.enviados, movidos: r.movidos, pastasOrfas: r.pastasOrfas, pastasMantidasEmUso: r.pastasMantidasEmUso, falhas: r.falhas, cicloConcluido: r.cicloConcluido }))
       .catch((e) => {
         console.error("[cron/drive]", e instanceof Error ? e.message : "falha");
         return { erro: true };

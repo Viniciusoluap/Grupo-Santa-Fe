@@ -57,6 +57,26 @@ Status: implementação concluída na branch; **migração NÃO aplicada em prod
 (c) produção: aplicar a migração; clicar "Organizar Drive agora" e conferir relatório/pastas; excluir um lead de
    teste arquivado e ver a pasta na lixeira do Drive.
 
+## Revisão do PR #239 (3 achados do revisor automático) — 29/10
+- P1: nenhuma pasta vai para a lixeira com arquivo em uso. `lixeiraPastaSegura` (em `drive-organizacao.ts`) lista
+  os arquivos da pasta (recursivo e paginado — `arquivosNaPasta` em `registro-drive.ts`), confere todas as tabelas
+  (`driveFilesEmUso`), tenta levar os em uso para a pasta do registro dono (`realocarArquivosEmUso`; fotos de
+  imóvel via `organizarFotosDoImovel`) e só apaga a pasta se não sobrar nenhum em uso. Vale para órfãs do
+  sincronizador, exclusões (`lixeiraDaPasta`) e fila. Relatório: `pastasMantidasEmUso` (aparece no cartão).
+  Exclusão de lead: a pasta sempre passa por essa regra (se não esvaziar, fica e entra na fila).
+- P2: fila durável `drive_lixeira_pendente` (migração NOVA `web/prisma/migrations/20261029100100_drive_lixeira_fila`,
+  aditiva, RLS ligado; modelo `DriveLixeiraPendente`), gêmea de `drive_trash_queue` da Prospecta. Grava quando a
+  lixeira de arquivo/pasta falha (ou sem Drive conectado, arquivo) e o sincronizador reprocessa no início, dentro do
+  prazo (até 50 por execução): sucesso ou 404 → remove; arquivo voltou a ser usado → remove sem apagar; falha → `tentativas`+1.
+- P3: `enviarFotosPendentesAoDrive({ lote, prazo })` em lotes e com o mesmo prazo do sincronizador, retomável (só
+  `driveFileId` nulo); roda em toda execução com pendentes. "Testar Google Drive" usa prazo de 30 s.
+- Prospecta: P2 já existia (`drive_trash_queue`); P3 não se aplica (sem varredura de fotos fora do laço com prazo);
+  P1 alinhado lá também (arquivo em uso é movido para o dono antes de decidir; se não sair, a pasta fica).
+- Testes (a) automáticos: 5 casos novos em `drive-organizacao.db.test.ts` (Drive simulado com falhas injetadas) —
+  11/11 + `imovel-fotos.db.test.ts` 5/5 em banco local separado `santafe_drive`; `npx prisma generate`, `npx tsc --noEmit`
+  e eslint dos arquivos tocados limpos. (b) manuais: nenhum. (c) produção: aplicar `20261029100100_drive_lixeira_fila`
+  (junto com a anterior) antes do deploy — sem a tabela, a fila só loga erro (não bloqueia exclusões).
+
 ## Próximo passo exato
-Orquestrador: revisar, aplicar `20261029100000_drive_organizacao` em produção, merge e deploy; depois rodar o
+Orquestrador: revisar, aplicar `20261029100000_drive_organizacao` e `20261029100100_drive_lixeira_fila` em produção, merge e deploy; depois rodar o
 botão "Organizar Drive agora" até o relatório indicar ciclo concluído.

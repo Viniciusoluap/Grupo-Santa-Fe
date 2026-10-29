@@ -10,8 +10,8 @@ import {
 } from "@/lib/drive-estrutura";
 import { destinoDocumentoEstudo, numeroCurto } from "@/lib/drive-pastas";
 import {
-  buscarArquivoNoCaminho, driveRegistroConfigurado, enviarArquivoNoCaminho, enviarParaLixeira, enviarPastaParaLixeira,
-  listarSubpastasDoSistema, moverArquivoParaCaminho, type CachePastas,
+  arquivosNaPasta, buscarArquivoNoCaminho, driveRegistroConfigurado, enviarArquivoNoCaminho, enviarParaLixeira,
+  listarSubpastasDoSistema, moverArquivoParaCaminho, pastasDoSistemaPorChave, type CachePastas,
 } from "@/lib/incorporacao/registro-drive";
 
 // Pedido de 29/10 (SPEC-DRIVE-ORGANIZACAO.md; gêmeo da Prospecta): todo arquivo do
@@ -330,7 +330,7 @@ async function enviarItem(item: ArquivoSistema, cache: CachePastas): Promise<Res
     }
   }
   const fileId = await enviarArquivoNoCaminho(item.caminho, item.nome, item.mime, bytes, cache);
-  if (!(await item.gravar(fileId))) await enviarParaLixeira(fileId).catch(() => undefined);
+  if (!(await item.gravar(fileId))) await enviarParaLixeira(fileId).catch(() => enfileirarLixeira("arquivo", fileId));
   return "enviado";
 }
 
@@ -408,50 +408,183 @@ export async function reorganizarItens(tipo: TipoCopia, ids: string[]): Promise<
   }
 }
 
+/** Quais destes arquivos do Drive algum registro do sistema ainda usa (todas as tabelas com driveFileId). */
+export async function driveFilesEmUso(fileIds: string[]): Promise<Set<string>> {
+  const todos = [...new Set(fileIds.filter(Boolean))];
+  const usados = new Set<string>();
+  for (let i = 0; i < todos.length; i += 500) {
+    const parte = todos.slice(i, i + 500);
+    const where = { driveFileId: { in: parte } };
+    const select = { driveFileId: true } as const;
+    const listas = await Promise.all([
+      prisma.arquivo.findMany({ where, select }),
+      prisma.estudoDocumentoRegistro.findMany({ where, select }),
+      prisma.imovelFoto.findMany({ where, select }),
+      prisma.projetoDocumento.findMany({ where, select }),
+      prisma.documentoUsuario.findMany({ where, select }),
+      prisma.pciModelo.findMany({ where, select }),
+      prisma.obraPciVersao.findMany({ where, select }),
+      prisma.whatsappMidia.findMany({ where, select }),
+    ]);
+    for (const lista of listas) for (const l of lista) if (l.driveFileId) usados.add(l.driveFileId);
+    const geradas = await prisma.pciGerada.findMany({
+      where: { OR: [{ planilhaDriveFileId: { in: parte } }, { pdfDriveFileId: { in: parte } }] },
+      select: { planilhaDriveFileId: true, pdfDriveFileId: true },
+    });
+    for (const g of geradas) for (const f of [g.planilhaDriveFileId, g.pdfDriveFileId]) if (f && parte.includes(f)) usados.add(f);
+  }
+  return usados;
+}
+
 /** Algum registro do sistema ainda aponta para este arquivo do Drive? */
 export async function driveFileEmUso(fileId: string): Promise<boolean> {
-  const contagens = await Promise.all([
-    prisma.arquivo.count({ where: { driveFileId: fileId } }),
-    prisma.estudoDocumentoRegistro.count({ where: { driveFileId: fileId } }),
-    prisma.imovelFoto.count({ where: { driveFileId: fileId } }),
-    prisma.projetoDocumento.count({ where: { driveFileId: fileId } }),
-    prisma.documentoUsuario.count({ where: { driveFileId: fileId } }),
-    prisma.pciModelo.count({ where: { driveFileId: fileId } }),
-    prisma.pciGerada.count({ where: { OR: [{ planilhaDriveFileId: fileId }, { pdfDriveFileId: fileId }] } }),
-    prisma.obraPciVersao.count({ where: { driveFileId: fileId } }),
-    prisma.whatsappMidia.count({ where: { driveFileId: fileId } }),
+  return (await driveFilesEmUso([fileId])).size > 0;
+}
+
+// ─── Fila durável da lixeira (tabela drive_lixeira_pendente) ─────────────────
+
+/** Lixeira que falhou (ou sem Drive conectado): o sincronizador tenta de novo. Nunca lança. */
+async function enfileirarLixeira(tipo: "arquivo" | "pasta", alvo: string): Promise<void> {
+  await prisma.driveLixeiraPendente.createMany({ data: [{ tipo, alvo }], skipDuplicates: true })
+    .catch((e) => console.error("[drive] fila da lixeira:", mensagem(e)));
+}
+
+const naoExiste = (e: unknown) => e instanceof ErroDrive && e.status === 404;
+
+/**
+ * Leva ao lugar certo (pasta do registro dono) os arquivos ainda em uso — ex.:
+ * documento compartilhado com lead duplicado ou mídia do WhatsApp que ficou na
+ * pasta de um lead excluído. Falha num arquivo não interrompe os outros.
+ */
+async function realocarArquivosEmUso(fileIds: string[]): Promise<void> {
+  if (!fileIds.length) return;
+  const where = { driveFileId: { in: fileIds } };
+  const id = { id: true } as const;
+  const [docs, modelos, geradas, versoes, arquivos, midias, registros, fotos] = await Promise.all([
+    prisma.documentoUsuario.findMany({ where, select: id }),
+    prisma.pciModelo.findMany({ where, select: id }),
+    prisma.pciGerada.findMany({ where: { OR: [{ planilhaDriveFileId: { in: fileIds } }, { pdfDriveFileId: { in: fileIds } }] }, select: id }),
+    prisma.obraPciVersao.findMany({ where, select: id }),
+    prisma.arquivo.findMany({ where, select: id }),
+    prisma.whatsappMidia.findMany({ where, select: { mensagemId: true } }),
+    prisma.estudoDocumentoRegistro.findMany({ where, select: id }),
+    prisma.imovelFoto.findMany({ where, select: { imovelId: true } }),
   ]);
-  return contagens.some((n) => n > 0);
+  const grupos: [TipoCopia, string[]][] = [
+    ["documentoUsuario", docs.map((l) => l.id)], ["pciModelo", modelos.map((l) => l.id)], ["pciGerada", geradas.map((l) => l.id)],
+    ["pciVersao", versoes.map((l) => l.id)], ["arquivo", arquivos.map((l) => l.id)], ["whatsapp", midias.map((l) => l.mensagemId)],
+    ["documentoRegistro", registros.map((l) => l.id)],
+  ];
+  const cache: CachePastas = new Map();
+  for (const [tipo, ids] of grupos) {
+    for (let i = 0; i < ids.length; i += 50) {
+      const { itens } = await TIPOS[tipo].lote({ depoisDe: null, lote: 50, pendentes: false, ids: ids.slice(i, i + 50) });
+      for (const item of itens) {
+        if (!item.fileId || !fileIds.includes(item.fileId)) continue;
+        await moverItem(item, cache).catch((e) => console.error(`[drive] arquivo em uso (${tipo}) não saiu da pasta:`, mensagem(e)));
+      }
+    }
+  }
+  if (fotos.length) {
+    const { organizarFotosDoImovel } = await import("@/lib/imovel-fotos");
+    for (const imovelId of new Set(fotos.map((f) => f.imovelId))) {
+      await organizarFotosDoImovel(imovelId).catch((e) => console.error("[drive] fotos do imóvel não saíram da pasta:", mensagem(e)));
+    }
+  }
+}
+
+/**
+ * Pasta → lixeira só quando NENHUM arquivo dentro dela (em qualquer nível) é usado
+ * por um registro. Os em uso vão antes para o lugar certo; se algum não sair, a
+ * pasta fica ("em_uso") e o sincronizador tenta de novo.
+ */
+async function lixeiraPastaSegura(pastaId: string): Promise<"lixeira" | "em_uso"> {
+  let usados = await driveFilesEmUso(await arquivosNaPasta(pastaId));
+  if (usados.size) {
+    await realocarArquivosEmUso([...usados]);
+    usados = await driveFilesEmUso(await arquivosNaPasta(pastaId));
+    if (usados.size) return "em_uso";
+  }
+  await enviarParaLixeira(pastaId);
+  return "lixeira";
+}
+
+/** Todas as pastas com a etiqueta (pode haver duplicadas antigas), cada uma pela regra segura. */
+async function lixeiraPorChave(chave: string): Promise<"lixeira" | "sem_pasta" | "em_uso"> {
+  let resultado: "lixeira" | "sem_pasta" | "em_uso" = "sem_pasta";
+  for (const pasta of await pastasDoSistemaPorChave(chave)) {
+    if ((await lixeiraPastaSegura(pasta)) === "em_uso") resultado = "em_uso";
+    else if (resultado === "sem_pasta") resultado = "lixeira";
+  }
+  return resultado;
 }
 
 /**
  * Arquivos excluídos no sistema → lixeira do Drive, salvo se outro registro ainda
- * usa o mesmo arquivo. Chamado DEPOIS da exclusão no banco; nunca lança (o que
- * falhar fica para o sincronizador). Devolve false se algo não foi para a lixeira.
+ * usa o mesmo arquivo. Chamado DEPOIS da exclusão no banco; nunca lança. O que
+ * falhar (ou sem Drive conectado) vai para a fila durável e o sincronizador tenta
+ * de novo — o ID não se perde. Devolve false se algo não foi para a lixeira agora.
  */
 export async function lixeiraDeArquivosSemUso(fileIds: (string | null | undefined)[]): Promise<boolean> {
   let ok = true;
   for (const fileId of new Set(fileIds.filter((f): f is string => Boolean(f)))) {
     try {
       if (await driveFileEmUso(fileId)) continue;
-      if (await driveRegistroConfigurado()) await enviarParaLixeira(fileId);
+      if (!(await driveRegistroConfigurado())) { ok = false; await enfileirarLixeira("arquivo", fileId); continue; }
+      await enviarParaLixeira(fileId);
     } catch (e) {
-      if (arquivoSumiu(e) || (e instanceof ErroDrive && e.status === 404)) continue;
+      if (naoExiste(e)) continue;
       ok = false;
-      console.error("[drive] arquivo não foi para a lixeira:", mensagem(e));
+      console.error("[drive] arquivo não foi para a lixeira (fica na fila do sincronizador):", mensagem(e));
+      await enfileirarLixeira("arquivo", fileId);
     }
   }
   return ok;
 }
 
-/** Pasta inteira da entidade excluída → lixeira do Drive. Nunca lança. */
+/**
+ * Pasta inteira da entidade excluída → lixeira do Drive, pela regra segura (arquivo
+ * ainda em uso sai antes; se não sair, a pasta fica). Falha ou pasta mantida → fila
+ * durável. Nunca lança.
+ */
 export async function lixeiraDaPasta(chave: string): Promise<boolean> {
   try {
-    await enviarPastaParaLixeira(chave);
-    return true;
+    if ((await lixeiraPorChave(chave)) !== "em_uso") return true;
+    console.error("[drive] pasta mantida: ainda tem arquivo em uso (o sincronizador tenta de novo)");
   } catch (e) {
     console.error("[drive] pasta não foi para a lixeira (o sincronizador tenta de novo):", mensagem(e));
-    return false;
+  }
+  await enfileirarLixeira("pasta", chave);
+  return false;
+}
+
+/** Reprocessa a fila da lixeira (no início do sincronizador, dentro do prazo). */
+async function processarFilaLixeira(relatorio: RelatorioDrive, expirou: () => boolean): Promise<void> {
+  const fila = await prisma.driveLixeiraPendente.findMany({ orderBy: [{ tentativas: "asc" }, { id: "asc" }], take: 50 });
+  const falhou = (id: number) => prisma.driveLixeiraPendente.updateMany({ where: { id }, data: { tentativas: { increment: 1 } } }).catch(() => undefined);
+  for (const item of fila) {
+    if (expirou()) break;
+    try {
+      if (item.tipo === "arquivo") {
+        if (!(await driveFileEmUso(item.alvo))) {
+          try {
+            await enviarParaLixeira(item.alvo);
+            relatorio.arquivosNaLixeira += 1;
+          } catch (e) {
+            if (!naoExiste(e)) throw e; // 404: já não existe no Drive
+          }
+        }
+      } else {
+        const r = await lixeiraPorChave(item.alvo);
+        if (r === "em_uso") { relatorio.pastasMantidasEmUso += 1; await falhou(item.id); continue; }
+        if (r === "lixeira") relatorio.pastasOrfas += 1;
+      }
+      await prisma.driveLixeiraPendente.deleteMany({ where: { id: item.id } });
+    } catch (e) {
+      relatorio.falhas += 1;
+      console.error(`[drive] lixeira pendente (${item.tipo}):`, mensagem(e));
+      await falhou(item.id);
+    }
   }
 }
 
@@ -469,6 +602,10 @@ export interface RelatorioDrive {
   movidos: number;
   /** Pastas de registros que não existem mais, enviadas para a lixeira. */
   pastasOrfas: number;
+  /** Pastas que ficaram porque ainda têm arquivo usado por algum registro (tenta de novo depois). */
+  pastasMantidasEmUso: number;
+  /** Arquivos da fila de lixeira pendente enviados para a lixeira. */
+  arquivosNaLixeira: number;
   /** Arquivos que sumiram do Drive (o banco reenvia no próximo ciclo quando ainda tem os bytes). */
   ignorados: number;
   falhas: number;
@@ -549,7 +686,7 @@ export async function sincronizarDrive(opcoes: OpcoesSincronizacao = {}): Promis
   const prazo = inicio + (opcoes.prazoMs ?? 45_000);
   const lote = Math.max(1, opcoes.lote ?? 25);
   const relatorio: RelatorioDrive = {
-    iniciadoEm: new Date(inicio).toISOString(), terminadoEm: "", enviados: 0, movidos: 0, pastasOrfas: 0, ignorados: 0, falhas: 0,
+    iniciadoEm: new Date(inicio).toISOString(), terminadoEm: "", enviados: 0, movidos: 0, pastasOrfas: 0, pastasMantidasEmUso: 0, arquivosNaLixeira: 0, ignorados: 0, falhas: 0,
     cicloConcluido: false, fase: "enviar", aviso: null,
   };
   const fim = async (salvar: boolean) => {
@@ -569,12 +706,18 @@ export async function sincronizarDrive(opcoes: OpcoesSincronizacao = {}): Promis
   const cache: CachePastas = new Map();
   const expirou = () => Date.now() >= prazo;
   try {
-    // Fotos de imóveis pendentes têm o próprio fluxo (numeração pela ordem do anúncio).
-    if (estado.fase === "enviar" && estado.tipo === 0 && !estado.depoisDe) {
-      const pendentes = await prisma.imovelFoto.count({ where: { driveFileId: null, dados: { not: null } } });
-      if (pendentes) {
+    // Lixeira que falhou na hora da exclusão (fila durável).
+    await processarFilaLixeira(relatorio, expirou);
+    // Fotos de imóveis pendentes têm o próprio fluxo (numeração pela ordem do anúncio):
+    // em lotes e dentro do mesmo prazo; o que sobrar (driveFileId nulo) fica para a próxima.
+    if (!expirou()) {
+      const [pendentes, antigos] = await Promise.all([
+        prisma.imovelFoto.count({ where: { driveFileId: null, dados: { not: null } } }),
+        prisma.imovel.count({ where: { imagens: { contains: "data:image/" } } }),
+      ]);
+      if (pendentes || antigos) {
         const { enviarFotosPendentesAoDrive } = await import("@/lib/imovel-fotos");
-        const r = await enviarFotosPendentesAoDrive();
+        const r = await enviarFotosPendentesAoDrive({ lote, prazo });
         relatorio.enviados += r.enviadas;
         relatorio.falhas += r.falhas;
       }
@@ -631,8 +774,10 @@ export async function sincronizarDrive(opcoes: OpcoesSincronizacao = {}): Promis
         for (const o of orfas) {
           if (expirou()) { interrompido = true; break; }
           try {
-            await enviarParaLixeira(o.pasta);
-            relatorio.pastasOrfas += 1;
+            // Pasta com arquivo ainda usado por algum registro: os arquivos vão antes
+            // para o lugar certo; se algum não sair, a pasta fica (nunca vai para a lixeira em uso).
+            if ((await lixeiraPastaSegura(o.pasta)) === "lixeira") relatorio.pastasOrfas += 1;
+            else relatorio.pastasMantidasEmUso += 1;
           } catch (e) {
             relatorio.falhas += 1;
             console.error(`[drive] pasta órfã (${topo.prefixo}) não foi para a lixeira:`, mensagem(e));
