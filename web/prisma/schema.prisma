@@ -86,58 +86,59 @@ model ImovelRecusadoAviso {
 // ─── LEADS / CRM ─────────────────────────────────────────────────────────────
 
 model Lead {
-  unidadesCompradas EstudoUnidade[] @relation("CompradorUnidade")
-  id                   String          @id @default(cuid())
-  vencimentoCard       DateTime?       @db.Date
+  unidadesCompradas    EstudoUnidade[]           @relation("CompradorUnidade")
+  id                   String                    @id @default(cuid())
+  vencimentoCard       DateTime?                 @db.Date
   nome                 String
   telefone             String
   email                String?
   cpf                  String?
   servico              String
-  status               String          @default("novo")
+  status               String                    @default("novo")
   // Lote 1 (item 05): frio | morno | quente | fechado — independente da etapa.
-  temperatura          String          @default("frio")
+  temperatura          String                    @default("frio")
   etapaOperacional     String?
-  creationRequestKey   String?         @unique
+  creationRequestKey   String?                   @unique
   arquivadoEm          DateTime?
   excluidoEm           DateTime?
-  origem               String          @default("site")
+  origem               String                    @default("site")
   corretorId           String?
-  corretor             Corretor?       @relation(fields: [corretorId], references: [id])
+  corretor             Corretor?                 @relation(fields: [corretorId], references: [id])
   // Responsável interno pelo atendimento (usuário real do sistema: admin,
   // colaborador ou corretor) — substitui nomes fixos (EPIC-007 S-08).
   responsavelId        String?
-  responsavel          Usuario?        @relation("LeadResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  responsavel          Usuario?                  @relation("LeadResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   imovelInteresseId    String?
-  imovelInteresse      Imovel?         @relation(fields: [imovelInteresseId], references: [id])
+  imovelInteresse      Imovel?                   @relation(fields: [imovelInteresseId], references: [id])
   orcamento            Float?
   // Pedido de 15/10: Valor Aprovado do cliente; é o VGV das obras dele (fonte única).
-  valorAprovado        Decimal?        @db.Decimal(15, 2)
-  valorNegociado       Decimal?        @db.Decimal(15, 2)
-  notas                String          @default("")
+  valorAprovado        Decimal?                  @db.Decimal(15, 2)
+  valorNegociado       Decimal?                  @db.Decimal(15, 2)
+  notas                String                    @default("")
   senhaAcesso          String?
   interacoes           Interacao[]
   tarefas              TarefaCrm[]
   visitas              Visita[]
   financiamentos       Financiamento[]
   obras                Obra[]
-  projetos             Projeto[]       @relation("ProjetoLead")
-  regularizacoes       Regularizacao[] @relation("RegularizacaoLead")
-  avaliacoes           Avaliacao[]     @relation("AvaliacaoLead")
-  contratos            Contrato[]      @relation("ContratoLead")
+  projetos             Projeto[]                 @relation("ProjetoLead")
+  regularizacoes       Regularizacao[]           @relation("RegularizacaoLead")
+  avaliacoes           Avaliacao[]               @relation("AvaliacaoLead")
+  contratos            Contrato[]                @relation("ContratoLead")
   servicosOperacionais ServicoLead[]
-  chatMensagens        ChatMensagem[]  @relation("ChatLead")
-  criadoEm             DateTime        @default(now())
-  atualizadoEm         DateTime        @updatedAt
-  contaCliente         Usuario?        @relation("UsuarioCliente")
+  chatMensagens        ChatMensagem[]            @relation("ChatLead")
+  criadoEm             DateTime                  @default(now())
+  atualizadoEm         DateTime                  @updatedAt
+  contaCliente         Usuario?                  @relation("UsuarioCliente")
   /// Lote 23/10, etapa 6: origem da duplicação ("Duplicar lead").
   duplicadoDeId        String?
-  duplicadoDe          Lead?           @relation("LeadDuplicado", fields: [duplicadoDeId], references: [id], onDelete: SetNull)
-  duplicatas           Lead[]          @relation("LeadDuplicado")
+  duplicadoDe          Lead?                     @relation("LeadDuplicado", fields: [duplicadoDeId], references: [id], onDelete: SetNull)
+  duplicatas           Lead[]                    @relation("LeadDuplicado")
   duplicadoEm          DateTime?
   duplicadoPorId       String?
-  duplicadoPor         Usuario?        @relation("LeadDuplicadoPor", fields: [duplicadoPorId], references: [id], onDelete: SetNull)
+  duplicadoPor         Usuario?                  @relation("LeadDuplicadoPor", fields: [duplicadoPorId], references: [id], onDelete: SetNull)
   clientesBpo          BpoCliente[]
+  vinculosWhatsapp     WhatsappVinculoConversa[]
 
   @@map("leads")
 }
@@ -438,41 +439,41 @@ model ObraDiario {
 // ─── PROJETOS ────────────────────────────────────────────────────────────────
 
 model Projeto {
-  id                 String           @id @default(cuid())
-  nome               String
-  tipo               String?
-  status             String           @default("orcamento")
-  clienteNome        String
-  clienteTel         String
-  engenheiro         String?
+  id                   String              @id @default(cuid())
+  nome                 String
+  tipo                 String?
+  status               String              @default("orcamento")
+  clienteNome          String
+  clienteTel           String
+  engenheiro           String?
   /// Item 07: colaborador (ou admin) ativo vinculado como engenheiro; `engenheiro` guarda o nome exibido.
-  engenheiroId       String?
-  engenheiroUsuario  Usuario?         @relation("ProjetoEngenheiro", fields: [engenheiroId], references: [id], onDelete: SetNull)
+  engenheiroId         String?
+  engenheiroUsuario    Usuario?            @relation("ProjetoEngenheiro", fields: [engenheiroId], references: [id], onDelete: SetNull)
   /// CREA/CAU ou outra habilitação técnica, quando necessária.
-  engenheiroRegistro String?          @db.VarChar(60)
-  valorProjeto       Float?
-  valorPago          Float            @default(0)
-  prazoEntrega       DateTime?
-  leadId             String?
-  servicoLeadId      String?          @unique
-  servicoLead        ServicoLead?     @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
-  leadVinculado      Lead?            @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
-  descricao          String           @default("")
-  arquivos           String           @default("[]")
-  checklist          String           @default("[]")
-  revisoes           ProjetoRevisao[]
+  engenheiroRegistro   String?             @db.VarChar(60)
+  valorProjeto         Float?
+  valorPago            Float               @default(0)
+  prazoEntrega         DateTime?
+  leadId               String?
+  servicoLeadId        String?             @unique
+  servicoLead          ServicoLead?        @relation(fields: [servicoLeadId, leadId], references: [id, leadId], onDelete: Restrict)
+  leadVinculado        Lead?               @relation("ProjetoLead", fields: [leadId], references: [id], onDelete: SetNull)
+  descricao            String              @default("")
+  arquivos             String              @default("[]")
+  checklist            String              @default("[]")
+  revisoes             ProjetoRevisao[]
   /// Lote 2, correção 07: projeto gerado por um processo de Incorporação › Projeto Aprovado.
   /// Chave única (estudo, processo) → upsert, nunca duplica.
   estudoIncorporacaoId String?
   estudoIncorporacao   EstudoIncorporacao? @relation("ProjetoEstudoIncorporacao", fields: [estudoIncorporacaoId], references: [id], onDelete: SetNull)
-  processoAprovacaoId  String?          @db.VarChar(100)
+  processoAprovacaoId  String?             @db.VarChar(100)
   /// Situação de aprovação externa (órgão) — separada do andamento técnico em `status`.
-  aprovacaoOrgao       String?          @db.VarChar(120)
-  aprovacaoProtocolo   String?          @db.VarChar(120)
-  aprovacaoStatus      String?          @db.VarChar(30)
+  aprovacaoOrgao       String?             @db.VarChar(120)
+  aprovacaoProtocolo   String?             @db.VarChar(120)
+  aprovacaoStatus      String?             @db.VarChar(30)
   aprovacaoObservacoes String?
-  criadoEm           DateTime         @default(now())
-  atualizadoEm       DateTime         @updatedAt
+  criadoEm             DateTime            @default(now())
+  atualizadoEm         DateTime            @updatedAt
 
   @@unique([servicoLeadId, leadId])
   @@unique([estudoIncorporacaoId, processoAprovacaoId])
@@ -481,25 +482,25 @@ model Projeto {
 
 /// Lote 23/10, etapa 2C: pedido de revisão de projeto e entregas da versão revisada.
 model ProjetoRevisao {
-  id                  String    @id @default(cuid())
-  projetoId           String
-  projeto             Projeto   @relation(fields: [projetoId], references: [id], onDelete: Cascade)
-  solicitadoPorId     String?
-  solicitadoPor       Usuario?  @relation("RevisaoSolicitante", fields: [solicitadoPorId], references: [id], onDelete: SetNull)
-  solicitadoPorNome   String
-  texto               String
-  status              String    @default("pendente") // pendente | entregue
+  id                    String    @id @default(cuid())
+  projetoId             String
+  projeto               Projeto   @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  solicitadoPorId       String?
+  solicitadoPor         Usuario?  @relation("RevisaoSolicitante", fields: [solicitadoPorId], references: [id], onDelete: SetNull)
+  solicitadoPorNome     String
+  texto                 String
+  status                String    @default("pendente") // pendente | entregue
   statusAnteriorProjeto String?
-  colaboradorId       String?
-  colaborador         Usuario?  @relation("RevisaoColaborador", fields: [colaboradorId], references: [id], onDelete: SetNull)
-  situacaoNotificacao String // enviado | sem_destinatario | falhou
-  situacaoEmail       String
-  entregas            String    @default("[]")
-  entregueEm          DateTime?
-  entreguePorId       String?
-  entreguePor         Usuario?  @relation("RevisaoEntregador", fields: [entreguePorId], references: [id], onDelete: SetNull)
-  criadoEm            DateTime  @default(now())
-  atualizadoEm        DateTime  @updatedAt
+  colaboradorId         String?
+  colaborador           Usuario?  @relation("RevisaoColaborador", fields: [colaboradorId], references: [id], onDelete: SetNull)
+  situacaoNotificacao   String // enviado | sem_destinatario | falhou
+  situacaoEmail         String
+  entregas              String    @default("[]")
+  entregueEm            DateTime?
+  entreguePorId         String?
+  entreguePor           Usuario?  @relation("RevisaoEntregador", fields: [entreguePorId], references: [id], onDelete: SetNull)
+  criadoEm              DateTime  @default(now())
+  atualizadoEm          DateTime  @updatedAt
 
   @@index([projetoId, criadoEm(sort: Desc)])
   @@map("projeto_revisoes")
@@ -507,7 +508,7 @@ model ProjetoRevisao {
 
 /// Arquivos normalizados do módulo Projetos. `Projeto.arquivos` permanece como cache legado.
 model ProjetoDocumento {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   projetoId        String
   revisaoId        String?
   itemId           String
@@ -519,11 +520,11 @@ model ProjetoDocumento {
   versao           Int
   driveFileId      String?
   url              String?
-  status           String   @default("uploading")
+  status           String    @default("uploading")
   substituidoPorId String?
   enviadoPorId     String?
-  criadoEm         DateTime @default(now())
-  atualizadoEm     DateTime @updatedAt
+  criadoEm         DateTime  @default(now())
+  atualizadoEm     DateTime  @updatedAt
   excluidoEm       DateTime?
 
   @@unique([projetoId, itemId, tipo, versao])
@@ -775,7 +776,7 @@ model BpoLancamento {
   origemEfetiva             String                     @default("manual")
   origemTransacaoKey        String?                    @unique
   categoriaContabil         String?
-  etapa                    String? // chave de SERVICOS_PROGRESSO quando a despesa pertence à obra
+  etapa                     String? // chave de SERVICOS_PROGRESSO quando a despesa pertence à obra
   version                   Int                        @default(1)
   atualizadoEm              DateTime                   @updatedAt
   transacaoId               String?                    @unique
@@ -790,15 +791,15 @@ model BpoLancamento {
 }
 
 model BpoBaixa {
-  id            String        @id @default(cuid())
-  lancamentoId  String
-  lancamento    BpoLancamento @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
-  requestKey    String        @unique
-  valor         Float
-  data          DateTime
-  motivo        String
-  usuarioId     String
-  criadoEm      DateTime      @default(now())
+  id           String        @id @default(cuid())
+  lancamentoId String
+  lancamento   BpoLancamento @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  requestKey   String        @unique
+  valor        Float
+  data         DateTime
+  motivo       String
+  usuarioId    String
+  criadoEm     DateTime      @default(now())
 
   @@index([lancamentoId, data])
   @@map("bpo_baixas")
@@ -838,15 +839,15 @@ model BpoLancamentoExclusaoBackup {
 
 /// Registro imutável das alterações manuais em lançamentos BPO.
 model BpoLancamentoHistorico {
-  id                  String   @id @default(cuid())
-  lancamentoId        String
+  id                   String   @id @default(cuid())
+  lancamentoId         String
   lancamentoReferencia String
-  versaoAnterior      Int
+  versaoAnterior       Int
   alteradoPorUsuarioId String?
-  motivo              String
-  antesJson           String
-  depoisJson          String
-  criadoEm            DateTime @default(now())
+  motivo               String
+  antesJson            String
+  depoisJson           String
+  criadoEm             DateTime @default(now())
 
   @@index([lancamentoReferencia, criadoEm])
   @@map("bpo_lancamento_historico")
@@ -973,27 +974,27 @@ model ContaBancaria {
 }
 
 model TransacaoBancaria {
-  id                String         @id @default(cuid())
-  contaId           String
-  conta             ContaBancaria  @relation(fields: [contaId], references: [id], onDelete: Cascade)
-  data              DateTime
-  descricao         String
-  valor             Float
-  tipo              String // credito, debito
-  categoria         String?
-  status            String         @default("pendente") // pendente, conciliado, ignorado
-  externalId        String?        @unique
+  id                    String         @id @default(cuid())
+  contaId               String
+  conta                 ContaBancaria  @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  data                  DateTime
+  descricao             String
+  valor                 Float
+  tipo                  String // credito, debito
+  categoria             String?
+  status                String         @default("pendente") // pendente, conciliado, ignorado
+  externalId            String?        @unique
   /// Pedido de 25/10: asaas | pluggy | importacao | manual.
-  origem            String         @default("manual")
-  titular           String?
-  descricaoOriginal String?
-  identificadorBancario String?   @map("identificador_bancario")
-  bpoClienteId      String?
-  bpoCliente        BpoCliente?    @relation(fields: [bpoClienteId], references: [id], onDelete: SetNull)
-  asaasPaymentId    String?
+  origem                String         @default("manual")
+  titular               String?
+  descricaoOriginal     String?
+  identificadorBancario String?        @map("identificador_bancario")
+  bpoClienteId          String?
+  bpoCliente            BpoCliente?    @relation(fields: [bpoClienteId], references: [id], onDelete: SetNull)
+  asaasPaymentId        String?
   /// LOTE C (25/10): lançamento pago gerado no BPO (Cobranças/Despesas/DRE), 1:1.
-  lancamento        BpoLancamento?
-  criadoEm          DateTime       @default(now())
+  lancamento            BpoLancamento?
+  criadoEm              DateTime       @default(now())
 
   @@index([titular])
   @@index([identificadorBancario])
@@ -1031,19 +1032,20 @@ model ConfiguracaoPluggy {
 // ─── WHATSAPP ─────────────────────────────────────────────────────────────────
 
 model ConexaoWhatsApp {
-  id            String             @id @default(cuid())
-  usuarioId     String             @unique
-  usuario       Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  provedor      String             @default("evolution") // evolution | business
+  id            String                    @id @default(cuid())
+  usuarioId     String                    @unique
+  usuario       Usuario                   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  provedor      String                    @default("evolution") // evolution | business
   instancia     String?
   token         String?
   phoneNumberId String?
   numero        String?
-  status        String             @default("desconectado") // desconectado | aguardando_qr | conectado
+  status        String                    @default("desconectado") // desconectado | aguardando_qr | conectado
   qrCode        String?
   mensagens     MensagemWhatsapp[]
-  criadoEm      DateTime           @default(now())
-  atualizadoEm  DateTime           @updatedAt
+  vinculos      WhatsappVinculoConversa[]
+  criadoEm      DateTime                  @default(now())
+  atualizadoEm  DateTime                  @updatedAt
 
   @@map("conexoes_whatsapp")
 }
@@ -1072,7 +1074,26 @@ model MensagemWhatsapp {
 
   @@index([conexaoId, destinatario, enviadaEm])
   @@index([externalId])
+  @@index([direcao, enviadaEm])
   @@map("mensagens_whatsapp")
+}
+
+/// Lote 03, correção 02: vínculo manual conversa do WhatsApp ↔ lead ("Vincular lead"), com prioridade
+/// sobre a inferência pelo telefone. chaveTelefone = DDD + 8 últimos dígitos. Gêmeo de
+/// whatsapp_conversation_links (Prospecta drizzle/0094_whatsapp_vinculo.sql).
+model WhatsappVinculoConversa {
+  id             String          @id @default(cuid())
+  conexaoId      String
+  conexao        ConexaoWhatsApp @relation(fields: [conexaoId], references: [id], onDelete: Cascade)
+  chaveTelefone  String
+  leadId         String
+  lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  vinculadoPorId String?
+  vinculadoEm    DateTime        @default(now())
+
+  @@unique([conexaoId, chaveTelefone])
+  @@index([leadId])
+  @@map("whatsapp_vinculos_conversa")
 }
 
 model WhatsappMidia {
@@ -1084,16 +1105,16 @@ model WhatsappMidia {
 }
 
 model WhatsappTemplate {
-  id               String   @id @default(cuid())
-  slug             String   @unique
-  nome             String
-  finalidade       String
-  conteudo         String
-  ativo            Boolean  @default(true)
-  criadoPorId      String?
-  atualizadoPorId  String?
-  criadoEm         DateTime @default(now())
-  atualizadoEm     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  nome            String
+  finalidade      String
+  conteudo        String
+  ativo           Boolean  @default(true)
+  criadoPorId     String?
+  atualizadoPorId String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
 
   @@index([finalidade, ativo])
   @@map("whatsapp_templates")
@@ -1155,7 +1176,7 @@ model EstudoIncorporacao {
   /// Lote 2, correção 11 (AD-04): estudos de massa salvos (o principal é espelhado em massaCenariosJson/cenarioEscolhidoId/mixJson).
   estudosMassa       EstudoMassaSalvo[]
   /// Correção 07: projetos gerados pelos processos do Projeto Aprovado.
-  projetosAprovacao  Projeto[]       @relation("ProjetoEstudoIncorporacao")
+  projetosAprovacao  Projeto[]          @relation("ProjetoEstudoIncorporacao")
   status             String             @default("em_estudo") // em_estudo | inviavel | em_andamento | concluido; valores antigos preservados
   tipoIncorporacao   String? // legado NULL: não inferir tipo pelo nome ou pelo status
   dueDiligenceJson   String?
@@ -1349,24 +1370,24 @@ model EstudoDocumentoRegistro {
 }
 
 model EstudoUnidade {
-  id           String                @id @default(cuid())
-  estudoId     String
-  estudo       EstudoIncorporacao    @relation(fields: [estudoId], references: [id], onDelete: Restrict)
-  codigo       String                @db.VarChar(120)
-  codigoChave  String                @db.VarChar(120)
-  tipo         String                @db.VarChar(40)
-  status       String                @default("disponivel") @db.VarChar(20)
+  id              String                @id @default(cuid())
+  estudoId        String
+  estudo          EstudoIncorporacao    @relation(fields: [estudoId], references: [id], onDelete: Restrict)
+  codigo          String                @db.VarChar(120)
+  codigoChave     String                @db.VarChar(120)
+  tipo            String                @db.VarChar(40)
+  status          String                @default("disponivel") @db.VarChar(20)
   compradorLeadId String?
-  compradorLead Lead? @relation("CompradorUnidade", fields: [compradorLeadId], references: [id], onDelete: SetNull)
-  revisao Int @default(0)
-  origemChave String? @db.VarChar(255)
-  cenarioId String? @db.VarChar(120)
-  excluidoEm DateTime?
-  comprador    String?               @db.VarChar(255)
-  valorVenda   Decimal?              @db.Decimal(15, 2)
-  criadoEm     DateTime              @default(now())
-  atualizadoEm DateTime              @updatedAt
-  eventos      EstudoUnidadeEvento[]
+  compradorLead   Lead?                 @relation("CompradorUnidade", fields: [compradorLeadId], references: [id], onDelete: SetNull)
+  revisao         Int                   @default(0)
+  origemChave     String?               @db.VarChar(255)
+  cenarioId       String?               @db.VarChar(120)
+  excluidoEm      DateTime?
+  comprador       String?               @db.VarChar(255)
+  valorVenda      Decimal?              @db.Decimal(15, 2)
+  criadoEm        DateTime              @default(now())
+  atualizadoEm    DateTime              @updatedAt
+  eventos         EstudoUnidadeEvento[]
 
   @@unique([estudoId, codigoChave])
   @@map("estudo_unidades")

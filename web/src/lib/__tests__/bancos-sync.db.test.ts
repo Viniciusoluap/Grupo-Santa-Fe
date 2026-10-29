@@ -80,7 +80,7 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
     expect(await bancos.sincronizarConta(conta.id, fetchFake as never)).toMatchObject({ ok: true, novos: 0 });
   });
 
-  it("Pluggy: credenciais 'plain:' do banco, from = data inicial, saldo atualizado e segredos recriptografados", async () => {
+  it("Pluggy: credenciais 'plain:' do banco, corte local pela data inicial, saldo atualizado e segredos recriptografados", async () => {
     await prisma.configuracaoPluggy.deleteMany();
     await prisma.configuracaoPluggy.create({ data: { id: 1, clientIdEncrypted: "plain:cid", clientSecretEncrypted: "plain:csec" } });
     const conta = await prisma.contaBancaria.create({
@@ -92,8 +92,13 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
         return resposta({ apiKey: "tok" });
       }
       if (u.includes("/transactions?")) {
-        expect(u).toContain("from=2026-08-15");
-        return resposta({ totalPages: 1, results: [{ id: `${conta.id}-t1`, date: "2026-09-01T00:00:00Z", description: "Pix", amount: 70, type: "CREDIT" }] });
+        // Lote 3, item 13A: sem pageSize nem filtro de data na URL; o corte por data é local.
+        expect(u).not.toContain("pageSize");
+        expect(u).not.toContain("dateFrom");
+        return resposta({ totalPages: 1, results: [
+          { id: `${conta.id}-t0`, date: "2026-08-14T00:00:00Z", description: "Antes da data inicial", amount: 1, type: "CREDIT" },
+          { id: `${conta.id}-t1`, date: "2026-09-01T00:00:00Z", description: "Pix", amount: 70, type: "CREDIT" },
+        ] });
       }
       return resposta({ balance: 70 });
     });
