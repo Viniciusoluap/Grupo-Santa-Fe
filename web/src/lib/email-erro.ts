@@ -13,8 +13,16 @@ export function descreverErroSmtp(erro: unknown): string {
     motivo = "Não foi possível conectar ao servidor de e-mail. Confira o endereço (SMTP_HOST) e a porta (SMTP_PORT: 465 ou 587).";
   else if (codigo === "ESOCKET" || texto.includes("ssl") || texto.includes("tls") || texto.includes("wrong version"))
     motivo = "Falha de segurança na conexão. Use a porta 465 (SSL) ou 587 (STARTTLS) conforme o provedor.";
+  else if (codigo === "EMESSAGE")
+    motivo = "O servidor aceitou o remetente e o destinatário, mas recusou a mensagem (limite temporário ou filtro do provedor). O envio é repetido automaticamente uma vez.";
   else if (codigo === "EENVELOPE" || e.responseCode === 550 || e.responseCode === 553)
     motivo = "O servidor recusou o remetente ou o destinatário. O remetente precisa ser o mesmo e-mail do SMTP_USER.";
   else motivo = "Falha desconhecida no envio.";
   return codigo ? `${motivo} (código ${codigo})` : motivo;
+}
+
+/** Falha que costuma passar sozinha (mensagem recusada ou resposta 4xx): vale repetir uma vez. */
+export function falhaTemporariaSmtp(erro: unknown): boolean {
+  const e = (erro ?? {}) as { code?: string; responseCode?: number };
+  return e.code === "EMESSAGE" || (typeof e.responseCode === "number" && e.responseCode >= 400 && e.responseCode < 500);
 }
