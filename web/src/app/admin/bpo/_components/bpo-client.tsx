@@ -17,6 +17,7 @@ import { criarCobranca, editarLancamentoBpo, importarClientesCrmBpo, pagarLancam
 import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
 import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Modal } from "@/components/ui/modal";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award, HardHat, Info } from "lucide-react";
 import { AJUDA_VGV_DE_OBRAS, MENSAGEM_RANKING_VAZIO, NOTA_NUMEROS_DE_OBRA } from "@/lib/financeiro/relatorios-bpo";
@@ -750,17 +751,17 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
             </div>
             <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os clientes</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
             </select>
             <select value={mesFilter} onChange={(e) => setMesFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os meses</option>
               {allMeses.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
             <select value={anoFilter} onChange={(e) => setAnoFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os anos</option>
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
@@ -790,17 +791,17 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
             </div>
             <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os clientes</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
             </select>
             <select value={mesFilter} onChange={(e) => setMesFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os meses</option>
               {allMeses.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
             <select value={anoFilter} onChange={(e) => setAnoFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os anos</option>
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
@@ -935,10 +936,10 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
 
       {sugerirVinculos && <SugerirVinculosModal onFechar={(m) => { setSugerirVinculos(false); if (m) setModalFeedback(m); }} />}
       {/* ─── MODAL: Novo (Cobrança ou Despesa) ─── */}
-      {baixa && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><form className="w-full max-w-md space-y-4 bg-white p-6" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); startTransition(async () => { try { await registrarBaixaBpo({ id: baixa.lancamento.id, version: baixa.lancamento.version, requestKey: baixa.requestKey, valor: Number(form.get("valor")), data: String(form.get("data")), motivo: String(form.get("motivo")) }); setBaixa(null); router.refresh(); setModalFeedback("Baixa registrada e auditada."); } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao registrar baixa."); } }); }}><h2 className="font-bold">Registrar recebimento/pagamento</h2><p className="text-sm">{baixa.lancamento.descricao}<br/>Total: {formatCurrency(baixa.lancamento.valor)} · Realizado: {formatCurrency(valorRealizado(baixa.lancamento))}<br/>Saldo: {formatCurrency(saldoLancamento(baixa.lancamento))}</p><label className="block text-xs font-bold">Valor desta baixa<CurrencyInput name="valor" required className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Data<input type="date" name="data" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Motivo/referência<input name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border p-2"/></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setBaixa(null)} className="border px-3 py-2">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-3 py-2 font-bold">Registrar baixa</button></div></form></div>}
+      {baixa && <Modal rotulo="Registrar recebimento/pagamento" onFechar={() => setBaixa(null)} tamanho="md"><form className="space-y-4 p-4 sm:p-6" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); startTransition(async () => { try { await registrarBaixaBpo({ id: baixa.lancamento.id, version: baixa.lancamento.version, requestKey: baixa.requestKey, valor: Number(form.get("valor")), data: String(form.get("data")), motivo: String(form.get("motivo")) }); setBaixa(null); router.refresh(); setModalFeedback("Baixa registrada e auditada."); } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao registrar baixa."); } }); }}><h2 className="font-bold">Registrar recebimento/pagamento</h2><p className="text-sm">{baixa.lancamento.descricao}<br/>Total: {formatCurrency(baixa.lancamento.valor)} · Realizado: {formatCurrency(valorRealizado(baixa.lancamento))}<br/>Saldo: {formatCurrency(saldoLancamento(baixa.lancamento))}</p><label className="block text-xs font-bold">Valor desta baixa<CurrencyInput name="valor" required className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Data<input type="date" name="data" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Motivo/referência<input name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border p-2"/></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setBaixa(null)} className="border px-3 py-2">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-3 py-2 font-bold">Registrar baixa</button></div></form></Modal>}
       {lancamentoEditando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <form onSubmit={handleSalvarEdicao} className="bg-white w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <Modal rotulo="Editar lançamento" onFechar={() => setLancamentoEditando(null)} tamanho="lg">
+          <form onSubmit={handleSalvarEdicao} className="space-y-4 p-4 sm:p-6">
             <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase">Editar lançamento</h2>
             <p className="text-xs text-gray-500">A alteração exige motivo e será salva no histórico com controle de versão.</p>
             <input type="hidden" name="id" value={lancamentoEditando.id} />
@@ -946,8 +947,8 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
             <input type="hidden" name="clienteId" value={lancamentoEditando.clienteId ?? ""} />
             <input type="hidden" name="clienteNomeLivre" value={lancamentoEditando.clienteNomeLivre ?? ""} />
             <label className="block text-xs font-bold text-gray-500 uppercase">Descrição<input name="descricao" required defaultValue={lancamentoEditando.descricao} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-xs font-bold text-gray-500 uppercase">Valor<CurrencyInput name="valor" required defaultValue={lancamentoEditando.valor} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block min-w-0 text-xs font-bold text-gray-500 uppercase">Valor<CurrencyInput name="valor" required defaultValue={lancamentoEditando.valor} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
               <label className="block text-xs font-bold text-gray-500 uppercase">Competência<input name="competencia" type="month" required defaultValue={lancamentoEditando.competencia} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
               <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             </div>
@@ -956,12 +957,12 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
             <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
           </form>
-        </div>
+        </Modal>
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <Modal rotulo={modalTipo === null ? "Novo Lançamento" : modalTipo === "cobranca" ? "Nova Cobrança" : "Nova Despesa"} onFechar={closeModal} tamanho="md">
+          <div>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
                 {modalTipo === null ? "Novo Lançamento" : modalTipo === "cobranca" ? "Nova Cobrança" : "Nova Despesa"}
@@ -1038,7 +1039,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                   <input name="descricao" type="text" required placeholder="Ex: Honorários BPO — julho/2026"
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
                     <CurrencyInput name="valor" required
@@ -1113,7 +1114,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                   <input name="descricao" type="text" required placeholder="Ex: Aluguel sala comercial — julho/2026"
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
                     <CurrencyInput name="valor" required
@@ -1141,7 +1142,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               </form>
             )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ─── RELATÓRIOS ─── */}
@@ -1157,7 +1158,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
           {/* LOTE C: realizado no ano a partir dos lançamentos do BPO (inclusive os do extrato bancário). */}
           <div className="bg-white border border-gray-100 p-6">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Realizado em {contabilidade.ano} (valores recebidos/pagos, inclusive parciais, sem transferências internas)</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 [&>*]:min-w-0 [&_p]:break-words">
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Receita realizada</p><p className="font-black text-green-700 text-lg leading-none">{formatCurrency(contabilidade.receitaRealizada)}</p></div>
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Despesas pagas</p><p className="font-black text-red-700 text-lg leading-none">{formatCurrency(contabilidade.despesasPagas)}</p></div>
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Impostos pagos</p><p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(contabilidade.impostosPagos)}</p></div>

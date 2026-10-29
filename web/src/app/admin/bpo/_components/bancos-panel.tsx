@@ -8,8 +8,9 @@ import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Toaster, toast } from "sonner";
-import { Building2, FileUp, Link2, ListOrdered, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Building2, FileUp, Link2, ListOrdered, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Modal as ModalBase } from "@/components/ui/modal";
 import { exigirResultado } from "@/lib/acao-resultado";
 import {
   atualizarContaBancaria,
@@ -60,18 +61,9 @@ const ajuda = "text-[11px] text-gray-700 mt-1";
 const botaoPri = "inline-flex items-center justify-center gap-1.5 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2 transition-colors disabled:opacity-50";
 const botaoSec = "inline-flex items-center gap-1 text-xs font-bold border border-gray-300 text-gray-800 px-3 py-1.5 hover:bg-gray-50 transition-colors disabled:opacity-50";
 
+// Correção 11 (lote 3): usa o modal compartilhado (largura responsiva, rolagem interna, Esc).
 function Modal({ titulo, onClose, largo, children }: { titulo: string; onClose: () => void; largo?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className={`bg-white w-full ${largo ? "max-w-3xl" : "max-w-md"} mx-4 shadow-2xl max-h-[90dvh] overflow-y-auto`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">{titulo}</h2>
-          <button onClick={onClose} className="text-gray-700 hover:text-[var(--brand-dark)]" aria-label="Fechar"><X size={18} /></button>
-        </div>
-        <div className="px-6 py-5 space-y-4">{children}</div>
-      </div>
-    </div>
-  );
+  return <ModalBase titulo={titulo} onFechar={onClose} tamanho={largo ? "3xl" : "md"}>{children}</ModalBase>;
 }
 
 export function BancosPanel({
@@ -240,9 +232,9 @@ export function BancosPanel({
                 </button>
               </div>
               {verConta === c.id && (
-                <div className="max-h-80 overflow-y-auto border-t border-gray-200 pt-2">
+                <div className="max-h-80 overflow-auto border-t border-gray-200 pt-2">
                   {transacoes.length === 0 ? <p className="text-xs text-gray-700">Nenhuma movimentação.</p> : (
-                    <table className="w-full text-xs">
+                    <table className="w-full min-w-[640px] text-xs">
                       <tbody className="divide-y divide-gray-100">
                         {transacoes.map((t) => (
                           <tr key={t.id}>
@@ -321,7 +313,7 @@ export function BancosPanel({
             <p className={ajuda}>Contas do Meu Pluggy entram pelo quadro &quot;Pluggy&quot; abaixo.</p>
           </div>
           <div><label className={rotulo}>Banco *</label><input value={nova.banco} onChange={(e) => setNova((n) => ({ ...n, banco: e.target.value }))} className={campo} placeholder="ex.: Cora" /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className={rotulo}>Conta</label><input value={nova.conta} onChange={(e) => setNova((n) => ({ ...n, conta: e.target.value }))} className={campo} /></div>
             <div><label className={rotulo}>Descrição</label><input value={nova.descricao} onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))} className={campo} placeholder="ex.: Conta PJ" /></div>
           </div>
@@ -402,8 +394,8 @@ export function BancosPanel({
                 {previa.ignoradas ? `, ${previa.ignoradas} linha(s) não reconhecida(s)` : ""}.
                 {previa.saldo ? ` Saldo informado no arquivo: ${formatCurrency(previa.saldo.valor)}${previa.saldo.data ? ` em ${dataBR(previa.saldo.data)}` : ""}.` : " O arquivo não traz saldo: o saldo da conta será a soma das movimentações."}
               </p>
-              <div className="max-h-96 overflow-y-auto border border-gray-200">
-                <table className="w-full text-xs">
+              <div className="max-h-96 overflow-auto border border-gray-200">
+                <table className="w-full min-w-[560px] text-xs">
                   <thead className="sticky top-0 bg-[var(--brand-dark)]">
                     <tr className="text-white"><th className="text-left p-2">Data</th><th className="text-left p-2">Descrição</th><th className="text-right p-2">Valor</th></tr>
                   </thead>

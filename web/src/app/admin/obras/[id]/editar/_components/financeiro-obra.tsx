@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, UserPlus } from "lucide-react";
 import { calcularObra, centavosDe, lerPercentualDigitado, type Indicador, type Natureza, type ResultadoObra } from "@/lib/financeiro/obra";
 import { calcularComissaoObra } from "@/lib/financeiro/comissao";
 import type { MovimentoResumo, ResumoObra } from "@/lib/financeiro/obra-dados";
 import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
 import { formatCurrency, parseNumeroBR } from "@/lib/utils";
+import { Modal as ModalBase } from "@/components/ui/modal";
 import {
   adicionarMovimentoObra,
   excluirMovimentoObra,
@@ -150,19 +151,9 @@ function Secao({ titulo, formula, children }: { titulo: string; formula?: string
   );
 }
 
+// Correção 11 (lote 3): usa o modal compartilhado (largura responsiva, rolagem interna, Esc).
 function Modal({ titulo, aberto, onFechar, children }: { titulo: string; aberto: boolean; onFechar: () => void; children: React.ReactNode }) {
-  if (!aberto) return null;
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={titulo}>
-      <div className="bg-white w-full max-w-lg p-5 space-y-3 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h4 className="font-black text-[var(--brand-dark)] uppercase text-sm">{titulo}</h4>
-          <button type="button" onClick={onFechar} aria-label="Fechar"><X size={16} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+  return <ModalBase titulo={titulo} aberto={aberto} onFechar={onFechar} tamanho="lg" classeCorpo="space-y-3">{children}</ModalBase>;
 }
 
 export function Alertas({ calculo }: { calculo: ResultadoObra }) {
@@ -300,7 +291,7 @@ function NovoMovimento({ obraId, natureza, rotulo, permitirBpo = true }: { obraI
           </label>
         )}
         <label className={labelCls}>Descrição<input value={descricao} onChange={(e) => setDescricao(e.target.value)} className={`${inputCls} mt-1 normal-case font-normal`} /></label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><p className={labelCls}>Valor</p><CampoDecimal valor={valor} onChange={setValor} prefixo="R$" placeholder="0,00" ariaLabel="Valor" /></div>
           <label className={labelCls}>Data<input type="date" value={data} onChange={(e) => setData(e.target.value)} className={`${inputCls} mt-1`} /></label>
         </div>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
 import { criarLancamentoBpo, marcarLancamentoPago, atualizarStatusBpoCliente } from "@/lib/actions/bpo";
 import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const STATUS_CONFIG = {
   ativo:     { label: "Ativo",     bg: "bg-green-100",  text: "text-green-700" },
@@ -73,7 +74,7 @@ export default async function BpoClientePage({ params }: PageProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0 [&_p]:break-words">
             <div className="bg-white border border-gray-100 p-4 text-center">
               <p className="font-black text-[var(--brand-dark)] text-lg">{formatCurrency(totalPendente)}</p>
               <p className="text-xs text-orange-500 font-bold mt-0.5">Pendente</p>
@@ -130,7 +131,7 @@ export default async function BpoClientePage({ params }: PageProps) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
-                <input name="valor" type="number" step="0.01" required defaultValue={cliente.honorarios} className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
+                <CurrencyInput name="valor" required defaultValue={cliente.honorarios} className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vencimento *</label>

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { aplicarVinculosEmMassa, buscarClientesELeadsBpo, previaVinculosEmMassa, sugestoesClienteLancamento, vincularClienteLancamento } from "@/lib/actions/bpo-vinculo";
 import type { CandidatoCliente } from "@/lib/bpo-vinculo-cliente";
+import { Modal } from "@/components/ui/modal";
 
 type Sugestoes = Awaited<ReturnType<typeof sugestoesClienteLancamento>>;
 type Previa = Awaited<ReturnType<typeof previaVinculosEmMassa>>;
@@ -78,8 +79,7 @@ export function SugerirVinculosModal({ onFechar }: { onFechar: (mensagem?: strin
     return c ? [{ id: i.lancamentoId, version: i.version, ...alvoDe(c) }] : [];
   });
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white p-6 space-y-3">
+    <Modal rotulo="Sugerir vínculos com clientes do CRM" onFechar={() => onFechar()} tamanho="3xl" className="space-y-3 p-4 sm:p-6">
         <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase">Sugerir vínculos com clientes do CRM</h2>
         {erro && <p className="text-sm text-red-700">{erro}</p>}
         {!previa && !erro && <p className="text-sm text-gray-500">Analisando lançamentos…</p>}
@@ -104,7 +104,6 @@ export function SugerirVinculosModal({ onFechar }: { onFechar: (mensagem?: strin
             onFechar(`${r.vinculados} lançamento(s) vinculado(s).${r.falhas.length ? ` ${r.falhas.length} não puderam ser vinculados (atualize e tente de novo).` : ""}`);
           })} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">{pendente ? "Vinculando…" : `Confirmar ${selecionados.length} vínculo(s)`}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

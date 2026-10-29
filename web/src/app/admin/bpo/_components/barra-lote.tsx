@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
+import { Modal } from "@/components/ui/modal";
 import { combinarPagamentos, excluirLancamentosEmLote, previaCombinacao, previaExclusaoLote, type AbaLote } from "@/lib/actions/bpo-lote";
 import { CONFIRMACAO_EXCLUSAO, ROTULOS_PROTECAO, confirmacaoExclusaoValida, type FiltrosLote, type MotivoProtecao, type ResumoExclusao } from "@/lib/bpo-lote";
 
@@ -36,15 +37,9 @@ export function BarraLote({ aba, visiveis, selecionados, setSelecionados, filtro
   );
 }
 
+// Correção 11 (lote 3): usa o modal compartilhado (largura responsiva, rolagem interna, Esc).
 function Moldura({ titulo, children, onFechar }: { titulo: string; children: React.ReactNode; onFechar: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white p-6 space-y-3 text-sm">
-        <div className="flex items-start justify-between gap-2"><h2 className="font-black text-[var(--brand-dark)] text-lg uppercase">{titulo}</h2><button type="button" onClick={onFechar} className="text-gray-500">✕</button></div>
-        {children}
-      </div>
-    </div>
-  );
+  return <Modal titulo={titulo} onFechar={onFechar} tamanho="lg" classeCorpo="space-y-3 text-sm">{children}</Modal>;
 }
 
 function ExcluirLoteModal({ aba, modo, ids, filtros, onFechar }: { aba: AbaLote; modo: "selecionados" | "tudo"; ids: string[]; filtros: FiltrosLote; onFechar: (m?: string) => void }) {
