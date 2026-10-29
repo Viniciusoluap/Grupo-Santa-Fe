@@ -185,8 +185,15 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
     const recusada = await acoes.criarContaBancaria({ provedor: "asaas", banco: `${MARCA} Asaas 2`, apiKey: "$aact_x" });
     expect(recusada).toEqual({ erroAcao: expect.stringMatching(/^O Asaas recusou o acesso \(HTTP 401\)\. Confira se a chave está ativa e se há restrição de IP/) });
 
-    // Remover só tira da lista (as movimentações continuam no histórico).
-    expect(await acoes.excluirContaBancaria(r.id)).toEqual({ success: true });
+    // Lote 3, item 13B: sem digitar EXCLUIR (case-sensitive) nada é alterado.
+    for (const errado of [undefined, "excluir", "EXCLUÍR", conta.banco]) {
+      expect(await acoes.excluirContaBancaria(r.id, errado)).toEqual({ erroAcao: expect.stringMatching(/EXCLUIR/) });
+    }
+    expect((await prisma.contaBancaria.findUniqueOrThrow({ where: { id: r.id } })).ativo).toBe(true);
+    // Com EXCLUIR: backup com usuário e data; a conta fica inativa.
+    expect(await acoes.excluirContaBancaria(r.id, "EXCLUIR")).toMatchObject({ success: true, transacoes: 0, excluidaEm: expect.any(String) });
+    expect(await prisma.bpoContaLimpezaBackup.count({ where: { contaReferencia: r.id, criadoPorUsuarioId: { not: null } } })).toBe(1);
+    await prisma.bpoContaLimpezaBackup.deleteMany({ where: { contaReferencia: r.id } });
     expect((await prisma.contaBancaria.findUniqueOrThrow({ where: { id: r.id } })).ativo).toBe(false);
   });
 });

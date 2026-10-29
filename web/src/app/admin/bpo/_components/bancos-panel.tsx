@@ -3,6 +3,7 @@
 // Pedido de 25/10: BPO › Bancos — contas por API (Asaas, Pluggy/Meu Pluggy) e importação de
 // extrato (planilha, OFX, PDF) com prévia, sempre respeitando a data inicial de cada conta.
 // Gêmeo de Prospecta/client/src/pages/admin/BancosPanel.tsx (visual do Santa Fé).
+import { CONFIRMACAO_EXCLUSAO, confirmacaoExclusaoValida } from "@/lib/bpo-lote";
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +19,7 @@ import {
   criarContaBancaria,
   excluirContaBancaria,
   previaLimpezaContaBancaria,
+  type PreviaLimpezaBpo,
   importarItemPluggy,
   listarTransacoesConta,
   previaImportacaoExtrato,
@@ -127,6 +129,9 @@ export function BancosPanel({
 
   // ── Ajustar data inicial (a chave do Asaas é a central, em Integrações) ──
   const [edit, setEdit] = useState<{ id: string; dataInicial: string } | null>(null);
+  // Lote 3, item 13B: prévia completa e confirmação digitando EXCLUIR (antes era prompt com o nome da conta).
+  const [limpeza, setLimpeza] = useState<PreviaLimpezaBpo | null>(null);
+  const [confirmacaoLimpeza, setConfirmacaoLimpeza] = useState("");
 
   // ── Movimentações ──
   const [verConta, setVerConta] = useState<string | null>(null);
@@ -230,12 +235,7 @@ export function BancosPanel({
                   Data inicial
                 </button>
                 <button className="inline-flex items-center gap-1 text-xs font-bold border border-red-300 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50" disabled={ocupado}
-                  onClick={() => executar(async () => {
-                    const p = exigirResultado(await previaLimpezaContaBancaria(c.id));
-                    const digitado = prompt(`Prévia de limpeza de ${p.rotulo}: ${p.transacoes} movimentações; ${p.lancamentosRemovidos} lançamentos serão removidos; ${p.lancamentosPreservados} lançamentos Asaas/operacionais serão preservados; ${p.vinculosOperacionais} vínculos operacionais mantidos.\n\nDigite o nome exato da conta para confirmar:`);
-                    if (digitado === null) return null;
-                    return exigirResultado(await excluirContaBancaria(c.id, digitado));
-                  }, (r) => { if (r) toast.success("Limpeza concluída; backup recuperável criado."); })}>
+                  onClick={() => executar(async () => exigirResultado(await previaLimpezaContaBancaria(c.id)), (p) => { setLimpeza(p); setConfirmacaoLimpeza(""); })}>
                   <Trash2 size={11} /> Remover
                 </button>
               </div>
@@ -342,6 +342,29 @@ export function BancosPanel({
             })), () => { toast.success("Conta cadastrada."); setNovaOpen(false); setNova(vazio); })}>
             {ocupado ? "Validando..." : "Cadastrar conta"}
           </button>
+        </Modal>
+      )}
+
+      {/* Excluir conta (13B) */}
+      {limpeza && (
+        <Modal titulo="Excluir conta e dados importados" onClose={() => setLimpeza(null)}>
+          <p className="text-sm">Conta: <strong>{limpeza.rotulo}</strong></p>
+          <div className="space-y-1 border border-gray-200 p-3 text-sm">
+            <p><strong>{limpeza.transacoes}</strong> movimentação(ões) bancária(s) serão removidas</p>
+            <p><strong>{limpeza.lancamentosRemovidos}</strong> lançamento(s) exclusivamente importado(s) do extrato serão removidos</p>
+            <p><strong>{limpeza.lancamentosPreservados}</strong> lançamento(s) serão preservados (Asaas, manuais ou usados em Obras/Regularizações) — apenas desconciliados</p>
+            <p><strong>{limpeza.vinculosOperacionais}</strong> vínculo(s) com Obras/Regularizações serão mantidos</p>
+          </div>
+          <p className={ajuda}>Antes de remover, é gravado um backup (conta, movimentações e lançamentos) com o seu usuário e a data, para auditoria e recuperação. A credencial da conta não entra no backup; a conta fica inativa.</p>
+          <div>
+            <label className={rotulo}>Para confirmar, digite {CONFIRMACAO_EXCLUSAO}</label>
+            <input value={confirmacaoLimpeza} onChange={(e) => setConfirmacaoLimpeza(e.target.value)} autoComplete="off" className={campo} />
+          </div>
+          <button className="w-full bg-red-700 px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50" disabled={ocupado || !confirmacaoExclusaoValida(confirmacaoLimpeza)}
+            onClick={() => executar(async () => exigirResultado(await excluirContaBancaria(limpeza.contaId, confirmacaoLimpeza)), (r) => {
+              toast.success(`Conta excluída. Backup ${r.backupId} registrado por ${r.excluidaPor} em ${new Date(r.excluidaEm).toLocaleString("pt-BR")}; ${r.lancamentosPreservados} lançamento(s) preservado(s).`);
+              setLimpeza(null);
+            })}>{ocupado ? "Criando backup e excluindo..." : "Excluir conta com backup"}</button>
         </Modal>
       )}
 
