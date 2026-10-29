@@ -1,6 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { enviarParaLixeira } from "@/lib/incorporacao/registro-drive";
+import { lixeiraDaPasta } from "@/lib/drive-organizacao";
+import { chaveImovel } from "@/lib/drive-estrutura";
 import { recusaAindaVisivel } from "@/lib/portal-corretor";
 
 // Item 8 (18/10): exclusão definitiva de imóvel (equipe e corretor dono). O
@@ -24,5 +26,7 @@ export async function excluirImovelDefinitivo(id: string, { avisarCorretor = tru
     prisma.imovel.delete({ where: { id } }),
   ]);
   for (const foto of fotos) if (foto.driveFileId) await enviarParaLixeira(foto.driveFileId).catch(() => undefined);
+  // Pedido de 29/10: a pasta inteira do imóvel (checklist 01–04) também vai para a lixeira.
+  await lixeiraDaPasta(chaveImovel(id));
   return { excluido: true };
 }

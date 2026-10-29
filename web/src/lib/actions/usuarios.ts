@@ -190,6 +190,10 @@ export async function excluirUsuario(id: string) {
   const bloqueado = await bloquearSeUltimoAdminAtivo(id);
   if (bloqueado) return bloqueado;
   await prisma.usuario.delete({ where: { id } });
+  // Pedido de 29/10: Equipe/<Nome (nº)> vai para a lixeira do Drive depois da exclusão no banco.
+  const { lixeiraDaPasta } = await import("@/lib/drive-organizacao");
+  const { chaveEquipe } = await import("@/lib/drive-estrutura");
+  await lixeiraDaPasta(chaveEquipe(id));
   revalidatePath("/admin/configuracoes");
 }
 
