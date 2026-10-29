@@ -18,6 +18,7 @@ import {
   OPCOES_FORMAS,
   OPCOES_FORMAS_INCORPORADAS,
   OPCOES_MONTAGEM,
+  OPCOES_ALTERA_AREA,
   OPCOES_SISTEMA_CONSTRUTIVO,
   QUADROS_FOTO,
   SIM_NAO,
@@ -482,7 +483,7 @@ export function CamposMedicaoCaixa({ tipo, setTipo, dados, setDados, prazoPci, c
           </Rotulo>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Opcoes rotulo="Prevê alteração de especificações?" valor={a.alteraEspecificacoes} opcoes={SIM_NAO} onChange={(v) => setAlt({ alteraEspecificacoes: v })} />
-            <Opcoes rotulo="Prevê alteração de área?" valor={a.alteraArea} opcoes={SIM_NAO} onChange={(v) => setAlt({ alteraArea: v })} />
+            <Opcoes rotulo="Prevê alteração de área?" valor={a.alteraArea} opcoes={OPCOES_ALTERA_AREA} onChange={(v) => setAlt({ alteraArea: v })} />
             {a.alteraArea === "Sim" && (
               <>
                 <CampoNumero rotulo="Nova área coberta padrão" sufixo="m²" valor={a.novaAreaCoberta} onChange={(v) => setAlt({ novaAreaCoberta: v })} />

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { validarIncidenciasPci } from "@/lib/obras/pci";
 import { ehTipoMedicao, normalizarDadosMedicao, QUADROS_FOTO } from "@/lib/medicao-caixa";
-import type { DadosPci } from "@/lib/caixa/pci";
+import { lerPci, type DadosPci } from "@/lib/caixa/pci";
 import type { MedicaoHistorica } from "@/lib/caixa/medicao-xls";
 import { gerarPdfMedicao } from "@/lib/caixa/medicao-pdf";
 import { SERVICOS_PROGRESSO } from "@/lib/financeiro/progresso";
@@ -31,15 +31,19 @@ export async function gerarArquivoMedicao(medicaoId: string, formato: FormatoMed
   const m = await prisma.obraProgressoHistorico.findUnique({ where: { id: medicaoId }, include: { pciVersao: true, obra: { select: { id: true, nome: true, dataInicio: true, dataPrevisaoFim: true } }, fotos: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }], include: { arquivo: true } } } });
   if (!m) return { ok: false, status: 404, error: "Medição não encontrada." };
   if (!m.pciVersao) return { ok: false, status: 409, error: "Esta medição não possui uma versão da PCI vinculada. Revise a medição antes de gerar os arquivos." };
-  const pci = m.pciVersao.parsed as unknown as DadosPci;
+  const pciSalva = m.pciVersao.parsed as unknown as DadosPci;
+  // Lote 03, correção 08: relê a PCI desta versão (cronograma, valor e alvará recalculados
+  // das entradas, não do cache gravado no envio); falha → dados salvos.
+  let pci = pciSalva;
+  try { pci = { ...lerPci(new Uint8Array(m.pciVersao.dados)), incidencias: pciSalva.incidencias }; } catch { /* mantém os dados salvos */ }
   const itens = m.itens as { chave: string; incidencia: string; execucao: string }[];
   if (!validarIncidenciasPci(itens, pci)) return { ok: false, status: 409, error: "As incidências salvas diferem da PCI desta medição. Revise a medição." };
   const tipo = ehTipoMedicao(m.tipo) ? m.tipo : "pls";
   const dados = normalizarDadosMedicao(tipo, m.dadosCaixa);
-  const anterioresBrutas = await prisma.obraProgressoHistorico.findMany({ where: { obraId: m.obraId, OR: [{ criadoEm: { lt: m.criadoEm } }, { criadoEm: m.criadoEm, id: { lt: m.id } }] }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }], select: { progresso: true, criadoEm: true, dadosCaixa: true } });
-  // H6: "Acumul. Aferido" é o % medido pela CAIXA — o sistema não o tem, então fica
-  // em branco (não preencher com o PLS). Aguarda decisão do dono.
-  const anteriores: MedicaoHistorica[] = anterioresBrutas.map(a => ({ data: (a.dadosCaixa as { pls?: { dataLevantamento?: string } } | null)?.pls?.dataLevantamento || dataIso(a.criadoEm), progresso: Number(a.progresso) }));
+  const anterioresBrutas = await prisma.obraProgressoHistorico.findMany({ where: { obraId: m.obraId, OR: [{ criadoEm: { lt: m.criadoEm } }, { criadoEm: m.criadoEm, id: { lt: m.id } }] }, orderBy: [{ criadoEm: "asc" }, { id: "asc" }], select: { progresso: true, criadoEm: true, dadosCaixa: true, recebidaEm: true } });
+  // Lote 03, correção 08: "Acumul. Aferido" = medição anterior CONFIRMADA como recebida
+  // pela CAIXA (recebidaEm). Sem confirmação, fica em branco e o PDF sinaliza.
+  const anteriores: MedicaoHistorica[] = anterioresBrutas.map(a => ({ data: (a.dadosCaixa as { pls?: { dataLevantamento?: string } } | null)?.pls?.dataLevantamento || dataIso(a.criadoEm), progresso: Number(a.progresso), aferido: !!a.recebidaEm }));
   // H6: início e término previsto vêm do Editar Obra (datas gravadas à meia-noite UTC).
   const datasObra = { inicio: m.obra.dataInicio ? m.obra.dataInicio.toISOString().slice(0, 10) : null, termino: m.obra.dataPrevisaoFim ? m.obra.dataPrevisaoFim.toISOString().slice(0, 10) : null };
   const porChave = new Map(itens.map(i => [i.chave, Number(i.execucao)]));
