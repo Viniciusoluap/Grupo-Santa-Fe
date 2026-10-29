@@ -22,7 +22,13 @@ Definições versionadas consultadas e trabalho separado entre desenvolvimento, 
 ## Validações
 (a) Automáticas: git diff --check aprovado; revisão independente QA aprovada. Santa Fé: 19 testes de regularização e 25 testes da integração aprovados; TypeScript e ESLint dos arquivos alterados aprovados.
 (b) Manuais: aceite visual autenticado e de navegação ainda pendente.
-(c) Publicação: PR e build de publicação ainda em preparação.
+(c) Publicação: PR #240 mergeado; commit 3ffccda3fda23d9da06a90f99cd40297ed9bc142. Build de produção READY, domínio oficial associado: https://www.gruposantafee.com.br. Página pública de login respondeu HTTP 200. Consulta inicial de logs error/fatal do deployment publicado não retornou registros; isso não substitui aceite autenticado.
 
 ## Próximo passo
-Confirmar checks do PR e builds; efetuar merge autorizado, acompanhar publicação e validar navegação autenticada. Registrar limitações reais sem declarar aceite visual integral antecipadamente.
+Concluir a verificação de navegação autenticada e responsividade, mantendo separados os resultados automáticos, manuais e as pendências. Não repetir merge ou deploy: publicação funcional concluída. Branch de trabalho preservada, sem reset ou force push; este checkpoint de documentação está salvo na branch de continuidade.
+
+## Complemento de diagnóstico administrativo
+O diagnóstico de integração apresenta contagem e destinos sanitizados quando não há correspondência. Tokens, credenciais, query e fragmentos não são devolvidos. Reconhecimento de destino legado exige nome exato e host permitido e rejeita ambiguidades; a recuperação continua limitada ao endpoint canônico.
+(a) Automáticas: 16 testes focados, TypeScript e ESLint dos arquivos alterados aprovados. Revisão aprovada; diff check limpo.
+(b) Manuais: verificação do complemento na versão publicada ainda pendente.
+(c) Publicação do complemento: preparar PR, acompanhar checks e confirmar produção antes de concluir o aceite. A publicação anterior de Regularizações permanece concluída.
