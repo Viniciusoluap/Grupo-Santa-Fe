@@ -159,6 +159,11 @@ export function IntegracoesClient({ inicial }: { inicial: StatusIntegracoes }) {
             {erroWebhook && <p role="alert" className="mt-2 text-red-700">{erroWebhook}</p>}
             {webhook && <div role="status" className="mt-2 space-y-1 text-gray-800">
               <p>{webhook.mensagem}</p>
+              {!webhook.encontrado && <div className="text-xs text-gray-600">
+                <p>Webhooks consultados nesta conta: {webhook.totalWebhooks}. Confira os destinos abaixo; nenhuma configuração foi alterada.</p>
+                <ul className="mt-1 space-y-1">{webhook.destinos.map((destino, index) => <li key={index} className="break-all">{destino.nome}: {destino.endereco}</li>)}</ul>
+                {webhook.totalWebhooks > webhook.destinos.length && <p>Exibindo os primeiros {webhook.destinos.length} destinos.</p>}
+              </div>}
               {webhook.encontrado && <p>Ambiente: {webhook.ambiente}. URL: {webhook.urlCorreta ? "correta" : "precisa atualizar"}. Token: {webhook.tokenConfere === null ? "não informado pelo provedor" : webhook.tokenConfere ? "confere" : "divergente"}. Fila: {webhook.interrompido ? "interrompida" : "ativa"}. Webhook: {webhook.ativo ? "habilitado" : "desabilitado"}.</p>}
             </div>}
           </div>

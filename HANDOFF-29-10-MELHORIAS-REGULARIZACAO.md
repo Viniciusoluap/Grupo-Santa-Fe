@@ -26,3 +26,9 @@ Definições versionadas consultadas e trabalho separado entre desenvolvimento, 
 
 ## Próximo passo
 Concluir a verificação de navegação autenticada e responsividade, mantendo separados os resultados automáticos, manuais e as pendências. Não repetir merge ou deploy: publicação funcional concluída. Branch de trabalho preservada, sem reset ou force push; este checkpoint de documentação está salvo na branch de continuidade.
+
+## Complemento de diagnóstico administrativo
+O diagnóstico de integração apresenta contagem e destinos sanitizados quando não há correspondência. Tokens, credenciais, query e fragmentos não são devolvidos. Reconhecimento de destino legado exige nome exato e host permitido e rejeita ambiguidades; a recuperação continua limitada ao endpoint canônico.
+(a) Automáticas: 16 testes focados, TypeScript e ESLint dos arquivos alterados aprovados. Revisão aprovada; diff check limpo.
+(b) Manuais: verificação do complemento na versão publicada ainda pendente.
+(c) Publicação do complemento: preparar PR, acompanhar checks e confirmar produção antes de concluir o aceite. A publicação anterior de Regularizações permanece concluída.

@@ -10,12 +10,13 @@ export type WebhookDiagnostic = {
   encontrado: boolean; urlCorreta: boolean; tokenConfere: boolean | null;
   ativo: boolean; interrompido: boolean; ambiente: "production" | "sandbox";
   recuperado: boolean; mensagem: string;
+  totalWebhooks: number; destinos: { nome: string; endereco: string }[];
 };
 
 export async function verificarWebhookAsaas(config: WebhookRecoveryConfig, recuperar = false, fetchImpl: typeof fetch = fetch): Promise<WebhookDiagnostic> {
   const canonical = new URL(config.canonicalUrl);
   if (canonical.protocol !== "https:" || canonical.username || canonical.password || canonical.search || canonical.hash) throw new WebhookRecoveryError("URL canônica do webhook inválida.");
-  const base = config.environment === "production" ? "https://api.asaas.com/v3" : "https://sandbox.asaas.com/api/v3";
+  const base = config.environment === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
   async function api(path: string, init?: RequestInit): Promise<unknown> {
     let response: Response;
     try {
@@ -28,17 +29,38 @@ export async function verificarWebhookAsaas(config: WebhookRecoveryConfig, recup
     try { return await response.json(); } catch { throw new WebhookRecoveryError("Resposta inválida do Asaas."); }
   }
   const matches: RemoteWebhook[] = [];
+  const destinos: WebhookDiagnostic["destinos"] = [];
+  let totalWebhooks = 0;
+  const textoSeguro = (valor: string, limite: number, tokenRemoto?: string) => {
+    let texto = valor;
+    for (const segredo of [config.apiKey, config.token, tokenRemoto]) {
+      if (segredo) texto = texto.split(segredo).join("[oculto]");
+    }
+    return texto.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, limite);
+  };
   for (let offset = 0; ; offset += 100) {
     if (offset >= 1000) throw new WebhookRecoveryError("Há muitos webhooks para conferir com segurança.");
     const page = await api(`/webhooks?limit=100&offset=${offset}`) as { data?: RemoteWebhook[]; hasMore?: boolean };
     if (!Array.isArray(page.data)) throw new WebhookRecoveryError("Lista de webhooks inválida.");
+    totalWebhooks += page.data.length;
     for (const hook of page.data) {
+      if (!hook || typeof hook !== "object") continue;
+      // Metadados administrativos apenas: nunca incluir token, query, fragmento
+      // ou credenciais presentes no endereço retornado pelo provedor.
+      if (destinos.length < 20) {
+        let endereco = "Endereço inválido";
+        try {
+          const destino = new URL(hook.url);
+          if (["http:", "https:"].includes(destino.protocol)) endereco = `${destino.origin}${destino.pathname}`;
+        } catch { /* endereço malformado continua visível como inválido */ }
+        destinos.push({ nome: textoSeguro(typeof hook.name === "string" ? hook.name : "Sem nome", 120, hook.authToken), endereco: textoSeguro(endereco, 400, hook.authToken) });
+      }
       if (typeof hook.id !== "string" || typeof hook.url !== "string") continue;
       let url: URL;
       try { url = new URL(hook.url); } catch { continue; }
-      if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== canonical.pathname) continue;
+      if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) continue;
       const exact = url.href === canonical.href;
-      const legacy = config.legacyName && hook.name === config.legacyName && config.legacyHosts.includes(url.hostname) && !url.port;
+      const legacy = config.legacyName && hook.name === config.legacyName && (url.hostname === canonical.hostname || config.legacyHosts.includes(url.hostname)) && !url.port;
       if (exact || legacy) matches.push(hook);
     }
     if (!page.hasMore) break;
@@ -50,7 +72,7 @@ export async function verificarWebhookAsaas(config: WebhookRecoveryConfig, recup
     encontrado: Boolean(hook), urlCorreta: hook?.url === canonical.href,
     tokenConfere: typeof hook?.authToken === "string" ? hook.authToken === config.token : null,
     ativo: hook?.enabled === true, interrompido: hook?.interrupted === true,
-    ambiente: config.environment, recuperado: false,
+    ambiente: config.environment, recuperado: false, totalWebhooks, destinos,
     mensagem: hook ? "Configuração consultada no Asaas. O recebimento de eventos deve ser acompanhado após a recuperação." : "Nenhum webhook deste sistema encontrado. Nenhuma configuração foi criada ou alterada.",
   };
   if (!recuperar || !hook) return diagnostic;
