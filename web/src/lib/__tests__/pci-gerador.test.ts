@@ -1,3 +1,4 @@
+// Lote 2, correção 03 (AD-06) — Gerador de PCI: mesmo teste do Prospecta (server/pci-gerador.test.ts).
 import { readFileSync } from "node:fs";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
@@ -13,10 +14,10 @@ import {
   separarTelefone,
   type FormularioPci,
 } from "@/lib/pci-gerador";
-import { gerarPdfPci, gerarPlanilhaPci, lerFormularioPci, PastaXlsx } from "@/lib/caixa/pci-gerador.js";
-import { lerPci } from "@/lib/caixa/pci.js";
-import { PastaBiff8 } from "@/lib/caixa/biff8.js";
-import { imagensDaAba } from "@/lib/caixa/biff8-imagens.js";
+import { gerarPdfPci, gerarPlanilhaPci, lerFormularioPci, PastaXlsx } from "@/lib/caixa/pci-gerador";
+import { lerPci } from "@/lib/caixa/pci";
+import { PastaBiff8 } from "@/lib/caixa/biff8";
+import { imagensDaAba } from "@/lib/caixa/biff8-imagens";
 
 const MODELO = new Uint8Array(readFileSync(new URL("../caixa/__fixtures__/pci-modelo-anonimo.xls", import.meta.url)));
 
@@ -190,3 +191,18 @@ describe("Gerador de PCI — pré-preenchimento e engenheiro", () => {
   });
 });
 
+describe("Gerador de PCI — permissões", () => {
+  it("gerador: admin e colaborador com Obras; modelos: só admin; empreiteiro/corretor não", async () => {
+    const { podeUsarGeradorPci, podeGerenciarModelosPci } = await import("@/lib/obras/pci-gerador-dados");
+    const u = (perfil: string, permissoes: string[] = [], ativo = true) => ({ perfil, ativo, permissoes });
+    expect(podeUsarGeradorPci(u("admin"))).toBe(true);
+    expect(podeUsarGeradorPci(u("colaborador", ["obras"]))).toBe(true);
+    expect(podeUsarGeradorPci(u("colaborador", ["crm"]))).toBe(false);
+    expect(podeUsarGeradorPci(u("empreiteiro"))).toBe(false);
+    expect(podeUsarGeradorPci(u("corretor"))).toBe(false);
+    expect(podeUsarGeradorPci(u("admin", [], false))).toBe(false);
+    expect(podeGerenciarModelosPci(u("admin"))).toBe(true);
+    expect(podeGerenciarModelosPci(u("colaborador", ["obras", "crm", "bpo"]))).toBe(false);
+    expect(podeGerenciarModelosPci(u("admin", [], false))).toBe(false);
+  });
+});

@@ -80,14 +80,18 @@ export function GeradorPci({ obraId }: { obraId: string }) {
   const [ocupado, setOcupado] = useState<"salvar" | "gerar" | "auto" | null>(null);
   const [baixando, setBaixando] = useState<string | null>(null);
 
-  const carregar = useCallback(async (manterForm: boolean) => {
-    const r = await obterGeradorPci(obraId);
+  const aplicar = useCallback((r: Awaited<ReturnType<typeof obterGeradorPci>>, manterForm: boolean) => {
     if ("erro" in r) { setErro(r.erro ?? "Erro ao carregar."); return; }
     setErro(null);
     setDados(r.dados);
     if (!manterForm) setForm(r.dados.formulario);
-  }, [obraId]);
-  useEffect(() => { void carregar(false); }, [carregar]);
+  }, []);
+  const carregar = useCallback(async (manterForm: boolean) => aplicar(await obterGeradorPci(obraId), manterForm), [obraId, aplicar]);
+  useEffect(() => {
+    let vivo = true;
+    obterGeradorPci(obraId).then((r) => { if (vivo) aplicar(r, false); });
+    return () => { vivo = false; };
+  }, [obraId, aplicar]);
 
   const totais = useMemo(() => (form ? calcularTotaisPci(form) : null), [form]);
   const pendencias = useMemo(() => (form ? pendenciasPci(form) : []), [form]);
