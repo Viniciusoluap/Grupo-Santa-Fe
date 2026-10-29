@@ -173,7 +173,7 @@ export async function resumoBpoPorLead(leadId: string) {
   const clientes = await prisma.bpoCliente.findMany({ where: { leadId }, select: { id: true, razaoSocial: true } });
   if (!clientes.length) return { clientes: [], recebido: 0, emAberto: 0 };
   const lancamentos = await prisma.bpoLancamento.findMany({
-    where: { clienteId: { in: clientes.map((c) => c.id) } },
+    where: { clienteId: { in: clientes.map((c) => c.id) }, combinadaEmId: null },
     select: { clienteId: true, tipo: true, valor: true, valorRecebido: true, pago: true, categoria: true },
   });
   const totais = resumoPorCliente(lancamentos);

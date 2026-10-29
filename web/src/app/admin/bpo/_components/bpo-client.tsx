@@ -22,9 +22,10 @@ import { TrendingUp, DollarSign, Users, Award, HardHat, Info } from "lucide-reac
 import { AJUDA_VGV_DE_OBRAS, MENSAGEM_RANKING_VAZIO, NOTA_NUMEROS_DE_OBRA } from "@/lib/financeiro/relatorios-bpo";
 import type { IndicadoresRelatorios } from "@/lib/financeiro/relatorios-bpo-dados";
 import { ehDespesa } from "@/lib/bpo-categorias";
-import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
+import { MESES_DRE, dreFiltrado, type CelulaDre, type LinhaDre, type ResumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { CamposOperacionais } from "./campos-operacionais";
 import { SugerirVinculosModal, VinculoClienteLancamento } from "./vinculo-cliente";
+import { BarraLote } from "./barra-lote";
 import { ROTULOS_OPERACIONAIS, type CatalogoBpo } from "@/lib/bpo-operacional";
 
 export interface LancamentoComCliente {
@@ -104,7 +105,8 @@ interface Props {
   filtroOperacional?: { categoria: string; id: string };
   catalogoOperacional: CatalogoBpo;
   lancamentos: LancamentoComCliente[];
-  dre: LinhaDre[];
+  /** Lote 3, item 15: base competência × categoria do DRE (filtrada por Mês/Ano na tela). */
+  dreCelulas: CelulaDre[];
   contabilidade: ResumoContabil & { ano: string };
   clientes: { id: string; razaoSocial: string; leadId: string | null }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
@@ -391,7 +393,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dreCelulas, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
@@ -411,6 +413,14 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
   const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoComCliente | null>(null);
   const [baixa, setBaixa] = useState<{ lancamento: LancamentoComCliente; requestKey: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Lote 3, itens 16/17: seleção em lote (limpa ao trocar de aba) e ação em massa de vínculos.
+  const [selecao, setSelecao] = useState<{ aba: Aba; ids: string[] }>({ aba: abaInicial ?? "cobracas", ids: [] });
+  const selecionados = selecao.aba === aba ? selecao.ids : [];
+  const setSelecionados = (ids: string[]) => setSelecao({ aba, ids });
+  const [sugerirVinculos, setSugerirVinculos] = useState(false);
+  const [dreMes, setDreMes] = useState("");
+  const [dreAno, setDreAno] = useState("");
+  const [dreVisao, setDreVisao] = useState<"competencia" | "categoria">("competencia");
 
   function importarClientesCrm() {
     startTransition(async () => {
@@ -488,10 +498,13 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
   const despesaPendente = despesasBase.filter(isPendente).reduce((s, l) => s + saldoLancamento(l), 0);
   const despesaVencida = despesasBase.filter(isVencido).reduce((s, l) => s + l.valor, 0);
 
-  // LOTE C: DRE calculado no servidor sobre todos os lançamentos (sem transferências internas).
-  const dreRows = dre.map((l) => [l.competencia, { cobracas: l.receitas, despesas: l.despesas }] as const);
-  const dreTotalCobracas = dreRows.reduce((s, [, v]) => s + v.cobracas, 0);
-  const dreTotalDespesas = dreRows.reduce((s, [, v]) => s + v.despesas, 0);
+  // LOTE C: DRE sobre todos os lançamentos (sem transferências internas). Lote 3, item 15: filtros
+  // Mês/Ano por competência, aplicados às visões por competência e por categoria.
+  const dreAtual = dreFiltrado(dreCelulas, { mes: dreMes || null, ano: dreAno || null });
+  const dreAnos = [...new Set(dreCelulas.map((c) => c.competencia.slice(0, 4)))].sort().reverse();
+  const dreRows = dreAtual.porCompetencia.map((l) => [l.competencia, { cobracas: l.receitas, despesas: l.despesas }] as const);
+  const dreTotalCobracas = Math.round(dreRows.reduce((s, [, v]) => s + Math.round(v.cobracas * 100), 0)) / 100;
+  const dreTotalDespesas = Math.round(dreRows.reduce((s, [, v]) => s + Math.round(v.despesas * 100), 0)) / 100;
 
   // Bank KPIs
   const saldoTotal = contas.filter((c) => c.ativo).reduce((s, c) => s + c.saldoAtual, 0);
@@ -555,6 +568,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
           <table className="w-full text-sm">
             <thead className="bg-[var(--brand-dark)]">
               <tr>
+                <th className="w-8 px-2 py-3"><span className="sr-only">Selecionar</span></th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cliente</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide hidden md:table-cell">Descrição</th>
                 <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Competência</th>
@@ -566,9 +580,10 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
             </thead>
             <tbody className="divide-y divide-gray-50">
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento encontrado.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento encontrado.</td></tr>
               ) : items.map((l) => (
                 <tr key={l.id} className="hover:bg-gray-50">
+                  <td className="px-2 py-3"><input type="checkbox" aria-label={`Selecionar ${l.descricao}`} checked={selecionados.includes(l.id)} onChange={(e) => setSelecionados(e.target.checked ? [...selecionados, l.id] : selecionados.filter((id) => id !== l.id))} /></td>
                   <td className="px-4 py-3"><p className="font-medium text-[var(--brand-dark)] text-xs">{l.clienteNome}</p></td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p>
@@ -750,6 +765,9 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
+          <BarraLote aba="cobrancas" visiveis={cobracasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
+            filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter, tipo: tipoFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
+            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} />
           {renderLancamentoTable(cobracasFiltered)}
         </div>
       )}
@@ -787,6 +805,9 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
+          <BarraLote aba="despesas" visiveis={despesasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
+            filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter === "parciais" ? "todas" : statusFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
+            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} />
           {renderLancamentoTable(despesasFiltered)}
         </div>
       )}
@@ -794,6 +815,53 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
       {/* ─── DRE ─── */}
       {aba === "dre" && (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-2">
+            <select aria-label="Mês do DRE" value={dreMes} onChange={(e) => setDreMes(e.target.value)}
+              className="min-w-[150px] flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              <option value="">Todos os meses</option>
+              {MESES_DRE.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+            <select aria-label="Ano do DRE" value={dreAno} onChange={(e) => setDreAno(e.target.value)}
+              className="min-w-[120px] flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              <option value="">Todos os anos</option>
+              {dreAnos.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <div className="flex gap-1">
+              {(["competencia", "categoria"] as const).map((v) => (
+                <button key={v} type="button" onClick={() => setDreVisao(v)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${dreVisao === v ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "text-gray-500 hover:bg-gray-100"}`}>
+                  {v === "competencia" ? "Por competência" : "Por categoria"}
+                </button>
+              ))}
+            </div>
+            <p className="w-full text-xs text-gray-500">Filtra pela competência do lançamento.</p>
+          </div>
+          {dreVisao === "categoria" ? (
+            <div className="bg-white border border-gray-100 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[var(--brand-dark)]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">Categoria</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cobranças</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wide">Despesas</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wide">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {dreAtual.porCategoria.length === 0 ? (
+                    <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento para consolidar.</td></tr>
+                  ) : dreAtual.porCategoria.map((c) => (
+                    <tr key={c.categoria} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-[var(--brand-dark)]">{c.categoria}</td>
+                      <td className="px-4 py-3 text-right text-green-600 font-bold">{formatCurrency(c.receitas)}</td>
+                      <td className="px-4 py-3 text-right text-red-500 font-bold">{formatCurrency(c.despesas)}</td>
+                      <td className={`px-4 py-3 text-right font-black ${c.resultado >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(c.resultado)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
           <div className="bg-white border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -831,6 +899,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               </table>
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -864,6 +933,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
         </div>
       )}
 
+      {sugerirVinculos && <SugerirVinculosModal onFechar={(m) => { setSugerirVinculos(false); if (m) setModalFeedback(m); }} />}
       {/* ─── MODAL: Novo (Cobrança ou Despesa) ─── */}
       {baixa && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><form className="w-full max-w-md space-y-4 bg-white p-6" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); startTransition(async () => { try { await registrarBaixaBpo({ id: baixa.lancamento.id, version: baixa.lancamento.version, requestKey: baixa.requestKey, valor: Number(form.get("valor")), data: String(form.get("data")), motivo: String(form.get("motivo")) }); setBaixa(null); router.refresh(); setModalFeedback("Baixa registrada e auditada."); } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao registrar baixa."); } }); }}><h2 className="font-bold">Registrar recebimento/pagamento</h2><p className="text-sm">{baixa.lancamento.descricao}<br/>Total: {formatCurrency(baixa.lancamento.valor)} · Realizado: {formatCurrency(valorRealizado(baixa.lancamento))}<br/>Saldo: {formatCurrency(saldoLancamento(baixa.lancamento))}</p><label className="block text-xs font-bold">Valor desta baixa<CurrencyInput name="valor" required className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Data<input type="date" name="data" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Motivo/referência<input name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border p-2"/></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setBaixa(null)} className="border px-3 py-2">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-3 py-2 font-bold">Registrar baixa</button></div></form></div>}
       {lancamentoEditando && (

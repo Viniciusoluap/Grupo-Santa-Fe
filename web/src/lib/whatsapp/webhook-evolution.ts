@@ -6,6 +6,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { LIMITE_MIDIA, mesmoTelefone, midiaDaMensagem, textoDaMensagem } from "@/lib/evolution";
 import { baixarEGuardarMidia } from "@/lib/whatsapp/midia";
+import { chaveTelefone } from "@/lib/whatsapp/conversas";
 
 const SITE = () => (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.gruposantafee.com.br").replace(/\/+$/, "");
 export const URL_WEBHOOK_EVOLUTION = () => `${SITE()}/api/whatsapp/evolution-webhook`;
@@ -55,6 +56,16 @@ export async function leadPorTelefone(numero: string) {
   return candidatos.find((l) => mesmoTelefone(l.telefone, d)) ?? null;
 }
 
+/** Lote 03, correção 02: lead do vínculo manual da conversa (prioridade sobre o telefone); ignora lead excluído. */
+export async function leadDoVinculo(conexaoId: string, numero: string) {
+  const v = await prisma.whatsappVinculoConversa.findUnique({
+    where: { conexaoId_chaveTelefone: { conexaoId, chaveTelefone: chaveTelefone(numero) } },
+    select: { lead: { select: { id: true, nome: true, telefone: true, corretorId: true, excluidoEm: true } } },
+  });
+  if (!v || v.lead.excluidoEm) return null;
+  return { id: v.lead.id, nome: v.lead.nome, telefone: v.lead.telefone, corretorId: v.lead.corretorId };
+}
+
 export async function processarEventoEvolution(ev: EventoEvolution): Promise<string> {
   const evento = (ev.event ?? "").toLowerCase().replace(/_/g, ".");
   if (!ev.instance) return "sem-instancia";
@@ -91,7 +102,7 @@ export async function processarEventoEvolution(ev: EventoEvolution): Promise<str
       }
       const numero = jid.split("@")[0];
       const deMim = Boolean(d?.key?.fromMe);
-      const lead = await leadPorTelefone(numero);
+      const lead = (await leadDoVinculo(conn.id, numero)) ?? await leadPorTelefone(numero);
       const texto = textoDaMensagem(d?.message);
       const midia = midiaDaMensagem(d?.message);
       const gravada = await prisma.mensagemWhatsapp.create({

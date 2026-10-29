@@ -4,7 +4,7 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
-import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
+import { celulasDre, dreUltimos12Meses, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
 import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
 import { carregarIndicadoresRelatorios, periodoDosParametros } from "@/lib/financeiro/relatorios-bpo-dados";
@@ -29,13 +29,14 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
   ] = await Promise.all([
     // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
-      where: { OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
+      // Lote 3, item 16: originais combinadas saem da lista (a nova cobrança já soma os valores).
+      where: { combinadaEmId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
       orderBy: { vencimento: "desc" },
       take: 2000,
       include: { cliente: { select: { razaoSocial: true } } },
     }),
     // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
-    prisma.bpoLancamento.findMany({ select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
+    prisma.bpoLancamento.findMany({ where: { combinadaEmId: null }, select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
     prisma.bpoCliente.findMany({
       select: { id: true, razaoSocial: true, leadId: true },
       orderBy: { razaoSocial: "asc" },
@@ -85,7 +86,8 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
   ];
 
   const anoAtual = String(now.getFullYear());
-  const dre = montarDre(todosLancamentos);
+  // Lote 3, item 15: base competência × categoria; a aba DRE filtra Mês/Ano sobre ela.
+  const dreCelulas = celulasDre(todosLancamentos);
   const contabilidade = { ano: anoAtual, ...resumoContabil(todosLancamentos, `${anoAtual}-01`, `${anoAtual}-12`) };
 
   const relatoriosData = {
@@ -158,5 +160,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
 }

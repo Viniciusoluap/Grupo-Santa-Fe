@@ -99,3 +99,6 @@ export function textoConfirmacaoExclusao(conversas: number, mensagens: number): 
   const m = `${mensagens} mensage${mensagens === 1 ? "m" : "ns"}`;
   return `Excluir ${c} (${m}) do sistema? As mensagens e arquivos saem só daqui: continuam no celular, porque o WhatsApp não permite apagar por aqui. Leads e documentos do CRM não são alterados.`;
 }
+
+/** Correção 03: lead disponível para envio — mesmo critério do CRM (não excluído nem arquivado). */
+export const LEAD_ATIVO_WHATSAPP = { excluidoEm: null, arquivadoEm: null } as const;

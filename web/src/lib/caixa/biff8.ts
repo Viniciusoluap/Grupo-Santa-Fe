@@ -35,6 +35,8 @@ export const R = {
   MSODRAWING: 0x00ec,
   OBJ: 0x005d,
   TXO: 0x01b6,
+  DVAL: 0x01b2,
+  DV: 0x01be,
 } as const;
 
 const MAX_REGISTRO = 8224;
@@ -45,6 +47,41 @@ export interface Registro {
 }
 
 export type ValorCelula = number | string | boolean | null;
+
+/**
+ * Lote 03, correção 10: validação de dados (registro DV) de uma aba. Só leitura.
+ * `opcoes` = itens da lista (literal ou intervalo da própria aba resolvido);
+ * `referencia` = fórmula de origem quando não é literal (ex.: "$BB$95:$BB$108").
+ */
+export interface ValidacaoDados {
+  aba: string;
+  /** Intervalos (sqref) separados por espaço, ex.: "AI47:AJ47". */
+  intervalo: string;
+  /** 0 qualquer, 1 inteiro, 2 decimal, 3 lista, 4 data, 5 hora, 6 tamanho do texto, 7 personalizada. */
+  tipo: number;
+  opcoes: string[] | null;
+  referencia: string | null;
+  permiteBranco: boolean;
+}
+
+/** Índice de coluna (base zero) → letras ("AB"). */
+export function colunaParaLetras(c: number): string {
+  let s = "";
+  let n = c + 1;
+  while (n) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+function intervaloA1(r1: number, r2: number, c1: number, c2: number, absoluto = false): string {
+  const d = absoluto ? "$" : "";
+  const a = `${d}${colunaParaLetras(c1)}${d}${r1 + 1}`;
+  const b = `${d}${colunaParaLetras(c2)}${d}${r2 + 1}`;
+  return a === b ? a : `${a}:${b}`;
+}
 
 /** Endereço "AB12" → { linha: 11, coluna: 27 } (base zero). */
 export function enderecoParaPosicao(endereco: string): { linha: number; coluna: number } {
@@ -339,6 +376,74 @@ export class PastaBiff8 {
       if (this.abrange(reg, linha, coluna)) return this.valorDoRegistro(reg, coluna, indice) ?? null;
     }
     return null;
+  }
+
+  /** A célula existe no modelo (tem registro, mesmo em branco com formatação)? */
+  temCelula(nomeAba: string, endereco: string): boolean {
+    const { linha, coluna } = enderecoParaPosicao(endereco);
+    return this.celulasDaAba(this.aba(nomeAba)).some(({ reg }) => this.abrange(reg, linha, coluna));
+  }
+
+  /** Lote 03, correção 10: lê as validações de dados (DV 0x01BE) de uma aba. */
+  validacoesDeDados(nomeAba: string): ValidacaoDados[] {
+    const aba = this.aba(nomeAba);
+    const out: ValidacaoDados[] = [];
+    for (const { reg } of this.celulasDaAba(aba)) {
+      if (reg.tipo !== R.DV) continue;
+      try {
+        out.push(this.lerDv(nomeAba, reg.dados));
+      } catch {
+        // registro DV ilegível: ignora (só leitura)
+      }
+    }
+    return out;
+  }
+
+  private lerDv(nomeAba: string, d: Uint8Array): ValidacaoDados {
+    const flags = u32(d, 0);
+    let o = 4;
+    for (let k = 0; k < 4; k++) {
+      // PromptTitle, ErrorTitle, Prompt, Error (XLUnicodeString)
+      const cch = u16(d, o);
+      const largo = (d[o + 2] & 1) === 1;
+      o += 3 + cch * (largo ? 2 : 1);
+    }
+    const cce1 = u16(d, o);
+    const rgce1 = d.subarray(o + 4, o + 4 + cce1);
+    o += 4 + cce1;
+    const cce2 = u16(d, o);
+    o += 4 + cce2;
+    const cref = u16(d, o);
+    o += 2;
+    const partes: string[] = [];
+    for (let k = 0; k < cref; k++, o += 8) partes.push(intervaloA1(u16(d, o), u16(d, o + 2), u16(d, o + 4) & 0x3fff, u16(d, o + 6) & 0x3fff));
+    const tipo = flags & 0x0f;
+    let opcoes: string[] | null = null;
+    let referencia: string | null = null;
+    const ptg = rgce1[0];
+    if (ptg === 0x17) {
+      const cch = rgce1[1];
+      const largo = (rgce1[2] & 1) === 1;
+      let t = "";
+      for (let k = 0; k < cch; k++) t += String.fromCharCode(largo ? u16(rgce1, 3 + k * 2) : rgce1[3 + k]);
+      // O separador do BIFF8 é \0; alguns arquivos (como o oficial da CAIXA) gravam a vírgula do Excel.
+      opcoes = t.includes("\0") ? t.split("\0") : t.split(",");
+    } else if (ptg === 0x25 || ptg === 0x45 || ptg === 0x65) {
+      const r1 = u16(rgce1, 1), r2 = u16(rgce1, 3), c1 = u16(rgce1, 5) & 0x3fff, c2 = u16(rgce1, 7) & 0x3fff;
+      referencia = intervaloA1(r1, r2, c1, c2, true);
+      opcoes = [];
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          const v = this.ler(nomeAba, `${colunaParaLetras(c)}${r + 1}`);
+          if (v !== null && v !== "") opcoes.push(typeof v === "number" ? String(v) : String(v));
+        }
+      }
+    } else if (ptg === 0x24 || ptg === 0x44 || ptg === 0x64) {
+      referencia = intervaloA1(u16(rgce1, 1), u16(rgce1, 1), u16(rgce1, 3) & 0x3fff, u16(rgce1, 3) & 0x3fff, true);
+    } else if (ptg !== undefined) {
+      referencia = `fórmula (ptg 0x${ptg.toString(16)})`;
+    }
+    return { aba: nomeAba, intervalo: partes.join(" "), tipo, opcoes, referencia, permiteBranco: ((flags >> 8) & 1) === 1 };
   }
 
   ehFormula(nomeAba: string, endereco: string): boolean {

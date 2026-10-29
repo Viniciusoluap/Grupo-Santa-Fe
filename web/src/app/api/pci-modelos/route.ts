@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { usuarioAtual } from "@/lib/auth/modulos";
 import { MENSAGEM_XLSB_SO_LEITURA, validarNomeModeloPci } from "@/lib/pci-gerador";
 import { PARTE_PCI_BYTES, validarMontagemPci, validarPartePci } from "@/lib/obras/pci-validacao";
-import { ErroGeradorPci, gravarModeloPci, podeGerenciarModelosPci } from "@/lib/obras/pci-gerador-dados";
+import { ErroGeradorPci, MENSAGEM_CONFIRMAR_CRITICA_PCI, gravarModeloPci, podeGerenciarModelosPci } from "@/lib/obras/pci-gerador-dados";
 export const runtime = "nodejs";
 
 const ESCOPO = "pci-modelo";
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       const observacao = typeof body.observacao === "string" && body.observacao.trim() ? body.observacao.trim().slice(0, 500) : null;
       try {
         const r = await gravarModeloPci(nome, bytes, u.id, observacao);
-        return NextResponse.json({ ...r, aviso: r.formato === "xlsb" ? MENSAGEM_XLSB_SO_LEITURA : null });
+        return NextResponse.json({ ...r, aviso: r.aguardandoConfirmacao ? MENSAGEM_CONFIRMAR_CRITICA_PCI : r.formato === "xlsb" ? MENSAGEM_XLSB_SO_LEITURA : null });
       } catch (e) {
         if (e instanceof ErroGeradorPci) return NextResponse.json({ error: e.message }, { status: 400 });
         throw e;

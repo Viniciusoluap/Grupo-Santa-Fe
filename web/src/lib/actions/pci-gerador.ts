@@ -8,6 +8,8 @@ import {
   ErroGeradorPci,
   carregarGeradorPci,
   definirModeloAtualPci as definirAtual,
+  excluirModeloPci,
+  previaExclusaoModeloPci,
   gerarPciDaObra,
   listarModelosPci,
   podeGerenciarModelosPci,
@@ -72,10 +74,29 @@ export async function listarModelosPciAcao() {
   } catch (e) { return erro(e); }
 }
 
-export async function definirModeloAtualPci(id: string) {
+/** Lote 03, correção 10: versão com mudança crítica só vira atual com `confirmarCritica`. */
+export async function definirModeloAtualPci(id: string, confirmarCritica = false) {
+  try {
+    const u = await usuarioAdmin();
+    await definirAtual(id, { usuarioId: u.id, confirmarCritica: confirmarCritica === true });
+    return { ok: true as const };
+  } catch (e) { return erro(e); }
+}
+
+/** Lote 03, correção 09b: prévia (nome/versão e PCIs geradas que usam a versão). */
+export async function previaExclusaoModeloPciAcao(id: string) {
   try {
     await usuarioAdmin();
-    await definirAtual(id);
-    return { ok: true as const };
+    return { previa: await previaExclusaoModeloPci(id) };
+  } catch (e) { return erro(e); }
+}
+
+/** Lote 03, correção 09b: exclusão lógica (não a atual); o arquivo fica para as PCIs geradas. */
+export async function excluirModeloPciAcao(id: string, confirmar: boolean) {
+  try {
+    const u = await usuarioAdmin();
+    if (confirmar !== true) throw new ErroGeradorPci("Confirme a exclusão.");
+    const r = await excluirModeloPci(id, u.id);
+    return { ok: true as const, versao: r.versao, pcisGeradas: r.pcisGeradas };
   } catch (e) { return erro(e); }
 }

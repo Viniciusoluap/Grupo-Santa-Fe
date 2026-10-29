@@ -5,7 +5,9 @@ import {
   MessageCircle, CheckCircle2, AlertCircle, WifiOff,
   Search, X, Send, Smartphone, Plus, Eye, Users,
 } from "lucide-react";
-import { documentosParaEnvioWhatsapp, imoveisParaEnvioWhatsapp, previaEnvioWhatsapp, salvarConexaoBusiness, salvarTemplateWhatsapp } from "@/lib/actions/whatsapp";
+import { useRouter } from "next/navigation";
+import { documentosParaEnvioWhatsapp, imoveisParaEnvioWhatsapp, previaEnvioWhatsapp, resumoEnviosWhatsapp, salvarConexaoBusiness, salvarTemplateWhatsapp } from "@/lib/actions/whatsapp";
+import { PERIODOS_DASHBOARD, PERIODO_PADRAO, ROTULO_PERIODO, alternarTodosVisiveis, podarSelecao, type PeriodoDashboard } from "@/lib/whatsapp/conversas";
 import { DOCUMENTOS_CHECKLIST, textoDocumentosMarcados, VARIAVEIS_TEMPLATE, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
 import { parseServicosLead } from "@/lib/crm/servicos-lead";
 import { ConexaoQrCode } from "./conexao-qr-code";
@@ -122,13 +124,39 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
     (v === "dia" || v === "horario" || faltando.includes(v) || Object.hasOwn(extras, v)));
 
   // ─── KPIs ─────────────────────────────────────────────────────────────────
+  // Lote 03, correção 04: contados no servidor, no período escolhido (padrão: 30 dias); o histórico
+  // (últimas 100) não é mais usado para os indicadores.
+  void historico;
+  const router = useRouter();
+  const [periodo, setPeriodo] = useState<PeriodoDashboard>(PERIODO_PADRAO);
+  const [resumo, setResumo] = useState<{ enviadas: number; falhas: number; taxaLeitura: number } | null>(null);
+  const [versaoResumo, setVersaoResumo] = useState(0);
+  useEffect(() => {
+    let ativo = true;
+    resumoEnviosWhatsapp(periodo).then((r) => { if (ativo && !r.erro) setResumo(r); }).catch(() => undefined);
+    return () => { ativo = false; };
+  }, [periodo, versaoResumo]);
 
   const totalLeads = leads.length;
-  const totalEnviadas = historico.length;
-  const totalLidas = historico.filter((m) => m.status === "lida").length;
-  const totalFalhas = historico.filter((m) => m.status === "falhou").length;
-  const taxaLeitura = totalEnviadas > 0 ? Math.round((totalLidas / totalEnviadas) * 100) : 0;
+  const totalEnviadas = resumo?.enviadas ?? 0;
+  const totalFalhas = resumo?.falhas ?? 0;
+  const taxaLeitura = resumo?.taxaLeitura ?? 0;
   const conexaoAtiva = minhaConexao?.status === "conectado";
+
+  // Lote 03, correção 03: destinatários sempre atualizados com o CRM — recarrega ao abrir a aba Enviar
+  // e ao voltar para a janela; lead excluído durante a seleção sai da seleção.
+  useEffect(() => { if (activeTab === "enviar") router.refresh(); }, [activeTab, router]);
+  useEffect(() => {
+    const aoFocar = () => { if (document.visibilityState === "visible") router.refresh(); };
+    window.addEventListener("focus", aoFocar);
+    document.addEventListener("visibilitychange", aoFocar);
+    return () => { window.removeEventListener("focus", aoFocar); document.removeEventListener("visibilitychange", aoFocar); };
+  }, [router]);
+  const [leadsAnteriores, setLeadsAnteriores] = useState(leads);
+  if (leadsAnteriores !== leads) {
+    setLeadsAnteriores(leads);
+    setSelectedLeads((s) => podarSelecao(s, leads.map((l) => l.id)));
+  }
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -162,6 +190,8 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
   const filteredLeads = leads.filter(
     (l) => !searchLead || l.nome.toLowerCase().includes(searchLead.toLowerCase()) || l.telefone.includes(searchLead)
   );
+  const idsVisiveis = filteredLeads.map((l) => l.id);
+  const todosVisiveisMarcados = idsVisiveis.length > 0 && idsVisiveis.every((id) => selectedLeads.includes(id));
 
   async function handleEnviar() {
     if (!mensagem.trim() || selectedLeads.length === 0) return;
@@ -180,6 +210,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       } else {
         setToast({ msg: `${data.enviadas ?? 0} enviada(s)${(data.falhas ?? 0) > 0 ? `, ${data.falhas} falha(s)` : ""}`, type: (data.falhas ?? 0) > 0 ? "error" : "success" });
         setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setServicosSelecionados([]); setDocsPorLead({}); setPrevia([]);
+        setVersaoResumo((v) => v + 1);
       }
     } catch { setToast({ msg: "Erro ao enviar mensagens", type: "error" }); }
     finally { setEnviando(false); }
@@ -197,6 +228,17 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
       </div>
 
       {/* KPIs */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-gray-700">
+          Mensagens: <b className="text-[var(--brand-dark)]">{ROTULO_PERIODO[periodo]}</b> · enviadas = entregues ao WhatsApp (enviada, entregue ou lida); falhas contadas à parte.
+        </p>
+        <label className="flex items-center gap-2 text-xs text-gray-700">
+          Período
+          <select value={periodo} onChange={(e) => setPeriodo(e.target.value as PeriodoDashboard)} className="border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900">
+            {PERIODOS_DASHBOARD.map((p) => <option key={p} value={p}>{ROTULO_PERIODO[p]}</option>)}
+          </select>
+        </label>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Mensagens Enviadas", value: totalEnviadas, icon: MessageCircle, color: "text-blue-500" },
@@ -359,9 +401,9 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 {filteredLeads.length === 0 && <p className="text-xs text-gray-600 text-center py-4">Nenhum lead encontrado.</p>}
               </div>
               <div className="mt-3 pt-3 border-t border-gray-100">
-                <button onClick={() => setSelectedLeads(leads.map((l) => l.id))}
+                <button onClick={() => setSelectedLeads((s) => alternarTodosVisiveis(s, idsVisiveis))} disabled={!idsVisiveis.length}
                   className="flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-[var(--brand-dark)] transition-colors">
-                  <Users size={12} /> Selecionar todos ({leads.length})
+                  <Users size={12} /> {todosVisiveisMarcados ? "Desmarcar todos" : "Selecionar todos"} ({filteredLeads.length})
                 </button>
               </div>
             </div>

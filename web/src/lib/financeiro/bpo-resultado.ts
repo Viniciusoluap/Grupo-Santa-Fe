@@ -1,7 +1,7 @@
 // LOTE C (25/10, paridade Prospecta): números do BPO Financeiro (DRE, Contabilidade, Relatórios)
 // a partir de bpo_lancamentos — inclusive os gerados pelo extrato bancário. Regras puras.
 // Transferência interna não é receita nem despesa; despesa = "despesa" e "despesa_*".
-import { contaNoResultado, ehDespesa } from "@/lib/bpo-categorias";
+import { CATEGORIAS_BPO, contaNoResultado, ehDespesa } from "@/lib/bpo-categorias";
 import { valorRealizado } from "@/lib/bpo-parciais";
 
 export type LancamentoResultado = {
@@ -17,11 +17,26 @@ export type LinhaDre = { competencia: string; receitas: number; despesas: number
 
 const centavos = (n: number) => Math.round(n * 100) / 100;
 
-/** DRE por competência (mais recente primeiro), sem transferências internas. */
-export function montarDre(lancamentos: LancamentoResultado[]): LinhaDre[] {
+// Lote 3, item 15 (29/10, paridade Prospecta): filtros Mês/Ano do DRE pela competência (AAAA-MM).
+export type FiltroCompetencia = { mes?: string | null; ano?: string | null };
+export const MESES_DRE = [
+  ["01", "Janeiro"], ["02", "Fevereiro"], ["03", "Março"], ["04", "Abril"], ["05", "Maio"], ["06", "Junho"],
+  ["07", "Julho"], ["08", "Agosto"], ["09", "Setembro"], ["10", "Outubro"], ["11", "Novembro"], ["12", "Dezembro"],
+] as const;
+
+/** `mes` "01".."12" (vazio = todos os meses) e `ano` "AAAA" (vazio = todos os anos). */
+export function competenciaNoFiltro(competencia: string, f?: FiltroCompetencia | null): boolean {
+  if (!f) return true;
+  if (f.ano && !competencia.startsWith(`${f.ano}-`)) return false;
+  if (f.mes && competencia.slice(5, 7) !== f.mes) return false;
+  return true;
+}
+
+/** DRE por competência (mais recente primeiro), sem transferências internas; `filtro` opcional (Mês/Ano). */
+export function montarDre(lancamentos: LancamentoResultado[], filtro?: FiltroCompetencia | null): LinhaDre[] {
   const mapa = new Map<string, { receitas: number; despesas: number }>();
   for (const l of lancamentos) {
-    if (!contaNoResultado(l)) continue;
+    if (!contaNoResultado(l) || !competenciaNoFiltro(l.competencia, filtro)) continue;
     const e = mapa.get(l.competencia) ?? { receitas: 0, despesas: 0 };
     if (ehDespesa(l.tipo)) e.despesas += l.valor;
     else e.receitas += l.valor;
@@ -88,4 +103,39 @@ export function dreUltimos12Meses(lancamentos: LancamentoResultado[], hoje = new
     out.push({ mes: `${comp.slice(5, 7)}/${comp.slice(2, 4)}`, competencia: comp, receitas: l?.receitas ?? 0, despesas: l?.despesas ?? 0, resultado: l?.resultado ?? 0 });
   }
   return out;
+}
+
+export type CelulaDre = { competencia: string; categoria: string; receitas: number; despesas: number };
+export type LinhaDreCategoria = { categoria: string; receitas: number; despesas: number; resultado: number };
+
+/** Base compacta (competência × categoria) para a tela filtrar Mês/Ano sem receber todos os lançamentos. */
+export function celulasDre(lancamentos: LancamentoResultado[]): CelulaDre[] {
+  const mapa = new Map<string, CelulaDre>();
+  for (const l of lancamentos) {
+    if (!contaNoResultado(l)) continue;
+    const categoria = l.categoria?.trim() || "Sem categoria";
+    const chave = `${l.competencia}|${categoria}`;
+    const e = mapa.get(chave) ?? { competencia: l.competencia, categoria, receitas: 0, despesas: 0 };
+    if (ehDespesa(l.tipo)) e.despesas += Math.round(l.valor * 100); else e.receitas += Math.round(l.valor * 100);
+    mapa.set(chave, e);
+  }
+  return [...mapa.values()].map((c) => ({ ...c, receitas: c.receitas / 100, despesas: c.despesas / 100 }));
+}
+
+/** DRE filtrado (Mês/Ano) nas duas visões: por competência e por categoria (centavos, sem arredondamento). */
+export function dreFiltrado(celulas: CelulaDre[], filtro?: FiltroCompetencia | null) {
+  const comp = new Map<string, { r: number; d: number }>();
+  const cat = new Map<string, { r: number; d: number }>();
+  for (const c of celulas) {
+    if (!competenciaNoFiltro(c.competencia, filtro)) continue;
+    const r = Math.round(c.receitas * 100), d = Math.round(c.despesas * 100);
+    const a = comp.get(c.competencia) ?? { r: 0, d: 0 }; a.r += r; a.d += d; comp.set(c.competencia, a);
+    const b = cat.get(c.categoria) ?? { r: 0, d: 0 }; b.r += r; b.d += d; cat.set(c.categoria, b);
+  }
+  const porCompetencia: LinhaDre[] = [...comp.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([competencia, v]) => ({ competencia, receitas: v.r / 100, despesas: v.d / 100, resultado: (v.r - v.d) / 100 }));
+  const ordem = (c: string) => { const i = (CATEGORIAS_BPO as readonly string[]).indexOf(c); return i < 0 ? 999 : i; };
+  const porCategoria: LinhaDreCategoria[] = [...cat.entries()].sort((a, b) => ordem(a[0]) - ordem(b[0]) || a[0].localeCompare(b[0], "pt-BR"))
+    .map(([categoria, v]) => ({ categoria, receitas: v.r / 100, despesas: v.d / 100, resultado: (v.r - v.d) / 100 }));
+  return { porCompetencia, porCategoria };
 }

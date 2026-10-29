@@ -238,12 +238,20 @@ export function lerPci(arquivo: Uint8Array): DadosPci {
     finalidade: texto(p("AQ58")),
   };
 
+  // Lote 03, correção 08: cronograma proposto lido das entradas (AS161 = etapa 0;
+  // AI166.. até o prazo T161), sem depender do cache das fórmulas da coluna AD.
+  // Sem prazo legível, mantém a leitura antiga (AD/AI 165..).
   const cronogramaProposto: number[] = [];
   const curvaReferencia: number[] = [];
+  const prazoProposta = numero(p("T161"));
+  if (prazoProposta !== null && prazoProposta >= 1 && prazoProposta <= 24) {
+    cronogramaProposto.push(numero(p("AS161")) ?? numero(p("AI165")) ?? 0);
+    for (let k = 1; k <= Math.round(prazoProposta); k++) cronogramaProposto.push(numero(p(`AI${165 + k}`)) ?? 0);
+  }
   for (let k = 0; k < 25; k++) {
     const etapa = numero(p(`AD${165 + k}`));
     const proposto = numero(p(`AI${165 + k}`));
-    if (etapa !== null && proposto !== null) cronogramaProposto.push(proposto);
+    if (prazoProposta === null && etapa !== null && proposto !== null) cronogramaProposto.push(proposto);
     const ref = numero(p(`AP${165 + k}`));
     if (ref !== null) curvaReferencia.push(ref);
   }
@@ -277,11 +285,12 @@ export function lerPci(arquivo: Uint8Array): DadosPci {
     incidenciaMaxima,
     identificacao,
     contrato: texto(pls("S51")),
-    valorImovel: numero(pls("AQ77")),
+    valorImovel: numero(pls("AQ77")) ?? numero(p("AK74")),
     dataContratacao: serialParaIso(pls("AL78")),
     prazoMeses: numero(pls("AV78")) ?? numero(p("T161")),
     alvaraEmissao: serialParaIso(pls("AI87")),
-    alvaraVigencia: serialParaIso(pls("AS87")),
+    // Lote 03, correção 08: PLS vazia → validade do alvará informada na proposta (Gerador, AH64).
+    alvaraVigencia: serialParaIso(pls("AS87")) ?? serialParaIso(p("AH64")),
     seloCasaAzul: texto(pls("AS170")).toLowerCase() === "sim",
     cronogramaProposto,
     curvaReferencia,

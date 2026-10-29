@@ -2,11 +2,12 @@
  * Lote 02, correção 03 (AD-06) — preenche o MODELO oficial da PCI (CAIXA) com
  * os dados do Gerador e monta o PDF com os mesmos dados.
  *
- * - .xls: `PastaBiff8` (registros originais mantidos; só as células de digitação
- *   mudam; resultados das fórmulas principais gravados em cache).
- * - .xlsm: edição das partes XML do zip (fflate); macros (vbaProject.bin),
- *   desenhos, validações e fórmulas ficam intactos; o Excel recalcula ao abrir.
- * - .xlsb: só leitura — gerar exige a versão .xls/.xlsm do modelo.
+ * - Saída SEMPRE .xls real (BIFF8) — Lote 03, correção 10: `PastaBiff8` (registros
+ *   originais mantidos; só as células de digitação mudam; resultados das fórmulas
+ *   principais gravados em cache). Modelo .xlsm/.xlsb serve só de referência de
+ *   estrutura: a geração usa a versão .xls compatível (escolhida em
+ *   server/pci-gerador.ts); sem ela, bloqueia com aviso (nunca renomeia extensão).
+ * - .xlsm/.xlsb: só leitura (mapeamento, estrutura e listas).
  *
  * As células são as mesmas lidas por `lerPci` (./pci.ts).
  * Gêmeo em Prospecta/server/caixa/pci-gerador.ts.
@@ -22,16 +23,18 @@ import {
   LINHA_CRONOGRAMA_PCI,
   LINHA_CUSTO_PCI,
   MAX_ETAPAS_PCI,
-  MENSAGEM_XLSB_SO_LEITURA,
+  MENSAGEM_SAIDA_XLS_PCI,
   QUADRO_LOCALIZACAO_PCI,
   SECOES_PCI,
   SERVICOS_CUSTO_PCI,
   SERVICO_OUTROS_PCI,
   TOTAL_ADICIONAIS_PCI,
+  analisarCronogramaPci,
   calcularTotaisPci,
   coordenadaPciParaCelula,
   formatarCep,
   formularioPciVazio,
+  limiteBdiPci,
   normalizarFormularioPci,
   numeroPci,
   type CampoPci,
@@ -39,14 +42,15 @@ import {
   type FormularioPci,
   type ValorCampoPci,
 } from "@/lib/pci-gerador";
-import { PastaBiff8, type ValorCelula } from "./biff8";
+import { PastaBiff8, colunaParaLetras, type ValidacaoDados, type ValorCelula } from "./biff8";
 import { substituirFotos } from "./biff8-imagens";
 import { formatarCoordenada, isoParaSerial, serialParaIso } from "./pci";
 import { PastaXlsb } from "./xlsb";
 
 export interface ResultadoGeracaoPci {
   bytes: Uint8Array;
-  formato: "xls" | "xlsm";
+  /** Lote 03, correção 10: a saída é sempre .xls (BIFF8). */
+  formato: "xls";
   /** Campos que o modelo não aceitou (célula inexistente ou fórmula). */
   avisos: string[];
 }
@@ -77,6 +81,11 @@ export function valorParaCelula(campo: CampoPci, v: ValorCampoPci): { valor: Val
       const r = coordenadaPciParaCelula(String(v), campo.id === "latitude" ? "lat" : "lng");
       return r ? { valor: r.numero, hemisferio: r.hemisferio } : { valor: String(v), hemisferio: null };
     }
+    case "lista": {
+      // Opção numérica ("0".."3") vai como número, como o Excel grava ao escolher na lista; "4+" e textos, como texto exato.
+      const t = String(v);
+      return { valor: /^\d{1,3}$/.test(t) ? Number(t) : t };
+    }
     default:
       return { valor: String(v) };
   }
@@ -97,7 +106,7 @@ export function valorDaCelula(campo: CampoPci, v: ValorCelula, hemisferio?: Valo
     case "cep":
       return formatarCep(v) || null;
     case "coordenada":
-      return formatarCoordenada(v, String(hemisferio ?? "")) || null;
+      return formatarCoordenada(v, String(hemisferio ?? campo.hemisferioFixo ?? "")) || null;
     case "documento":
       if (typeof v === "number") {
         const d = String(Math.round(v));
@@ -136,15 +145,22 @@ export function celulasDoFormulario(form: FormularioPci): { celula: string; valo
 }
 
 /** Resultados das fórmulas principais, gravados em cache (quem lê sem recalcular, como o SIOPI). */
-export function resultadosEmCache(form: FormularioPci): { celula: string; valor: number }[] {
+export function resultadosEmCache(form: FormularioPci): { celula: string; valor: number | string }[] {
   const t = calcularTotaisPci(form);
-  const r: { celula: string; valor: number }[] = [];
+  const r: { celula: string; valor: number | string }[] = [];
   t.incidencias.forEach((v, i) => r.push({ celula: `X${LINHA_CUSTO_PCI + i}`, valor: v }));
   t.acumulado.forEach((v, i) => r.push({ celula: `AI${LINHA_CUSTO_PCI + i}`, valor: v }));
   r.push({ celula: `${COLUNA_CUSTO_PCI}${LINHA_CUSTO_PCI + 19}`, valor: t.outros });
   r.push({ celula: "AB140", valor: t.totalServicos }, { celula: "AB141", valor: t.valorBdi }, { celula: "AB142", valor: t.totalComBdi });
   r.push({ celula: "Z159", valor: t.outros });
   if (t.areaConstruida !== null) r.push({ celula: "AC73", valor: t.areaConstruida });
+  // Lote 03, correções 06/07: etapa 0 = pré-executado (AI165 = AS161), numeração das
+  // etapas (AD166.. = 1..prazo) e limite do BDI pelo executor (AN141).
+  const cron = analisarCronogramaPci(form);
+  r.push({ celula: `AI${LINHA_CRONOGRAMA_PCI - 1}`, valor: cron.etapa0 });
+  for (let k = 1; k <= MAX_ETAPAS_PCI; k++) r.push({ celula: `AD${LINHA_CRONOGRAMA_PCI - 1 + k}`, valor: k <= cron.prazo ? k : "" });
+  const limite = limiteBdiPci(form.campos.executor ?? null);
+  r.push({ celula: "AN141", valor: limite ?? "" });
   return r;
 }
 
@@ -239,6 +255,8 @@ const escaparXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 const desescaparXml = (s: string) =>
   s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, "&");
 
+const TIPOS_DV: Record<string, number> = { none: 0, whole: 1, decimal: 2, list: 3, date: 4, time: 5, textLength: 6, custom: 7 };
+
 function colunaParaIndice(col: string): number {
   let n = 0;
   for (const ch of col) n = n * 26 + (ch.charCodeAt(0) - 64);
@@ -313,10 +331,57 @@ export class PastaXlsx {
     return Number.isFinite(n) ? n : null;
   }
 
+  temCelula(aba: string, endereco: string): boolean {
+    return !!this.celulaXml(strFromU8(this.arquivos[this.caminho(aba)]), endereco.toUpperCase());
+  }
+
   ehFormula(aba: string, endereco: string): boolean {
     const xml = strFromU8(this.arquivos[this.caminho(aba)]);
     const cel = this.celulaXml(xml, endereco.toUpperCase());
     return !!cel && /<f[\s>/]/.test(cel.texto);
+  }
+
+  /**
+   * Lote 03, correção 10: validações de dados do tipo lista da aba (`<dataValidation>`
+   * e a extensão x14). Listas por intervalo da própria aba (ou de outra aba) são resolvidas.
+   */
+  validacoesDeDados(aba: string): ValidacaoDados[] {
+    const xml = strFromU8(this.arquivos[this.caminho(aba)]);
+    const out: ValidacaoDados[] = [];
+    const resolver = (f: string): { opcoes: string[] | null; referencia: string | null } => {
+      const t = desescaparXml(f.trim());
+      if (/^".*"$/.test(t)) return { opcoes: t.slice(1, -1).split(","), referencia: null };
+      const m = /^(?:'?([^'!]+)'?!)?\$?([A-Z]+)\$?(\d+)(?::\$?([A-Z]+)\$?(\d+))?$/.exec(t);
+      if (!m) return { opcoes: null, referencia: t };
+      const alvo = m[1] ?? aba;
+      if (!this.abasPorNome.has(alvo)) return { opcoes: null, referencia: t };
+      const c1 = colunaParaIndice(m[2]), r1 = Number(m[3]), c2 = m[4] ? colunaParaIndice(m[4]) : c1, r2 = m[5] ? Number(m[5]) : r1;
+      const opcoes: string[] = [];
+      for (let r = r1; r <= r2; r++) {
+        for (let col = c1; col <= c2; col++) {
+          const v = this.ler(alvo, `${colunaParaLetras(col - 1)}${r}`);
+          if (v !== null && v !== "") opcoes.push(String(v));
+        }
+      }
+      return { opcoes, referencia: t };
+    };
+    for (const m of Array.from(xml.matchAll(/<dataValidation\b([^>]*)>([\s\S]*?)<\/dataValidation>/g))) {
+      const attrs = m[1];
+      const tipoTexto = /\btype="([^"]+)"/.exec(attrs)?.[1] ?? "none";
+      const sqref = /\bsqref="([^"]+)"/.exec(attrs)?.[1] ?? "";
+      const f1 = /<formula1>([\s\S]*?)<\/formula1>/.exec(m[2])?.[1];
+      const r = tipoTexto === "list" && f1 !== undefined ? resolver(f1) : { opcoes: null, referencia: f1 ?? null };
+      out.push({ aba, intervalo: sqref, tipo: TIPOS_DV[tipoTexto] ?? 0, ...r, permiteBranco: /\ballowBlank="(1|true)"/.test(attrs) });
+    }
+    for (const m of Array.from(xml.matchAll(/<x14:dataValidation\b([^>]*)>([\s\S]*?)<\/x14:dataValidation>/g))) {
+      const attrs = m[1];
+      const tipoTexto = /\btype="([^"]+)"/.exec(attrs)?.[1] ?? "none";
+      const sqref = /<xm:sqref>([\s\S]*?)<\/xm:sqref>/.exec(m[2])?.[1] ?? "";
+      const f1 = /<x14:formula1>\s*<xm:f>([\s\S]*?)<\/xm:f>/.exec(m[2])?.[1];
+      const r = tipoTexto === "list" && f1 !== undefined ? resolver(f1) : { opcoes: null, referencia: f1 ?? null };
+      out.push({ aba, intervalo: sqref, tipo: TIPOS_DV[tipoTexto] ?? 0, ...r, permiteBranco: /\ballowBlank="(1|true)"/.test(attrs) });
+    }
+    return out;
   }
 
   /** Grava valores; não sobrescreve fórmulas (vão para `recusadas`). */
@@ -394,24 +459,15 @@ function inserirCelula(xml: string, endereco: string, nova: string): string {
   return xml.slice(0, fim) + novaLinha + xml.slice(fim);
 }
 
-function gerarXlsm(modelo: Uint8Array, form: FormularioPci): ResultadoGeracaoPci {
-  const zip = unzipSync(modelo);
-  if (zip["xl/workbook.bin"]) throw new Error(MENSAGEM_XLSB_SO_LEITURA);
-  const pasta = new PastaXlsx(zip);
-  if (!pasta.abas.includes(ABA_PROPOSTA_PCI)) throw new Error(`O modelo não tem a aba "${ABA_PROPOSTA_PCI}". Confira se é a PCI oficial da CAIXA.`);
-  const celulas = celulasDoFormulario(form);
-  const recusadas = new Set(pasta.escreverVarias(ABA_PROPOSTA_PCI, celulas));
-  const avisos = celulas.filter((c) => recusadas.has(c.celula)).map((c) => `${c.rotulo} (${c.celula}): fórmula do modelo, não sobrescrita.`);
-  pasta.recalcularAoAbrir();
-  if (form.imagem) avisos.push("Imagem de localização: no modelo .xlsm ela vai só no PDF (insira no Excel, se precisar). No modelo .xls ela entra no quadro da poligonal.");
-  return { bytes: pasta.salvar(), formato: "xlsm", avisos };
-}
-
-/** Preenche o modelo oficial (xls/xlsm). xlsb → erro claro. */
+/**
+ * Preenche o modelo oficial. Lote 03, correção 10: a SAÍDA é sempre .xls real
+ * (BIFF8). Quem chama passa a versão .xls do modelo (para modelo atual .xlsm/.xlsb,
+ * a versão .xls compatível mais recente); qualquer outro formato é bloqueado.
+ */
 export function gerarPlanilhaPci(modelo: Uint8Array, formato: FormatoModeloPci, entrada: FormularioPci): ResultadoGeracaoPci {
   const form = normalizarFormularioPci(entrada);
-  if (formato === "xlsb") throw new Error(MENSAGEM_XLSB_SO_LEITURA);
-  return formato === "xls" ? gerarXls(modelo, form) : gerarXlsm(modelo, form);
+  if (formato !== "xls" || modelo[0] !== 0xd0 || modelo[1] !== 0xcf) throw new Error(MENSAGEM_SAIDA_XLS_PCI);
+  return gerarXls(modelo, form);
 }
 
 // ─── PDF ─────────────────────────────────────────────────────────────────────
@@ -424,7 +480,7 @@ function textoCampo(campo: CampoPci, v: ValorCampoPci): string {
   if (v === null || v === "") return "";
   if (campo.tipo === "numero") return brl(numeroPci(v));
   if (campo.tipo === "data") return String(v).split("-").reverse().join("/");
-  return String(v);
+  return String(v).trim();
 }
 
 export interface CabecalhoPdfPci {
@@ -509,16 +565,18 @@ export function gerarPdfPci(entrada: FormularioPci, cab: CabecalhoPdfPci): Uint8
       }
       continue;
     }
-    const campos = CAMPOS_PCI.filter((campo) => campo.secao === secao.id);
+    const campos = CAMPOS_PCI.filter((campo) => campo.secao === secao.id && (!campo.visivel || campo.visivel(form.campos) || form.campos[campo.id] !== null));
     const corpo = campos.map((campo) => [campo.rotulo, textoCampo(campo, form.campos[campo.id] ?? null)]);
     autoTable(pdf, { ...comum, startY: y, head: [[{ content: secao.titulo, colSpan: 2 }]], body: corpo,
       columnStyles: { 0: { cellWidth: 70, fontStyle: "bold", fillColor: [245, 245, 250] } } });
     y = proximoY();
     if (secao.id === "cronograma") {
-      const etapas = form.cronograma.map((v, k) => [String(k + 1), brl(v)]);
+      // Lote 03, correção 06: etapa 0 = pré-executado; incremental = diferença entre etapas consecutivas.
+      const cron = analisarCronogramaPci(form);
+      const etapas = Array.from({ length: cron.prazo }, (_, k) => [String(k + 1), brl(form.cronograma[k] ?? null), brl(cron.incrementais[k] ?? null)]);
       if (etapas.length) {
-        autoTable(pdf, { ...comum, startY: y, head: [["Etapa (mês)", "% acumulado proposto"]], body: [["0", "0,00"], ...etapas],
-          columnStyles: { 1: { halign: "right" } } });
+        autoTable(pdf, { ...comum, startY: y, head: [["Etapa (mês)", "% acumulado proposto", "% da etapa (incremental)"]], body: [["0", brl(cron.etapa0), brl(cron.etapa0)], ...etapas],
+          columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } } });
         y = proximoY();
       }
     }

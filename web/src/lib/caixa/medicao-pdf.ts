@@ -19,6 +19,7 @@ import {
   etapaDaData,
   inicioDaMedicao,
   localEData,
+  situacaoDaPls,
   somarMeses,
   type EntradaMedicaoCaixa,
 } from "./medicao-xls";
@@ -267,15 +268,13 @@ function logoDaPci(arquivoPci: Uint8Array, aba: string): FotoXls | null {
 
 // ---------------- PLS ----------------
 
-/** Situação em relação a uma curva: abaixo = ATRASADA. */
-function situacao(acumulado: number, minimo: number | undefined, maximo?: number) {
-  if (minimo === undefined) return "";
-  if (maximo !== undefined && acumulado > maximo) return "ADIANTADA";
-  return acumulado + 1e-9 >= minimo ? "NORMAL" : "ATRASADA";
-}
+/** Lote 03, correção 08: dado obrigatório ausente aparece como "pendente: <campo>" (nunca inventado). */
+const pendente = (valor: string, campo: string) => valor || `pendente: ${campo}`;
+const corSituacao = (s: string): Cor => (s === "OBRA LENTA" || s === "ATRASADA" || s === "PRAZO EXTRAPOLADO" ? [252, 228, 214] : s === "OBRA RÁPIDA" || s === "ADIANTADA" ? [221, 235, 247] : [255, 242, 204]);
 
 function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   const r = calcularPls(e);
+  const sit = situacaoDaPls(e);
   const p = e.dados.pls;
   const pci = e.pci;
   doc.cabecalho();
@@ -322,14 +321,21 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   doc.celula(10, y, 65, h, "Etapa de referência:", { tamanho: 6.5, borda: false });
   doc.celula(75, y, 28, h, r.etapa === null ? "" : String(r.etapa), { alinhar: "center", negrito: true, tamanho: 7, borda: false });
   y += h;
-  const sitRef = situacao(r.acumulado, pci.curvaLenta[etapa], pci.curvaRapida[etapa]);
-  const sitProp = situacao(r.acumulado, pci.cronogramaProposto[Math.min(etapa, pci.cronogramaProposto.length - 1)]);
+  // Lote 03, correção 08: U110/U111 recalculados (curvas padrão pela faixa do imóvel, ±10 p.p., PRAZO EXTRAPOLADO).
+  const faltaSituacao = sit.pendencias.filter((x) => /contratação|início|Valor do imóvel/.test(x));
+  const sitRef = sit.situacaoCurva || (faltaSituacao.length ? `pendente: ${faltaSituacao[0]}` : "");
+  const sitProp = sit.situacaoProposto || (faltaSituacao.length ? `pendente: ${faltaSituacao[0]}` : "");
   doc.celula(10, y, 65, h, "Situação da obra - Cronog./Curva de Referência:", { tamanho: 6.3, alinhar: "right", borda: false });
-  doc.celula(75, y, 28, h, sitRef, { alinhar: "center", negrito: true, tamanho: 6.5, fundo: sitRef === "ATRASADA" ? [252, 228, 214] : [255, 242, 204] });
+  doc.celula(75, y, 28, h, sitRef, { alinhar: "center", negrito: true, tamanho: sitRef.length > 16 ? 5 : 6.5, fundo: corSituacao(sitRef) });
   y += h;
   doc.celula(10, y, 65, h, "Situação da obra - Cronograma Proposto:", { tamanho: 6.3, alinhar: "right", borda: false });
-  doc.celula(75, y, 28, h, sitProp, { alinhar: "center", negrito: true, tamanho: 6.5, fundo: sitProp === "ATRASADA" ? [252, 228, 214] : [255, 242, 204] });
+  doc.celula(75, y, 28, h, sitProp, { alinhar: "center", negrito: true, tamanho: sitProp.length > 16 ? 5 : 6.5, fundo: corSituacao(sitProp) });
   y += h + 0.5;
+  const notas = [...sit.pendencias.map((x) => `Pendente: ${x}.`), ...sit.avisos];
+  if (notas.length) {
+    doc.celula(10, y, 93, 3.4 * Math.min(notas.length, 4), notas.slice(0, 4).join(" "), { tamanho: 5.6, quebra: true, cor: LARANJA, borda: false });
+    y += 3.4 * Math.min(notas.length, 4);
+  }
   doc.celula(10, y, 93, 3.6, "Observações", { tamanho: 6.5, borda: false });
   y += 3.6;
   doc.celula(10, y, 93, 285 - 12 - y, p.observacoes, { fundo: LILAS, quebra: true, tamanho: 7 });
@@ -339,7 +345,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   const X = 106;
   doc.celula(X, d, 44, 4, "DATAS & QUALIDADE", { negrito: true, tamanho: 7, cor: AZUL });
   doc.celula(X + 44, d, 22, 4, "Valor do imóvel", { tamanho: 6, alinhar: "right" });
-  doc.celula(X + 66, d, 28, 4, reais(r.valorImovel), { negrito: true, alinhar: "right", fundo: VERDE, tamanho: 6.5 });
+  doc.celula(X + 66, d, 28, 4, pendente(reais(r.valorImovel), "valor"), { negrito: true, alinhar: "right", fundo: VERDE, tamanho: 6.5 });
   d += 4;
   const linhaData = (rotulo: string, valor: string, extraRot?: string, extraVal?: string, fundo?: Cor) => {
     doc.celula(X, d, 30, 3.8, rotulo, { tamanho: 6.2 });
@@ -348,9 +354,9 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
     doc.celula(X + 82, d, 12, 3.8, extraVal ?? "", { negrito: true, alinhar: "center", tamanho: 6.3, fundo: extraVal ? VERDE : undefined });
     d += 3.8;
   };
-  linhaData("Contratação", dataBr(r.dataContratacao), "Nº Etapas original", pci.prazoMeses ? String(pci.prazoMeses) : "", VERDE);
-  linhaData("Data início de obra", dataBr(r.inicio));
-  linhaData("Término Previsto", dataBr(r.termino));
+  linhaData("Contratação", pendente(dataBr(r.dataContratacao), "contratação"), "Nº Etapas original", pci.prazoMeses ? String(pci.prazoMeses) : "pendente", VERDE);
+  linhaData("Data início de obra", pendente(dataBr(r.inicio), "início"));
+  linhaData("Término Previsto", pendente(dataBr(r.termino), "término"));
   linhaData("Data do Levantamento", dataBr(p.dataLevantamento), "", "", VERDE);
   doc.celula(X, d, 52, 5, "Houve Repatuação de prazo?", { tamanho: 6.2 });
   doc.celula(X + 52, d, 12, 5, simNao(p.houveRepactuacao), { alinhar: "center", fundo: LILAS, tamanho: 6.3 });
@@ -371,7 +377,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   doc.celula(X, d, 22, 3.8, "Data Emissão Alvará", { tamanho: 5.8 });
   doc.celula(X + 22, d, 18, 3.8, dataBr(p.alvaraEmissao), { negrito: true, alinhar: "center", fundo: VERDE, tamanho: 6 });
   doc.celula(X + 40, d, 30, 3.8, "Data Vigência Alvará", { tamanho: 5.8, alinhar: "right" });
-  doc.celula(X + 70, d, 24, 3.8, dataBr(p.alvaraVigencia), { negrito: true, alinhar: "center", fundo: VERDE, tamanho: 6 });
+  doc.celula(X + 70, d, 24, 3.8, pendente(dataBr(p.alvaraVigencia), "vigência"), { negrito: true, alinhar: "center", fundo: VERDE, tamanho: 6 });
   d += 3.8;
   pergunta("Projeto e especificações estão sendo cumpridos?", simNao(p.projetoCumprido));
   pergunta("Os serviços estão sendo executados de modo a prevenir o aparecimento de danos físicos/vícios futuros?", simNao(p.prevencaoDanos), 6);
@@ -414,19 +420,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   // --- página 2: indicadores e gráfico
   doc.novaPagina();
   let y2 = 38;
-  const inferior3 = (() => {
-    let seguidas = 0;
-    let maior = 0;
-    let atual = 0;
-    for (let k = 1; k <= etapa; k++) {
-      const v = porEtapa.get(k);
-      if (v !== undefined) atual = v;
-      if (pci.curvaLenta[k] !== undefined && atual < pci.curvaLenta[k]) seguidas++;
-      else seguidas = 0;
-      maior = Math.max(maior, seguidas);
-    }
-    return maior >= 3;
-  })();
+  const inferior3 = sit.atraso3Etapas;
   const valor = r.valorImovel ?? 0;
   const ultrapassa = (valor <= 264000 && r.executadoEtapa > 26) || (valor > 264000 && valor <= 500000 && r.executadoEtapa > 17) || (valor > 500000 && r.executadoEtapa > 14);
   const indicador = (texto: string, resposta: string, fundo: Cor) => {
@@ -438,7 +432,7 @@ function gerarPls(doc: Documento, e: EntradaMedicaoCaixa) {
   indicador(" % Executado nessa etapa da PLS  ultrapassa a referência de evolução típica mensal?", ultrapassa ? "Sim" : "Não", [255, 199, 206]);
   indicador("É optante pelo Selo Casa Azul Caixa - Unidade Isolada?", p.seloCasaAzul ? "Sim" : "Não", LILAS);
   y2 += 4;
-  graficoCurvas(doc.pdf, 14, y2, 182, 80, porEtapa, pci.curvaNormal);
+  graficoCurvas(doc.pdf, 14, y2, 182, 80, porEtapa, sit.curvas?.normal ?? pci.curvaNormal);
 
   doc.fotos(e.fotos, 12);
   doc.novaPagina();

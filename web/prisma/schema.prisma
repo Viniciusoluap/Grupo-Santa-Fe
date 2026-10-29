@@ -1635,20 +1635,43 @@ model ObraPci {
 
 /// Modelo oficial da PCI (CAIXA), versionado. No máximo um `atual` (índice parcial na migração).
 model PciModelo {
-  id           String      @id @default(cuid())
-  versao       Int         @unique
-  nome         String      @db.VarChar(255)
-  formato      String      @db.VarChar(5)
-  tamanho      Int
-  hash         String      @db.VarChar(64)
-  dados        Bytes
-  atual        Boolean     @default(false)
-  observacao   String?
-  enviadoPorId String?
-  enviadoEm    DateTime    @default(now())
-  geradas      PciGerada[]
+  id                       String               @id @default(cuid())
+  versao                   Int                  @unique
+  nome                     String               @db.VarChar(255)
+  formato                  String               @db.VarChar(5)
+  tamanho                  Int
+  hash                     String               @db.VarChar(64)
+  dados                    Bytes
+  atual                    Boolean              @default(false)
+  observacao               String?
+  enviadoPorId             String?
+  enviadoEm                DateTime             @default(now())
+  geradas                  PciGerada[]
+  /// Lote 03, correções 09b/10: exclusão lógica (o arquivo fica para as PCIs geradas),
+  /// relatório de compatibilidade e confirmação de mudança crítica.
+  excluidoEm               DateTime?
+  excluidoPorId            String?
+  relatorioCompatibilidade Json?                @db.JsonB
+  aguardandoConfirmacao    Boolean              @default(false)
+  confirmadoPorId          String?
+  confirmadoEm             DateTime?
+  auditoria                PciModeloAuditoria[]
 
   @@map("pci_modelos")
+}
+
+/// Lote 03: auditoria das operações com o modelo oficial da PCI (envio, tornar atual, confirmar, excluir).
+model PciModeloAuditoria {
+  id        String    @id @default(cuid())
+  modeloId  String
+  modelo    PciModelo @relation(fields: [modeloId], references: [id], onDelete: Cascade)
+  acao      String    @db.VarChar(30)
+  usuarioId String?
+  detalhes  Json?     @db.JsonB
+  criadoEm  DateTime  @default(now())
+
+  @@index([modeloId, criadoEm])
+  @@map("pci_modelo_auditoria")
 }
 
 /// Rascunho do formulário do Gerador de PCI (um por obra).

@@ -22,7 +22,7 @@ export function VinculoClienteLancamento({ lancamento, onVinculado }: {
 
   useEffect(() => { let vivo = true; sugestoesClienteLancamento(lancamento.id).then((r) => { if (vivo) setSugestao(r); }).catch(() => {}); return () => { vivo = false; }; }, [lancamento.id]);
   useEffect(() => {
-    if (busca.trim().length < 2) { setAchados([]); return; }
+    if (busca.trim().length < 2) return;
     const t = setTimeout(() => { buscarClientesELeadsBpo(busca).then(setAchados).catch(() => setAchados([])); }, 250);
     return () => clearTimeout(t);
   }, [busca]);
@@ -55,7 +55,7 @@ export function VinculoClienteLancamento({ lancamento, onVinculado }: {
       <label className="block text-xs font-bold text-gray-500 uppercase">Buscar cliente BPO ou lead do CRM
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome ou telefone" className="mt-1 w-full border px-3 py-2 text-sm normal-case" />
       </label>
-      {achados.length > 0 && <div className="max-h-40 overflow-y-auto border border-gray-200">{achados.map((a) => (
+      {busca.trim().length >= 2 && achados.length > 0 && <div className="max-h-40 overflow-y-auto border border-gray-200">{achados.map((a) => (
         <button key={`${a.tipo}${a.id}`} type="button" disabled={pendente} onClick={() => confirmar(a.tipo === "cliente" ? { clienteId: a.id } : { leadId: a.id }, `escolhido na busca (${a.tipo === "cliente" ? "cliente BPO" : "lead do CRM"})`)}
           className="block w-full border-b border-gray-50 px-3 py-2 text-left hover:bg-gray-50">{a.nome} <span className="text-xs text-gray-500">{a.detalhe}</span></button>
       ))}</div>}

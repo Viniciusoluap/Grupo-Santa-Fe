@@ -5,6 +5,7 @@ import { podeAcessarModulo } from "@/lib/perfis-acesso";
 import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
 import { baixarMidiaEvolution, LIMITE_MIDIA, mesmoTelefone } from "@/lib/evolution";
 import { configEvolution } from "@/lib/whatsapp/evolution-config";
+import { chaveTelefone } from "@/lib/whatsapp/conversas";
 
 export async function guardarMidia(mensagemId: string, base64: string, dados: { mime?: string | null; nome?: string | null }): Promise<boolean> {
   const conteudo = Buffer.from(base64, "base64");
@@ -45,7 +46,9 @@ export async function mensagemWhatsappAcessivel(id: string) {
   const msg = await prisma.mensagemWhatsapp.findFirst({ where: { id, conexaoId: conn.id }, include: { midia: true } });
   if (!msg) return null;
   if (u.perfil === "corretor") {
-    let leadId = msg.leadId;
+    // Lote 03, correção 02: vínculo manual da conversa primeiro.
+    const vinculo = await prisma.whatsappVinculoConversa.findUnique({ where: { conexaoId_chaveTelefone: { conexaoId: conn.id, chaveTelefone: chaveTelefone(msg.destinatario) } }, select: { leadId: true } });
+    let leadId = vinculo?.leadId ?? msg.leadId;
     if (!leadId) {
       const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, select: { destinatario: true, leadId: true } });
       leadId = todas.find((m) => m.leadId && mesmoTelefone(m.destinatario, msg.destinatario))?.leadId ?? null;

@@ -293,6 +293,7 @@ export async function excluirLead(id: string) {
   });
   revalidatePath("/admin/leads");
   revalidatePath(`/admin/leads/${id}`);
+  revalidatePath("/admin/whatsapp"); // Lote 03, correção 03: some dos destinatários.
 }
 
 export async function arquivarLead(id: string, arquivar: boolean) {
@@ -310,6 +311,7 @@ export async function arquivarLead(id: string, arquivar: boolean) {
   });
   revalidatePath("/admin/leads");
   revalidatePath(`/admin/leads/${id}`);
+  revalidatePath("/admin/whatsapp"); // Lote 03, correção 03.
 }
 
 export async function alterarEtapaLead(leadId: string, etapa: string, etapaAnterior: string | null, atualizadoEm: string) {

@@ -8,6 +8,7 @@ import { donoDaConexaoWhatsApp } from "@/lib/whatsapp/dono-conexao";
 import { WhatsAppClient } from "./_components/whatsapp-client";
 import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
 import { TEMPLATES_WHATSAPP_PADRAO } from "@/lib/whatsapp/templates";
+import { LEAD_ATIVO_WHATSAPP } from "@/lib/whatsapp/conversas";
 
 type SessionUser = { id?: string; role?: string; corretorId?: string };
 
@@ -22,8 +23,9 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
 
   if (role === "cliente" || !usuarioId) redirect("/admin");
 
+  // Lote 03, correção 03: destinatários só de leads ativos do CRM (não excluídos nem arquivados).
   const leads = await prisma.lead.findMany({
-    where: role === "corretor" && user.corretorId ? { corretorId: user.corretorId } : {},
+    where: { ...LEAD_ATIVO_WHATSAPP, ...(role === "corretor" && user.corretorId ? { corretorId: user.corretorId } : {}) },
     select: { id: true, nome: true, telefone: true, servico: true },
     orderBy: { criadoEm: "desc" },
   });
