@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, FileCheck, Pencil } from "lucide-react";
+import { Search, FileCheck, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { REG_STATUS_CONFIG, REG_TIPO_CONFIG, RegStatus } from "@/lib/types/regularizacao";
 import { formatCurrency } from "@/lib/utils";
 import { excluirRegularizacao } from "@/lib/actions/regularizacoes";
@@ -79,7 +79,12 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
     return matchSearch && matchStatus;
   });
 
-  const ativos = regularizacoes.filter((r) => r.status !== "concluido" && r.status !== "cancelado").length;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / 4));
+  const currentPage = Math.min(page, totalPages);
+  const visible = filtered.slice((currentPage - 1) * 4, currentPage * 4);
+  // Clamp stored state too: a later refresh must not resurrect an empty page.
+  if (page !== currentPage) setPage(currentPage);
 
   return (
     <div className="space-y-5">
@@ -94,9 +99,9 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
-          { label: "Em Andamento", value: ativos },
-          { label: "Valor já recebido", value: formatCurrency(indicadores.recebido / 100) },
           { label: "Valor contratado", value: formatCurrency(indicadores.contratado / 100) },
+          { label: "Valor já recebido", value: formatCurrency(indicadores.recebido / 100) },
+          { label: "A receber", value: formatCurrency((indicadores.contratado - indicadores.recebido) / 100) },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -105,6 +110,7 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
             </div>
             <p className="font-black text-[var(--brand-dark)] text-xl">{value}</p>
             {label === "Valor já recebido" && <p className="text-[10px] text-gray-500 mt-1">Soma dos recebimentos confirmados dos itens de receita própria.</p>}
+            {label === "A receber" && <p className="text-[10px] text-gray-500 mt-1">Valor contratado menos valor já recebido.</p>}
             {label === "Valor contratado" && <p className="text-[10px] text-gray-500 mt-1">Soma do previsto em Projetos, PCI, Água, Despachante e CND/CNO.</p>}
           </div>
         ))}
@@ -118,12 +124,12 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
             type="text"
             placeholder="Buscar por nome, cliente ou endereço..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white"
           />
         </div>
         <div className="flex flex-wrap gap-1">
-          <button onClick={() => setStatusFilter("todos")} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+          <button onClick={() => { setStatusFilter("todos"); setPage(1); }} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === "todos" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
             Todos
           </button>
           {(Object.entries(REG_STATUS_CONFIG) as [RegStatus, typeof REG_STATUS_CONFIG[RegStatus]][])
@@ -132,7 +138,7 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
               const count = regularizacoes.filter((r) => r.status === status).length;
               if (count === 0) return null;
               return (
-                <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                <button key={status} onClick={() => { setStatusFilter(status); setPage(1); }} className={`px-3 py-2 text-xs font-bold uppercase transition-colors ${statusFilter === status ? `${cfg.bgColor} ${cfg.color} border border-transparent` : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
                   {cfg.label} ({count})
                 </button>
               );
@@ -140,9 +146,18 @@ export function RegularizacaoClient({ regularizacoes, indicadores }: Props) {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-bold text-[var(--brand-dark)]">Processos ({filtered.length})</h2>
+        <nav aria-label="Paginação de processos" className="flex items-center gap-2">
+          <button type="button" aria-label="Página anterior" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-gray-300 bg-white disabled:opacity-30"><ChevronLeft size={16} /></button>
+          <span aria-live="polite" className="text-xs text-gray-600">{currentPage} de {totalPages}</span>
+          <button type="button" aria-label="Próxima página" disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-gray-300 bg-white disabled:opacity-30"><ChevronRight size={16} /></button>
+        </nav>
+      </div>
+      {!filtered.length && <p className="text-sm text-gray-500">Nenhum processo encontrado.</p>}
       {/* Cards */}
       <div className="space-y-3">
-        {filtered.map((r) => {
+        {visible.map((r) => {
           const tipo = { icon: parseTipoIconReg(r.tipo), label: parseTiposLabelReg(r.tipo) };
           return (
             <div key={r.id} className="bg-white border border-gray-100 p-5">
