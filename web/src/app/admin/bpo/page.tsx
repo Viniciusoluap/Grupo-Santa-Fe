@@ -7,10 +7,12 @@ import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
 import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
 import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
-import { carregarIndicadoresRelatorios, periodoUltimos12Meses } from "@/lib/financeiro/relatorios-bpo-dados";
+import { carregarIndicadoresRelatorios, periodoDosParametros } from "@/lib/financeiro/relatorios-bpo-dados";
 
-export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string }> }) {
+export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string; relDe?: string; relAte?: string }> }) {
   await exigirModuloPagina("bpo");
+  // Lote 03 (paridade com a Prospecta): filtro De/Até dos indicadores 14/18 da aba Relatórios.
+  const { relDe, relAte } = await searchParams;
   const catalogoOperacional = await catalogoOperacionalBpo();
 
   const [
@@ -53,7 +55,7 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     prisma.financiamento.count(),
     statusPluggy(),
     // Lote 03 (14 e 18): VGV de Obras, Números de Obra, Funil, Ranking e Unidades.
-    carregarIndicadoresRelatorios(periodoUltimos12Meses()),
+    carregarIndicadoresRelatorios(periodoDosParametros(relDe, relAte)),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
   const { aba, categoriaOperacional, vinculoOperacionalId } = await searchParams;

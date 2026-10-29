@@ -8,8 +8,8 @@ import {
 
 // Lote 03 — correções 14 e 18: consultas dos indicadores da aba Relatórios do BPO.
 // Gêmeo do `overview` da Prospecta (server/relatorios-router.ts). As regras
-// estão em ./relatorios-bpo.ts. Período: o mesmo da tela (do 1º dia do mês de
-// 11 meses atrás até hoje), aplicado ao VGV de Obras, Números de Obra, Funil
+// estão em ./relatorios-bpo.ts. Período: filtro De/Até da tela (padrão: do 1º dia
+// do mês de 11 meses atrás até hoje), aplicado ao VGV de Obras, Números de Obra, Funil
 // (data de criação do lead) e Ranking (data do pagamento). Unidades = retrato atual.
 
 export function periodoUltimos12Meses(agora = new Date()): Periodo {
@@ -39,7 +39,8 @@ export function periodoDosParametros(relDe?: string, relAte?: string, agora = ne
 
 export const ETAPAS_FUNIL_CRM =LEAD_STAGES.map((key) => ({ key, label: LEAD_STAGE_CONFIG[key].label }));
 
-export async function carregarIndicadoresRelatorios(periodo: Periodo) {
+export async function carregarIndicadoresRelatorios(entrada: Periodo & { personalizado?: boolean }) {
+  const periodo: Periodo = { de: entrada.de, ate: entrada.ate };
   const [obras, leads, pagamentosObra, comissoes, unidadesIncorporacao, imoveis] = await Promise.all([
     prisma.obra.findMany({
       select: {
@@ -98,7 +99,7 @@ export async function carregarIndicadoresRelatorios(periodo: Periodo) {
     imoveis.map((i) => ({ status: i.status, aprovado: i.revisaoStatus === "aprovado", pontoDeObra: i.obraLocalizacao !== null })),
   );
 
-  return { periodo, vgvObras, numerosDeObra: numerosDeObra(vgvObras), funilLeads, corretorRanking, unidadesDisponiveis: unidades };
+  return { periodo, periodoPersonalizado: entrada.personalizado ?? false, vgvObras, numerosDeObra: numerosDeObra(vgvObras), funilLeads, corretorRanking, unidadesDisponiveis: unidades };
 }
 
 export type IndicadoresRelatorios = Awaited<ReturnType<typeof carregarIndicadoresRelatorios>>;

@@ -101,7 +101,13 @@ export async function authenticatePluggy(clientId: string, clientSecret: string,
 
 /**
  * Transações da conta a partir de `desde` (AAAA-MM-DD), percorrendo todas as páginas.
- * Pedido de 25/10: a data inicial da conta vira o filtro `from` da Pluggy.
+ *
+ * Lote 3, item 13A (29/10): o `/v2/transactions` recusava a chamada com "HTTP 400: property pageSize
+ * should not exist" — a v2 pagina por cursor (`next`) e valida a query de forma estrita. Enviamos só
+ * `accountId` (e depois o cursor devolvido pela própria Pluggy). Como o nome do filtro de data da v2
+ * não pôde ser confirmado na documentação, NÃO enviamos filtro de data: o corte por `desde` é feito
+ * aqui, localmente, e a deduplicação continua por `externalId` (upsert em gravarMovimentos), com a
+ * proteção contra cursor repetido e o limite de 200 páginas.
  */
 export async function fetchPluggyTransactions(
   token: string,
@@ -111,8 +117,9 @@ export async function fetchPluggyTransactions(
   itemId?: string | null,
 ): Promise<PluggyTransaction[]> {
   const out: PluggyTransaction[] = [];
-  const params = new URLSearchParams({ accountId, pageSize: "500" });
-  if (desde) params.set("dateFrom", desde);
+  const params = new URLSearchParams({ accountId });
+  const corte = desde && /^\d{4}-\d{2}-\d{2}/.test(desde) ? desde.slice(0, 10) : null;
+  const vistos = new Set<string>();
   let proxima: string | null = `?${params.toString()}`;
   const cursores = new Set<string>();
   for (let pagina = 0; proxima && pagina < 200; pagina++) {
@@ -135,6 +142,9 @@ export async function fetchPluggyTransactions(
       }[];
     };
     for (const t of data.results ?? []) {
+      if (corte && String(t.date ?? "").slice(0, 10) < corte) continue;
+      if (vistos.has(t.id)) continue;
+      vistos.add(t.id);
       const parte = t.type === "CREDIT" ? t.paymentData?.payer : t.paymentData?.receiver;
       const titular = parte?.name?.trim();
       const identificador = t.providerId?.trim() || t.providerCode?.trim();

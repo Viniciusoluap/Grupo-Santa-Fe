@@ -138,8 +138,28 @@ function fmt(v: number) {
 const CURSOR_BARRA = { fill: "rgba(245, 196, 0, 0.08)" };
 const CORES_NUMEROS_OBRA = ["#F5C400", "#2563EB", "#16A34A", "#9333EA"];
 
+/** Lote 03 (paridade com a Prospecta): datas "AAAA-MM-DD" → "dd/mm/aaaa". */
+function dataBr(iso: string) {
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
 function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
-  const { totalImoveis, totalLeads, totalFinanciamentos, monthlySales, serviceRevenue, dreMensal, vgvObras, numerosDeObra, funilLeads, corretorRanking, unidadesDisponiveis } = relatorios;
+  const router = useRouter();
+  const [filtroPendente, iniciarFiltro] = useTransition();
+  // Filtro De/Até dos indicadores 14/18 (searchParams relDe/relAte; padrão = últimos 12 meses).
+  const aplicarPeriodo = (campo: "relDe" | "relAte", valor: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (valor) params.set(campo, valor); else params.delete(campo);
+    iniciarFiltro(() => router.replace(`?${params.toString()}`, { scroll: false }));
+  };
+  const limparPeriodo = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("relDe");
+    params.delete("relAte");
+    iniciarFiltro(() => router.replace(params.size ? `?${params.toString()}` : "?", { scroll: false }));
+  };
+  const { periodo, periodoPersonalizado, totalImoveis, totalLeads, totalFinanciamentos, monthlySales, serviceRevenue, dreMensal, vgvObras, numerosDeObra, funilLeads, corretorRanking, unidadesDisponiveis } = relatorios;
   const dreTemDados = dreMensal.some((m) => m.receitas || m.despesas);
   const totalReceita = monthlySales.reduce((s, m) => s + m.receita, 0);
   const totalVendas = monthlySales.reduce((s, m) => s + m.vendas, 0);
@@ -163,7 +183,29 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-gray-600 mt-1">Últimos 12 meses · {periodoLabel}</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs text-gray-600">
+          <span className="block font-bold uppercase tracking-widest mb-1">De</span>
+          <input type="date" value={periodo.de} max={periodo.ate} disabled={filtroPendente}
+            onChange={(e) => aplicarPeriodo("relDe", e.target.value)}
+            className="border border-gray-200 px-2 py-1.5 text-sm text-[var(--brand-dark)] bg-white min-w-[150px]" />
+        </label>
+        <label className="text-xs text-gray-600">
+          <span className="block font-bold uppercase tracking-widest mb-1">Até</span>
+          <input type="date" value={periodo.ate} min={periodo.de} disabled={filtroPendente}
+            onChange={(e) => aplicarPeriodo("relAte", e.target.value)}
+            className="border border-gray-200 px-2 py-1.5 text-sm text-[var(--brand-dark)] bg-white min-w-[150px]" />
+        </label>
+        {periodoPersonalizado && (
+          <button type="button" onClick={limparPeriodo} disabled={filtroPendente}
+            className="text-xs font-bold text-gray-600 underline px-1 py-2">Voltar aos últimos 12 meses</button>
+        )}
+        {filtroPendente && <span className="text-xs text-gray-500 py-2">Atualizando…</span>}
+      </div>
+      <p className="text-xs text-gray-600">
+        Período {dataBr(periodo.de)} a {dataBr(periodo.ate)}: VGV de Obras, Ticket Médio, Números de Obra, Funil de Leads e Ranking
+        de Corretores. Receita, DRE e vendas mensais mostram os últimos 12 meses ({periodoLabel}); Unidades Disponíveis é a situação atual.
+      </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((k) => (
