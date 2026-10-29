@@ -251,16 +251,21 @@ export async function moverArquivoParaCaminho(fileId: string, caminho: PastaAlvo
 }
 
 /** Arquivo (não pasta) com este nome exato no caminho, fora da lixeira. */
-export async function buscarArquivoNoCaminho(caminho: PastaAlvo[], nome: string, cache?: CachePastas): Promise<string | null> {
+/**
+ * Arquivo com este nome na pasta do caminho. Com `md5`, só devolve o que tem
+ * o MESMO conteúdo (MD5 do Drive): uma versão antiga nunca é confundida com a atual.
+ */
+export async function buscarArquivoNoCaminho(caminho: PastaAlvo[], nome: string, cache?: CachePastas, md5?: string): Promise<string | null> {
   const fonte = await fonteObrigatoria();
   const root = await prepararRaiz(fonte);
   const pasta = await pastaDoCaminhoCache(fonte, root, caminho, cache);
   const q = new URLSearchParams({
     q: `'${escapar(pasta)}' in parents and name = '${escapar(nome)}' and mimeType != '${PASTA_MIME}' and trashed = false`,
-    fields: "files(id)", pageSize: "10", supportsAllDrives: "true", includeItemsFromAllDrives: "true",
+    fields: "files(id,md5Checksum)", pageSize: "10", supportsAllDrives: "true", includeItemsFromAllDrives: "true",
   });
   const r = await authorized(fonte, `${DRIVE}/drive/v3/files?${q}`);
-  return ((await r.json()) as { files?: ArquivoDrive[] }).files?.[0]?.id ?? null;
+  const arquivos = ((await r.json()) as { files?: (ArquivoDrive & { md5Checksum?: string })[] }).files ?? [];
+  return (md5 ? arquivos.find((f) => f.md5Checksum === md5) : arquivos[0])?.id ?? null;
 }
 
 async function pastasComEtiqueta(fonte: FonteDrive, chave: string, dentroDe?: string): Promise<string[]> {

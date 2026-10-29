@@ -318,15 +318,17 @@ const arquivoSumiu = (e: unknown) => e instanceof ErroDrive && e.status === 404 
 type Resultado = "enviado" | "movido" | "ok" | "ignorado";
 
 async function enviarItem(item: ArquivoSistema, cache: CachePastas): Promise<Resultado> {
+  const bytes = await item.bytes();
+  if (!bytes) return "ignorado";
   if (item.adotarPorNome) {
-    const existente = await buscarArquivoNoCaminho(item.caminho, item.nome, cache);
+    // Só adota a cópia antiga com o mesmo conteúdo (MD5 dos bytes do banco).
+    const md5 = createHash("md5").update(bytes).digest("hex");
+    const existente = await buscarArquivoNoCaminho(item.caminho, item.nome, cache, md5);
     if (existente && !(await driveFileEmUso(existente))) {
       await item.gravar(existente);
       return "enviado";
     }
   }
-  const bytes = await item.bytes();
-  if (!bytes) return "ignorado";
   const fileId = await enviarArquivoNoCaminho(item.caminho, item.nome, item.mime, bytes, cache);
   if (!(await item.gravar(fileId))) await enviarParaLixeira(fileId).catch(() => undefined);
   return "enviado";
