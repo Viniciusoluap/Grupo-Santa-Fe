@@ -24,12 +24,16 @@ export function SubPciAtual() {
   const [enviando, setEnviando] = useState(false);
   const [observacao, setObservacao] = useState("");
 
-  const carregar = useCallback(async () => {
-    const r = await listarModelosPciAcao();
+  const aplicar = useCallback((r: Awaited<ReturnType<typeof listarModelosPciAcao>>) => {
     if ("erro" in r) setErro(r.erro ?? "Erro ao carregar.");
     else { setErro(null); setModelos(r.modelos); }
   }, []);
-  useEffect(() => { void carregar(); }, [carregar]);
+  const carregar = useCallback(async () => aplicar(await listarModelosPciAcao()), [aplicar]);
+  useEffect(() => {
+    let vivo = true;
+    listarModelosPciAcao().then((r) => { if (vivo) aplicar(r); });
+    return () => { vivo = false; };
+  }, [aplicar]);
 
   async function enviar(arquivo: File | undefined) {
     if (!arquivo) return;
