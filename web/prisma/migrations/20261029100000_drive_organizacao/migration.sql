@@ -11,10 +11,12 @@ CREATE TABLE IF NOT EXISTS "estudo_orcamento_planilhas" (
   "id" TEXT PRIMARY KEY,
   "estudoId" TEXT NOT NULL REFERENCES "estudos_incorporacao"("id") ON DELETE CASCADE ON UPDATE CASCADE,
   "arquivoId" TEXT NOT NULL REFERENCES "arquivos"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  "sha256" VARCHAR(64) NOT NULL,
   "enviadoPorId" TEXT,
   "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "estudo_orcamento_planilhas_arquivoId_key" ON "estudo_orcamento_planilhas"("arquivoId");
+CREATE UNIQUE INDEX IF NOT EXISTS "estudo_orcamento_planilhas_estudoId_sha256_key" ON "estudo_orcamento_planilhas"("estudoId", "sha256");
 CREATE INDEX IF NOT EXISTS "estudo_orcamento_planilhas_estudoId_criadoEm_idx" ON "estudo_orcamento_planilhas"("estudoId", "criadoEm");
 ALTER TABLE "estudo_orcamento_planilhas" ENABLE ROW LEVEL SECURITY;
 -- Rollback operacional: reverter o código; colunas/tabela podem ficar (anuláveis).

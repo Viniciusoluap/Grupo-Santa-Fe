@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { ErroDrive } from "@/lib/drive-erro";
 import { DOCUMENTOS_CLIENTE } from "@/lib/documentos-cliente-padrao";
@@ -356,6 +357,35 @@ export async function copiarParaDrive(tipo: TipoCopia, id: string): Promise<"ok"
   } catch (e) {
     console.error(`[drive] cópia de ${tipo} pendente:`, mensagem(e));
     return "pendente";
+  }
+}
+
+/**
+ * Planilha importada no Orçamento do estudo: o original fica no JSON do orçamento;
+ * ao salvar, uma cópia (uma por arquivo diferente) vai para `arquivos` e para
+ * Incorporação/<Estudo (nº)>/Orçamento. Nunca lança.
+ */
+export async function copiarPlanilhaOrcamento(estudoId: string, dadosJson: string, enviadoPorId: string | null): Promise<void> {
+  try {
+    const imp = (JSON.parse(dadosJson) as { importacaoExcel?: { nome?: unknown; originalBase64?: unknown } }).importacaoExcel;
+    if (!imp || typeof imp.originalBase64 !== "string" || !imp.originalBase64) return;
+    const bytes = Buffer.from(imp.originalBase64, "base64");
+    if (!bytes.length) return;
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const nome = (typeof imp.nome === "string" && imp.nome.trim() ? imp.nome.trim() : "orcamento.xlsx").replace(/[\\/\x00-\x1f\x7f]/g, "_").slice(0, 200);
+    let arquivoId = (await prisma.estudoOrcamentoPlanilha.findUnique({ where: { estudoId_sha256: { estudoId, sha256 } }, select: { arquivoId: true } }))?.arquivoId;
+    if (!arquivoId) {
+      const dados = new Uint8Array(new ArrayBuffer(bytes.byteLength));
+      dados.set(bytes);
+      arquivoId = await prisma.$transaction(async (tx) => {
+        const a = await tx.arquivo.create({ data: { nome, mime: mimePlanilha(extensao(nome)), tamanho: bytes.length, dados }, select: { id: true } });
+        await tx.estudoOrcamentoPlanilha.create({ data: { estudoId, arquivoId: a.id, sha256, enviadoPorId } });
+        return a.id;
+      }).catch(async () => (await prisma.estudoOrcamentoPlanilha.findUnique({ where: { estudoId_sha256: { estudoId, sha256 } }, select: { arquivoId: true } }))?.arquivoId);
+    }
+    if (arquivoId) await copiarParaDrive("arquivo", arquivoId);
+  } catch (e) {
+    console.error("[drive] planilha do orçamento não copiada:", mensagem(e));
   }
 }
 

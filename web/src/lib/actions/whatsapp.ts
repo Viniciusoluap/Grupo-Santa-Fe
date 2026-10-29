@@ -15,6 +15,7 @@ import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
 import { limparExtras, textosPorDestinatario } from "@/lib/whatsapp/variaveis";
 import { URL_WEBHOOK_EVOLUTION, leadPorTelefone, segredoWebhookEvolution } from "@/lib/whatsapp/webhook-evolution";
 import { baixarEGuardarMidia, mensagemWhatsappAcessivel } from "@/lib/whatsapp/midia";
+import { lixeiraDeArquivosSemUso } from "@/lib/drive-organizacao";
 import { validarTemplateWhatsapp } from "@/lib/whatsapp/templates";
 
 // O parametro usuarioId recebido do cliente e' ignorado deliberadamente: a UI
@@ -275,7 +276,10 @@ export async function excluirConversaWhatsapp(numero: string): Promise<{ apagada
     const da = todas.filter((m) => mesmoTelefone(m.destinatario, numero));
     const proibidos = await leadsProibidos(u, Array.from(new Set(da.flatMap((m) => m.leadId ? [m.leadId] : []))));
     if (proibidos.size) return { apagadas: 0, erro: "Conversa de outro corretor." };
+    const copias = da.length ? await prisma.whatsappMidia.findMany({ where: { mensagemId: { in: da.map((m) => m.id) }, driveFileId: { not: null } }, select: { driveFileId: true } }) : [];
     if (da.length) await prisma.mensagemWhatsapp.deleteMany({ where: { conexaoId: conn.id, id: { in: da.map((m) => m.id) } } });
+    // Pedido de 29/10: as cópias das mídias no Drive vão para a lixeira (depois da exclusão no banco).
+    await lixeiraDeArquivosSemUso(copias.map((c) => c.driveFileId));
     return { apagadas: da.length };
   } catch (e) { return { apagadas: 0, erro: motivo(e) }; }
 }

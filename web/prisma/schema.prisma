@@ -1394,17 +1394,19 @@ model Arquivo {
   @@map("arquivos")
 }
 
-/// Pedido de 29/10: planilha importada no Orçamento do estudo. Bytes em `arquivos`;
-/// cópia no Drive em Incorporação/<Estudo (nº)>/Orçamento.
+/// Pedido de 29/10: planilha importada no Orçamento do estudo (o original segue no
+/// JSON do orçamento). Cópia em `arquivos` para o Drive: Incorporação/<Estudo (nº)>/Orçamento.
 model EstudoOrcamentoPlanilha {
   id           String             @id @default(cuid())
   estudoId     String
   estudo       EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
   arquivoId    String             @unique
   arquivo      Arquivo            @relation(fields: [arquivoId], references: [id], onDelete: Cascade)
+  sha256       String             @db.VarChar(64)
   enviadoPorId String?
   criadoEm     DateTime           @default(now())
 
+  @@unique([estudoId, sha256])
   @@index([estudoId, criadoEm])
   @@map("estudo_orcamento_planilhas")
 }
