@@ -7,7 +7,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const sessao = vi.hoisted(() => ({ user: { id: "", role: "admin", corretorId: undefined as string | undefined } }));
 vi.mock("@/auth", () => ({ auth: async () => sessao }));
 vi.mock("@/lib/whatsapp/evolution-config", () => ({ configEvolution: async () => ({ url: "https://evo.teste", apiKey: "k" }), urlServidorEvolution: async () => "https://evo.teste" }));
-const lixeira = vi.hoisted(() => vi.fn(async (_ids: (string | null | undefined)[]) => true));
+const lixeira = vi.hoisted(() => vi.fn<(ids: (string | null | undefined)[]) => Promise<boolean>>(async () => true));
 vi.mock("@/lib/drive-organizacao", async (original) => ({ ...(await original<typeof import("@/lib/drive-organizacao")>()), lixeiraDeArquivosSemUso: lixeira }));
 vi.mock("@/lib/evolution", async (original) => ({ ...(await original<typeof import("@/lib/evolution")>()), enviarTextoEvolution: vi.fn(async () => "ext-ok") }));
 const url = process.env.TEST_DATABASE_URL;
