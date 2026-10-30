@@ -33,3 +33,13 @@ Publicar este checkpoint, implementar a movimentação, validar tipos e verifica
 
 ### Próximo passo
 Concluir QA independente, publicar a etapa e abrir PRs; validar builds, merge e deploy, depois verificar a localização das telas em produção sem modificar a conexão do Drive.
+
+## Etapa 3 — revisão e merge
+- QA independente aprovado; testes existentes 22/22 por aplicação e revisão automática Codex concluída sem apontamentos nos heads publicados.
+- PR #244 mesclada; commit de merge: `88bf83d1a320e7932672fa789c8241dd89939590`.
+- Preview `dpl_D5iyqi9wKZTB1eQDJpD6MyPPTcDV` confirmado READY antes do merge. O status GitHub do Prospecta ainda estava pending por atraso de sincronização, mas o deployment correspondente ao head exato estava READY na API Vercel.
+- Build de produção iniciado: `dpl_4nLD7Pc7kiQ2n8gjVnXmZ9Jca7vH`.
+(a) Automáticos: checks locais descritos acima e build de preview aprovados.
+(b) Manuais: revisão de código concluída; navegação de produção pendente.
+(c) Produção: aguardando READY e smoke; nenhuma operação real do Drive executada.
+- Próximo passo: conferir produção READY e aliases oficiais, executar smoke e verificar a organização das telas sem alterar a conexão.
