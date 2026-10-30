@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { documentosParaEnvioWhatsapp, imoveisParaEnvioWhatsapp, previaEnvioWhatsapp, resumoEnviosWhatsapp, salvarConexaoBusiness, salvarTemplateWhatsapp } from "@/lib/actions/whatsapp";
-import { PERIODOS_DASHBOARD, PERIODO_PADRAO, ROTULO_PERIODO, alternarTodosVisiveis, podarSelecao, type PeriodoDashboard } from "@/lib/whatsapp/conversas";
+import { ETAPA_TODAS, PERIODOS_DASHBOARD, PERIODO_PADRAO, ROTULO_PERIODO, alternarTodosVisiveis, filtrarDestinatarios, limparVisiveis, lotesDeEnvio, podarSelecao, resumoSelecao, type PeriodoDashboard } from "@/lib/whatsapp/conversas";
 import { DOCUMENTOS_CHECKLIST, textoDocumentosMarcados, VARIAVEIS_TEMPLATE, variaveisDoTexto } from "@/lib/whatsapp/variaveis";
 import { parseServicosLead } from "@/lib/crm/servicos-lead";
 import { ConexaoQrCode } from "./conexao-qr-code";
@@ -29,7 +29,9 @@ interface MensagemData {
 }
 
 interface Props {
-  leads: { id: string; nome: string; telefone: string; servico: string }[];
+  leads: { id: string; nome: string; telefone: string; servico: string; etapa: string | null }[];
+  /** Etapas do CRM com os nomes do filtro de etapas do CRM (pedido de 30/10). */
+  etapas: readonly { chave: string; nome: string }[];
   minhaConexao: ConexaoData | null;
   conexoesCorretores: ConexaoCorretor[];
   historico: MensagemData[];
@@ -64,7 +66,7 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, templates, servicosDisponiveis, podeGerenciarTemplates, abaInicial = "conexao", numeroInicial = null }: Props) {
+export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCorretores, historico, role, usuarioId, templates, servicosDisponiveis, etapas, podeGerenciarTemplates, abaInicial = "conexao", numeroInicial = null }: Props) {
   // Pedido de 25/10: ?aba=conversas&numero=… abre direto o chat (notificações e página do lead).
   const [activeTab, setActiveTab] = useState<Aba>(abaInicial === "conexao" && role !== "corretor" ? "conversas" : abaInicial);
   const [minhaConexao, setMinhaConexao] = useState<ConexaoData | null>(initialConexao);
@@ -76,6 +78,7 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
 
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [searchLead, setSearchLead] = useState("");
+  const [etapaFiltro, setEtapaFiltro] = useState<string>(ETAPA_TODAS);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [servicosSelecionados, setServicosSelecionados] = useState<string[]>([]);
@@ -187,11 +190,12 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
     finally { setDesconectando(false); }
   }
 
-  const filteredLeads = leads.filter(
-    (l) => !searchLead || l.nome.toLowerCase().includes(searchLead.toLowerCase()) || l.telefone.includes(searchLead)
-  );
+  // Pedido de 30/10: busca combinada com a etapa do CRM. A seleção feita antes de trocar o filtro é mantida;
+  // "Selecionar todos" e "Limpar" agem só sobre os visíveis.
+  const filteredLeads = filtrarDestinatarios(leads, searchLead, etapaFiltro);
   const idsVisiveis = filteredLeads.map((l) => l.id);
   const todosVisiveisMarcados = idsVisiveis.length > 0 && idsVisiveis.every((id) => selectedLeads.includes(id));
+  const selecao = resumoSelecao(selectedLeads, idsVisiveis);
 
   async function handleEnviar() {
     if (!mensagem.trim() || selectedLeads.length === 0) return;
@@ -199,16 +203,23 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
     setEnviando(true);
     try {
       const destinatarios = leads.filter((l) => selectedLeads.includes(l.id)).map((l) => ({ id: l.id, nome: l.nome, telefone: l.telefone, leadId: l.id }));
-      const res = await fetch("/api/whatsapp/enviar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensagem, destinatarios, extras: extrasComServicos, extrasPorLead }),
-      });
-      const data = await res.json() as { ok?: boolean; error?: string; enviadas?: number; falhas?: number };
+      // Pedido de 30/10: seleção grande (ex.: todos de uma etapa) vai em lotes; cada lead recebe a própria mensagem.
+      const data: { error?: string; enviadas: number; falhas: number } = { enviadas: 0, falhas: 0 };
+      for (const lote of lotesDeEnvio(destinatarios)) {
+        const res = await fetch("/api/whatsapp/enviar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mensagem, destinatarios: lote, extras: extrasComServicos, extrasPorLead: Object.fromEntries(lote.map((d) => [d.id, extrasPorLead[d.id]]).filter(([, v]) => v)) }),
+        });
+        const r = await res.json() as { ok?: boolean; error?: string; enviadas?: number; falhas?: number };
+        if (r.error) { data.error = data.enviadas + data.falhas > 0 ? `${r.error} (${data.enviadas} já enviada(s) antes do erro)` : r.error; break; }
+        data.enviadas += r.enviadas ?? 0; data.falhas += r.falhas ?? 0;
+      }
       if (data.error) {
         setToast({ msg: data.error, type: "error" });
+        if (data.enviadas + data.falhas > 0) setVersaoResumo((v) => v + 1);
       } else {
-        setToast({ msg: `${data.enviadas ?? 0} enviada(s)${(data.falhas ?? 0) > 0 ? `, ${data.falhas} falha(s)` : ""}`, type: (data.falhas ?? 0) > 0 ? "error" : "success" });
+        setToast({ msg: `${data.enviadas} enviada(s)${data.falhas > 0 ? `, ${data.falhas} falha(s)` : ""}`, type: data.falhas > 0 ? "error" : "success" });
         setSelectedLeads([]); setMensagem(""); setSelectedTemplate(null); setExtras({}); setServicosSelecionados([]); setDocsPorLead({}); setPrevia([]);
         setVersaoResumo((v) => v + 1);
       }
@@ -369,13 +380,15 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
           <div className={`grid grid-cols-1 lg:grid-cols-2 gap-5 ${!conexaoAtiva ? "opacity-50 pointer-events-none" : ""}`}>
             {/* Lead selection */}
             <div className="bg-white border border-gray-100 p-5">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h2 className="font-bold text-[var(--brand-dark)] text-xs uppercase tracking-widest">
                   Destinatários{selectedLeads.length > 0 && <span className="text-[var(--brand-yellow)]"> ({selectedLeads.length})</span>}
                 </h2>
-                {selectedLeads.length > 0 && (
-                  <button onClick={() => setSelectedLeads([])} className="text-xs text-red-400 hover:underline">Limpar</button>
-                )}
+                <select value={etapaFiltro} onChange={(e) => setEtapaFiltro(e.target.value)} aria-label="Filtrar por etapa do lead"
+                  className="w-full sm:w-auto max-w-full min-w-0 border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:border-[var(--brand-yellow)]">
+                  <option value={ETAPA_TODAS}>Todas as etapas</option>
+                  {etapas.map((e) => <option key={e.chave} value={e.chave}>{e.nome}</option>)}
+                </select>
               </div>
               <div className="relative mb-3">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
@@ -400,11 +413,19 @@ export function WhatsAppClient({ leads, minhaConexao: initialConexao, conexoesCo
                 })}
                 {filteredLeads.length === 0 && <p className="text-xs text-gray-600 text-center py-4">Nenhum lead encontrado.</p>}
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <button onClick={() => setSelectedLeads((s) => alternarTodosVisiveis(s, idsVisiveis))} disabled={!idsVisiveis.length}
-                  className="flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-[var(--brand-dark)] transition-colors">
-                  <Users size={12} /> {todosVisiveisMarcados ? "Desmarcar todos" : "Selecionar todos"} ({filteredLeads.length})
-                </button>
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button onClick={() => setSelectedLeads((s) => alternarTodosVisiveis(s, idsVisiveis))} disabled={!idsVisiveis.length}
+                    className="flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-[var(--brand-dark)] transition-colors">
+                    <Users size={12} /> {todosVisiveisMarcados ? "Desmarcar todos" : "Selecionar todos"} ({filteredLeads.length})
+                  </button>
+                  {selecao.visiveis > 0 && (
+                    <button onClick={() => setSelectedLeads((s) => limparVisiveis(s, idsVisiveis))} className="text-xs text-red-400 hover:underline">Limpar</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-600">
+                  {selecao.total} selecionado{selecao.total === 1 ? "" : "s"} no total{selecao.foraDoFiltro > 0 ? ` (${selecao.foraDoFiltro} fora deste filtro)` : ""}
+                </p>
               </div>
             </div>
 
