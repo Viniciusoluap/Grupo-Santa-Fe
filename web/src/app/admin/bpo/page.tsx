@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { podeAdministrarSeguranca } from "@/lib/perfis-acesso";
+import { interHabilitado } from "@/lib/bancos/inter";
 import { prisma } from "@/lib/db";
 import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
@@ -163,5 +164,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} podeRestaurar={podeRestaurar} />;
+  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} podeRestaurar={podeRestaurar} interApi={interHabilitado()} />;
 }

@@ -59,8 +59,31 @@ Arquivo gêmeo nos dois repositórios (mesmo conteúdo). Decisões do dono: `doc
 - (a) automáticos: todos passando (SF com banco local; Prospecta PGlite). (b) manuais: nenhum.
   (c) produção: aplicar migração, excluir 1–2 lançamentos de teste e restaurá-los.
 
+## Etapa 4 — Frentes antigas (auditadas; feito só o que faltava)
+
+a. **Lote B — Integrações únicas: já estava completo e igual nos dois** (auditado no código): `/admin/integracoes`
+   só admin, Asaas/Pluggy/Evolution com status, chave mascarada `…XXXX`, Testar/Trocar validando antes de salvar,
+   verificar/recuperar webhook do Asaas; nenhum campo de chave nas outras telas (BPO › Bancos e WhatsApp apontam
+   para Integrações). Nada a fazer.
+b. **Lote D — erros reais**: Asaas já mostrava motivo + dica de IP no 401 (igual nos dois). **Completado agora:**
+   `dicaAsaas` (403/404/429/5xx) e `dicaPluggy` (401 credencial inválida, 400 parâmetros, 403, 404/410 reconectar,
+   429, 5xx) em `mensagemRecusaPluggy` e nas leituras de transações/contas/token de conexão/webhook (com o motivo do
+   corpo). SF `web/src/lib/bancos/{pluggy,asaas-extrato}.ts`; Prospecta `server/_core/{pluggy,asaas-extrato}.ts`.
+   Testes: `erros-reais-bancos.test.ts` (nos dois) + ajuste de 1 asserção em `integracoes.test.ts` (nos dois).
+c. **Chaves da Prospecta (`plain:`)** — conferido só no código, sem acessar produção: `decryptSecret` aceita `plain:`;
+   Pluggy e chave por conta são recriptografadas no 1º uso (`lerSegredo` em `server/bancos.ts`); Asaas central
+   (`payment_settings`) na sincronização diária (`recriptografarConfiguracaoAsaas`); trocar pela tela
+   (Integrações › Trocar) valida no serviço e grava criptografado. Teste novo `server/chaves-plain-recripto.test.ts`.
+   **O que o dono faz (na tela, nunca pelo chat):** Configurações › Integrações → "Testar" em Asaas e Pluggy; se
+   recusar, "Trocar" e colar a chave/Client ID/Secret de novo (no Asaas, tirar a restrição de IP da chave).
+d. **Alternativa ao Pluggy**: `docs/handoffs/lote4/ALTERNATIVA-PLUGGY.md` (web bloqueada pelo proxy — preços e rotas
+   não reconferidos hoje). Recomendação: Asaas + Inter por API, Cora/C6 por OFX/CSV = R$ 0/mês. **Conector Banco
+   Inter PJ implementado nos dois, desligado por padrão (`BANCO_INTER_API=1` liga)**, com cadastro em BPO › Bancos
+   (só aparece ligado), sincronização (manual e diária), erros reais e testes simulados
+   (`banco-inter.test.ts`, `banco-inter-sync(.db).test.ts`).
+
+Testes (a) automáticos: todos os novos passando nos dois. (b) manuais: nenhum. (c) produção: Testar Asaas/Pluggy
+na tela; Inter só depois de ligado e com a integração criada pelo dono.
+
 ## Próximas etapas
-2. CSV de comissões no SF (paridade com `AdminRelatorios.tsx` da Prospecta).
-3. Restaurar exclusões em lote do BPO (nos dois).
-4. Frentes antigas (integrações únicas, erros reais Asaas/Pluggy, chaves Prospecta, alternativa ao Pluggy).
-5. Suíte completa nos dois.
+5. Suíte completa nos dois (próximo passo).

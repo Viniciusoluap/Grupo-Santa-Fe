@@ -50,7 +50,7 @@ type Transacao = { id: string; data: string; descricao: string; descricaoOrigina
 type LinhaPrevia = { data: string; descricao: string; titular?: string; original?: string; valor: number; tipo: "credito" | "debito"; jaImportada: boolean };
 type Previa = { formato: string; linhas: LinhaPrevia[]; ignoradas: number; antesDaDataInicial: number; dataInicial: string | null; saldo: { valor: number; data: string | null } | null };
 
-const PROVEDOR: Record<string, string> = { asaas: "API do Asaas", pluggy: "Pluggy (Meu Pluggy)", manual: "Importação de extrato" };
+const PROVEDOR: Record<string, string> = { asaas: "API do Asaas", pluggy: "Pluggy (Meu Pluggy)", inter: "API do Banco Inter (beta)", manual: "Importação de extrato" };
 const dataBR = (d?: string | null) => (d ? d.split("-").reverse().join("/") : "—");
 // Vercel aceita até 4,5 MB por requisição; extratos costumam ter bem menos.
 const LIMITE_ENVIO = 4 * 1024 * 1024;
@@ -71,6 +71,7 @@ export function BancosPanel({
   clientes = [],
   pluggy,
   abrirNovaConta = 0,
+  interApi = false,
 }: {
   contas: ContaBancoPainel[];
   /** LOTE C: clientes BPO para vincular a cada movimentação. */
@@ -78,6 +79,8 @@ export function BancosPanel({
   pluggy: { configured: boolean; active: boolean };
   /** Muda de valor quando o botão "Adicionar Conta" do topo do BPO é clicado. */
   abrirNovaConta?: number;
+  /** Lote 4: mostra "API do Banco Inter (beta)" no cadastro (BANCO_INTER_API=1). */
+  interApi?: boolean;
 }) {
   const router = useRouter();
   const [ocupado, startTransition] = useTransition();
@@ -113,7 +116,7 @@ export function BancosPanel({
   }
 
   // ── Nova conta (Asaas ou importação) ──
-  const vazio = { provedor: "asaas" as "asaas" | "manual", banco: "Asaas", conta: "", descricao: "", dataInicial: "" };
+  const vazio = { provedor: "asaas" as "asaas" | "manual" | "inter", banco: "Asaas", conta: "", descricao: "", dataInicial: "", clientId: "", clientSecret: "", certificado: "", chave: "", contaCorrente: "" };
   const [novaOpen, setNovaOpen] = useState(false);
   const [nova, setNova] = useState(vazio);
   const [pedidoAtendido, setPedidoAtendido] = useState(abrirNovaConta);
@@ -212,7 +215,7 @@ export function BancosPanel({
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
-                {(c.provedor === "asaas" || c.provedor === "pluggy") && (
+                {(c.provedor === "asaas" || c.provedor === "pluggy" || c.provedor === "inter") && (
                   <button className={botaoSec} disabled={ocupado}
                     onClick={() => executar(async () => exigirResultado(await sincronizarContaBancaria(c.id)), (r) => {
                       if (r.ok) toast.success(r.mensagem); else toast.error(r.mensagem);
@@ -306,8 +309,9 @@ export function BancosPanel({
         <Modal titulo="Nova conta bancária" onClose={() => setNovaOpen(false)}>
           <div>
             <label className={rotulo}>Como as movimentações chegam</label>
-            <select value={nova.provedor} onChange={(e) => { const v = e.target.value as "asaas" | "manual"; setNova((n) => ({ ...n, provedor: v, banco: v === "asaas" ? "Asaas" : "" })); }} className={campo}>
+            <select value={nova.provedor} onChange={(e) => { const v = e.target.value as "asaas" | "manual" | "inter"; setNova((n) => ({ ...n, provedor: v, banco: v === "asaas" ? "Asaas" : v === "inter" ? "Inter" : "" })); }} className={campo}>
               <option value="asaas">API do Asaas (automático)</option>
+              {interApi && <option value="inter">API do Banco Inter PJ (beta, automático)</option>}
               <option value="manual">Importação de extrato (Cora, C6, Inter ou outro)</option>
             </select>
             <p className={ajuda}>Contas do Meu Pluggy entram pelo quadro &quot;Pluggy&quot; abaixo.</p>
@@ -317,6 +321,18 @@ export function BancosPanel({
             <div><label className={rotulo}>Conta</label><input value={nova.conta} onChange={(e) => setNova((n) => ({ ...n, conta: e.target.value }))} className={campo} /></div>
             <div><label className={rotulo}>Descrição</label><input value={nova.descricao} onChange={(e) => setNova((n) => ({ ...n, descricao: e.target.value }))} className={campo} placeholder="ex.: Conta PJ" /></div>
           </div>
+          {nova.provedor === "inter" && (
+            <div className="space-y-2 border border-gray-200 p-3">
+              <p className={ajuda}>Internet Banking PJ do Inter › Integrações: crie a integração com &quot;Consultar extrato e saldo&quot; e baixe o certificado (.crt) e a chave (.key). Tudo é validado no Inter e salvo criptografado.</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div><label className={rotulo}>Client ID *</label><input value={nova.clientId} onChange={(e) => setNova((n) => ({ ...n, clientId: e.target.value }))} className={campo} autoComplete="off" /></div>
+                <div><label className={rotulo}>Client Secret *</label><input type="password" value={nova.clientSecret} onChange={(e) => setNova((n) => ({ ...n, clientSecret: e.target.value }))} className={campo} autoComplete="off" /></div>
+              </div>
+              <div><label className={rotulo}>Certificado (.crt) *</label><textarea rows={3} value={nova.certificado} onChange={(e) => setNova((n) => ({ ...n, certificado: e.target.value }))} className={`${campo} font-mono text-xs`} placeholder="-----BEGIN CERTIFICATE-----" /></div>
+              <div><label className={rotulo}>Chave privada (.key) *</label><textarea rows={3} value={nova.chave} onChange={(e) => setNova((n) => ({ ...n, chave: e.target.value }))} className={`${campo} font-mono text-xs`} placeholder="-----BEGIN PRIVATE KEY-----" /></div>
+              <div><label className={rotulo}>Conta corrente (só se a integração tiver mais de uma)</label><input value={nova.contaCorrente} onChange={(e) => setNova((n) => ({ ...n, contaCorrente: e.target.value }))} className={campo} /></div>
+            </div>
+          )}
           {nova.provedor === "asaas" && (
             <p className={ajuda}>
               Usa a chave do Asaas configurada em <Link href="/admin/integracoes" className="underline font-bold">Configurações › Integrações</Link>.
@@ -331,6 +347,7 @@ export function BancosPanel({
             onClick={() => executar(async () => exigirResultado(await criarContaBancaria({
               provedor: nova.provedor, banco: nova.banco, conta: nova.conta || undefined, descricao: nova.descricao || undefined,
               dataInicial: nova.dataInicial || null,
+              ...(nova.provedor === "inter" ? { inter: { clientId: nova.clientId, clientSecret: nova.clientSecret, certificado: nova.certificado, chave: nova.chave, contaCorrente: nova.contaCorrente || null } } : {}),
             })), () => { toast.success("Conta cadastrada."); setNovaOpen(false); setNova(vazio); })}>
             {ocupado ? "Validando..." : "Cadastrar conta"}
           </button>

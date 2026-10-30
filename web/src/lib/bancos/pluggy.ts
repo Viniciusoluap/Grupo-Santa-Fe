@@ -84,13 +84,29 @@ export async function autenticarPluggyDetalhado(clientId: string, clientSecret: 
   return { ok: true, token: data.apiKey };
 }
 
-/** Texto para a tela: "A Pluggy recusou (HTTP x): <mensagem>" + dica quando é o plano gratuito/trial. */
+/**
+ * Lote 4 (30/10): o que o status HTTP da Pluggy quer dizer, em português, para a tela.
+ * Mesma regra nos dois sistemas (Prospecta server/_core/pluggy.ts · Santa Fé web/src/lib/bancos/pluggy.ts).
+ */
+export function dicaPluggy(status: number | null): string {
+  if (status === null) return "";
+  if (status === 401) return " Credencial inválida: o Client ID ou o Client Secret está errado, expirou ou foi revogado — cole de novo em Configurações › Integrações (sem espaços).";
+  if (status === 403) return " Acesso negado: a credencial não tem permissão para esta operação (confira o plano/projeto na Pluggy).";
+  if (status === 400) return " Pedido recusado por parâmetros inválidos — não é problema da credencial; envie esta mensagem ao suporte do sistema.";
+  if (status === 404) return " Conexão/conta não encontrada na Pluggy — reconecte a conta pelo Meu Pluggy (BPO › Bancos).";
+  if (status === 410) return " A conexão com o banco expirou ou foi desfeita — reconecte pelo Meu Pluggy (BPO › Bancos).";
+  if (status === 429) return " Limite de chamadas da Pluggy atingido — tente de novo em alguns minutos.";
+  if (status >= 500) return " A Pluggy está instável no momento — tente novamente mais tarde.";
+  return "";
+}
+
+/** Texto para a tela: "A Pluggy recusou (HTTP x): <mensagem>" + dica pelo status ou pelo plano gratuito/trial. */
 export function mensagemRecusaPluggy(status: number | null, mensagem: string): string {
   if (status === null) return `Não consegui falar com a Pluggy: ${mensagem}`;
   const base = `A Pluggy recusou (HTTP ${status}): ${mensagem}`;
   return /trial|subscription|assinatura|plano|plan\b/i.test(mensagem)
     ? `${base} — o plano gratuito da Pluggy não libera a API; use Importar extrato.`
-    : base;
+    : `${base}.${dicaPluggy(status)}`;
 }
 
 /** Compatibilidade: token ou null (sem detalhe). Para o motivo, use autenticarPluggyDetalhado. */
@@ -131,7 +147,7 @@ export async function fetchPluggyTransactions(
     if (!res.ok) {
       const detalhe = await detalheErro(res);
       const diagnostico = res.status === 410 ? await diagnosticarItem(token, itemId, fetchImpl) : "";
-      throw new Error(`A Pluggy recusou a leitura das transações (HTTP ${res.status}${detalhe}).${diagnostico}`);
+      throw new Error(`A Pluggy recusou a leitura das transações (HTTP ${res.status}${detalhe}).${diagnostico}${dicaPluggy(res.status)}`);
     }
     const data = (await res.json()) as {
       next?: string | null;
@@ -177,7 +193,7 @@ export async function fetchPluggyAccountBalance(token: string, accountId: string
 /** Contas de uma conexão (item) — usado para cadastrar sozinho as contas do Meu Pluggy. */
 export async function fetchPluggyItemAccounts(token: string, itemId: string, fetchImpl: Fetch = fetch): Promise<PluggyAccount[]> {
   const res = await fetchImpl(`${PLUGGY_API}/accounts?itemId=${encodeURIComponent(itemId)}`, { headers: { "X-API-KEY": token } });
-  if (!res.ok) throw new Error(`A Pluggy não encontrou a conexão informada (HTTP ${res.status}).`);
+  if (!res.ok) throw new Error(`A Pluggy não encontrou a conexão informada (HTTP ${res.status}${await detalheErro(res)}).${dicaPluggy(res.status)}`);
   const data = (await res.json()) as {
     results: { id: string; name?: string; marketingName?: string; number?: string; type?: string; subtype?: string; balance?: number }[];
   };
@@ -205,7 +221,7 @@ export async function createPluggyConnectToken(token: string, fetchImpl: Fetch =
     headers: { "Content-Type": "application/json", "X-API-KEY": token },
     body: JSON.stringify({}),
   });
-  if (!res.ok) throw new Error(`A Pluggy não liberou a conexão (HTTP ${res.status}).`);
+  if (!res.ok) throw new Error(`A Pluggy não liberou a conexão (HTTP ${res.status}${await detalheErro(res)}).${dicaPluggy(res.status)}`);
   const data = (await res.json()) as { accessToken?: string };
   if (!data.accessToken) throw new Error("A Pluggy não devolveu o token de conexão.");
   return data.accessToken;
@@ -226,6 +242,6 @@ export async function garantirWebhookPluggy(token: string, url: string, segredo:
     headers: { "Content-Type": "application/json", "X-API-KEY": token },
     body: JSON.stringify({ event: "all", url, headers: { "x-webhook-token": segredo } }),
   });
-  if (!res.ok) throw new Error(`A Pluggy não aceitou o aviso em tempo real (HTTP ${res.status}).`);
+  if (!res.ok) throw new Error(`A Pluggy não aceitou o aviso em tempo real (HTTP ${res.status}${await detalheErro(res)}).${dicaPluggy(res.status)}`);
   return "criado";
 }
