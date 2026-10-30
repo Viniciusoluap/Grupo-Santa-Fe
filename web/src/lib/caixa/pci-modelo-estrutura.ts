@@ -152,6 +152,14 @@ const opcoesLegiveis = (o: string[] | null, referencia: string | null = null) =>
 const semEspacos = (o: readonly string[] | null) => (o ?? []).map((x) => x.trim());
 const iguais = (a: readonly string[] | null, b: readonly string[] | null) => JSON.stringify(a) === JSON.stringify(b);
 
+/** Opções legíveis nos dois lados → compara o conteúdo; senão, a referência e a quantidade de opções. */
+const listaMudou = (x: ListaEstruturaPci, l: ListaEstruturaPci, ignorarEspacos = false) =>
+  opcoesLegiveis(x.opcoes, x.referencia) && opcoesLegiveis(l.opcoes, l.referencia)
+    ? !(ignorarEspacos ? iguais(semEspacos(x.opcoes), semEspacos(l.opcoes)) : iguais(x.opcoes, l.opcoes))
+    : x.referencia !== l.referencia || (x.opcoes?.length ?? 0) !== (l.opcoes?.length ?? 0);
+/** "Aba!intervalo" normalizado (sem "$", partes em ordem) para comparar .xls com .xlsm. */
+const chaveListaNormalizada = (l: ListaEstruturaPci) => `${l.aba}!${l.intervalo.replace(/\$/g, "").split(/\s+/).filter(Boolean).sort().join(" ")}`;
+
 /** Intervalo "AI47:AJ47 Q63:V66" cobre a célula "AI47"? */
 function cobre(intervalo: string, celula: string): boolean {
   const pos = (e: string) => {
@@ -198,7 +206,7 @@ export function compararEstruturasPci(anterior: { versao: number; estrutura: Est
       for (const [k, l] of Array.from(depois)) {
         const x = antes.get(k);
         if (!x) r.listasAdicionadas.push(k);
-        else if (opcoesLegiveis(x.opcoes, x.referencia) && opcoesLegiveis(l.opcoes, l.referencia) ? !iguais(x.opcoes, l.opcoes) : x.referencia !== l.referencia || (x.opcoes?.length ?? 0) !== (l.opcoes?.length ?? 0)) {
+        else if (listaMudou(x, l)) {
           r.listasAlteradas.push({ lista: k, antes: x.opcoes, depois: l.opcoes });
         }
       }
@@ -241,7 +249,11 @@ export function compararEstruturasPci(anterior: { versao: number; estrutura: Est
 
 /**
  * Uma versão .xls serve de base de saída para um modelo .xlsm/.xlsb se tiver as
- * mesmas abas da proposta/PLS e as mesmas células-chave como entrada.
+ * mesmas abas da proposta/PLS, as mesmas células-chave como entrada e — quando o
+ * modelo traz listas legíveis (.xlsm) — as mesmas listas de validação (mesmas
+ * células e opções). Revisão do PR #242 (P2): sem isso, uma base .xls com listas
+ * antigas era aceita e a PCI saía com opções diferentes das do modelo atual. O
+ * .xlsb não expõe as listas: nele vale só a comparação de abas/células.
  */
 export function xlsCompativelCom(xls: EstruturaModeloPci, referencia: EstruturaModeloPci): boolean {
   if (xls.formato !== "xls") return false;
@@ -250,6 +262,14 @@ export function xlsCompativelCom(xls: EstruturaModeloPci, referencia: EstruturaM
     // .xlsb não distingue fórmula: só exige que a célula presente lá exista como entrada no .xls.
     const noXls = xls.celulas[celula] ?? "ausente";
     if (referencia.formato === "xlsb" ? estado === "entrada" && noXls === "ausente" : estado !== noXls) return false;
+  }
+  if (referencia.listas) {
+    if (!xls.listas || xls.listas.length !== referencia.listas.length) return false;
+    const doXls = new Map(xls.listas.map((l) => [chaveListaNormalizada(l), l]));
+    for (const l of referencia.listas) {
+      const x = doXls.get(chaveListaNormalizada(l));
+      if (!x || listaMudou(x, l, true)) return false;
+    }
   }
   return true;
 }
