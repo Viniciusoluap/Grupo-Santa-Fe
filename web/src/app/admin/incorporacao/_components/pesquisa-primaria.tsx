@@ -15,6 +15,7 @@ import {
 import { salvarPesquisaPrimaria } from "@/lib/actions/incorporacao";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
+import { formatArea } from "@/lib/utils";
 
 // Pesquisa primária com compradores — questionário aplicado a potenciais
 // clientes (metodologia Carolina Caribé), complementando a pesquisa de
@@ -151,7 +152,7 @@ export function PesquisaPrimaria({ estudo }: { estudo: EstudoData }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Kpi label="Entrevistados" valor={String(resumo.totalEntrevistados)} />
           <Kpi label="Interesse em comprar (12m)" valor={`${resumo.pctInteresseComprar12Meses}%`} />
-          <Kpi label="Tamanho ideal médio" valor={`${resumo.tamanhoIdealMedioM2} m²`} />
+          <Kpi label="Tamanho ideal médio" valor={formatArea(resumo.tamanhoIdealMedioM2)} />
           <Kpi label="Quartos mais pedidos" valor={resumo.quartosModaNecessarios ? String(resumo.quartosModaNecessarios) : "—"} destaque />
         </div>
       )}

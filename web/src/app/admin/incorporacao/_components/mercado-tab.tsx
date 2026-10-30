@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TrendingUp, Sparkles, Loader2, Save } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatArea, formatCurrency } from "@/lib/utils";
 import { salvarMercado } from "@/lib/actions/incorporacao";
 import { PrecificacaoComparaveis } from "./precificacao-comparaveis";
 import { PesquisaPrimaria } from "./pesquisa-primaria";
@@ -152,7 +152,7 @@ export function MercadoTab({ estudo }: { estudo: EstudoData }) {
                     <div key={i} className="flex justify-between gap-2">
                       <span className="text-gray-600 text-xs">{c.descricao}</span>
                       <span className="font-bold text-[var(--brand-dark)] text-xs shrink-0">
-                        {formatCurrency(c.preco)} · {c.area}m² · {formatCurrency(c.precoPorM2)}/m²
+                        {formatCurrency(c.preco)} · {formatArea(Number(c.area))} · {formatCurrency(c.precoPorM2)}/m²
                       </span>
                     </div>
                   ))}

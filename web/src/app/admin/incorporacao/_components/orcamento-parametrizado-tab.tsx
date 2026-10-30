@@ -8,7 +8,7 @@ import {
   type PremissasOrcamentoParametrizado,
 } from "@/lib/orcamento/parametrizado";
 import { salvarOrcamentoParametrizado } from "@/lib/actions/incorporacao";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatArea } from "@/lib/utils";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import { urbanismoDoCenario } from "@/lib/incorporacao/premissas-loteamento";
 import { OrcamentoImportacao } from "./orcamento-importacao";
@@ -129,7 +129,7 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
                   <td className="px-1 py-1"><input value={it.pavimento} onChange={(e) => updItem(i, "pavimento", e.target.value)} className={inputCls} placeholder="Ex.: Torre A" /></td>
                   <td className="px-1 py-1"><NumeroBRField value={it.areaM2} onValueChange={(v) => updItem(i, "areaM2", v)} className={numCls} /></td>
                   <td className="px-1 py-1"><NumeroBRField value={it.coeficienteEquivalencia} onValueChange={(v) => updItem(i, "coeficienteEquivalencia", v)} decimals={4} className={numCls} /></td>
-                  <td className="px-1 py-1 text-right text-gray-600">{Math.round(it.areaM2 * it.coeficienteEquivalencia).toLocaleString("pt-BR")} m²</td>
+                  <td className="px-1 py-1 text-right text-gray-600">{formatArea(it.areaM2 * it.coeficienteEquivalencia)}</td>
                   <td className="px-1 py-1">
                     <button type="button" onClick={() => removerItem(i)} className="text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
                   </td>
@@ -158,8 +158,8 @@ export function OrcamentoParametrizadoTab({ estudo }: { estudo: EstudoData }) {
       </>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Área total" valor={`${Math.round(resultado.areaTotalM2).toLocaleString("pt-BR")} m²`} />
-        <Kpi label="Área equivalente total" valor={`${Math.round(resultado.areaEquivalenteTotalM2).toLocaleString("pt-BR")} m²`} />
+        <Kpi label="Área total" valor={formatArea(resultado.areaTotalM2)} />
+        <Kpi label="Área equivalente total" valor={formatArea(resultado.areaEquivalenteTotalM2)} />
         <Kpi label="Custo de obra base" valor={formatCurrency(resultado.custoObraBase)} />
         <Kpi label="Custo total" valor={formatCurrency(resultado.custoTotal)} />
         <Kpi label="Custo/m² real (p/ Viabilidade)" valor={formatCurrency(resultado.custoM2Real)} destaque />

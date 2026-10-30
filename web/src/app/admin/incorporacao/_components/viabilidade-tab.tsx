@@ -26,7 +26,7 @@ import {
   custosPorAno,
 } from "@/lib/pdf/loteamento";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatArea } from "@/lib/utils";
 import { NumeroInput } from "@/components/ui/numero-input";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { EstudoData } from "./incorporacao-detail";
@@ -78,7 +78,7 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 }
 
 function fmtM2(v: number) {
-  return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
+  return formatArea(v);
 }
 
 function fmtPct(v: number, casas = 1) {
@@ -231,7 +231,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         </button>
         <p className="text-[11px] text-gray-600 mt-2">
           Capacidade estimada do terreno com o tamanho médio atual do mix: <b>{urb.capacidadeEstimadaUnidades.toLocaleString("pt-BR")} unidades</b>
-          {" "}({fmtM2(urb.areaVendavelM2)} vendável ÷ {r.mix.totalUnidades > 0 ? Math.round(r.mix.areaVendidaM2 / r.mix.totalUnidades) : 0} m² médios por unidade).
+          {" "}({fmtM2(urb.areaVendavelM2)} vendável ÷ {formatArea(r.mix.totalUnidades > 0 ? r.mix.areaVendidaM2 / r.mix.totalUnidades : 0)} médios por unidade).
         </p>
       </div>
 
