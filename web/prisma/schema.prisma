@@ -823,15 +823,19 @@ model BpoContaLimpezaBackup {
 
 /// Lote 3, item 16: backup recuperável das exclusões em lote de cobranças/despesas.
 model BpoLancamentoExclusaoBackup {
-  id                 String   @id @default(cuid())
-  modo               String // selecionados | tudo
-  aba                String // cobrancas | despesas
-  filtrosJson        String   @default("{}")
-  quantidade         Int
-  protegidos         Int      @default(0)
-  snapshotJson       String
-  criadoPorUsuarioId String?
-  criadoEm           DateTime @default(now())
+  id                     String    @id @default(cuid())
+  modo                   String // selecionados | tudo
+  aba                    String // cobrancas | despesas
+  filtrosJson            String    @default("{}")
+  quantidade             Int
+  protegidos             Int       @default(0)
+  snapshotJson           String
+  criadoPorUsuarioId     String?
+  criadoEm               DateTime  @default(now())
+  /// Lote 4: restauração a partir do backup (uma vez só; resumo em JSON).
+  restauradoEm           DateTime?
+  restauradoPorUsuarioId String?
+  restauracaoJson        String?
 
   @@index([criadoEm])
   @@map("bpo_lancamento_exclusoes_backup")
@@ -1712,24 +1716,24 @@ model PciGeradorRascunho {
 
 /// PCI gerada (histórico por obra): dados do formulário, planilha e PDF.
 model PciGerada {
-  id              String     @id @default(cuid())
-  obraId          String
-  obra            Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  modeloId        String?
-  modelo          PciModelo? @relation(fields: [modeloId], references: [id], onDelete: SetNull)
-  modeloVersao    Int
-  dados           Json       @db.JsonB
-  avisos          Json       @default("[]") @db.JsonB
-  planilhaNome    String     @db.VarChar(255)
-  planilhaFormato String     @db.VarChar(5)
-  planilha        Bytes
-  pdfNome         String     @db.VarChar(255)
-  pdf             Bytes
+  id                  String     @id @default(cuid())
+  obraId              String
+  obra                Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  modeloId            String?
+  modelo              PciModelo? @relation(fields: [modeloId], references: [id], onDelete: SetNull)
+  modeloVersao        Int
+  dados               Json       @db.JsonB
+  avisos              Json       @default("[]") @db.JsonB
+  planilhaNome        String     @db.VarChar(255)
+  planilhaFormato     String     @db.VarChar(5)
+  planilha            Bytes
+  pdfNome             String     @db.VarChar(255)
+  pdf                 Bytes
   /// Pedido de 29/10: cópias em Obras/<Obra>/Gerador de PCI.
   planilhaDriveFileId String?
   pdfDriveFileId      String?
-  criadoPorId     String?
-  criadoEm        DateTime   @default(now())
+  criadoPorId         String?
+  criadoEm            DateTime   @default(now())
 
   @@index([obraId, criadoEm])
   @@map("pci_geradas")
