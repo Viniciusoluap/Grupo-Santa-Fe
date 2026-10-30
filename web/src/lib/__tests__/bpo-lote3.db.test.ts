@@ -109,6 +109,23 @@ describe.skipIf(!url)("Lote 3 — BPO (banco real)", () => {
     expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: r.novaId } })).toMatchObject({ pago: true });
   });
 
+  it("revisão PR #180 (P2, paridade): vincular/editar lançamento do extrato leva o cliente para a movimentação; reclassificar em Bancos mantém", async () => {
+    const conta = await prisma.contaBancaria.create({ data: { banco: `${MARCA} Cora`, conta: "2" } });
+    const t = await prisma.transacaoBancaria.create({ data: { contaId: conta.id, data: new Date(), descricao: "Pix", valor: 10, tipo: "credito" } });
+    const l = await novo("Pix extrato", { transacaoId: t.id, valor: 10, pago: true, valorRecebido: 10 });
+    const cli1 = await prisma.bpoCliente.create({ data: { razaoSocial: `${MARCA} Um`, responsavel: "x", telefone: "1", honorarios: 0, diaVencimento: 10, dataInicio: new Date() } });
+    const cli2 = await prisma.bpoCliente.create({ data: { razaoSocial: `${MARCA} Dois`, responsavel: "x", telefone: "1", honorarios: 0, diaVencimento: 10, dataInicio: new Date() } });
+    const r = await vinculo.vincularClienteLancamento({ id: l.id, version: l.version, clienteId: cli1.id });
+    if ("erro" in r) throw new Error(r.erro);
+    expect((await prisma.transacaoBancaria.findUniqueOrThrow({ where: { id: t.id } })).bpoClienteId).toBe(cli1.id);
+    const { classificarTransacao } = await import("@/lib/bancos/lancamentos-bpo");
+    await classificarTransacao(t.id, { categoria: "Outros" });
+    expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: l.id } })).toMatchObject({ clienteId: cli1.id, categoria: "Outros" });
+    const atual = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: l.id } });
+    await bpo.editarLancamentoBpo({ id: l.id, version: atual.version, motivo: "troca", descricao: atual.descricao, valor: 10, competencia: "2026-10", vencimento: "2026-10-10T12:00:00Z", clienteId: cli2.id });
+    expect((await prisma.transacaoBancaria.findUniqueOrThrow({ where: { id: t.id } })).bpoClienteId).toBe(cli2.id);
+  });
+
   it("item 17: um único candidato forte (telefone) é sugerido; confirmar cria cliente do lead sem duplicar e audita", async () => {
     const lead = await prisma.lead.create({ data: { nome: `${MARCA} Maria`, telefone: "(91) 98888-7777", servico: "obras" } });
     const l = await novo("Pix 91988887777", { clienteNomeLivre: `${MARCA} Maria S` });

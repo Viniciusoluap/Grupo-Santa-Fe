@@ -278,6 +278,8 @@ export async function editarLancamentoBpo(input: {
     } });
     if (!result.count) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     const depois = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: input.id } });
+    // Revisão do PR #180 (P2, paridade): lançamento do extrato — a movimentação de origem acompanha o cliente.
+    if (depois.transacaoId && depois.clienteId !== antes.clienteId) await tx.transacaoBancaria.update({ where: { id: depois.transacaoId }, data: { bpoClienteId: depois.clienteId } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: input.id, lancamentoReferencia: input.id,
       versaoAnterior: antes.version, alteradoPorUsuarioId: usuarioId, motivo: input.motivo.trim(),
       antesJson: JSON.stringify(antes), depoisJson: JSON.stringify(depois) } });

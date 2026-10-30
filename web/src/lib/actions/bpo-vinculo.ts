@@ -114,6 +114,9 @@ async function vincular(input: { id: string; version: number; motivo: string } &
     }
     const r = await tx.bpoLancamento.updateMany({ where: { id: antes.id, version: antes.version, combinadaEmId: null }, data: { clienteId, clienteNomeLivre: null, version: { increment: 1 } } });
     if (!r.count) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
+    // Revisão do PR #180 (P2, paridade): lançamento vindo do extrato — a movimentação de origem passa a apontar
+    // para o mesmo cliente (a tela Bancos e a reconstrução do lançamento leem o cliente da movimentação).
+    if (antes.transacaoId) await tx.transacaoBancaria.update({ where: { id: antes.transacaoId }, data: { bpoClienteId: clienteId } });
     const depois = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: antes.id } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: antes.id, lancamentoReferencia: antes.id, versaoAnterior: antes.version, alteradoPorUsuarioId: usuarioId, motivo: `Vínculo com cliente do CRM: ${input.motivo}`.slice(0, 1000), antesJson: JSON.stringify(antes), depoisJson: JSON.stringify(depois) } });
     return { lancamentoId: antes.id, clienteId: clienteId!, clienteCriado: criado, version: depois.version };
