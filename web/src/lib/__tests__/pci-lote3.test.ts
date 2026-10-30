@@ -175,6 +175,28 @@ describe("10 — saída .xls, listas (DV) e compatibilidade de versões", () => 
     expect(critico.criticas.join(" ")).toMatch(/AI166 deixou de ser campo de entrada/);
   });
 
+  it("revisão PR #242 (P2): base .xls só é compatível se as listas legíveis forem iguais (mesmas células e opções)", () => {
+    const e = lerEstruturaModeloPci(MODELO, "xls");
+    const listas = e.listas!;
+    const i = listas.findIndex((l) => l.opcoes && l.opcoes.length > 1 && l.opcoes.every((o) => o.trim() !== "" && o !== "0"));
+    expect(i).toBeGreaterThanOrEqual(0);
+    const comListas = (ls: typeof listas) => ({ ...e, formato: "xlsm" as const, listas: ls });
+    // Mesmas listas, intervalo escrito com "$" e partes em outra ordem: compatível.
+    const reescritas = listas.map((l) => ({ ...l, intervalo: l.intervalo.split(/\s+/).reverse().map((p) => p.replace(/([A-Z]+)(\d+)/g, "$$$1$$$2")).join(" ") }));
+    expect(xlsCompativelCom(e, comListas(reescritas))).toBe(true);
+    // Opção diferente numa lista legível: incompatível.
+    const opcaoNova = listas.map((l, j) => (j === i ? { ...l, opcoes: [...l.opcoes!.slice(0, -1), "Opção nova"] } : l));
+    expect(xlsCompativelCom(e, comListas(opcaoNova))).toBe(false);
+    // Lista em outra célula, lista a mais ou a menos: incompatível.
+    expect(xlsCompativelCom(e, comListas(listas.map((l, j) => (j === i ? { ...l, intervalo: "ZZ999" } : l))))).toBe(false);
+    expect(xlsCompativelCom(e, comListas(listas.filter((_, j) => j !== i)))).toBe(false);
+    expect(xlsCompativelCom(e, comListas([...listas, { aba: listas[i].aba, intervalo: "ZZ998", opcoes: ["A", "B"], referencia: null }]))).toBe(false);
+    // Base .xls sem listas legíveis contra modelo com listas: incompatível.
+    expect(xlsCompativelCom({ ...e, listas: null }, comListas(listas))).toBe(false);
+    // .xlsb não expõe as listas: segue valendo só abas/células.
+    expect(xlsCompativelCom(e, { ...e, formato: "xlsb", listas: null })).toBe(true);
+  });
+
   it(".xlsm: lê dataValidations do XML; aba PLS ausente é mudança crítica", () => {
     const sheet = `<worksheet><sheetData><row r="98"><c r="G98" t="inlineStr"><is><t>x</t></is></c></row><row r="2"><c r="BA2" t="inlineStr"><is><t>Forro</t></is></c></row></sheetData>`
       + `<dataValidations count="2"><dataValidation type="list" allowBlank="1" sqref="O74"><formula1>"Residencial,Comercial"</formula1></dataValidation>`
