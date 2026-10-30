@@ -115,6 +115,8 @@ interface Props {
   pluggy: { configured: boolean; active: boolean };
   abaInicial?: "bancos";
   relatorios: RelatoriosData;
+  /** Lote 4: admin vê "Exclusões em lote" (restaurar a partir do backup). */
+  podeRestaurar?: boolean;
 }
 
 type Aba = "cobracas" | "despesas" | "dre" | "bancos" | "relatorios" | "contabilidade";
@@ -394,7 +396,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dreCelulas, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dreCelulas, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios, podeRestaurar = false }: Props) {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
@@ -768,7 +770,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
           </div>
           <BarraLote aba="cobrancas" visiveis={cobracasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
             filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter, tipo: tipoFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
-            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} />
+            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} podeRestaurar={podeRestaurar} />
           {renderLancamentoTable(cobracasFiltered)}
         </div>
       )}
@@ -808,7 +810,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
           </div>
           <BarraLote aba="despesas" visiveis={despesasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
             filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter === "parciais" ? "todas" : statusFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
-            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} />
+            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} podeRestaurar={podeRestaurar} />
           {renderLancamentoTable(despesasFiltered)}
         </div>
       )}

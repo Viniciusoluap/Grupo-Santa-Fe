@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { exigirModuloPagina } from "@/lib/auth/modulos";
+import { podeAdministrarSeguranca } from "@/lib/perfis-acesso";
 import { prisma } from "@/lib/db";
 import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
@@ -10,7 +11,9 @@ import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
 import { carregarIndicadoresRelatorios, periodoDosParametros } from "@/lib/financeiro/relatorios-bpo-dados";
 
 export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string; relDe?: string; relAte?: string }> }) {
-  await exigirModuloPagina("bpo");
+  const usuario = await exigirModuloPagina("bpo");
+  // Lote 4: "Restaurar" exclusões em lote é só do administrador (igual ao "Excluir tudo").
+  const podeRestaurar = podeAdministrarSeguranca(usuario);
   // Lote 03 (paridade com a Prospecta): filtro De/Até dos indicadores 14/18 da aba Relatórios.
   const { relDe, relAte } = await searchParams;
   const catalogoOperacional = await catalogoOperacionalBpo();
@@ -160,5 +163,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} podeRestaurar={podeRestaurar} />;
 }

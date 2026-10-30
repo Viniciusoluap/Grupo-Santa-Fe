@@ -35,6 +35,30 @@ Arquivo gêmeo nos dois repositórios (mesmo conteúdo). Decisões do dono: `doc
 - Testes: SF `web/src/lib/__tests__/comissoes-exportacao-csv.test.ts`; Prospecta `server/comissoes-csv.test.ts`.
 - (a) automáticos: passando; tsc/pnpm check OK. (b) manuais: nenhum. (c) produção: baixar o CSV e abrir no Excel.
 
+## Etapa 3 — "Restaurar" exclusões em lote do BPO — CONCLUÍDA (nos dois)
+
+- Tela: na barra de lote de Cobranças/Despesas, botão **"Exclusões em lote"** (SF: só aparece para admin;
+  Prospecta: toda a tela BPO já é admin) → lista (data, usuário, aba, quantidade, situação) → **"Restaurar"** →
+  prévia (o que volta, o que já existe, avisos) → confirmação digitando `RESTAURAR` → transação.
+- Regras (função pura igual nos dois: SF `web/src/lib/bpo-restauracao.ts`, Prospecta `shared/financeiro/bpo-restauracao.ts`):
+  - volta com o mesmo ID; lançamento cujo ID já existe não é recriado (sem duplicar);
+  - uma vez só por backup (`restaurado_em/por` + `restauracao_json`; trava `pg_advisory_xact_lock` + update condicional);
+  - cliente BPO apagado → volta sem `clienteId` e com o nome como texto (aviso); registro operacional apagado
+    (obra/projeto/comissão…) → volta sem o vínculo (aviso); chave única (`requestKey`/`origemTransacaoKey`) já reutilizada → volta sem ela (aviso);
+  - Asaas/extrato/combinação continuam vazios (eram vazios por regra da exclusão);
+  - `version` +1 e histórico por lançamento ("Restaurado da exclusão em lote (backup …)", usuário e data).
+- Servidor: SF `web/src/lib/actions/bpo-lote.ts` (`listarExclusoesEmLote`, `previaRestauracaoExclusao`, `restaurarExclusaoEmLote`, todas `exigirAdminAtivo`);
+  Prospecta `server/bpo-restauracao.ts` + rotas `bpo.lancamentos.exclusoesEmLote/previaRestauracao/restaurarExclusao` (adminProcedure).
+- UI: SF `web/src/app/admin/bpo/_components/barra-lote.tsx` (+ `podeRestaurar` em `page.tsx`/`bpo-client.tsx`); Prospecta `client/src/components/bpo/LoteLancamentos.tsx`.
+- **Migrações (aditivas, NÃO aplicadas em produção):** SF `web/prisma/migrations/20261030120000_bpo_restaurar_exclusoes/migration.sql`;
+  Prospecta `drizzle/0097_bpo_restaurar_exclusoes.sql`. **Atenção: aplicar a migração ANTES do deploy** — o ORM dos dois
+  lados passa a ler/gravar as colunas novas do backup; sem elas, a própria exclusão em lote falha.
+- Testes: SF `bpo-restaurar-exclusao.db.test.ts` (banco `santafe_l9`) e `bpo-restauracao.test.ts`; Prospecta
+  `server/bpo-restauracao.test.ts` (PGlite, aplica 0097 duas vezes) e `server/bpo-restauracao-regra.test.ts`;
+  `server/bpo-lote3.test.ts` passou a aplicar 0097.
+- (a) automáticos: todos passando (SF com banco local; Prospecta PGlite). (b) manuais: nenhum.
+  (c) produção: aplicar migração, excluir 1–2 lançamentos de teste e restaurá-los.
+
 ## Próximas etapas
 2. CSV de comissões no SF (paridade com `AdminRelatorios.tsx` da Prospecta).
 3. Restaurar exclusões em lote do BPO (nos dois).

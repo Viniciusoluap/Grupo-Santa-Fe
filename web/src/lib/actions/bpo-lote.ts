@@ -203,7 +203,7 @@ export async function previaRestauracaoExclusao(backupId: string) {
     return {
       backupId: b.id, aba: b.aba, criadoEm: b.criadoEm.toISOString(), restauradoEm: b.restauradoEm?.toISOString() ?? null,
       restaurar: plano.restaurar, jaExistem: plano.jaExistem, comAviso: plano.comAviso,
-      itens: plano.itens.map(({ dados: _dados, ...i }) => i),
+      itens: plano.itens.map((i) => ({ id: i.id, descricao: i.descricao, valor: i.valor, vencimento: i.vencimento, clienteNome: i.clienteNome, acao: i.acao, avisos: i.avisos })),
     };
   } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao calcular a prévia." }; }
 }
