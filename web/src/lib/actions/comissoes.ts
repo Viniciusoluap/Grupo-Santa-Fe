@@ -4,6 +4,7 @@ import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { capturarErroAcao } from "@/lib/acao-resultado";
+import { linhasExportacaoComissoes, montarCsvComissoes, nomeArquivoCsvComissoes } from "@/lib/comissoes/exportacao-csv";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -97,4 +98,23 @@ export async function alterarStatusComissao(id: string, status: string) {
     },
   });
   revalidatePath("/admin/comissoes");
+}
+
+/**
+ * Exportação CSV de comissões (paridade com "Exportar CSV (Comissões)" da
+ * Prospecta): todas as comissões cadastradas, ordenadas pelo vencimento.
+ * Só a equipe (admin/colaborador com o módulo) — o corretor só consulta.
+ */
+export async function exportarComissoesCsv() {
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("comissoes", { somenteEquipe: true });
+    const rows = await prisma.comissao.findMany({
+      orderBy: { vencimento: "asc" },
+      select: {
+        beneficiario: true, imovel: true, valor: true, status: true,
+        vencimento: true, pagamentoEm: true, corretor: { select: { nome: true } },
+      },
+    });
+    return { nomeArquivo: nomeArquivoCsvComissoes(), csv: montarCsvComissoes(linhasExportacaoComissoes(rows)) };
+  });
 }

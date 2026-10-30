@@ -22,6 +22,19 @@ Arquivo gêmeo nos dois repositórios (mesmo conteúdo). Decisões do dono: `doc
 - (b) manuais: nenhum.
 - (c) produção: conferir visualmente uma aba de Incorporação e o PDF executivo após deploy.
 
+## Etapa 2 — CSV de comissões no Santa Fé — CONCLUÍDA
+
+- SF: botão "Exportar CSV (Comissões)" em `/admin/comissoes` (só equipe: admin/colaborador com o módulo,
+  mesma regra das outras mutações; na Prospecta é `adminProcedure`). Server action `exportarComissoesCsv`
+  em `web/src/lib/actions/comissoes.ts`; regra pura em `web/src/lib/comissoes/exportacao-csv.ts`.
+  O SF não tem mais a tela Relatórios (limpeza de 11/10), por isso o botão fica na tela de Comissões.
+- Mesmas colunas (`Origem;Data;Corretor;Referência;Valor Total;Pago;Status`), BOM UTF-8, valores 1.234,56,
+  mesmo recorte (todas as comissões, ordem do vencimento; data = pagamento ou vencimento; "Empresa"/"Corretor sem cadastro").
+- Prospecta: montagem do CSV extraída para `shared/comissoes-csv.ts` (usada por `AdminRelatorios.tsx`) e,
+  nos dois, campos com `;`/aspas/quebra de linha passam a ir entre aspas (antes quebravam a coluna no Excel).
+- Testes: SF `web/src/lib/__tests__/comissoes-exportacao-csv.test.ts`; Prospecta `server/comissoes-csv.test.ts`.
+- (a) automáticos: passando; tsc/pnpm check OK. (b) manuais: nenhum. (c) produção: baixar o CSV e abrir no Excel.
+
 ## Próximas etapas
 2. CSV de comissões no SF (paridade com `AdminRelatorios.tsx` da Prospecta).
 3. Restaurar exclusões em lote do BPO (nos dois).
