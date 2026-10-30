@@ -50,7 +50,7 @@ describe("Banco Inter — conector (beta)", () => {
     expect(movimentoDoInter({ idTransacao: "77", dataTransacao: "2026-10-05", tipoOperacao: "C", tipoTransacao: "PIX", valor: "150.5", titulo: "Pix recebido", descricao: "Ana", detalhes: { nomePagador: "Ana Lima" } }))
       .toMatchObject({ externalId: "inter:77", data: "2026-10-05", valor: 150.5, tipo: "credito", descricao: "Pix recebido — Ana", titular: "Ana Lima", detalhe: "PIX" });
     expect(movimentoDoInter({ dataEntrada: "2026-10-06", tipoOperacao: "D", valor: 20, titulo: "Tarifa" }))
-      .toMatchObject({ externalId: "inter:2026-10-06:debito:20.00:Tarifa:", tipo: "debito", valor: 20 });
+      .toMatchObject({ externalId: "inter:2026-10-06:debito:20.00:::Tarifa:", tipo: "debito", valor: 20 });
     expect(movimentoDoInter({ dataTransacao: "ontem", valor: 1 })).toBeNull();
     expect(movimentoDoInter({ dataTransacao: "2026-10-06", valor: 0 })).toBeNull();
   });
@@ -77,5 +77,16 @@ describe("Banco Inter — conector (beta)", () => {
     expect(await fetchInterSaldo("tok", { ...CRED_TESTE, contaCorrente: "123" }, f as unknown as FetchInter)).toBe(1234.56);
     const ultima = f.mock.calls.at(-1)!;
     expect(ultima[1]?.headers?.["x-conta-corrente"]).toBe("123");
+  });
+
+  it("sem idTransacao: duas transações iguais no mesmo dia viram duas movimentações (nunca descarta)", async () => {
+    const igual = { dataTransacao: "2026-02-10", tipoOperacao: "D", valor: "100", titulo: "Pix enviado", descricao: "Fornecedor" };
+    const f = vi.fn(() => resp({ totalPaginas: 1, transacoes: [igual, { ...igual }, { idTransacao: "x1", ...igual }, { idTransacao: "x1", ...igual }] }));
+    const movs = await fetchInterExtrato("tok", CRED_TESTE, "2026-02-10", "2026-02-10", f as unknown as FetchInter);
+    expect(movs).toHaveLength(3);
+    const ids = movs.map((m) => m.externalId);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids[1]).toBe(`${ids[0]}#2`);
+    expect(ids[2]).toBe("inter:x1");
   });
 });

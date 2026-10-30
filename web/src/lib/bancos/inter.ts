@@ -135,7 +135,11 @@ export function movimentoDoInter(t: TransacaoInter): MovimentoInter | null {
   const titulo = (t.titulo ?? "").trim();
   const descricao = (t.descricao ?? "").trim();
   const titular = (tipo === "credito" ? t.detalhes?.nomePagador : t.detalhes?.nomeRecebedor ?? t.detalhes?.nomeEmpresa) ?? null;
-  const chave = t.idTransacao ? `inter:${t.idTransacao}` : `inter:${data}:${tipo}:${valor.toFixed(2)}:${titulo}:${descricao}`.slice(0, 250);
+  // Sem idTransacao: a chave inclui o horário de inclusão e o titular; ocorrências ainda iguais
+  // são numeradas em fetchInterExtrato (nunca descartadas).
+  const chave = t.idTransacao
+    ? `inter:${t.idTransacao}`
+    : `inter:${data}:${tipo}:${valor.toFixed(2)}:${t.dataInclusao ?? ""}:${titular ?? ""}:${titulo}:${descricao}`.slice(0, 240);
   return {
     externalId: chave, data, valor, tipo,
     descricao: [titulo, descricao].filter(Boolean).join(" — ") || (t.tipoTransacao ?? "Movimentação Inter"),
@@ -152,6 +156,7 @@ function somarDias(iso: string, dias: number): string {
 /** Extrato de `desde` a `ate` (AAAA-MM-DD), em janelas e páginas, sem duplicar. */
 export async function fetchInterExtrato(token: string, cred: CredencialInter, desde: string, ate: string, fetchImpl: FetchInter): Promise<MovimentoInter[]> {
   const vistos = new Set<string>();
+  const ocorrencias = new Map<string, number>();
   const saida: MovimentoInter[] = [];
   for (let inicio = desde; inicio <= ate; inicio = somarDias(inicio, JANELA_DIAS + 1)) {
     const fim = [somarDias(inicio, JANELA_DIAS), ate].sort()[0];
@@ -163,7 +168,18 @@ export async function fetchInterExtrato(token: string, cred: CredencialInter, de
       total = Math.max(1, Number(data.totalPaginas ?? 1));
       for (const t of data.transacoes ?? []) {
         const m = movimentoDoInter(t);
-        if (m && !vistos.has(m.externalId)) { vistos.add(m.externalId); saida.push(m); }
+        if (!m) continue;
+        if (t.idTransacao) {
+          // Com ID do banco, repetição é a mesma transação (páginas sobrepostas): descarta.
+          if (vistos.has(m.externalId)) continue;
+          vistos.add(m.externalId);
+        } else {
+          // Sem ID: transações idênticas são lançamentos distintos; numera na ordem devolvida.
+          const n = (ocorrencias.get(m.externalId) ?? 0) + 1;
+          ocorrencias.set(m.externalId, n);
+          if (n > 1) m.externalId = `${m.externalId}#${n}`;
+        }
+        saida.push(m);
       }
     }
   }
