@@ -1,19 +1,10 @@
-import Link from "next/link";
-import { Plug, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { requirePageRole } from "@/lib/auth/rbac";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FotoPerfilClient } from "./_components/foto-perfil-client";
-import { GoogleDriveCard } from "./_components/google-drive-card";
-import { headers } from "next/headers";
-import { estadoOAuth } from "@/lib/google-drive-conexao";
-import { origemDaRequisicao } from "@/lib/google-drive-oauth";
-import { ultimoRelatorioDrive } from "@/lib/drive-organizacao";
-
-// Pedido de 29/10: o botão "Organizar Drive agora" roda aqui (rodada de até ~45 s).
-export const maxDuration = 60;
 
 const SECTIONS = [
   {
@@ -49,7 +40,7 @@ const SECTIONS = [
   },
 ];
 
-export default async function ConfiguracoesPage({ searchParams }: { searchParams: Promise<{ drive?: string; motivo?: string }> }) {
+export default async function ConfiguracoesPage() {
   const session = await auth();
   requirePageRole(session, "admin");
   const sessionUser = session?.user as { role?: string; name?: string } | undefined;
@@ -72,13 +63,6 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
   // (asaas.*, whatsapp.evolution.*), mesmo criptografados, ficam no servidor.
   const chavesDaTela = new Set(SECTIONS.flatMap((s) => s.fields.map((f) => f.chave)));
   const valoresSalvos = Object.fromEntries(configs.filter((c) => chavesDaTela.has(c.chave)).map((c) => [c.chave, c.valor]));
-  // Resultado da volta do Google ao conectar o Drive (?drive=ok|erro&motivo=...).
-  const { drive, motivo } = await searchParams;
-  const h = await headers();
-  const statusDrive = await estadoOAuth(origemDaRequisicao(h.get("x-forwarded-host") ?? h.get("host") ?? undefined));
-  const relatorioDrive = await ultimoRelatorioDrive().catch(() => null);
-  const retornoDrive = drive === "ok" ? { tipo: "ok" as const, texto: "Google Drive conectado! Os próximos arquivos vão para o seu Drive." }
-    : drive === "erro" ? { tipo: "erro" as const, texto: (motivo ?? "Não foi possível conectar o Google Drive.").slice(0, 300) } : null;
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -87,20 +71,14 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
           <Settings size={22} className="text-[var(--brand-dark)]" />
           <div>
             <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Configurações</h1>
-            <p className="text-gray-600 text-sm mt-0.5">Dados da empresa, integrações e preferências do sistema</p>
+            <p className="text-gray-600 text-sm mt-0.5">Usuários e acesso, dados da empresa e preferências do sistema</p>
           </div>
         </div>
-        {/* LOTE B (25/10): atalho para as chaves do Asaas, da Pluggy e do WhatsApp. */}
-        <Link href="/admin/integracoes" className="inline-flex items-center gap-1.5 border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-[var(--brand-dark)] hover:bg-gray-50">
-          <Plug size={14} /> Integrações (Asaas, Pluggy, WhatsApp)
-        </Link>
       </div>
 
       <FotoPerfilClient userName={userName} />
 
       <ConfiguracoesClient sections={SECTIONS} valoresSalvos={valoresSalvos} />
-
-      <GoogleDriveCard retorno={retornoDrive} inicial={statusDrive} relatorioInicial={relatorioDrive} />
 
       <UsuariosClient usuarios={usuarios.map((u) => ({
         id: u.id,

@@ -74,6 +74,6 @@ describe("mensagens do modo OAuth (conta Google do dono)", () => {
     expect(descreverErroDrive(new ErroDrive("autenticacao", 400, "oauth_invalid_grant", undefined))).toMatch(/Conectar Google Drive/);
   });
   it("não conectado orienta Configurações", () => {
-    expect(descreverErroDrive(new Error("Google Drive não conectado"))).toMatch(/Configurações → Google Drive/);
+    expect(descreverErroDrive(new Error("Google Drive não conectado"))).toMatch(/Integrações → Google Drive/);
   });
 });
