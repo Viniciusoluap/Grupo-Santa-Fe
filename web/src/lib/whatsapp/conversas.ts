@@ -102,3 +102,49 @@ export function textoConfirmacaoExclusao(conversas: number, mensagens: number): 
 
 /** Correção 03: lead disponível para envio — mesmo critério do CRM (não excluído nem arquivado). */
 export const LEAD_ATIVO_WHATSAPP = { excluidoEm: null, arquivadoEm: null } as const;
+
+// ── Pedido de 30/10: filtro por etapa do lead na aba "Enviar mensagem" ──
+
+/** Valor do select que mostra todos os destinatários (sem filtro de etapa). */
+export const ETAPA_TODAS = "todas";
+
+export type DestinatarioEnvio = { id: string; nome: string; telefone: string; etapa: string | null };
+
+/**
+ * Destinatários visíveis: busca (nome ou telefone, como antes) combinada com a etapa do CRM.
+ * `etapa` vazia ou "todas" não filtra; lead sem etapa classificada só aparece em "todas".
+ */
+export function filtrarDestinatarios<T extends DestinatarioEnvio>(lista: T[], busca: string, etapa: string): T[] {
+  const termo = busca.toLowerCase();
+  const porEtapa = Boolean(etapa) && etapa !== ETAPA_TODAS;
+  return lista.filter((l) =>
+    (!busca || l.nome.toLowerCase().includes(termo) || l.telefone.includes(busca)) &&
+    (!porEtapa || l.etapa === etapa));
+}
+
+/** "Limpar" age só sobre os visíveis: tira da seleção o que está na lista filtrada e mantém o resto. */
+export function limparVisiveis<T>(sel: T[], visiveis: T[]): T[] {
+  const v = new Set(visiveis);
+  return sel.filter((x) => !v.has(x));
+}
+
+/** Contagem para a tela: total selecionado, quantos estão visíveis e quantos ficaram fora do filtro. */
+export function resumoSelecao<T>(sel: T[], visiveis: T[]): { total: number; visiveis: number; foraDoFiltro: number } {
+  const v = new Set(visiveis);
+  const noFiltro = sel.filter((x) => v.has(x)).length;
+  return { total: sel.length, visiveis: noFiltro, foraDoFiltro: sel.length - noFiltro };
+}
+
+/**
+ * Tamanho de cada requisição de envio em massa (mesmo teto do envio da Prospecta). A tela divide a seleção
+ * em lotes e manda um após o outro, para que "Selecionar todos" de uma etapa grande envie a todos.
+ * O servidor continua mandando uma mensagem individual por destinatário (não é grupo).
+ */
+export const LOTE_ENVIO_WHATSAPP = 200;
+
+export function lotesDeEnvio<T>(lista: T[], tamanho = LOTE_ENVIO_WHATSAPP): T[][] {
+  const n = Math.max(1, Math.floor(tamanho));
+  const lotes: T[][] = [];
+  for (let i = 0; i < lista.length; i += n) lotes.push(lista.slice(i, i + n));
+  return lotes;
+}

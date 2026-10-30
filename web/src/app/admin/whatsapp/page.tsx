@@ -9,6 +9,8 @@ import { WhatsAppClient } from "./_components/whatsapp-client";
 import { SERVICOS_LEAD } from "@/lib/crm/servicos-lead";
 import { TEMPLATES_WHATSAPP_PADRAO } from "@/lib/whatsapp/templates";
 import { LEAD_ATIVO_WHATSAPP } from "@/lib/whatsapp/conversas";
+import { etapaDoLead } from "@/lib/crm/pipeline";
+import { ETAPAS_ACOMPANHAMENTO } from "@/lib/portal-corretor";
 
 type SessionUser = { id?: string; role?: string; corretorId?: string };
 
@@ -24,11 +26,13 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
   if (role === "cliente" || !usuarioId) redirect("/admin");
 
   // Lote 03, correção 03: destinatários só de leads ativos do CRM (não excluídos nem arquivados).
-  const leads = await prisma.lead.findMany({
+  // Pedido de 30/10: cada lead leva a etapa do CRM (mesma regra do filtro de etapas do CRM) para o
+  // filtro da aba Enviar. Lista completa, sem paginação: "Selecionar todos" pega todos da etapa.
+  const leads = (await prisma.lead.findMany({
     where: { ...LEAD_ATIVO_WHATSAPP, ...(role === "corretor" && user.corretorId ? { corretorId: user.corretorId } : {}) },
-    select: { id: true, nome: true, telefone: true, servico: true },
+    select: { id: true, nome: true, telefone: true, servico: true, etapaOperacional: true, status: true },
     orderBy: { criadoEm: "desc" },
-  });
+  })).map(({ etapaOperacional, status, ...l }) => ({ ...l, etapa: etapaDoLead({ etapaOperacional, status }) }));
 
   type ConexaoRow = {
     id: string; usuarioId: string; provedor: string; instancia: string | null;
@@ -99,6 +103,7 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
       usuarioId={usuarioId}
       templates={templates}
       servicosDisponiveis={[...SERVICOS_LEAD]}
+      etapas={ETAPAS_ACOMPANHAMENTO}
       podeGerenciarTemplates={role === "admin"}
     />
   );
