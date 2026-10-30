@@ -1,14 +1,14 @@
 # Handoff — CRM: atalho para tarefas e agendamentos
 
-## Auditoria e plano
-Pedido autorizado: substituir os quatro indicadores de resumo do CRM por um único atalho para o serviço existente de tarefas e agendamentos. Preservar dados, filtros e pipeline. Manter equivalência funcional entre os dois sistemas.
-- Prospecta: adaptar a página AdminCRM, retirar os quatro resumos e consulta exclusiva de estatísticas, usar a rota existente /admin/tarefas-agenda.
-- Santa Fé: os resumos de quatro indicadores não existem; manter os filtros funcionais por etapa e adicionar atalho equivalente para /admin/agenda.
-- Trabalhar a partir da main atualizada, preservando alterações anteriores e histórico. Alteração somente de interface, sem migração ou escrita de dados.
+## Escopo e implementação
+Substituídos os quatro indicadores de resumo do CRM da Prospecta por um único atalho “Tarefas e Agendamentos”, usando a rota existente /admin/tarefas-agenda. Consulta exclusiva das estatísticas retirada da página; dados, filtros e pipeline preservados.
+No Santa Fé, adicionado atalho equivalente para /admin/agenda, preservando os filtros funcionais por etapa já existentes.
 
-## Estado inicial
-Implementação em andamento na branch codex/crm-atalho-tarefas-20261030.
-(a) Automáticos: pendentes (TypeScript, lint focalizado quando disponível, diff check).
-(b) Manuais: pendente conferir navegação do atalho.
-(c) Produção: publicação pendente.
-Próximo passo: implementar, conferir diff/rota, concluir checks, PRs, merge e deploy autorizados e atualizar este registro.
+## Validações
+(a) Automáticas: TypeScript aprovado nos dois sistemas; lint do arquivo Santa Fé aprovado; git diff --check aprovado. Cliente Prisma local regenerado após atualização da main, sem consulta ou alteração de banco. Nenhum teste novo para esta alteração reversível de interface.
+(b) Manuais: navegação autenticada do atalho ainda pendente.
+(c) Publicação: código pronto para PR, merge e deploy autorizados.
+
+## Continuidade
+Branch codex/crm-atalho-tarefas-20261030. Definições AIOX versionadas consultadas; recursos centrais referenciados não estavam presentes. Preservados histórico e alterações anteriores, sem reset ou force push.
+Próximo passo: conferir builds dos PRs, fazer merge autorizado e acompanhar produção; registrar aceite de navegação e limitações reais.

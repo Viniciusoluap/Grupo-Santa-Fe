@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { LEAD_TEMPERATURAS, leadTemperaturaRotulo } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
-import { Plus, LayoutGrid, List, Search } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, CalendarDays, ArrowRight } from "lucide-react";
 import { LEAD_STAGE_CONFIG, LEAD_STAGES, LEAD_STATUS_CONFIG, type LeadStatus } from "@/lib/types/crm";
 import { LeadKanban, type KanbanLead } from "@/components/crm/lead-kanban";
 import { etapaDoLead, leadNoPipelineAtivo, parseServicosLead } from "@/lib/crm/pipeline";
@@ -54,6 +54,11 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
         <Link href="/admin/leads/novo" className="flex items-center gap-1.5 bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase px-4 py-2.5 rounded-lg"><Plus size={14} /> Novo Lead</Link>
       </div>
     </div>
+    <Link href="/admin/agenda" className="inline-flex min-h-11 w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-[var(--brand-dark)] hover:border-[var(--brand-yellow)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-yellow)] sm:w-auto">
+      <CalendarDays size={20} className="shrink-0" aria-hidden="true" />
+      <span>Tarefas e Agendamentos</span>
+      <ArrowRight size={16} className="ml-auto shrink-0" aria-hidden="true" />
+    </Link>
     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
       {LEAD_STAGES.map((s) => <button type="button" key={s} aria-pressed={stage === s} onClick={() => { setStage(stage === s ? "" : s); setSituacao("ativos"); }} className={`bg-white border rounded-lg p-3 text-center ${stage === s ? "border-[var(--brand-yellow)]" : "border-gray-100"}`}><p className="font-black text-[var(--brand-dark)] text-2xl">{counts[s]}</p><span className="block text-[10px] font-bold text-gray-600 mt-1">{LEAD_STAGE_CONFIG[s].label}</span></button>)}
     </div>
