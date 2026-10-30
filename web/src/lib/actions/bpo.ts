@@ -9,6 +9,7 @@ import { categoriaValida, resumoPorCliente } from "@/lib/bpo-categorias";
 import { categoriaContabilDaOperacional, categoriaNaEdicao, categoriaSemVinculo, validarOperacaoBpo } from "@/lib/bpo-operacional";
 import { resolverVinculoBpo } from "@/lib/bpo-catalogo";
 import { calcularBaixa, saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
+import { exigirNaoCombinada } from "@/lib/bpo-lote";
 
 const texto = (valor: FormDataEntryValue | null) => String(valor ?? "").trim();
 
@@ -189,6 +190,7 @@ export async function resumoBpoPorLead(leadId: string) {
 export async function pagarLancamento(id: string) {
   await exigirModuloAcao("bpo");
   const l = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id } });
+  exigirNaoCombinada(l);
   if (l.pago) return;
   await registrarBaixaBpo({ id, version: l.version, requestKey: `quitar:${id}:${l.version}`, valor: saldoLancamento(l), data: new Date().toISOString(), motivo: "Quitação manual do saldo restante" });
 
@@ -208,10 +210,11 @@ export async function registrarBaixaBpo(input: { id: string; version: number; re
       return { clienteId: null, repetida: true };
     }
     const antes = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: input.id } });
+    exigirNaoCombinada(antes);
     if (antes.version !== input.version) throw new Error("O lançamento foi alterado. Atualize a tela.");
     if (antes.transacaoId || antes.asaasPaymentId) throw new Error("Registro externo ou conciliado: confirme o recebimento na origem e sincronize antes de alterar a baixa.");
     const baixa = calcularBaixa(antes, input.valor);
-    const gravado = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version }, data: { ...baixa, pagoEm: baixa.pago ? data : null, version: { increment: 1 } } });
+    const gravado = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null }, data: { ...baixa, pagoEm: baixa.pago ? data : null, version: { increment: 1 } } });
     if (!gravado.count) throw new Error("O lançamento foi alterado. Atualize a tela.");
     await tx.bpoBaixa.create({ data: { lancamentoId: antes.id, requestKey: input.requestKey, valor: Math.round(input.valor * 100) / 100, data, motivo: input.motivo.trim(), usuarioId: usuario.id } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: antes.id, lancamentoReferencia: antes.id, versaoAnterior: antes.version, alteradoPorUsuarioId: usuario.id, motivo: input.motivo.trim(), antesJson: JSON.stringify(antes), depoisJson: JSON.stringify({ ...antes, ...baixa, pagoEm: baixa.pago ? data : null, version: antes.version + 1 }) } });
@@ -250,6 +253,7 @@ export async function editarLancamentoBpo(input: {
   const usuarioId = typeof session?.user?.id === "string" ? session.user.id : null;
   const updated = await prisma.$transaction(async (tx) => {
     const antes = await tx.bpoLancamento.findUnique({ where: { id: input.id } });
+    if (antes) exigirNaoCombinada(antes);
     if (!antes || antes.version !== input.version) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     if (Math.round(input.valor * 100) < Math.round(valorRealizado(antes) * 100)) throw new Error("O valor não pode ser menor que o total já recebido/pago.");
     if (Math.round(input.valor * 100) !== Math.round(antes.valor * 100) && (antes.pago || antes.transacaoId || antes.asaasPaymentId)) throw new Error("Lançamento quitado ou externo: ajuste o valor na origem ou registre um estorno auditado antes de alterar o total.");
@@ -258,7 +262,7 @@ export async function editarLancamentoBpo(input: {
     const vinculo = input.categoriaOperacional && input.vinculoOperacionalId && !categoriaSemVinculo(input.categoriaOperacional) ? await resolverVinculoBpo(antes.tipo, input.categoriaOperacional, input.vinculoOperacionalId) : null;
     // Item 12: sem categoria na tela, mantém a gravada ou deriva da operacional quando ela muda.
     const categoria = input.categoria || categoriaNaEdicao(antes.tipo, antes, input);
-    const result = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version }, data: {
+    const result = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null }, data: {
       descricao: input.descricao.trim(), valor: input.valor, categoria,
       categoriaContabil: input.categoriaContabil?.trim() || (input.categoria || categoria !== antes.categoria ? categoria : antes.categoriaContabil ?? categoria),
       categoriaOperacional: input.categoriaOperacional || null,

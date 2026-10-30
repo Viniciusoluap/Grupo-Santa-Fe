@@ -90,6 +90,25 @@ describe.skipIf(!url)("Lote 3 — BPO (banco real)", () => {
     expect((await prisma.bpoLancamento.findMany({ where: { id: { in: [a.id, b.id] } } })).every((l) => l.combinadaEmId === r.novaId)).toBe(true);
   });
 
+  it("revisão PR (P1): original já combinada recusa quitar, baixar, editar e vincular (lista antiga aberta)", async () => {
+    const a = await novo("Orig A"), b = await novo("Orig B");
+    const r = await lote.combinarPagamentos({ ids: [a.id, b.id], requestKey: `${MARCA}-c3` });
+    if ("erro" in r) throw new Error(r.erro);
+    const atual = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: a.id } });
+    const msg = new RegExp(`combinada na cobrança #${r.novaId}`);
+    await expect(bpo.pagarLancamento(a.id)).rejects.toThrow(msg);
+    await expect(bpo.registrarBaixaBpo({ id: a.id, version: atual.version, requestKey: `${MARCA}-bx`, valor: 50, data: "2026-10-30T12:00:00Z", motivo: "baixa velha" })).rejects.toThrow(msg);
+    await expect(bpo.editarLancamentoBpo({ id: a.id, version: atual.version, motivo: "editar velha", descricao: "x", valor: 100, competencia: "2026-10", vencimento: "2026-10-10T12:00:00Z" })).rejects.toThrow(msg);
+    const cli = await prisma.bpoCliente.create({ data: { razaoSocial: `${MARCA} Cli`, responsavel: "x", telefone: "1", honorarios: 0, diaVencimento: 10, dataInicio: new Date() } });
+    expect(await vinculo.vincularClienteLancamento({ id: a.id, version: atual.version, clienteId: cli.id })).toEqual({ erro: expect.stringMatching(msg) });
+    const depois = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: a.id } });
+    expect(depois).toMatchObject({ pago: false, valorRecebido: 0, version: atual.version, clienteId: null, combinadaEmId: r.novaId });
+    expect(await prisma.bpoBaixa.count({ where: { lancamentoId: a.id } })).toBe(0);
+    // A cobrança combinada continua aceitando a baixa normalmente.
+    await bpo.pagarLancamento(r.novaId);
+    expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: r.novaId } })).toMatchObject({ pago: true });
+  });
+
   it("item 17: um único candidato forte (telefone) é sugerido; confirmar cria cliente do lead sem duplicar e audita", async () => {
     const lead = await prisma.lead.create({ data: { nome: `${MARCA} Maria`, telefone: "(91) 98888-7777", servico: "obras" } });
     const l = await novo("Pix 91988887777", { clienteNomeLivre: `${MARCA} Maria S` });

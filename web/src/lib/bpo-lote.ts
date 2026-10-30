@@ -45,6 +45,16 @@ export function motivosProtecao(l: SituacaoProtecao): MotivoProtecao[] {
   return m;
 }
 
+/**
+ * Revisão do PR (Codex P1): a original de uma combinação continua no banco só para rastreabilidade —
+ * quem estiver com a lista antiga aberta não pode mais dar baixa, quitar, editar nem vincular nela.
+ */
+export const mensagemLancamentoCombinado = (combinadaEmId: string | number) =>
+  `Esta cobrança já foi combinada na cobrança #${combinadaEmId} e não pode mais ser baixada, quitada ou alterada. Atualize a tela e use a cobrança combinada.`;
+export function exigirNaoCombinada(l: { combinadaEmId?: string | number | null }) {
+  if (l.combinadaEmId != null && l.combinadaEmId !== "") throw new Error(mensagemLancamentoCombinado(l.combinadaEmId));
+}
+
 export type FiltrosLote = {
   busca?: string | null;
   clienteId?: string | number | null;

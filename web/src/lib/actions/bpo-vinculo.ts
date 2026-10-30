@@ -9,6 +9,7 @@ import { normalizarTitular } from "@/lib/bpo-categorias";
 import { ehDespesa } from "@/lib/bpo-categorias";
 import { montarCandidatos, sugerirClientesParaLancamento, type CandidatoCliente, type ResultadoSugestao } from "@/lib/bpo-vinculo-cliente";
 import type { CatalogoBpo } from "@/lib/bpo-operacional";
+import { exigirNaoCombinada } from "@/lib/bpo-lote";
 
 type LancamentoLivre = Awaited<ReturnType<typeof lancamentosLivres>>[number];
 
@@ -86,6 +87,7 @@ async function vincular(input: { id: string; version: number; motivo: string } &
   if (!input.clienteId && !input.leadId) throw new Error("Escolha um cliente ou lead.");
   return prisma.$transaction(async (tx) => {
     const antes = await tx.bpoLancamento.findUnique({ where: { id: input.id } });
+    if (antes) exigirNaoCombinada(antes);
     if (!antes || antes.version !== input.version) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     let clienteId = input.clienteId ?? null;
     let criado = false;
@@ -110,7 +112,7 @@ async function vincular(input: { id: string; version: number; motivo: string } &
         }
       }
     }
-    const r = await tx.bpoLancamento.updateMany({ where: { id: antes.id, version: antes.version }, data: { clienteId, clienteNomeLivre: null, version: { increment: 1 } } });
+    const r = await tx.bpoLancamento.updateMany({ where: { id: antes.id, version: antes.version, combinadaEmId: null }, data: { clienteId, clienteNomeLivre: null, version: { increment: 1 } } });
     if (!r.count) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     const depois = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: antes.id } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: antes.id, lancamentoReferencia: antes.id, versaoAnterior: antes.version, alteradoPorUsuarioId: usuarioId, motivo: `Vínculo com cliente do CRM: ${input.motivo}`.slice(0, 1000), antesJson: JSON.stringify(antes), depoisJson: JSON.stringify(depois) } });
