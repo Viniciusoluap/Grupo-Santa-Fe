@@ -351,7 +351,7 @@ export async function previaExclusaoConversasWhatsapp(numeros: string[]): Promis
 }
 
 /**
- * Lote 03, correção 01: exclusão em lote — numa transação, apaga só as mensagens (e mídias, por cascata) das
+ * Lote 03, correção 01: exclusão em lote — numa transação, apaga só as mensagens (e mídias, por cascata; as cópias no Drive vão para a lixeira) das
  * conversas escolhidas, nesta conexão. Não apaga no celular (a integração não permite), não toca em leads,
  * documentos nem vínculos. Auditoria: log estruturado sem dados pessoais (quem, quantas, quando).
  */
@@ -363,11 +363,18 @@ export async function excluirConversasWhatsapp(numeros: string[]): Promise<{ con
     if (!conn) return { conversas: 0, apagadas: 0, erro: "WhatsApp não está conectado." };
     const p = await planoExclusaoConversas(u, conn.id, lista);
     if (!p.ids.length) return { conversas: 0, apagadas: 0 };
-    await prisma.$transaction(async (tx) => {
+    // Revisão do PR #242 (P2): como na exclusão unitária, as cópias das mídias no Drive são coletadas antes
+    // (a cascata apaga whatsappMidia) e vão para a lixeira depois da transação (sem uso → lixeira; falha → fila).
+    const copias = await prisma.$transaction(async (tx) => {
+      const drive: (string | null)[] = [];
       for (let i = 0; i < p.ids.length; i += 1000) {
-        await tx.mensagemWhatsapp.deleteMany({ where: { conexaoId: conn.id, id: { in: p.ids.slice(i, i + 1000) } } });
+        const lote = p.ids.slice(i, i + 1000);
+        drive.push(...(await tx.whatsappMidia.findMany({ where: { mensagemId: { in: lote }, driveFileId: { not: null } }, select: { driveFileId: true } })).map((c) => c.driveFileId));
+        await tx.mensagemWhatsapp.deleteMany({ where: { conexaoId: conn.id, id: { in: lote } } });
       }
+      return drive;
     });
+    await lixeiraDeArquivosSemUso(copias);
     console.info(JSON.stringify({ evento: "whatsapp.conversas_excluidas", usuarioId: u.id, papel: u.perfil, conexaoId: conn.id, conversas: p.conversas, mensagens: p.mensagens, em: new Date().toISOString() }));
     return { conversas: p.conversas, apagadas: p.mensagens };
   } catch (e) { return { conversas: 0, apagadas: 0, erro: motivo(e) }; }
