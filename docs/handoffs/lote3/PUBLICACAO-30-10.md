@@ -13,3 +13,9 @@
 
 ## Próximo
 Lote 4 em `claude/lote4-ajustes-20261030` (docs/handoffs/lote4/STATUS.md).
+
+## Correção 30/10 ~01:50 UTC — domínios não estavam na versão nova
+- O dono abriu os sistemas e nada novo aparecia. Causa: os domínios oficiais (www.prospectaconstrucoes.com e www.gruposantafee.com.br) continuavam presos a um deploy antigo — a atribuição automática de domínio para produção estava desligada (efeito de um rollback anterior). Os deploys "READY" de produção ficavam só na URL própria.
+- Ação: promovidos manualmente (Vercel promote) Prospecta dpl_93yik4Dw7adT94R9B38KAAG8g73B e Santa Fé dpl_47dpkQUkBWWwZAndkJJvKWBzEm8R. Conferido: o domínio da Prospecta passou a servir o bundle novo (index-C9GVgwxP.js) e o domínio do SF aparece como alias do deploy novo.
+- Regra daqui em diante: após cada merge, conferir que o domínio oficial serve o deploy novo (alias/bundle) antes de dizer "em produção".
+- Botão "Organizar Drive agora" fica em **Admin › Configurações** (cartão Google Drive), nos dois sistemas — não em Integrações.
