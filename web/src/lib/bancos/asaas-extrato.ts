@@ -32,6 +32,19 @@ function baseUrl(apiKey: string) {
   return apiKey.trim().startsWith("$aact_prod") ? ASAAS_API.production : ASAAS_API.sandbox;
 }
 
+/**
+ * Lote D/Lote 4: o que o status HTTP do Asaas quer dizer, em português, para a tela.
+ * Mesma regra nos dois sistemas (Prospecta server/_core/asaas-extrato.ts · Santa Fé web/src/lib/bancos/asaas-extrato.ts).
+ */
+export function dicaAsaas(status: number): string {
+  if (status === 401) return " Confira se a chave está ativa e se há restrição de IP no Asaas (Integrações › Chave de API).";
+  if (status === 403) return " A chave não tem permissão para esta operação — confira as permissões da chave e a restrição de IP no Asaas.";
+  if (status === 404) return " Recurso não encontrado no Asaas — confira se a chave é do ambiente certo (produção × sandbox).";
+  if (status === 429) return " Limite de requisições do Asaas atingido — tente de novo em alguns minutos.";
+  if (status >= 500) return " O Asaas está instável no momento — tente novamente mais tarde.";
+  return "";
+}
+
 async function getAsaas<T>(apiKey: string, path: string, fetchImpl: Fetch): Promise<T> {
   const res = await fetchImpl(`${baseUrl(apiKey)}${path}`, {
     headers: { access_token: apiKey.trim(), "Content-Type": "application/json", "User-Agent": "GrupoSantaFe-BPO" },
@@ -43,8 +56,7 @@ async function getAsaas<T>(apiKey: string, path: string, fetchImpl: Fetch): Prom
       const corpo = (await res.json()) as { errors?: { code?: string; description?: string }[] };
       detalhe = (corpo.errors ?? []).map((e) => e.description || e.code).filter(Boolean).join("; ");
     } catch { /* corpo vazio */ }
-    const dica = res.status === 401 ? " Confira se a chave está ativa e se há restrição de IP no Asaas (Integrações › Chave de API)." : "";
-    throw new Error(`O Asaas recusou o acesso (HTTP ${res.status})${detalhe ? `: ${detalhe}` : ""}.${dica}`);
+    throw new Error(`O Asaas recusou o acesso (HTTP ${res.status})${detalhe ? `: ${detalhe}` : ""}.${dicaAsaas(res.status)}`);
   }
   return (await res.json()) as T;
 }

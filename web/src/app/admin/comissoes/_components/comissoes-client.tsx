@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2, Building2, UserCheck } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle2, Plus, Pencil, Trash2, Building2, UserCheck, Download, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { COMMISSION_STATUS_CONFIG, CommissionStatus } from "@/lib/types/corretor";
-import { excluirComissao, alterarStatusComissao } from "@/lib/actions/comissoes";
+import { excluirComissao, alterarStatusComissao, exportarComissoesCsv } from "@/lib/actions/comissoes";
+import { exigirResultado } from "@/lib/acao-resultado";
 import { ComissaoForm } from "./comissao-form";
 import { resumirComissoes } from "@/lib/comissoes/listagem";
 import { ComissoesDeObras } from "./comissoes-de-obras";
@@ -90,6 +91,41 @@ function ExcluirComissaoBtn({ id }: { id: string }) {
   );
 }
 
+/** "Exportar CSV (Comissões)" — paridade com Relatórios da Prospecta. */
+function ExportarCsvButton() {
+  const [isPending, startTransition] = useTransition();
+  const [erro, setErro] = useState<string | null>(null);
+  function exportar() {
+    setErro(null);
+    startTransition(async () => {
+      try {
+        const { nomeArquivo, csv } = exigirResultado(await exportarComissoesCsv());
+        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nomeArquivo;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : "Não foi possível exportar.");
+      }
+    });
+  }
+  return (
+    <div className="flex flex-col items-end">
+      <button
+        onClick={exportar}
+        disabled={isPending}
+        className="flex items-center gap-2 border border-[var(--brand-dark)]/20 hover:bg-gray-50 text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors mt-6 disabled:opacity-60"
+      >
+        {isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+        Exportar CSV (Comissões)
+      </button>
+      {erro && <p role="alert" className="text-xs text-red-600 mt-1">{erro}</p>}
+    </div>
+  );
+}
+
 export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmin, comissoesDeObras }: ComissoesClientProps) {
   const [statusFilter, setStatusFilter] = useState<string>("todas");
   const [corretorFilter, setCorretorFilter] = useState("");
@@ -114,6 +150,8 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
           <p className="text-gray-600 text-sm mt-0.5">{comissoes.length} registros no total</p>
         </div>
         {isAdmin && (
+          <div className="flex items-start gap-2">
+          <ExportarCsvButton />
           <button
             onClick={() => { setEditando(null); setShowForm(true); }}
             className="flex items-center gap-2 bg-[var(--brand-yellow)] hover:bg-[var(--brand-yellow-dark)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-4 py-2.5 transition-colors mt-6"
@@ -121,6 +159,7 @@ export function ComissoesClient({ comissoes, corretores, negociosPorTipo, isAdmi
             <Plus size={14} />
             Nova Comissão
           </button>
+          </div>
         )}
       </div>
 

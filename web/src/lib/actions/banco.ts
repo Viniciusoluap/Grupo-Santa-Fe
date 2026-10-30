@@ -8,6 +8,7 @@ import { capturarErroAcao, exigirResultado } from "@/lib/acao-resultado";
 import { criptografarSegredo } from "@/lib/segredo";
 import { createPluggyConnectToken, fetchPluggyItemAccounts, fetchPluggyItemConnector } from "@/lib/bancos/pluggy";
 import { fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
+import { criarFetchMtls, fetchInterSaldo, interHabilitado, tokenInter, validarCredencialInter, type CredencialInter } from "@/lib/bancos/inter";
 import { chaveAsaasCentral } from "@/lib/bancos/asaas-central";
 import {
   confirmarImportacao,
@@ -112,15 +113,17 @@ export async function criarContaBancaria(input: {
   tipo?: string;
   descricao?: string;
   saldoAtual?: number;
-  provedor?: "manual" | "asaas";
+  provedor?: "manual" | "asaas" | "inter";
   apiKey?: string;
   dataInicial?: string | null;
+  /** Lote 4 (beta, desligado por padrão): credencial da integração do Banco Inter PJ. */
+  inter?: Partial<CredencialInter>;
 }) {
   return capturarErroAcao(async () => {
     await exigirModuloAcao("bpo");
     const banco = texto(input?.banco);
     if (!banco) throw new Error("Informe o banco.");
-    const provedor = input?.provedor === "asaas" ? "asaas" : "manual";
+    const provedor = input?.provedor === "asaas" ? "asaas" : input?.provedor === "inter" ? "inter" : "manual";
     const apiKey = texto(input?.apiKey);
     const dataInicial = dataIsoOpcional(input?.dataInicial);
     let saldo = Number.isFinite(input?.saldoAtual) ? Number(input.saldoAtual) : 0;
@@ -134,16 +137,26 @@ export async function criarContaBancaria(input: {
       }
       saldo = await fetchAsaasSaldo(chave);
     }
+    let credencialInter: string | null = null;
+    if (provedor === "inter") {
+      // Lote 4: valida a credencial no próprio Inter (token + saldo) antes de salvar, criptografada.
+      if (!interHabilitado()) throw new Error("O conector do Banco Inter está desligado (beta).");
+      await exigirModuloAcao("bpo", { somenteEquipe: true });
+      const cred = validarCredencialInter(input?.inter ?? {});
+      const f = criarFetchMtls(cred);
+      saldo = (await fetchInterSaldo(await tokenInter(cred, f), cred, f)) ?? 0;
+      credencialInter = JSON.stringify(cred);
+    }
     const conta = await prisma.contaBancaria.create({
       data: {
         banco,
         agencia: texto(input?.agencia) || null,
-        conta: texto(input?.conta) || (provedor === "asaas" ? "Asaas" : "—"),
+        conta: texto(input?.conta) || (provedor === "asaas" ? "Asaas" : provedor === "inter" ? "Inter" : "—"),
         tipo: TIPOS_CONTA.includes(input?.tipo ?? "") ? input.tipo! : "corrente",
         descricao: texto(input?.descricao) || null,
         saldoAtual: saldo,
         provedor,
-        credencialEncrypted: apiKey ? criptografarSegredo(apiKey) : null,
+        credencialEncrypted: credencialInter ? criptografarSegredo(credencialInter) : apiKey ? criptografarSegredo(apiKey) : null,
         dataInicial: dataDaConta(dataInicial),
       },
       select: { id: true },

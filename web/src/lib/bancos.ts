@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { criptografarSegredo, descriptografarSegredo, segredoEmTextoPuro } from "@/lib/segredo";
 import { autenticarPluggyDetalhado, mensagemRecusaPluggy, fetchPluggyAccountBalance, fetchPluggyTransactions, garantirWebhookPluggy } from "@/lib/bancos/pluggy";
 import { fetchAsaasExtrato, fetchAsaasSaldo } from "@/lib/bancos/asaas-extrato";
+import { criarFetchMtls, fetchInterExtrato, fetchInterSaldo, interHabilitado, lerCredencialInter, tokenInter, type CredencialInter, type FetchInter } from "@/lib/bancos/inter";
 import { chaveAsaasCentral, recriptografarAsaasCentral, tokenWebhookAsaasCentral } from "@/lib/bancos/asaas-central";
 import { recalcularSaldoConta, vincularTransacoesAoBpo } from "@/lib/bancos/lancamentos-bpo";
 import { sincronizarCobrancasAsaas } from "@/lib/bancos/cobrancas-asaas";
@@ -21,7 +22,7 @@ import {
   type SaldoExtrato,
 } from "@/lib/extrato-import";
 
-export type Provedor = "manual" | "asaas" | "pluggy";
+export type Provedor = "manual" | "asaas" | "pluggy" | "inter";
 type Movimento = { externalId: string; data: string; descricao: string; valor: number; tipo: "credito" | "debito"; categoria?: string; titular?: string; detalhe?: string; original?: string; identificadorBancario?: string; asaasPaymentId?: string };
 type ContaComData = { id: string; dataInicial: Date | null };
 
@@ -133,7 +134,12 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
 
 export type ResultadoSync = { ok: boolean; mensagem: string; novos?: number; saldo?: number | null };
 
-export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch = fetch): Promise<ResultadoSync> {
+export async function sincronizarConta(
+  contaId: string,
+  fetchImpl: typeof fetch = fetch,
+  /** Lote 4: o Inter exige certificado de cliente (mTLS); nos testes vem simulado. */
+  fetchInter: (c: CredencialInter) => FetchInter = criarFetchMtls,
+): Promise<ResultadoSync> {
   const conta = await prisma.contaBancaria.findUnique({ where: { id: contaId } });
   if (!conta) throw new Error("Conta não encontrada.");
   try {
@@ -152,6 +158,14 @@ export async function sincronizarConta(contaId: string, fetchImpl: typeof fetch 
       const token = await tokenPluggy(fetchImpl);
       movimentos = await fetchPluggyTransactions(token, conta.pluggyAccountId, desde, fetchImpl, conta.pluggyItemId);
       saldo = await fetchPluggyAccountBalance(token, conta.pluggyAccountId, fetchImpl);
+    } else if (conta.provedor === "inter") {
+      // Lote 4: conector do Banco Inter (API Banking), desligado por padrão (BANCO_INTER_API=1 liga).
+      if (!interHabilitado()) return { ok: false, mensagem: "O conector do Banco Inter está desligado (beta). Use Importar extrato." };
+      const cred = lerCredencialInter(await credencialDaConta(conta));
+      const f = fetchInter(cred);
+      const token = await tokenInter(cred, f);
+      movimentos = (await fetchInterExtrato(token, cred, desde, hoje(), f)).map((m) => ({ ...m, titular: m.titular ?? undefined, detalhe: m.detalhe ?? undefined, original: m.original ?? undefined }));
+      saldo = await fetchInterSaldo(token, cred, f);
     } else {
       return { ok: false, mensagem: "Esta conta é alimentada por importação de extrato (botão Importar extrato)." };
     }
@@ -176,7 +190,7 @@ export async function sincronizarTodasContas(fetchImpl: typeof fetch = fetch) {
   // LOTE C: rede de segurança diária — movimentação sem lançamento no BPO ganha o seu (idempotente).
   await vincularTransacoesAoBpo().catch(() => undefined);
   const contas = await prisma.contaBancaria.findMany({
-    where: { ativo: true, provedor: { in: ["asaas", "pluggy"] } },
+    where: { ativo: true, provedor: { in: interHabilitado() ? ["asaas", "pluggy", "inter"] : ["asaas", "pluggy"] } },
     select: { id: true },
   });
   const resultados = [];

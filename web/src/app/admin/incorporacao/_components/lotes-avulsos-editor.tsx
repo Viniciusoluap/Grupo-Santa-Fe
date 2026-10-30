@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
-import { parseNumeroBR } from "@/lib/utils";
+import { parseNumeroBR, formatArea } from "@/lib/utils";
 import {
   ordenarLotesAvulsos, parseLotesAvulsos, resumoLotesAvulsos, serializarLotesAvulsos, validarListaLotesAvulsos,
   type LoteAvulso,
@@ -162,7 +162,7 @@ function LotesAvulsosEditor({ estudo }: { estudo: EstudoData }) {
               {lotes.map((l) => (
                 <tr key={l.id} className={`border-b border-gray-50 ${editando === l.id ? "bg-yellow-50/50" : ""}`}>
                   <td className="py-1.5 pr-2">{l.quadra}</td><td className="py-1.5 pr-2">{l.lote}</td>
-                  <td className="py-1.5 pr-2 text-right">{fmt(l.areaM2)}</td><td className="py-1.5 pr-2 text-right">{fmt(l.testadaM)}</td>
+                  <td className="py-1.5 pr-2 text-right">{l.areaM2 === null ? "—" : l.areaM2.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td className="py-1.5 pr-2 text-right">{fmt(l.testadaM)}</td>
                   <td className="py-1.5 pr-2 text-right">{fmt(l.profundidadeM)}</td>
                   <td className="py-1.5 text-right whitespace-nowrap">
                     <button type="button" onClick={() => editar(l)} aria-label={`Editar lote ${l.lote} da quadra ${l.quadra}`} className="p-1 hover:text-[var(--brand-dark)]"><Pencil size={13} /></button>
@@ -183,7 +183,7 @@ function LotesAvulsosEditor({ estudo }: { estudo: EstudoData }) {
           <Save size={13} /> {busy ? "Salvando..." : "Salvar lotes"}
         </button>
         <p className="text-[11px] text-gray-600">
-          {resumo.total} lote(s) · {resumo.quadras} quadra(s) · {fmt(resumo.areaTotalM2)} m² no total{alterado ? " · alterações não salvas" : ""}
+          {resumo.total} lote(s) · {resumo.quadras} quadra(s) · {formatArea(resumo.areaTotalM2)} no total{alterado ? " · alterações não salvas" : ""}
         </p>
       </div>
       {mensagem && <Aviso mensagem={mensagem} />}

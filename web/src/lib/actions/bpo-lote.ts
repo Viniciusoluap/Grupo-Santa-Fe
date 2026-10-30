@@ -5,10 +5,12 @@
 // JSON (bpo_lancamento_exclusoes_backup) e histórico por lançamento, em transação. Só admin.
 // Gêmeo da Prospecta: server/bpo-lote.ts.
 import { revalidatePath } from "next/cache";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { exigirAdminAtivo, exigirModuloAcao } from "@/lib/auth/modulos";
 import { TRANSFERENCIA_INTERNA, ehDespesa } from "@/lib/bpo-categorias";
+import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
+import { CONFIRMACAO_RESTAURACAO, confirmacaoRestauracaoValida, lerSnapshot, planejarRestauracao, type PlanoRestauracao } from "@/lib/bpo-restauracao";
 import { CONFIRMACAO_EXCLUSAO, confirmacaoExclusaoValida, filtrarLancamentosLote, resumirExclusao, validarCombinacao, type FiltrosLote, type ResumoExclusao } from "@/lib/bpo-lote";
 
 export type AbaLote = "cobrancas" | "despesas";
@@ -124,4 +126,126 @@ export async function combinarPagamentos(input: { ids: string[]; requestKey: str
     revalidatePath("/admin/bpo");
     return r;
   } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao combinar." }; }
+}
+
+// ─── Lote 4 (30/10/2026): "Restaurar" exclusões em lote (gêmeo da Prospecta server/bpo-restauracao.ts) ───
+
+const COLUNAS_LANCAMENTO = Object.values(Prisma.BpoLancamentoScalarFieldEnum) as string[];
+const COLUNAS_DATA_LANCAMENTO = ["vencimento", "pagoEm", "criadoEm", "atualizadoEm"];
+const COLUNAS_UNICAS = ["requestKey", "origemTransacaoKey"] as const;
+
+export type ExclusaoEmLoteResumo = {
+  id: string; criadoEm: string; modo: string; aba: string; quantidade: number; protegidos: number;
+  usuario: string | null; restauradoEm: string | null; restauradoPor: string | null;
+  restauracao: { restaurados: number; jaExistiam: number; comAviso: number } | null;
+};
+
+async function nomesDeUsuarios(ids: (string | null)[]) {
+  const unicos = Array.from(new Set(ids.filter((x): x is string => !!x)));
+  const us = unicos.length ? await prisma.usuario.findMany({ where: { id: { in: unicos } }, select: { id: true, nome: true } }) : [];
+  return new Map(us.map((u) => [u.id, u.nome]));
+}
+
+/** Lista das exclusões em lote (data, usuário, aba, quantidade, se já foi restaurada). Só admin. */
+export async function listarExclusoesEmLote(): Promise<ExclusaoEmLoteResumo[] | { erro: string }> {
+  try {
+    await exigirAdminAtivo();
+    const bs = await prisma.bpoLancamentoExclusaoBackup.findMany({ orderBy: { criadoEm: "desc" }, take: 100, omit: { snapshotJson: true } });
+    const nomes = await nomesDeUsuarios(bs.flatMap((b) => [b.criadoPorUsuarioId, b.restauradoPorUsuarioId]));
+    return bs.map((b) => {
+      let restauracao: ExclusaoEmLoteResumo["restauracao"] = null;
+      try { restauracao = b.restauracaoJson ? JSON.parse(b.restauracaoJson) : null; } catch { restauracao = null; }
+      return {
+        id: b.id, criadoEm: b.criadoEm.toISOString(), modo: b.modo, aba: b.aba, quantidade: b.quantidade, protegidos: b.protegidos,
+        usuario: b.criadoPorUsuarioId ? nomes.get(b.criadoPorUsuarioId) ?? "usuário removido" : null,
+        restauradoEm: b.restauradoEm?.toISOString() ?? null,
+        restauradoPor: b.restauradoPorUsuarioId ? nomes.get(b.restauradoPorUsuarioId) ?? "usuário removido" : null,
+        restauracao,
+      };
+    });
+  } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao listar as exclusões." }; }
+}
+
+async function planoDoBackup(db: Tx, snapshotJson: string): Promise<PlanoRestauracao> {
+  const snapshot = lerSnapshot(snapshotJson);
+  const ids = snapshot.map((s) => String(s.id));
+  const clienteIds = Array.from(new Set(snapshot.map((s) => s.clienteId).filter((x) => x != null).map(String)));
+  const existentes = ids.length ? await db.bpoLancamento.findMany({ where: { id: { in: ids } }, select: { id: true } }) : [];
+  const clientes = clienteIds.length ? await db.bpoCliente.findMany({ where: { id: { in: clienteIds } }, select: { id: true } }) : [];
+  const unicosEmUso: Record<string, Set<string>> = {};
+  for (const coluna of COLUNAS_UNICAS) {
+    const valores = Array.from(new Set(snapshot.map((s) => s[coluna]).filter((x): x is string => typeof x === "string" && !!x)));
+    const usados = valores.length
+      ? await db.bpoLancamento.findMany({ where: { [coluna]: { in: valores }, id: { notIn: ids } }, select: { [coluna]: true } as Record<string, true> })
+      : [];
+    unicosEmUso[coluna] = new Set(usados.map((u) => String((u as Record<string, unknown>)[coluna])));
+  }
+  const precisaCatalogo = snapshot.some((s) => s.vinculoOperacionalId);
+  const catalogo = precisaCatalogo ? await catalogoOperacionalBpo() : null;
+  return planejarRestauracao(snapshot, {
+    idsExistentes: new Set(existentes.map((e) => e.id)),
+    clientesExistentes: new Set(clientes.map((c) => c.id)),
+    vinculoExiste: (tipo, categoria, id) => {
+      const chave = tipo === "despesa" && categoria === "comissoes" ? "imoveis" : categoria;
+      return !!catalogo?.[chave]?.some((r) => r.id === id);
+    },
+    unicosEmUso,
+  }, COLUNAS_LANCAMENTO, COLUNAS_DATA_LANCAMENTO);
+}
+
+/** Prévia: o que volta, o que já existe (não duplica) e os avisos de vínculos que sumiram. Só admin. */
+export async function previaRestauracaoExclusao(backupId: string) {
+  try {
+    await exigirAdminAtivo();
+    const b = await prisma.bpoLancamentoExclusaoBackup.findUnique({ where: { id: backupId } });
+    if (!b) return { erro: "Exclusão em lote não encontrada." };
+    const plano = await planoDoBackup(prisma, b.snapshotJson);
+    return {
+      backupId: b.id, aba: b.aba, criadoEm: b.criadoEm.toISOString(), restauradoEm: b.restauradoEm?.toISOString() ?? null,
+      restaurar: plano.restaurar, jaExistem: plano.jaExistem, comAviso: plano.comAviso,
+      itens: plano.itens.map((i) => ({ id: i.id, descricao: i.descricao, valor: i.valor, vencimento: i.vencimento, clienteNome: i.clienteNome, acao: i.acao, avisos: i.avisos })),
+    };
+  } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao calcular a prévia." }; }
+}
+
+/**
+ * Restaura, em transação, os lançamentos de uma exclusão em lote. Uma vez só por backup
+ * (restauradoEm/restauradoPorUsuarioId); não recria lançamento que já existe; vínculo externo que
+ * não existe mais volta vazio (com aviso). Grava histórico por lançamento. Só admin.
+ */
+export async function restaurarExclusaoEmLote(input: { backupId: string; confirmacao: string }) {
+  try {
+    const admin = await exigirAdminAtivo();
+    await exigirModuloAcao("bpo");
+    if (!confirmacaoRestauracaoValida(input.confirmacao)) return { erro: `Digite ${CONFIRMACAO_RESTAURACAO} para confirmar a restauração.` };
+    const r = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1::int AS locked FROM pg_advisory_xact_lock(hashtext('bpo_exclusao_lote'))`;
+      const b = await tx.bpoLancamentoExclusaoBackup.findUnique({ where: { id: input.backupId } });
+      if (!b) throw new Error("Exclusão em lote não encontrada.");
+      if (b.restauradoEm) throw new Error(`Esta exclusão já foi restaurada em ${b.restauradoEm.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`);
+      const plano = await planoDoBackup(tx, b.snapshotJson);
+      const avisos: string[] = [];
+      for (const item of plano.itens) {
+        if (item.acao !== "restaurar") continue;
+        const versaoAnterior = Number(item.dados.version ?? 1) || 1;
+        const dados = { ...item.dados, version: versaoAnterior + 1 } as Prisma.BpoLancamentoUncheckedCreateInput;
+        await tx.bpoLancamento.create({ data: dados });
+        await tx.bpoLancamentoHistorico.create({ data: {
+          lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior, alteradoPorUsuarioId: admin.id,
+          motivo: `Restaurado da exclusão em lote (backup ${b.id})${item.avisos.length ? ` — ${item.avisos.join(" ")}` : ""}`,
+          antesJson: JSON.stringify({ excluido: true, backupId: b.id }), depoisJson: JSON.stringify(dados),
+        } });
+        for (const a of item.avisos) avisos.push(`${item.descricao || item.id}: ${a}`);
+      }
+      const resumo = { restaurados: plano.restaurar, jaExistiam: plano.jaExistem, comAviso: plano.comAviso };
+      const marcado = await tx.bpoLancamentoExclusaoBackup.updateMany({
+        where: { id: b.id, restauradoEm: null },
+        data: { restauradoEm: new Date(), restauradoPorUsuarioId: admin.id, restauracaoJson: JSON.stringify(resumo) },
+      });
+      if (marcado.count !== 1) throw new Error("Esta exclusão já foi restaurada por outra pessoa. Atualize a tela.");
+      return { ...resumo, avisos };
+    }, { timeout: 60000 });
+    revalidatePath("/admin/bpo");
+    return r;
+  } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao restaurar." }; }
 }

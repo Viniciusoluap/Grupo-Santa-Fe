@@ -9,6 +9,7 @@ import {
 } from "@turf/turf";
 import { salvarApp } from "@/lib/actions/incorporacao";
 import { adicionarCamadasBase } from "./camadas-base";
+import { formatArea } from "@/lib/utils";
 
 // Mapa do terreno com base de SATÉLITE colorida (Esri World Imagery + ruas/rótulos,
 // alternável para OpenStreetMap — ver camadas-base.ts) e
@@ -342,7 +343,7 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
       </div>
       {appCalculada && !carregandoCamadas && (
         <p className="text-[11px] font-bold text-green-700 bg-green-50 border border-green-100 px-2.5 py-1.5">
-          APP calculada automaticamente dentro do terreno: {Math.round(appCalculada.areaM2).toLocaleString("pt-BR")} m²
+          APP calculada automaticamente dentro do terreno: {formatArea(appCalculada.areaM2)}
           {appCalculada.larguraM != null && ` (faixa de ${appCalculada.larguraM} m)`} — já enviada para a aba Viabilidade.
         </p>
       )}

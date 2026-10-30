@@ -85,9 +85,10 @@ describe("Integrações — testar com a mensagem real", () => {
     expect(String(fetchImpl.mock.calls[0][0])).toBe("https://api.asaas.com/v3/finance/balance");
   });
 
-  it("Asaas 500 sem corpo: HTTP sem dica de IP", async () => {
+  it("Asaas 500 sem corpo: HTTP com dica de instabilidade, sem dica de IP", async () => {
     const r = await testarIntegracao("asaas", ADMIN, setup({ fetchImpl: vi.fn(() => Promise.resolve({ ok: false, status: 500, json: async () => { throw new Error("vazio"); } } as unknown as Response)) as never }));
-    expect(r.mensagem).toBe("O Asaas recusou o acesso (HTTP 500).");
+    expect(r.mensagem).toBe("O Asaas recusou o acesso (HTTP 500). O Asaas está instável no momento — tente novamente mais tarde.");
+    expect(r.mensagem).not.toMatch(/restrição de IP/);
   });
 
   it("Asaas ok: conectado com ambiente e saldo; sem chave avisa", async () => {
@@ -104,7 +105,7 @@ describe("Integrações — testar com a mensagem real", () => {
 
   it("Pluggy 401 sem trial: sem a dica do plano; ok: conectada", async () => {
     expect((await testarIntegracao("pluggy", ADMIN, setup({ fetchImpl: vi.fn(() => resp({ message: "Invalid credentials" }, 401)) as never }))).mensagem)
-      .toBe("A Pluggy recusou (HTTP 401): Invalid credentials");
+      .toMatch(/^A Pluggy recusou \(HTTP 401\): Invalid credentials\. Credencial inválida/);
     expect(await testarIntegracao("pluggy", ADMIN, setup({ fetchImpl: vi.fn(() => resp({ apiKey: "tok" })) as never }))).toEqual({ ok: true, mensagem: "Pluggy conectada." });
   });
 

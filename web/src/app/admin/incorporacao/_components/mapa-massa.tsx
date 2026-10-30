@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import type { Feature, Polygon, Position } from "geojson";
 import type { LoteGerado } from "@/lib/geo/massa";
 import { adicionarCamadasBase } from "./camadas-base";
+import { formatArea } from "@/lib/utils";
 
 // Mapa Leaflet que desenha a gleba + os lotes do cenário de massa.
 // Base satélite + ruas (camadas-base.ts). Lotes vendáveis em amarelo, institucional
@@ -43,9 +44,9 @@ function corDoLote(l: LoteGerado): string {
 }
 
 function rotuloDoLote(l: LoteGerado): string {
-  if (l.tipo === "vendavel") return `${l.quadra ? `Quadra ${l.quadra} · Lote ${l.numero} · ` : ""}${l.areaM2} m²`;
-  if (l.tipo === "nao_parcelavel") return `${l.areaM2} m² · Não parcelável (restrição)`;
-  return `${l.areaM2} m² · ${l.uso === "institucional" ? "Institucional" : l.uso === "verde" ? "Área verde" : "Área pública"}`;
+  if (l.tipo === "vendavel") return `${l.quadra ? `Quadra ${l.quadra} · Lote ${l.numero} · ` : ""}${formatArea(l.areaM2)}`;
+  if (l.tipo === "nao_parcelavel") return `${formatArea(l.areaM2)} · Não parcelável (restrição)`;
+  return `${formatArea(l.areaM2)} · ${l.uso === "institucional" ? "Institucional" : l.uso === "verde" ? "Área verde" : "Área pública"}`;
 }
 
 type MapaLeaflet = { remove: () => void };

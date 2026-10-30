@@ -8,6 +8,7 @@ import type { EstudoData } from "./incorporacao-detail";
 import { enviarComProgresso } from "@/lib/envio-progresso";
 import { SemKmlToggle } from "./lotes-avulsos-editor";
 import { AVISO_SEM_POLIGONAL } from "@/lib/incorporacao/lotes-avulsos";
+import { formatArea } from "@/lib/utils";
 
 const MapaTerreno = dynamic(() => import("./mapa-terreno").then((m) => m.MapaTerreno), {
   ssr: false,
@@ -59,7 +60,7 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
         <>
           {/* Métricas */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <Metric label="Área" value={hectares(estudo.areaM2)} sub={`${estudo.areaM2.toLocaleString("pt-BR")} m²`} icon={MapPinned} />
+            <Metric label="Área" value={hectares(estudo.areaM2)} sub={formatArea(estudo.areaM2)} icon={MapPinned} />
             <Metric label="Perímetro" value={`${estudo.perimetroM.toLocaleString("pt-BR")} m`} icon={Ruler} />
             <Metric label="Centro" value={estudo.centroLat && estudo.centroLng ? `${estudo.centroLat.toFixed(5)}, ${estudo.centroLng.toFixed(5)}` : "—"} icon={MapPinned} />
           </div>

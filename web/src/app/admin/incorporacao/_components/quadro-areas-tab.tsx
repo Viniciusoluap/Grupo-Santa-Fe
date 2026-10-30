@@ -5,7 +5,7 @@ import { Plus, Trash2, Save, Loader2, CheckCircle2, LayoutGrid, AlertTriangle } 
 import { calcularQuadroAreas, type ItemQuadroAreas } from "@/lib/urbanismo/quadro-areas";
 import { salvarQuadroAreas } from "@/lib/actions/incorporacao";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
-import { parseNumeroBR } from "@/lib/utils";
+import { parseNumeroBR, formatArea } from "@/lib/utils";
 import type { EstudoData } from "./incorporacao-detail";
 
 // Quadro de Áreas (padrão NBR 12721) — etapas 2.3 (Estudo de Massa e Quadro
@@ -42,7 +42,7 @@ const inputCls = "w-full text-sm border border-gray-200 px-2 py-1.5 focus:outlin
 const numCls = "w-full text-sm border border-gray-200 px-2 py-1.5 text-right focus:outline-none focus:border-[var(--brand-yellow)]";
 
 function fmtM2(v: number) {
-  return `${Math.round(v).toLocaleString("pt-BR")} m²`;
+  return formatArea(v);
 }
 function fmtPct(v: number) {
   return `${(v * 100).toFixed(1)}%`;

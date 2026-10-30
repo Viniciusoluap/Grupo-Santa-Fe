@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FileText, Download, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatArea } from "@/lib/utils";
 import {
   montarRelatorioExecutivo,
   temDado,
@@ -204,7 +204,7 @@ function pctStr(v: number, casas = 1): string {
 }
 
 function m2Str(v: number): string {
-  return `${Math.round(v).toLocaleString("pt-BR")} m²`;
+  return formatArea(v);
 }
 
 /** Renderiza o conteúdo de uma seção OU, se não houver dado, uma pendência explícita. */
@@ -221,10 +221,10 @@ function secaoTerreno(doc: jsPDF, y: number, secao: Secao<DadoTerreno>): number 
     y = tabela(doc, y,
       ["Área", "Perímetro", "Centro", "APP (automática)"],
       [[
-        `${d.areaM2.toLocaleString("pt-BR")} m² (${(d.areaM2 / 10000).toFixed(2)} ha)`,
+        `${formatArea(d.areaM2)} (${(d.areaM2 / 10000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha)`,
         `${d.perimetroM.toLocaleString("pt-BR")} m`,
         d.centroLat && d.centroLng ? `${d.centroLat.toFixed(5)}, ${d.centroLng.toFixed(5)}` : "—",
-        d.appAreaM2 ? `${Math.round(d.appAreaM2).toLocaleString("pt-BR")} m² (${d.appOrigem ?? "—"})` : "—",
+        d.appAreaM2 ? `${formatArea(d.appAreaM2)} (${d.appOrigem ?? "—"})` : "—",
       ]]
     );
     if (d.appPendencia) y = pendenciaLinha(doc, y, d.appPendencia);
