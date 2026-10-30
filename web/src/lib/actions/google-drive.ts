@@ -8,7 +8,7 @@ import { origemDaRequisicao } from "@/lib/google-drive-oauth";
 import { desconectarOAuth, estadoOAuth, salvarCredencialOAuth } from "@/lib/google-drive-conexao";
 import { sincronizarDrive, ultimoRelatorioDrive } from "@/lib/drive-organizacao";
 
-// Configurações → Google Drive (só administrador). O JSON do cliente OAuth chega
+// Integrações → Google Drive (só administrador). O JSON do cliente OAuth chega
 // aqui, é validado e guardado criptografado; o arquivo nunca é devolvido à tela.
 // Mesmas operações do router `googleDrive` da Prospecta.
 
@@ -26,7 +26,7 @@ export async function salvarCredencialGoogleDrive(json: string) {
     const admin = await exigirAdminAtivo();
     if (typeof json !== "string" || json.length < 2 || json.length > 20_000) throw new Error("Arquivo inválido para ser o JSON do cliente OAuth.");
     const r = await salvarCredencialOAuth(json, admin.id, await origem());
-    revalidatePath("/admin/configuracoes");
+    revalidatePath("/admin/integracoes");
     return r;
   });
 }
@@ -35,7 +35,7 @@ export async function desconectarGoogleDrive() {
   return capturarErroAcao(async () => {
     const admin = await exigirAdminAtivo();
     await desconectarOAuth(admin.id);
-    revalidatePath("/admin/configuracoes");
+    revalidatePath("/admin/integracoes");
     return { ok: true };
   });
 }

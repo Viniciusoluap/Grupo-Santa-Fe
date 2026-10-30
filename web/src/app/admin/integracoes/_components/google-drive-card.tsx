@@ -11,7 +11,7 @@ type Status = Awaited<ReturnType<typeof import("@/lib/google-drive-conexao").est
 type Teste = Exclude<Awaited<ReturnType<typeof testarGoogleDrive>>, { erroAcao: string }>;
 
 /**
- * Configurações → Google Drive: o dono envia o JSON do cliente OAuth ("Aplicativo
+ * Integrações → Google Drive: o dono envia o JSON do cliente OAuth ("Aplicativo
  * da Web") e conecta a própria conta Google. Mesmo cartão da Prospecta.
  */
 type Mensagem = { tipo: "ok" | "erro" | "aviso"; texto: string };
