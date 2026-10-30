@@ -6,6 +6,11 @@ import { strToU8, zipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// Não há .xlsb de teste: o "xlsb" é lido como .xls (abas/células), sem listas — como no .xlsb real.
+vi.mock("@/lib/caixa/pci-modelo-estrutura", async (orig) => {
+  const o = await orig<typeof import("@/lib/caixa/pci-modelo-estrutura")>();
+  return { ...o, lerEstruturaModeloPci: (bytes: Uint8Array, formato: "xls" | "xlsm" | "xlsb") => formato === "xlsb" ? { ...o.lerEstruturaModeloPci(bytes, "xls"), formato, listas: null } : o.lerEstruturaModeloPci(bytes, formato) };
+});
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url;
 
@@ -38,6 +43,25 @@ describe.skipIf(!url)("PCI da CAIXA › modelos (lote 03, banco real)", () => {
     await prisma.pciModelo.deleteMany({ where: { id: { in: criados } } });
     if (atualAntes) await prisma.pciModelo.update({ where: { id: atualAntes }, data: { atual: true } }).catch(() => undefined);
     await prisma.$disconnect();
+  });
+
+  it("revisão PR #180 (paridade): modelo .xlsb com base .xls compatível libera a geração; sem base, bloqueia", async () => {
+    const base = await dados.gravarModeloPci(`pci-base-${Date.now()}.xls`, MODELO, "teste-lote3", null);
+    criados.push(base.id);
+    const proxima = async () => ((await prisma.pciModelo.aggregate({ _max: { versao: true } }))._max.versao ?? 0) + 1;
+    const xlsb = await prisma.pciModelo.create({ data: { versao: await proxima(), nome: "pci.xlsb", formato: "xlsb", tamanho: MODELO.length, hash: `x-${Date.now()}`, dados: Buffer.from(MODELO) } });
+    criados.push(xlsb.id);
+    const resumo = (id: string) => dados.listarModelosPci().then((l) => l.find((m) => m.id === id)!);
+    const r = await dados.disponibilidadeGeracaoPci(await resumo(xlsb.id));
+    expect(r).toMatchObject({ baseCompativelDisponivel: true, baseXlsVersao: base.versao });
+    expect(r.avisoModelo).toMatch(new RegExp(`a partir da versão v${base.versao}`));
+    expect((await dados.modeloParaGerarPci(await resumo(xlsb.id)))?.aviso).toMatch(new RegExp(`versão v${base.versao}`));
+    // .xlsb ilegível (sem estrutura): nenhuma base compatível → a tela bloqueia o botão.
+    const ruim = await prisma.pciModelo.create({ data: { versao: await proxima(), nome: "ruim.xlsb", formato: "xlsb", tamanho: 4, hash: `y-${Date.now()}`, dados: Buffer.from([0x50, 0x4b, 3, 4]) } });
+    criados.push(ruim.id);
+    expect(await dados.disponibilidadeGeracaoPci(await resumo(ruim.id))).toMatchObject({ baseCompativelDisponivel: false, baseXlsVersao: null, avisoModelo: expect.stringMatching(/não há versão \.xls compatível/) });
+    expect(await dados.disponibilidadeGeracaoPci(null)).toMatchObject({ baseCompativelDisponivel: false, avisoModelo: expect.stringMatching(/Nenhum modelo/) });
+    await prisma.pciModelo.update({ where: { id: base.id }, data: { excluidoEm: new Date() } });
   });
 
   it("relatório guardado; mudança crítica só vira atual com confirmação; exclusão lógica preserva o arquivo", async () => {

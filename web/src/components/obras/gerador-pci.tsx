@@ -165,7 +165,8 @@ export function GeradorPci({ obraId }: { obraId: string }) {
   }
 
   const secaoCampos = (secao: SecaoPci) => CAMPOS_PCI.filter((c) => c.secao === secao && (!c.visivel || c.visivel(form.campos))).map((c) => <Campo key={c.id} campo={c} valor={form.campos[c.id] ?? null} onChange={(v) => setCampo(c.id, v)} />);
-  const podeGerar = !!d.modelo && d.modelo.formato !== "xlsb";
+  // Revisão do PR #180 (paridade): .xlsm/.xlsb geram a partir da versão .xls compatível — o servidor informa se ela existe.
+  const podeGerar = !!d.modelo && d.baseCompativelDisponivel;
 
   return (
     <section className="space-y-4 border border-gray-200 bg-white p-5">

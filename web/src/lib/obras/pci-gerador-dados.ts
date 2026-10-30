@@ -117,6 +117,21 @@ async function baseXlsCompativel(referencia: EstruturaModeloPci, ignorarId: stri
   return null;
 }
 
+/**
+ * Revisão do PR #180 (P2, paridade): o que a tela do gerador precisa saber para liberar o botão — com
+ * modelo .xlsm/.xlsb atual, a geração só é possível se existir a versão .xls compatível (mesma regra de
+ * modeloParaGerarPci). Sem modelo: indisponível.
+ */
+export async function disponibilidadeGeracaoPci(atual: ModeloPciResumo | null): Promise<{ baseCompativelDisponivel: boolean; baseXlsVersao: number | null; avisoModelo: string | null }> {
+  if (!atual) return { baseCompativelDisponivel: false, baseXlsVersao: null, avisoModelo: "Nenhum modelo de PCI cadastrado. O admin envia o modelo oficial em Integrações › PCI da CAIXA." };
+  if (atual.formato === "xls") return { baseCompativelDisponivel: true, baseXlsVersao: atual.versao, avisoModelo: null };
+  const ref = await estruturaDoModelo(atual.id);
+  const base = ref ? await baseXlsCompativel(ref.estrutura, atual.id) : null;
+  return base
+    ? { baseCompativelDisponivel: true, baseXlsVersao: base.versao, avisoModelo: `Modelo atual em .${atual.formato}: a PCI é gerada em .xls a partir da versão v${base.versao}, de mesma estrutura.` }
+    : { baseCompativelDisponivel: false, baseXlsVersao: null, avisoModelo: `Modelo atual em .${atual.formato}: não há versão .xls compatível — a geração fica bloqueada até o admin enviar a versão .xls do modelo oficial em Integrações › PCI da CAIXA.` };
+}
+
 export async function modeloParaGerarPci(atual: ModeloPciResumo) {
   if (atual.formato === "xls") {
     const m = await arquivoDoModeloPci(atual.id);
@@ -285,7 +300,7 @@ export async function carregarGeradorPci(obraId: string) {
   const engenheiros = (await listarEngenheiros()).map((e) => ({ id: e.id, nome: e.nome, email: e.email, telefone: e.telefone, crea: e.crea, creaUf: e.creaUf, engenheiro: e.engenheiro }));
   return {
     modelo: modelo ? { versao: modelo.versao, arquivo: modelo.arquivo, formato: modelo.formato, enviadoEm: modelo.enviadoEm.toISOString() } : null,
-    avisoModelo: !modelo ? "Nenhum modelo de PCI cadastrado. O admin envia o modelo oficial em Integrações › PCI da CAIXA." : modelo.formato !== "xls" ? `Modelo atual em .${modelo.formato}: a PCI é gerada em .xls a partir da versão .xls compatível (sem ela, a geração é bloqueada).` : null,
+    ...(await disponibilidadeGeracaoPci(modelo)),
     formulario,
     origem: rascunho ? ("rascunho" as const) : ("automatico" as const),
     rascunhoEm: rascunho ? rascunho.atualizadoEm.toISOString() : null,
