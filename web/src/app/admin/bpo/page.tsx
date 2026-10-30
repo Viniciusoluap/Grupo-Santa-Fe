@@ -4,14 +4,15 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
 import { dataIsoDaConta, statusPluggy } from "@/lib/bancos";
 import { TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
-import { dreUltimos12Meses, montarDre, resumoContabil } from "@/lib/financeiro/bpo-resultado";
+import { celulasDre, dreUltimos12Meses, resumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { BpoClient } from "./_components/bpo-client";
 import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
+import { carregarIndicadoresRelatorios, periodoDosParametros } from "@/lib/financeiro/relatorios-bpo-dados";
 
-const PIE_COLORS = ["#F5C400", "#1A1A1A", "#6B7280", "#D1D5DB", "#4B5563", "#9CA3AF", "#374151", "#E5E7EB"];
-
-export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string }> }) {
+export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string; relDe?: string; relAte?: string }> }) {
   await exigirModuloPagina("bpo");
+  // Lote 03 (paridade com a Prospecta): filtro De/Até dos indicadores 14/18 da aba Relatórios.
+  const { relDe, relAte } = await searchParams;
   const catalogoOperacional = await catalogoOperacionalBpo();
 
   const [
@@ -21,23 +22,21 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     leads,
     contasRaw,
     totalImoveis,
-    totalLeads,
-    leadsPorStatus,
     comissoesPagas,
-    imoveisPorTipo,
     totalFinanciamentos,
-    corretores,
     pluggy,
+    indicadoresRelatorios,
   ] = await Promise.all([
     // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
-      where: { OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
+      // Lote 3, item 16: originais combinadas saem da lista (a nova cobrança já soma os valores).
+      where: { combinadaEmId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
       orderBy: { vencimento: "desc" },
       take: 2000,
       include: { cliente: { select: { razaoSocial: true } } },
     }),
     // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
-    prisma.bpoLancamento.findMany({ select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
+    prisma.bpoLancamento.findMany({ where: { combinadaEmId: null }, select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
     prisma.bpoCliente.findMany({
       select: { id: true, razaoSocial: true, leadId: true },
       orderBy: { razaoSocial: "asc" },
@@ -53,17 +52,11 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       include: { transacoes: { orderBy: { data: "desc" }, take: 30 } },
     }),
     prisma.imovel.count(),
-    prisma.lead.count(),
-    prisma.lead.groupBy({ by: ["status"], _count: { id: true } }),
     prisma.comissao.findMany({ where: { status: "paga" }, orderBy: { pagamentoEm: "asc" }, take: 500 }),
-    prisma.imovel.groupBy({ by: ["tipo"], _count: { id: true } }),
     prisma.financiamento.count(),
-    prisma.corretor.findMany({
-      where: { ativo: true },
-      include: { comissoes: { where: { status: "paga" } } },
-      take: 10,
-    }),
     statusPluggy(),
+    // Lote 03 (14 e 18): VGV de Obras, Números de Obra, Funil, Ranking e Unidades.
+    carregarIndicadoresRelatorios(periodoDosParametros(relDe, relAte)),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
   const { aba, categoriaOperacional, vinculoOperacionalId } = await searchParams;
@@ -88,49 +81,22 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     });
   }
 
-  const propertyTypeData = imoveisPorTipo.map((g, idx) => ({
-    name: g.tipo.charAt(0).toUpperCase() + g.tipo.slice(1),
-    value: g._count.id,
-    color: PIE_COLORS[idx % PIE_COLORS.length],
-  }));
-
-  const totalLeadsCount = totalLeads || 1;
-  const statusMap: Record<string, string> = {
-    novo: "Captados", contato: "Em Contato", visita: "Visitas",
-    proposta: "Proposta", fechado: "Fechados", perdido: "Perdidos",
-  };
-  const leadFunnelData = leadsPorStatus.map((s) => ({
-    stage: statusMap[s.status] ?? s.status,
-    count: s._count.id,
-    pct: Math.round((s._count.id / totalLeadsCount) * 100),
-  }));
-
-  const corretorRanking = corretores
-    .map((c) => ({
-      name: c.nome,
-      comissoes: c.comissoes.reduce((s, com) => s + com.valor, 0),
-      vendas: c.comissoes.length,
-    }))
-    .sort((a, b) => b.comissoes - a.comissoes)
-    .slice(0, 5);
-
   const serviceRevenue = [
     { service: "Corretagem", receita: comissoesPagas.reduce((s, c) => s + c.valor, 0) },
   ];
 
   const anoAtual = String(now.getFullYear());
-  const dre = montarDre(todosLancamentos);
+  // Lote 3, item 15: base competência × categoria; a aba DRE filtra Mês/Ano sobre ela.
+  const dreCelulas = celulasDre(todosLancamentos);
   const contabilidade = { ano: anoAtual, ...resumoContabil(todosLancamentos, `${anoAtual}-01`, `${anoAtual}-12`) };
 
   const relatoriosData = {
     dreMensal: dreUltimos12Meses(todosLancamentos, now),
     totalImoveis,
-    totalLeads,
+    totalLeads: indicadoresRelatorios.funilLeads.total,
     totalFinanciamentos,
     monthlySales,
-    propertyTypeData,
-    leadFunnelData,
-    corretorRanking,
+    ...indicadoresRelatorios,
     serviceRevenue,
   };
 
@@ -194,5 +160,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dre={dre} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
+  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} />;
 }

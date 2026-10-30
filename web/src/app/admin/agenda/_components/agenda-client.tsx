@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { rotulo } from "@/lib/rotulos";
 import { chaveLocalAgenda, registrosAgenda, type FiltroAgenda } from "@/lib/crm/agenda-registros";
 import { editarTarefaCrm } from "@/lib/actions/tarefas-crm";
+import { Modal } from "@/components/ui/modal";
 
 type Corretor = { id: string; nome: string };
 type ImovelItem = { id: string; titulo: string };
@@ -354,8 +355,8 @@ function VisitaModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+    <Modal rotulo={isEdit ? "Editar Visita" : "Nova Visita"} onFechar={onClose} tamanho="lg">
+      <div>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
             {isEdit ? "Editar Visita" : "Nova Visita"}
@@ -489,7 +490,7 @@ function VisitaModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 

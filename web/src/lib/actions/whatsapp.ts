@@ -13,7 +13,11 @@ import {
 import { enviarWhatsappBusiness } from "@/lib/whatsapp/business";
 import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
 import { limparExtras, textosPorDestinatario } from "@/lib/whatsapp/variaveis";
-import { URL_WEBHOOK_EVOLUTION, leadPorTelefone, segredoWebhookEvolution } from "@/lib/whatsapp/webhook-evolution";
+import { URL_WEBHOOK_EVOLUTION, leadDoVinculo, leadPorTelefone, segredoWebhookEvolution } from "@/lib/whatsapp/webhook-evolution";
+import {
+  LEAD_ATIVO_WHATSAPP, PERIODOS_DASHBOARD, PERIODO_PADRAO, STATUS_ENVIO_SUCESSO, candidatosVinculo, chaveTelefone, inicioPeriodo, resolverLeadConversa, taxaLeitura,
+  type LeadCandidato, type OrigemVinculo, type PeriodoDashboard,
+} from "@/lib/whatsapp/conversas";
 import { baixarEGuardarMidia, mensagemWhatsappAcessivel } from "@/lib/whatsapp/midia";
 import { lixeiraDeArquivosSemUso } from "@/lib/drive-organizacao";
 import { validarTemplateWhatsapp } from "@/lib/whatsapp/templates";
@@ -63,20 +67,6 @@ export async function statusServidorEvolution(): Promise<{ configurado: boolean;
   await donoParaQr();
   const url = await urlServidorEvolution();
   return { configurado: Boolean(url), url };
-}
-
-export async function conexoesWhatsappIntegracoes() {
-  const u = await usuarioAtual();
-  if (!u?.ativo || !podeAdministrarSeguranca(u)) throw new Error("Não autorizado.");
-  const dono = await donoDaConexaoWhatsApp(u.id, u.perfil);
-  const empresa = dono ? await prisma.conexaoWhatsApp.findUnique({ where: { usuarioId: dono }, select: { numero: true, status: true, provedor: true } }) : null;
-  const corretores = await prisma.usuario.findMany({
-    where: { papel: "corretor" }, select: { id: true, nome: true, conexaoWhatsApp: { select: { numero: true, status: true } } }, orderBy: { nome: "asc" },
-  });
-  return {
-    empresa,
-    corretores: corretores.map((c) => ({ id: c.id, nome: c.nome, numero: c.conexaoWhatsApp?.numero ?? null, status: c.conexaoWhatsApp?.status ?? "desconectado" })),
-  };
 }
 
 // Em produção o Next esconde a mensagem de erros lançados em server actions; por isso as
@@ -160,8 +150,9 @@ export async function previaEnvioWhatsapp(mensagem: string, ids: string[], extra
   try {
     const { u } = await atorWhatsapp();
     const pedidos = Array.from(new Set((Array.isArray(ids) ? ids : []).filter((x): x is string => typeof x === "string"))).slice(0, 200);
+    // Lote 03, correção 03: lead excluído/arquivado no CRM some da prévia.
     const leads = await prisma.lead.findMany({
-      where: { id: { in: pedidos }, ...(u.perfil === "corretor" ? { corretorId: u.corretorId } : {}) },
+      where: { id: { in: pedidos }, ...LEAD_ATIVO_WHATSAPP, ...(u.perfil === "corretor" ? { corretorId: u.corretorId } : {}) },
       select: { id: true },
     });
     const permitidos = pedidos.filter((id) => leads.some((l) => l.id === id));
@@ -182,7 +173,7 @@ export async function documentosParaEnvioWhatsapp(ids: string[]): Promise<{ id: 
   const { u } = await atorWhatsapp();
   const pedidos = Array.from(new Set(ids)).slice(0, 200);
   const leads = await prisma.lead.findMany({
-    where: { id: { in: pedidos }, ...(u.perfil === "corretor" ? { corretorId: u.corretorId } : {}) },
+    where: { id: { in: pedidos }, ...LEAD_ATIVO_WHATSAPP, ...(u.perfil === "corretor" ? { corretorId: u.corretorId } : {}) },
     select: { id: true },
   });
   const docs = await prisma.documentoCliente.findMany({ where: { leadId: { in: leads.map((l) => l.id) } }, select: { leadId: true, tipo: true, arquivoId: true } });
@@ -203,7 +194,7 @@ export async function ativarAvisosWhatsapp(): Promise<{ ok: boolean; mensagem?: 
   }
 }
 
-export type ConversaWhatsapp = { numero: string; nome: string | null; leadId: string | null; ultima: string; quando: string; naoLidas: number };
+export type ConversaWhatsapp = { numero: string; nome: string | null; leadId: string | null; vinculo: OrigemVinculo | null; ultima: string; quando: string; naoLidas: number };
 
 const numeroValido = (n: unknown) => typeof n === "string" && n.replace(/\D/g, "").length >= 8 && n.length <= 20;
 
@@ -212,6 +203,17 @@ async function leadsProibidos(u: { perfil: string | null | undefined; corretorId
   if (u.perfil !== "corretor" || !leadIds.length) return new Set();
   const outros = await prisma.lead.findMany({ where: { id: { in: leadIds }, NOT: { corretorId: u.corretorId } }, select: { id: true } });
   return new Set(outros.map((l) => l.id));
+}
+
+/** Lote 03, correção 02: vínculos manuais (botão "Vincular lead") da conexão, por chave do telefone. */
+async function vinculosDaConexao(conexaoId: string): Promise<Map<string, string>> {
+  const rows = await prisma.whatsappVinculoConversa.findMany({ where: { conexaoId }, select: { chaveTelefone: true, leadId: true } });
+  return new Map(rows.map((r) => [r.chaveTelefone, r.leadId]));
+}
+
+async function vinculoManual(conexaoId: string, numero: string): Promise<string | null> {
+  const v = await prisma.whatsappVinculoConversa.findUnique({ where: { conexaoId_chaveTelefone: { conexaoId, chaveTelefone: chaveTelefone(numero) } }, select: { leadId: true } });
+  return v?.leadId ?? null;
 }
 
 export async function conversasWhatsapp(): Promise<{ conversas: ConversaWhatsapp[]; erro?: string }> {
@@ -223,18 +225,30 @@ export async function conversasWhatsapp(): Promise<{ conversas: ConversaWhatsapp
     for (const m of msgs) {
       let g = grupos.find((x) => mesmoTelefone(x.numero, m.destinatario));
       if (!g) {
-        g = { numero: m.destinatario.replace(/\D/g, ""), nome: m.nomeDestinatario, leadId: m.leadId, ultima: m.mensagem, quando: m.enviadaEm.toISOString(), naoLidas: 0 };
+        g = { numero: m.destinatario.replace(/\D/g, ""), nome: m.nomeDestinatario, leadId: m.leadId, vinculo: null, ultima: m.mensagem, quando: m.enviadaEm.toISOString(), naoLidas: 0 };
         grupos.push(g);
       }
       if (!g.nome && m.nomeDestinatario) g.nome = m.nomeDestinatario;
       if (!g.leadId && m.leadId) g.leadId = m.leadId;
       if (m.direcao === "entrada" && !m.lida) g.naoLidas++;
     }
-    const ids = Array.from(new Set(grupos.flatMap((g) => g.leadId ? [g.leadId] : [])));
-    if (ids.length) {
-      const leads = await prisma.lead.findMany({ where: { id: { in: ids }, excluidoEm: null }, select: { id: true, nome: true } });
-      const nomes = new Map(leads.map((lead) => [lead.id, lead.nome]));
-      for (const g of grupos) if (g.leadId && nomes.has(g.leadId)) g.nome = nomes.get(g.leadId)!;
+    // Lote 03, correção 02: lead da conversa = vínculo manual > telefone > lead gravado (mesma regra da Prospecta).
+    if (grupos.length) {
+      const [contatos, vinculos] = await Promise.all([
+        prisma.lead.findMany({ where: { excluidoEm: null }, select: { id: true, nome: true, telefone: true }, orderBy: { criadoEm: "desc" } }),
+        vinculosDaConexao(conn.id),
+      ]);
+      const porChave = new Map<string, string>();
+      for (const l of contatos) { const k = chaveTelefone(l.telefone); if (k.length >= 10 && !porChave.has(k)) porChave.set(k, l.id); }
+      const nomes = new Map(contatos.map((lead) => [lead.id, lead.nome]));
+      for (const g of grupos) {
+        const k = chaveTelefone(g.numero);
+        const manual = vinculos.get(k);
+        const r = resolverLeadConversa({ manual: manual && nomes.has(manual) ? manual : null, porTelefone: porChave.get(k), gravado: g.leadId });
+        g.leadId = r.leadId;
+        g.vinculo = r.origem;
+        if (r.leadId && nomes.has(r.leadId)) g.nome = nomes.get(r.leadId)!;
+      }
     }
     const proibidos = await leadsProibidos(u, grupos.flatMap((g) => (g.leadId ? [g.leadId] : [])));
     return { conversas: grupos.filter((g) => !g.leadId || !proibidos.has(g.leadId)) };
@@ -253,7 +267,8 @@ export async function mensagensConversaWhatsapp(numero: string): Promise<{ mensa
     if (!conn) return { mensagens: [] };
     const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, include: { midia: { select: { mensagemId: true } } }, orderBy: { enviadaEm: "desc" }, take: 3000 });
     const da = todas.filter((m) => mesmoTelefone(m.destinatario, numero)).reverse();
-    const proibidos = await leadsProibidos(u, Array.from(new Set(da.flatMap((m) => (m.leadId ? [m.leadId] : [])))));
+    const manual = await vinculoManual(conn.id, numero);
+    const proibidos = await leadsProibidos(u, manual ? [manual] : Array.from(new Set(da.flatMap((m) => (m.leadId ? [m.leadId] : [])))));
     if (proibidos.size) return { mensagens: [], erro: "Conversa de outro corretor." };
     const naoLidas = da.filter((m) => m.direcao === "entrada" && !m.lida).map((m) => m.id);
     if (naoLidas.length) await prisma.mensagemWhatsapp.updateMany({ where: { id: { in: naoLidas } }, data: { lida: true } });
@@ -274,7 +289,8 @@ export async function excluirConversaWhatsapp(numero: string): Promise<{ apagada
     if (!conn) return { apagadas: 0, erro: "WhatsApp não está conectado." };
     const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, select: { id: true, destinatario: true, leadId: true } });
     const da = todas.filter((m) => mesmoTelefone(m.destinatario, numero));
-    const proibidos = await leadsProibidos(u, Array.from(new Set(da.flatMap((m) => m.leadId ? [m.leadId] : []))));
+    const manual = await vinculoManual(conn.id, numero);
+    const proibidos = await leadsProibidos(u, manual ? [manual] : Array.from(new Set(da.flatMap((m) => m.leadId ? [m.leadId] : []))));
     if (proibidos.size) return { apagadas: 0, erro: "Conversa de outro corretor." };
     const copias = da.length ? await prisma.whatsappMidia.findMany({ where: { mensagemId: { in: da.map((m) => m.id) }, driveFileId: { not: null } }, select: { driveFileId: true } }) : [];
     if (da.length) await prisma.mensagemWhatsapp.deleteMany({ where: { conexaoId: conn.id, id: { in: da.map((m) => m.id) } } });
@@ -282,6 +298,173 @@ export async function excluirConversaWhatsapp(numero: string): Promise<{ apagada
     await lixeiraDeArquivosSemUso(copias.map((c) => c.driveFileId));
     return { apagadas: da.length };
   } catch (e) { return { apagadas: 0, erro: motivo(e) }; }
+}
+
+/**
+ * Lote 03, correção 01: o que a exclusão em lote vai apagar — só mensagens (e mídias, por cascata) da conexão,
+ * das conversas escolhidas. Corretor: só conversas dos próprios leads ou sem lead (mesma resolução da lista);
+ * se alguma for de outro corretor, nada é apagado. Gêmeo de planoExclusaoConversas (Prospecta).
+ */
+async function planoExclusaoConversas(u: { perfil: string | null | undefined; corretorId: string | null }, conexaoId: string, numeros: string[]) {
+  const chaves = new Set(numeros.filter(numeroValido).map(chaveTelefone).filter((c) => c.length >= 10));
+  const todas = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId }, select: { id: true, destinatario: true, leadId: true } });
+  const porChave = new Map<string, { ids: string[]; gravado: string | null }>();
+  for (const m of todas) {
+    const k = chaveTelefone(m.destinatario);
+    if (!chaves.has(k)) continue;
+    const g = porChave.get(k) ?? { ids: [], gravado: null };
+    g.ids.push(m.id);
+    if (!g.gravado && m.leadId) g.gravado = m.leadId;
+    porChave.set(k, g);
+  }
+  if (u.perfil === "corretor" && porChave.size) {
+    const [vinculos, contatos] = await Promise.all([
+      vinculosDaConexao(conexaoId),
+      prisma.lead.findMany({ where: { excluidoEm: null }, select: { id: true, telefone: true }, orderBy: { criadoEm: "desc" } }),
+    ]);
+    const ids: string[] = [];
+    for (const [k, g] of porChave) {
+      const manual = vinculos.get(k);
+      const { leadId } = resolverLeadConversa({
+        manual: manual && contatos.some((l) => l.id === manual) ? manual : null,
+        porTelefone: contatos.find((l) => chaveTelefone(l.telefone) === k)?.id,
+        gravado: g.gravado,
+      });
+      if (leadId) ids.push(leadId);
+    }
+    if ((await leadsProibidos(u, Array.from(new Set(ids)))).size) throw new Error("Há conversa de lead de outro corretor na seleção. Nada foi excluído.");
+  }
+  const ids = Array.from(porChave.values()).flatMap((g) => g.ids);
+  return { conversas: porChave.size, mensagens: ids.length, ids };
+}
+
+const listaNumeros = (numeros: unknown) => (Array.isArray(numeros) ? numeros : []).filter((n): n is string => numeroValido(n)).slice(0, 500);
+
+/** Lote 03, correção 01: prévia da exclusão em lote (quantas conversas e mensagens). */
+export async function previaExclusaoConversasWhatsapp(numeros: string[]): Promise<{ conversas: number; mensagens: number; erro?: string }> {
+  try {
+    const { u, conn } = await atorWhatsapp();
+    if (!conn) return { conversas: 0, mensagens: 0 };
+    const p = await planoExclusaoConversas(u, conn.id, listaNumeros(numeros));
+    return { conversas: p.conversas, mensagens: p.mensagens };
+  } catch (e) { return { conversas: 0, mensagens: 0, erro: motivo(e) }; }
+}
+
+/**
+ * Lote 03, correção 01: exclusão em lote — numa transação, apaga só as mensagens (e mídias, por cascata; as cópias no Drive vão para a lixeira) das
+ * conversas escolhidas, nesta conexão. Não apaga no celular (a integração não permite), não toca em leads,
+ * documentos nem vínculos. Auditoria: log estruturado sem dados pessoais (quem, quantas, quando).
+ */
+export async function excluirConversasWhatsapp(numeros: string[]): Promise<{ conversas: number; apagadas: number; erro?: string }> {
+  try {
+    const lista = listaNumeros(numeros);
+    if (!lista.length) return { conversas: 0, apagadas: 0, erro: "Selecione ao menos uma conversa." };
+    const { u, conn } = await atorWhatsapp();
+    if (!conn) return { conversas: 0, apagadas: 0, erro: "WhatsApp não está conectado." };
+    const p = await planoExclusaoConversas(u, conn.id, lista);
+    if (!p.ids.length) return { conversas: 0, apagadas: 0 };
+    // Revisão do PR #242 (P2): como na exclusão unitária, as cópias das mídias no Drive são coletadas antes
+    // (a cascata apaga whatsappMidia) e vão para a lixeira depois da transação (sem uso → lixeira; falha → fila).
+    const copias = await prisma.$transaction(async (tx) => {
+      const drive: (string | null)[] = [];
+      for (let i = 0; i < p.ids.length; i += 1000) {
+        const lote = p.ids.slice(i, i + 1000);
+        drive.push(...(await tx.whatsappMidia.findMany({ where: { mensagemId: { in: lote }, driveFileId: { not: null } }, select: { driveFileId: true } })).map((c) => c.driveFileId));
+        await tx.mensagemWhatsapp.deleteMany({ where: { conexaoId: conn.id, id: { in: lote } } });
+      }
+      return drive;
+    });
+    await lixeiraDeArquivosSemUso(copias);
+    console.info(JSON.stringify({ evento: "whatsapp.conversas_excluidas", usuarioId: u.id, papel: u.perfil, conexaoId: conn.id, conversas: p.conversas, mensagens: p.mensagens, em: new Date().toISOString() }));
+    return { conversas: p.conversas, apagadas: p.mensagens };
+  } catch (e) { return { conversas: 0, apagadas: 0, erro: motivo(e) }; }
+}
+
+/**
+ * Lote 03, correção 02: candidatos para vincular a conversa — leads não excluídos (corretor: os próprios), por
+ * nome, telefone normalizado ou CPF. Sem termo, traz os que têm o mesmo telefone da conversa.
+ */
+export async function buscarLeadsParaVincularWhatsapp(numero: string, termo = ""): Promise<{ leads: (LeadCandidato & { mesmoTelefone: boolean })[]; erro?: string }> {
+  try {
+    if (!numeroValido(numero)) return { leads: [], erro: "Número inválido." };
+    const { u } = await atorWhatsapp();
+    const lista = await prisma.lead.findMany({
+      where: { excluidoEm: null, ...(u.perfil === "corretor" ? { corretorId: u.corretorId } : {}) },
+      select: { id: true, nome: true, telefone: true, cpf: true }, orderBy: { criadoEm: "desc" },
+    });
+    return { leads: candidatosVinculo(lista, String(termo ?? "").slice(0, 100), numero) };
+  } catch (e) { return { leads: [], erro: motivo(e) }; }
+}
+
+/** Lote 03, correção 02: vincula (ou troca) o lead da conversa. Não altera o cadastro do lead. */
+export async function vincularLeadWhatsapp(numero: string, leadId: string): Promise<{ leadId?: string; erro?: string }> {
+  try {
+    if (!numeroValido(numero) || typeof leadId !== "string" || !leadId) return { erro: "Dados inválidos." };
+    const { u, conn } = await atorWhatsapp();
+    if (!conn) return { erro: "WhatsApp não está conectado." };
+    const chave = chaveTelefone(numero);
+    if (chave.length < 10) return { erro: "Número da conversa inválido." };
+    const lead = await prisma.lead.findFirst({ where: { id: leadId, excluidoEm: null }, select: { id: true, corretorId: true } });
+    if (!lead) return { erro: "Lead não encontrado ou excluído do CRM." };
+    if (u.perfil === "corretor" && lead.corretorId !== u.corretorId) return { erro: "Esse lead é de outro corretor." };
+    const msgs = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, select: { id: true, destinatario: true, leadId: true } });
+    const da = msgs.filter((m) => chaveTelefone(m.destinatario) === chave);
+    // Corretor não "toma" conversa já vinculada a lead de outro corretor.
+    const atual = (await vinculoManual(conn.id, numero)) ?? da.find((m) => m.leadId)?.leadId ?? null;
+    if (atual && (await leadsProibidos(u, [atual])).size) return { erro: "Conversa de outro corretor." };
+    await prisma.$transaction(async (tx) => {
+      await tx.whatsappVinculoConversa.upsert({
+        where: { conexaoId_chaveTelefone: { conexaoId: conn.id, chaveTelefone: chave } },
+        create: { conexaoId: conn.id, chaveTelefone: chave, leadId: lead.id, vinculadoPorId: u.id },
+        update: { leadId: lead.id, vinculadoPorId: u.id, vinculadoEm: new Date() },
+      });
+      if (da.length) await tx.mensagemWhatsapp.updateMany({ where: { id: { in: da.map((m) => m.id) } }, data: { leadId: lead.id } });
+    });
+    return { leadId: lead.id };
+  } catch (e) { return { erro: motivo(e) }; }
+}
+
+/** Lote 03, correção 02: desfaz o vínculo manual; a conversa volta a ser identificada pelo telefone. */
+export async function desvincularLeadWhatsapp(numero: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    if (!numeroValido(numero)) return { ok: false, erro: "Número inválido." };
+    const { u, conn } = await atorWhatsapp();
+    if (!conn) return { ok: false, erro: "WhatsApp não está conectado." };
+    const chave = chaveTelefone(numero);
+    const manual = await vinculoManual(conn.id, numero);
+    if (!manual) return { ok: true };
+    if ((await leadsProibidos(u, [manual])).size) return { ok: false, erro: "Conversa de outro corretor." };
+    const msgs = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id, leadId: manual }, select: { id: true, destinatario: true } });
+    const ids = msgs.filter((m) => chaveTelefone(m.destinatario) === chave).map((m) => m.id);
+    await prisma.$transaction(async (tx) => {
+      await tx.whatsappVinculoConversa.deleteMany({ where: { conexaoId: conn.id, chaveTelefone: chave } });
+      if (ids.length) await tx.mensagemWhatsapp.updateMany({ where: { id: { in: ids } }, data: { leadId: null } });
+    });
+    return { ok: true };
+  } catch (e) { return { ok: false, erro: motivo(e) }; }
+}
+
+/**
+ * Lote 03, correção 04: indicadores do dashboard contados no banco (não sobre o histórico de 100).
+ * Enviadas = saída com status enviada/entregue/lida (falhas fora); lidas e falhas no mesmo período.
+ * Mesmo escopo do histórico: admin/colaborador veem tudo; corretor, a própria conexão.
+ */
+export async function resumoEnviosWhatsapp(periodo: PeriodoDashboard = PERIODO_PADRAO): Promise<{ periodo: PeriodoDashboard; desde: string | null; enviadas: number; lidas: number; falhas: number; taxaLeitura: number; erro?: string }> {
+  const p: PeriodoDashboard = (PERIODOS_DASHBOARD as readonly string[]).includes(periodo) ? periodo : PERIODO_PADRAO;
+  const desde = inicioPeriodo(p);
+  const vazio = { periodo: p, desde: desde?.toISOString() ?? null, enviadas: 0, lidas: 0, falhas: 0, taxaLeitura: 0 };
+  try {
+    const { u, conn } = await atorWhatsapp();
+    const todos = u.perfil === "admin" || u.perfil === "colaborador";
+    if (!todos && !conn) return vazio;
+    const base = { direcao: "saida", ...(todos ? {} : { conexaoId: conn!.id }), ...(desde ? { enviadaEm: { gte: desde } } : {}) };
+    const [enviadas, lidas, falhas] = await Promise.all([
+      prisma.mensagemWhatsapp.count({ where: { ...base, status: { in: [...STATUS_ENVIO_SUCESSO] } } }),
+      prisma.mensagemWhatsapp.count({ where: { ...base, status: "lida" } }),
+      prisma.mensagemWhatsapp.count({ where: { ...base, status: "falhou" } }),
+    ]);
+    return { ...vazio, enviadas, lidas, falhas, taxaLeitura: taxaLeitura(enviadas, lidas) };
+  } catch (e) { return { ...vazio, erro: motivo(e) }; }
 }
 
 export async function baixarMidiaWhatsappDeNovo(id: string): Promise<{ ok: boolean; erro?: string }> {
@@ -295,11 +478,19 @@ export async function baixarMidiaWhatsappDeNovo(id: string): Promise<{ ok: boole
 }
 
 /** Contato novo da conversa vira lead (nome do WhatsApp + telefone) e as mensagens passam a apontar para ele. */
-export async function criarLeadDaConversaWhatsapp(numero: string, nome?: string): Promise<{ leadId?: string; erro?: string }> {
+// Lote 03, correção 02: antes de criar, avisa se já há lead não excluído com o mesmo telefone (evita
+// duplicado); a tela oferece "Vincular lead" e só cria com `forcar`. O lead criado já fica vinculado.
+export async function criarLeadDaConversaWhatsapp(numero: string, nome?: string, forcar = false): Promise<{ leadId?: string; erro?: string; duplicados?: number }> {
   try {
     if (!numeroValido(numero)) return { erro: "Número inválido." };
     const { u, conn } = await atorWhatsapp();
     if (!conn) return { erro: "WhatsApp não está conectado." };
+    if (forcar !== true) {
+      const d4 = numero.replace(/\D/g, "").slice(-4);
+      const candidatos = await prisma.lead.findMany({ where: { excluidoEm: null, telefone: { contains: d4 } }, select: { telefone: true } });
+      const iguais = candidatos.filter((l) => mesmoTelefone(l.telefone, numero)).length;
+      if (iguais) return { duplicados: iguais, erro: `Já existe ${iguais === 1 ? "um lead" : `${iguais} leads`} com este telefone no CRM. Use "Vincular lead" para não duplicar.` };
+    }
     const d = numero.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
     const lead = await prisma.lead.create({
       data: {
@@ -311,7 +502,16 @@ export async function criarLeadDaConversaWhatsapp(numero: string, nome?: string)
     const msgs = await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conn.id }, select: { id: true, destinatario: true } });
     const ids = msgs.filter((m) => mesmoTelefone(m.destinatario, numero)).map((m) => m.id);
     if (ids.length) await prisma.mensagemWhatsapp.updateMany({ where: { id: { in: ids } }, data: { leadId: lead.id } });
+    const chave = chaveTelefone(numero);
+    if (chave.length >= 10) {
+      await prisma.whatsappVinculoConversa.upsert({
+        where: { conexaoId_chaveTelefone: { conexaoId: conn.id, chaveTelefone: chave } },
+        create: { conexaoId: conn.id, chaveTelefone: chave, leadId: lead.id, vinculadoPorId: u.id },
+        update: { leadId: lead.id, vinculadoPorId: u.id, vinculadoEm: new Date() },
+      });
+    }
     revalidatePath("/admin/leads");
+    revalidatePath("/admin/whatsapp");
     return { leadId: lead.id };
   } catch (e) {
     return { erro: motivo(e) };
@@ -325,7 +525,7 @@ export async function responderWhatsapp(numero: string, texto: string): Promise<
     if (!corpo || corpo.length > 4096) return { ok: false, erro: "Escreva a mensagem (até 4096 caracteres)." };
     const { u, conn } = await atorWhatsapp();
     if (!conn || conn.status !== "conectado") return { ok: false, erro: "WhatsApp não está conectado." };
-    const lead = await leadPorTelefone(numero);
+    const lead = (await leadDoVinculo(conn.id, numero)) ?? await leadPorTelefone(numero);
     if (u.perfil === "corretor" && lead && lead.corretorId !== u.corretorId) return { ok: false, erro: "Conversa de outro corretor." };
     let externalId: string | null = null;
     if (conn.provedor === "evolution" && conn.instancia) {

@@ -17,11 +17,16 @@ import { criarCobranca, editarLancamentoBpo, importarClientesCrmBpo, pagarLancam
 import { saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
 import { BancosPanel } from "./bancos-panel";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Modal } from "@/components/ui/modal";
 import { PercentInput } from "@/components/ui/percent-input";
-import { TrendingUp, DollarSign, Users, Award } from "lucide-react";
-import { CATEGORIAS_BPO, ehDespesa, TRANSFERENCIA_INTERNA } from "@/lib/bpo-categorias";
-import type { LinhaDre, ResumoContabil } from "@/lib/financeiro/bpo-resultado";
+import { TrendingUp, DollarSign, Users, Award, HardHat, Info } from "lucide-react";
+import { AJUDA_VGV_DE_OBRAS, MENSAGEM_RANKING_VAZIO, NOTA_NUMEROS_DE_OBRA } from "@/lib/financeiro/relatorios-bpo";
+import type { IndicadoresRelatorios } from "@/lib/financeiro/relatorios-bpo-dados";
+import { ehDespesa } from "@/lib/bpo-categorias";
+import { MESES_DRE, dreFiltrado, type CelulaDre, type LinhaDre, type ResumoContabil } from "@/lib/financeiro/bpo-resultado";
 import { CamposOperacionais } from "./campos-operacionais";
+import { SugerirVinculosModal, VinculoClienteLancamento } from "./vinculo-cliente";
+import { BarraLote } from "./barra-lote";
 import { ROTULOS_OPERACIONAIS, type CatalogoBpo } from "@/lib/bpo-operacional";
 
 export interface LancamentoComCliente {
@@ -86,16 +91,14 @@ export interface ContaBancariaData {
   transacoes: TransacaoBancariaData[];
 }
 
-interface RelatoriosData {
+/** Lote 03 (14 e 18): VGV de Obras, Números de Obra, Funil, Ranking e Unidades vêm de IndicadoresRelatorios. */
+interface RelatoriosData extends IndicadoresRelatorios {
   /** LOTE C: DRE mensal (lançamentos do BPO, inclusive os do extrato), últimos 12 meses. */
   dreMensal: (LinhaDre & { mes: string })[];
   totalImoveis: number;
   totalLeads: number;
   totalFinanciamentos: number;
   monthlySales: { month: string; receita: number; vendas: number; leads: number }[];
-  propertyTypeData: { name: string; value: number; color: string }[];
-  leadFunnelData: { stage: string; count: number; pct: number }[];
-  corretorRanking: { name: string; comissoes: number; vendas: number }[];
   serviceRevenue: { service: string; receita: number }[];
 }
 
@@ -103,7 +106,8 @@ interface Props {
   filtroOperacional?: { categoria: string; id: string };
   catalogoOperacional: CatalogoBpo;
   lancamentos: LancamentoComCliente[];
-  dre: LinhaDre[];
+  /** Lote 3, item 15: base competência × categoria do DRE (filtrada por Mês/Ano na tela). */
+  dreCelulas: CelulaDre[];
   contabilidade: ResumoContabil & { ano: string };
   clientes: { id: string; razaoSocial: string; leadId: string | null }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
@@ -135,13 +139,34 @@ function fmt(v: number) {
 // LOTE C: o cursor padrão do Tooltip do recharts em gráfico de barras é um retângulo cinza
 // (#ccc) do tamanho da faixa; com poucas categorias ele cobre o gráfico inteiro ("bloco cinza").
 const CURSOR_BARRA = { fill: "rgba(245, 196, 0, 0.08)" };
+const CORES_NUMEROS_OBRA = ["#F5C400", "#2563EB", "#16A34A", "#9333EA"];
+
+/** Lote 03 (paridade com a Prospecta): datas "AAAA-MM-DD" → "dd/mm/aaaa". */
+function dataBr(iso: string) {
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
 
 function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
-  const { totalImoveis, totalLeads, totalFinanciamentos, monthlySales, propertyTypeData, leadFunnelData, corretorRanking, serviceRevenue, dreMensal } = relatorios;
+  const router = useRouter();
+  const [filtroPendente, iniciarFiltro] = useTransition();
+  // Filtro De/Até dos indicadores 14/18 (searchParams relDe/relAte; padrão = últimos 12 meses).
+  const aplicarPeriodo = (campo: "relDe" | "relAte", valor: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (valor) params.set(campo, valor); else params.delete(campo);
+    iniciarFiltro(() => router.replace(`?${params.toString()}`, { scroll: false }));
+  };
+  const limparPeriodo = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("relDe");
+    params.delete("relAte");
+    iniciarFiltro(() => router.replace(params.size ? `?${params.toString()}` : "?", { scroll: false }));
+  };
+  const { periodo, periodoPersonalizado, totalImoveis, totalLeads, totalFinanciamentos, monthlySales, serviceRevenue, dreMensal, vgvObras, numerosDeObra, funilLeads, corretorRanking, unidadesDisponiveis } = relatorios;
   const dreTemDados = dreMensal.some((m) => m.receitas || m.despesas);
   const totalReceita = monthlySales.reduce((s, m) => s + m.receita, 0);
   const totalVendas = monthlySales.reduce((s, m) => s + m.vendas, 0);
-  const ticketMedio = totalVendas > 0 ? Math.round(totalReceita / totalVendas) : 0;
+  const numerosObraGrafico = numerosDeObra.filter((f) => f.fatia > 0);
 
   const now = new Date();
   const periodoLabel = (() => {
@@ -154,19 +179,45 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   const kpis = [
     { label: "Receita Total (12m)", value: formatCurrency(totalReceita), icon: DollarSign, delta: `${totalVendas} comissões pagas` },
     { label: "Imóveis Ativos",      value: String(totalImoveis),          icon: Building2,  delta: `${totalFinanciamentos} financiamentos` },
-    { label: "Leads Captados",      value: String(totalLeads),            icon: Users,       delta: totalVendas > 0 ? `${((totalVendas / totalLeads) * 100).toFixed(1)}% taxa de conversão` : "Sem conversões" },
-    { label: "Ticket Médio",        value: ticketMedio > 0 ? formatCurrency(ticketMedio) : "—", icon: TrendingUp, delta: "por comissão paga" },
+    { label: "Leads no Período",    value: String(totalLeads),            icon: Users,       delta: "leads ativos do CRM" },
+    { label: "VGV de Obras",        value: formatCurrency(vgvObras.vgvTotal), icon: HardHat, delta: `${vgvObras.obrasElegiveis} obra(s) · data de início (ou de criação, sem início)`, ajuda: AJUDA_VGV_DE_OBRAS },
+    { label: "Ticket Médio",        value: vgvObras.ticketMedio === null ? "—" : formatCurrency(vgvObras.ticketMedio), icon: TrendingUp, delta: "VGV total ÷ nº de obras" },
   ];
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-gray-600 mt-1">Últimos 12 meses · {periodoLabel}</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs text-gray-600">
+          <span className="block font-bold uppercase tracking-widest mb-1">De</span>
+          <input type="date" value={periodo.de} max={periodo.ate} disabled={filtroPendente}
+            onChange={(e) => aplicarPeriodo("relDe", e.target.value)}
+            className="border border-gray-200 px-2 py-1.5 text-sm text-[var(--brand-dark)] bg-white min-w-[150px]" />
+        </label>
+        <label className="text-xs text-gray-600">
+          <span className="block font-bold uppercase tracking-widest mb-1">Até</span>
+          <input type="date" value={periodo.ate} min={periodo.de} disabled={filtroPendente}
+            onChange={(e) => aplicarPeriodo("relAte", e.target.value)}
+            className="border border-gray-200 px-2 py-1.5 text-sm text-[var(--brand-dark)] bg-white min-w-[150px]" />
+        </label>
+        {periodoPersonalizado && (
+          <button type="button" onClick={limparPeriodo} disabled={filtroPendente}
+            className="text-xs font-bold text-gray-600 underline px-1 py-2">Voltar aos últimos 12 meses</button>
+        )}
+        {filtroPendente && <span className="text-xs text-gray-500 py-2">Atualizando…</span>}
+      </div>
+      <p className="text-xs text-gray-600">
+        Período {dataBr(periodo.de)} a {dataBr(periodo.ate)}: VGV de Obras, Ticket Médio, Números de Obra, Funil de Leads e Ranking
+        de Corretores. Receita, DRE e vendas mensais mostram os últimos 12 meses ({periodoLabel}); Unidades Disponíveis é a situação atual.
+      </p>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((k) => (
           <div key={k.label} className="bg-white border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">{k.label}</p>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest flex items-center gap-1">
+                {k.label}
+                {"ajuda" in k && k.ajuda && <span title={k.ajuda} aria-label={k.ajuda}><Info size={12} className="text-gray-400" /></span>}
+              </p>
               <k.icon size={16} className="text-gray-500" />
             </div>
             <p className="font-black text-[var(--brand-dark)] text-2xl leading-none">{k.value}</p>
@@ -232,52 +283,54 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
         </div>
 
         <div className="bg-white border border-gray-100 p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Distribuição por Tipo</p>
-          {propertyTypeData.length === 0 ? (
-            <p className="text-gray-600 text-sm text-center py-8">Nenhum imóvel cadastrado.</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Números de Obra</p>
+          {numerosObraGrafico.length === 0 ? (
+            <p className="text-gray-600 text-sm text-center py-8">Nenhuma obra com VGV no período.</p>
           ) : (
-            <div className="flex items-center gap-6">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
-                  <Pie data={propertyTypeData} cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="value" strokeWidth={0}>
-                    {propertyTypeData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(v) => [Number(v ?? 0), "Imóveis"]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2 flex-1">
-                {propertyTypeData.map((d) => (
-                  <div key={d.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
-                      <span className="text-sm text-gray-600">{d.name}</span>
-                    </div>
-                    <span className="text-xs font-black text-[var(--brand-dark)]">{d.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie data={numerosObraGrafico} cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="fatia" nameKey="nome" strokeWidth={0}>
+                  {numerosObraGrafico.map((f) => <Cell key={f.chave} fill={CORES_NUMEROS_OBRA[numerosDeObra.findIndex((n) => n.chave === f.chave)]} />)}
+                </Pie>
+                <Tooltip formatter={(v, nome) => [formatCurrency(Number(v ?? 0)), String(nome)]} />
+              </PieChart>
+            </ResponsiveContainer>
           )}
+          <div className="space-y-2 mt-2">
+            {numerosDeObra.map((d, i) => (
+              <div key={d.chave} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: CORES_NUMEROS_OBRA[i] }} />
+                  <span className="text-sm text-gray-600">{d.nome}</span>
+                </div>
+                <span className="text-xs font-black text-[var(--brand-dark)]">{formatCurrency(d.valor)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            {NOTA_NUMEROS_DE_OBRA}
+            {vgvObras.obrasSemEntrada > 0 && ` A entrada não inclui ${vgvObras.obrasSemEntrada} obra(s) sem financiamento, FGTS ou subsídio informados.`}
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="bg-white border border-gray-100 p-5">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Funil de Conversão</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Funil de Leads</p>
           <div className="space-y-2">
-            {leadFunnelData.length === 0 ? (
-              <p className="text-gray-600 text-sm text-center py-4">Nenhum lead cadastrado.</p>
-            ) : leadFunnelData.map((s) => (
-              <div key={s.stage}>
+            {funilLeads.etapas.map((s) => (
+              <div key={s.key}>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-600">{s.stage}</span>
-                  <span className="font-bold text-[var(--brand-dark)]">{s.count} <span className="text-gray-600 font-normal">({s.pct}%)</span></span>
+                  <span className="text-gray-600">{s.label}</span>
+                  <span className="font-bold text-[var(--brand-dark)]">{s.n} <span className="text-gray-600 font-normal">({s.pct}%)</span></span>
                 </div>
                 <div className="h-2 bg-gray-100 overflow-hidden">
                   <div className="h-full bg-[var(--brand-yellow)] transition-all" style={{ width: `${s.pct}%` }} />
                 </div>
               </div>
             ))}
+            <p className="text-xs text-gray-600 pt-1">Total: <span className="font-bold text-[var(--brand-dark)]">{funilLeads.total}</span> lead(s)</p>
+            <p className="text-xs text-gray-500">Leads ativos do CRM (excluídos e arquivados ficam fora) criados no período, pela etapa atual do pipeline.</p>
           </div>
         </div>
 
@@ -285,21 +338,44 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Ranking de Corretores</p>
           <div className="space-y-3">
             {corretorRanking.length === 0 ? (
-              <p className="text-gray-600 text-sm text-center py-4">Nenhuma comissão paga ainda.</p>
+              <p className="text-gray-600 text-sm text-center py-4">{MENSAGEM_RANKING_VAZIO}.</p>
             ) : corretorRanking.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-3">
+              <div key={c.nome} className="flex items-center gap-3">
                 <div className={`w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs font-black ${i === 0 ? "bg-[var(--brand-yellow)] text-[var(--brand-dark)]" : "bg-gray-100 text-gray-500"}`}>
                   {i === 0 ? <Award size={12} /> : i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{c.name}</p>
-                  <p className="text-xs text-gray-600">{c.vendas} comissões</p>
+                  <p className="text-sm font-medium text-[var(--brand-dark)] truncate">{c.nome}</p>
+                  <p className="text-xs text-gray-600">{c.pagamentos} pagamento(s)</p>
                 </div>
-                <p className="text-sm font-black text-[var(--brand-dark)] flex-shrink-0">{formatCurrency(c.comissoes)}</p>
+                <p className="text-sm font-black text-[var(--brand-dark)] flex-shrink-0">{formatCurrency(c.totalPago)}</p>
               </div>
             ))}
+            <p className="text-xs text-gray-500">Valor efetivamente pago, pela data do pagamento: pagamentos de comissão das obras (corretor do lead da obra) e comissões cadastradas como pagas, sem contar duas vezes a mesma obra.</p>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 p-5">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Unidades Disponíveis</p>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={unidadesDisponiveis.barras} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="nome" tick={{ fontSize: 10 }} tickLine={false} interval={0}
+              tickFormatter={(v) => String(v).replace("Incorporação", "Incorp.").replace("reservados + vendidos", "res. + vend.")} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+            <Tooltip cursor={CURSOR_BARRA} />
+            <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="disponiveis" stackId="u" name="Disponível" fill="#16A34A" />
+            <Bar dataKey="reservados" stackId="u" name="Reservado" fill="#F59E0B" />
+            <Bar dataKey="vendidos" stackId="u" name="Vendido" fill="#DC2626" />
+          </BarChart>
+        </ResponsiveContainer>
+        <p className="text-xs text-gray-500 mt-2">
+          Situação atual (não depende do período). Unidades excluídas ficam fora. Catálogo: só imóveis aprovados, sem os pontos de
+          localização de obras; à venda, lançamento e locação contam como disponíveis, vendido e locado como vendidos. Não há vínculo
+          entre imóvel do catálogo e unidade de incorporação, então nenhuma unidade é contada nos dois grupos.
+        </p>
       </div>
 
       <div className="bg-white border border-gray-100 p-5">
@@ -318,7 +394,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dre, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
+export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dreCelulas, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios }: Props) {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
@@ -338,6 +414,14 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
   const [lancamentoEditando, setLancamentoEditando] = useState<LancamentoComCliente | null>(null);
   const [baixa, setBaixa] = useState<{ lancamento: LancamentoComCliente; requestKey: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Lote 3, itens 16/17: seleção em lote (limpa ao trocar de aba) e ação em massa de vínculos.
+  const [selecao, setSelecao] = useState<{ aba: Aba; ids: string[] }>({ aba: abaInicial ?? "cobracas", ids: [] });
+  const selecionados = selecao.aba === aba ? selecao.ids : [];
+  const setSelecionados = (ids: string[]) => setSelecao({ aba, ids });
+  const [sugerirVinculos, setSugerirVinculos] = useState(false);
+  const [dreMes, setDreMes] = useState("");
+  const [dreAno, setDreAno] = useState("");
+  const [dreVisao, setDreVisao] = useState<"competencia" | "categoria">("competencia");
 
   function importarClientesCrm() {
     startTransition(async () => {
@@ -357,7 +441,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
     startTransition(async () => {
       try {
         const campo = (nome: string) => String(form.get(nome) ?? "") || null;
-        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoria: String(form.get("categoria")), categoriaContabil: String(form.get("categoria")), categoriaOperacional: campo("categoriaOperacional"), vinculoOperacionalId: campo("vinculoOperacionalId"), tipoDespesaObra: campo("tipoDespesaObra"), etapa: campo("etapa"), clienteId: campo("clienteId"), clienteNomeLivre: campo("clienteNomeLivre"), centroCustos: campo("centroCustos") });
+        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoriaOperacional: campo("categoriaOperacional"), vinculoOperacionalId: campo("vinculoOperacionalId"), tipoDespesaObra: campo("tipoDespesaObra"), etapa: campo("etapa"), clienteId: campo("clienteId"), clienteNomeLivre: campo("clienteNomeLivre") });
         setModalFeedback("Lançamento atualizado e auditado.");
         setLancamentoEditando(null);
         router.refresh();
@@ -415,10 +499,13 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
   const despesaPendente = despesasBase.filter(isPendente).reduce((s, l) => s + saldoLancamento(l), 0);
   const despesaVencida = despesasBase.filter(isVencido).reduce((s, l) => s + l.valor, 0);
 
-  // LOTE C: DRE calculado no servidor sobre todos os lançamentos (sem transferências internas).
-  const dreRows = dre.map((l) => [l.competencia, { cobracas: l.receitas, despesas: l.despesas }] as const);
-  const dreTotalCobracas = dreRows.reduce((s, [, v]) => s + v.cobracas, 0);
-  const dreTotalDespesas = dreRows.reduce((s, [, v]) => s + v.despesas, 0);
+  // LOTE C: DRE sobre todos os lançamentos (sem transferências internas). Lote 3, item 15: filtros
+  // Mês/Ano por competência, aplicados às visões por competência e por categoria.
+  const dreAtual = dreFiltrado(dreCelulas, { mes: dreMes || null, ano: dreAno || null });
+  const dreAnos = [...new Set(dreCelulas.map((c) => c.competencia.slice(0, 4)))].sort().reverse();
+  const dreRows = dreAtual.porCompetencia.map((l) => [l.competencia, { cobracas: l.receitas, despesas: l.despesas }] as const);
+  const dreTotalCobracas = Math.round(dreRows.reduce((s, [, v]) => s + Math.round(v.cobracas * 100), 0)) / 100;
+  const dreTotalDespesas = Math.round(dreRows.reduce((s, [, v]) => s + Math.round(v.despesas * 100), 0)) / 100;
 
   // Bank KPIs
   const saldoTotal = contas.filter((c) => c.ativo).reduce((s, c) => s + c.saldoAtual, 0);
@@ -482,6 +569,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
           <table className="w-full text-sm">
             <thead className="bg-[var(--brand-dark)]">
               <tr>
+                <th className="w-8 px-2 py-3"><span className="sr-only">Selecionar</span></th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cliente</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide hidden md:table-cell">Descrição</th>
                 <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Competência</th>
@@ -493,9 +581,10 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
             </thead>
             <tbody className="divide-y divide-gray-50">
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento encontrado.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento encontrado.</td></tr>
               ) : items.map((l) => (
                 <tr key={l.id} className="hover:bg-gray-50">
+                  <td className="px-2 py-3"><input type="checkbox" aria-label={`Selecionar ${l.descricao}`} checked={selecionados.includes(l.id)} onChange={(e) => setSelecionados(e.target.checked ? [...selecionados, l.id] : selecionados.filter((id) => id !== l.id))} /></td>
                   <td className="px-4 py-3"><p className="font-medium text-[var(--brand-dark)] text-xs">{l.clienteNome}</p></td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs text-gray-600 max-w-xs truncate">{l.descricao}</p>
@@ -662,21 +751,24 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
             </div>
             <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os clientes</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
             </select>
             <select value={mesFilter} onChange={(e) => setMesFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os meses</option>
               {allMeses.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
             <select value={anoFilter} onChange={(e) => setAnoFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os anos</option>
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
+          <BarraLote aba="cobrancas" visiveis={cobracasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
+            filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter, tipo: tipoFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
+            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} />
           {renderLancamentoTable(cobracasFiltered)}
         </div>
       )}
@@ -699,21 +791,24 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
             </div>
             <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os clientes</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
             </select>
             <select value={mesFilter} onChange={(e) => setMesFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os meses</option>
               {allMeses.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
             <select value={anoFilter} onChange={(e) => setAnoFilter(e.target.value)}
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
               <option value="">Todos os anos</option>
               {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
+          <BarraLote aba="despesas" visiveis={despesasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
+            filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter === "parciais" ? "todas" : statusFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
+            onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} />
           {renderLancamentoTable(despesasFiltered)}
         </div>
       )}
@@ -721,6 +816,53 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
       {/* ─── DRE ─── */}
       {aba === "dre" && (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-2">
+            <select aria-label="Mês do DRE" value={dreMes} onChange={(e) => setDreMes(e.target.value)}
+              className="min-w-[150px] flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              <option value="">Todos os meses</option>
+              {MESES_DRE.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+            <select aria-label="Ano do DRE" value={dreAno} onChange={(e) => setDreAno(e.target.value)}
+              className="min-w-[120px] flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              <option value="">Todos os anos</option>
+              {dreAnos.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <div className="flex gap-1">
+              {(["competencia", "categoria"] as const).map((v) => (
+                <button key={v} type="button" onClick={() => setDreVisao(v)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${dreVisao === v ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)]" : "text-gray-500 hover:bg-gray-100"}`}>
+                  {v === "competencia" ? "Por competência" : "Por categoria"}
+                </button>
+              ))}
+            </div>
+            <p className="w-full text-xs text-gray-500">Filtra pela competência do lançamento.</p>
+          </div>
+          {dreVisao === "categoria" ? (
+            <div className="bg-white border border-gray-100 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[var(--brand-dark)]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">Categoria</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cobranças</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wide">Despesas</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wide">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {dreAtual.porCategoria.length === 0 ? (
+                    <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-600">Nenhum lançamento para consolidar.</td></tr>
+                  ) : dreAtual.porCategoria.map((c) => (
+                    <tr key={c.categoria} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-[var(--brand-dark)]">{c.categoria}</td>
+                      <td className="px-4 py-3 text-right text-green-600 font-bold">{formatCurrency(c.receitas)}</td>
+                      <td className="px-4 py-3 text-right text-red-500 font-bold">{formatCurrency(c.despesas)}</td>
+                      <td className={`px-4 py-3 text-right font-black ${c.resultado >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(c.resultado)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
           <div className="bg-white border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -758,6 +900,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               </table>
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -791,11 +934,12 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
         </div>
       )}
 
+      {sugerirVinculos && <SugerirVinculosModal onFechar={(m) => { setSugerirVinculos(false); if (m) setModalFeedback(m); }} />}
       {/* ─── MODAL: Novo (Cobrança ou Despesa) ─── */}
-      {baixa && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><form className="w-full max-w-md space-y-4 bg-white p-6" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); startTransition(async () => { try { await registrarBaixaBpo({ id: baixa.lancamento.id, version: baixa.lancamento.version, requestKey: baixa.requestKey, valor: Number(form.get("valor")), data: String(form.get("data")), motivo: String(form.get("motivo")) }); setBaixa(null); router.refresh(); setModalFeedback("Baixa registrada e auditada."); } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao registrar baixa."); } }); }}><h2 className="font-bold">Registrar recebimento/pagamento</h2><p className="text-sm">{baixa.lancamento.descricao}<br/>Total: {formatCurrency(baixa.lancamento.valor)} · Realizado: {formatCurrency(valorRealizado(baixa.lancamento))}<br/>Saldo: {formatCurrency(saldoLancamento(baixa.lancamento))}</p><label className="block text-xs font-bold">Valor desta baixa<CurrencyInput name="valor" required className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Data<input type="date" name="data" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Motivo/referência<input name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border p-2"/></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setBaixa(null)} className="border px-3 py-2">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-3 py-2 font-bold">Registrar baixa</button></div></form></div>}
+      {baixa && <Modal rotulo="Registrar recebimento/pagamento" onFechar={() => setBaixa(null)} tamanho="md"><form className="space-y-4 p-4 sm:p-6" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); startTransition(async () => { try { await registrarBaixaBpo({ id: baixa.lancamento.id, version: baixa.lancamento.version, requestKey: baixa.requestKey, valor: Number(form.get("valor")), data: String(form.get("data")), motivo: String(form.get("motivo")) }); setBaixa(null); router.refresh(); setModalFeedback("Baixa registrada e auditada."); } catch (erro) { setModalFeedback(erro instanceof Error ? erro.message : "Falha ao registrar baixa."); } }); }}><h2 className="font-bold">Registrar recebimento/pagamento</h2><p className="text-sm">{baixa.lancamento.descricao}<br/>Total: {formatCurrency(baixa.lancamento.valor)} · Realizado: {formatCurrency(valorRealizado(baixa.lancamento))}<br/>Saldo: {formatCurrency(saldoLancamento(baixa.lancamento))}</p><label className="block text-xs font-bold">Valor desta baixa<CurrencyInput name="valor" required className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Data<input type="date" name="data" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full border p-2"/></label><label className="block text-xs font-bold">Motivo/referência<input name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border p-2"/></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setBaixa(null)} className="border px-3 py-2">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-3 py-2 font-bold">Registrar baixa</button></div></form></Modal>}
       {lancamentoEditando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <form onSubmit={handleSalvarEdicao} className="bg-white w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <Modal rotulo="Editar lançamento" onFechar={() => setLancamentoEditando(null)} tamanho="lg">
+          <form onSubmit={handleSalvarEdicao} className="space-y-4 p-4 sm:p-6">
             <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase">Editar lançamento</h2>
             <p className="text-xs text-gray-500">A alteração exige motivo e será salva no histórico com controle de versão.</p>
             <input type="hidden" name="id" value={lancamentoEditando.id} />
@@ -803,23 +947,22 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
             <input type="hidden" name="clienteId" value={lancamentoEditando.clienteId ?? ""} />
             <input type="hidden" name="clienteNomeLivre" value={lancamentoEditando.clienteNomeLivre ?? ""} />
             <label className="block text-xs font-bold text-gray-500 uppercase">Descrição<input name="descricao" required defaultValue={lancamentoEditando.descricao} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-xs font-bold text-gray-500 uppercase">Valor<input name="valor" type="number" min="0.01" step="0.01" required defaultValue={lancamentoEditando.valor} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block min-w-0 text-xs font-bold text-gray-500 uppercase">Valor<CurrencyInput name="valor" required defaultValue={lancamentoEditando.valor} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
               <label className="block text-xs font-bold text-gray-500 uppercase">Competência<input name="competencia" type="month" required defaultValue={lancamentoEditando.competencia} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
               <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
-              <label className="block text-xs font-bold text-gray-500 uppercase">Categoria contábil<select name="categoria" defaultValue={lancamentoEditando.categoriaContabil ?? lancamentoEditando.categoria ?? "Outros"} className="mt-1 w-full border px-3 py-2 text-sm normal-case">{CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
             </div>
             <CamposOperacionais key={lancamentoEditando.id} tipo={lancamentoEditando.tipo} catalogo={catalogoOperacional} inicial={lancamentoEditando} obrigatorio={false}/>
-            <label className="block text-xs font-bold text-gray-500 uppercase">Centro de custos<input name="centroCustos" defaultValue={lancamentoEditando.centroCustos ?? ""} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
+            {!lancamentoEditando.clienteId && <VinculoClienteLancamento lancamento={lancamentoEditando} onVinculado={(r) => { setLancamentoEditando({ ...lancamentoEditando, clienteId: r.clienteId, clienteNomeLivre: null, version: r.version }); router.refresh(); }} />}
             <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
           </form>
-        </div>
+        </Modal>
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <Modal rotulo={modalTipo === null ? "Novo Lançamento" : modalTipo === "cobranca" ? "Nova Cobrança" : "Nova Despesa"} onFechar={closeModal} tamanho="md">
+          <div>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h2 className="font-black text-[var(--brand-dark)] text-lg uppercase tracking-wide">
                 {modalTipo === null ? "Novo Lançamento" : modalTipo === "cobranca" ? "Nova Cobrança" : "Nova Despesa"}
@@ -892,22 +1035,11 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria contábil *</label>
-                  <select name="categoria" required defaultValue="Recebimento de cliente" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                    {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Centro de Custos</label>
-                  <input name="centroCustos" type="text" placeholder="Ex: BPO, Corretagem, Obras..."
-                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                </div>
-                <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
                   <input name="descricao" type="text" required placeholder="Ex: Honorários BPO — julho/2026"
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
                     <CurrencyInput name="valor" required
@@ -978,22 +1110,11 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoria contábil *</label>
-                  <select name="categoria" required defaultValue="Outros" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50">
-                    {CATEGORIAS_BPO.filter((c) => c !== TRANSFERENCIA_INTERNA).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Centro de Custos</label>
-                  <input name="centroCustos" type="text" placeholder="Ex: Administrativo, BPO, Obras..."
-                    className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
-                </div>
-                <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição *</label>
                   <input name="descricao" type="text" required placeholder="Ex: Aluguel sala comercial — julho/2026"
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Valor (R$) *</label>
                     <CurrencyInput name="valor" required
@@ -1021,7 +1142,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               </form>
             )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ─── RELATÓRIOS ─── */}
@@ -1037,7 +1158,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
           {/* LOTE C: realizado no ano a partir dos lançamentos do BPO (inclusive os do extrato bancário). */}
           <div className="bg-white border border-gray-100 p-6">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Realizado em {contabilidade.ano} (valores recebidos/pagos, inclusive parciais, sem transferências internas)</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 [&>*]:min-w-0 [&_p]:break-words">
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Receita realizada</p><p className="font-black text-green-700 text-lg leading-none">{formatCurrency(contabilidade.receitaRealizada)}</p></div>
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Despesas pagas</p><p className="font-black text-red-700 text-lg leading-none">{formatCurrency(contabilidade.despesasPagas)}</p></div>
               <div><p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1">Impostos pagos</p><p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(contabilidade.impostosPagos)}</p></div>

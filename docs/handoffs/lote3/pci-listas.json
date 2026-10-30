@@ -1,0 +1,3624 @@
+{
+  "_origem": "PCI-CAIXA.xls oficial (BIFF8) enviado pelo dono em 29/10/2026 — registros DV 0x01BE; listas por literal ou intervalo resolvido. Sem dados de cliente.",
+  "_gerado_por": "análise estática (scripts fora do repositório); ver MAPEAMENTO-PCI.md",
+  "listas": [
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AI47",
+      "rotulo": "UF do registro do RTP",
+      "secao": "rtp",
+      "campo_sistema": "rtpUf",
+      "opcoes": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_exibicao": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RR,RO,RJ,RN,RS,SC,SP,SE,TO\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AI47:AJ47",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AI50",
+      "rotulo": "UF do registro do RTE",
+      "secao": "rte",
+      "campo_sistema": "rteUf",
+      "opcoes": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_exibicao": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RR,RO,RJ,RN,RS,SC,SP,SE,TO\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AI50:AJ50",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AV56",
+      "rotulo": "UF do imóvel",
+      "secao": "imovel",
+      "campo_sistema": "uf",
+      "opcoes": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_exibicao": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RR,RO,RJ,RN,RS,SC,SP,SE,TO\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AV56:AW56",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "G100",
+      "rotulo": "Acabamento Paredes Externas",
+      "secao": "memorial",
+      "campo_sistema": "paredesExternas",
+      "opcoes": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BC$2:$BC$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G100",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "G102",
+      "rotulo": "Acabamento Paredes Internas",
+      "secao": "memorial",
+      "campo_sistema": "paredesInternas",
+      "opcoes": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BC$2:$BC$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G102:U102",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "X58",
+      "rotulo": "Hemisfério da latitude (N/S)",
+      "secao": "matricula",
+      "campo_sistema": "latitude.celulaHemisferio",
+      "opcoes": [
+        "N",
+        "S"
+      ],
+      "opcoes_exibicao": [
+        "N",
+        "S"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"N,S\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "X58",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "O74",
+      "rotulo": "Destinação do Imóvel",
+      "secao": "areas",
+      "campo_sistema": "destinacao",
+      "opcoes": [
+        "Residencial",
+        "Comercial"
+      ],
+      "opcoes_exibicao": [
+        "Residencial",
+        "Comercial"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Residencial,Comercial\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O74",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "G98",
+      "rotulo": "Cobertura",
+      "secao": "memorial",
+      "campo_sistema": "cobertura",
+      "opcoes": [
+        "Telha Metálica c/ Platibanda",
+        "Telha Metálica s/ Platibanda",
+        "Telha de Fibrocimto. c/ Platibanda",
+        "Telha de Fibrocimto. s/ Platibanda",
+        "Telha de Cerâmica/Concreto",
+        "Laje Impermeabilizada",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Telha Metálica c/ Platibanda",
+        "Telha Metálica s/ Platibanda",
+        "Telha de Fibrocimto. c/ Platibanda",
+        "Telha de Fibrocimto. s/ Platibanda",
+        "Telha de Cerâmica/Concreto",
+        "Laje Impermeabilizada",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BB$2:$BB$8",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G98:U98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "V98",
+      "rotulo": "Teto",
+      "secao": "memorial",
+      "campo_sistema": "teto",
+      "opcoes": [
+        "Telha aparente",
+        "Forro",
+        "Laje",
+        "Laje+Forro",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Telha aparente",
+        "Forro",
+        "Laje",
+        "Laje+Forro",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BA$2:$BA$6",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V98:AB98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "V100",
+      "rotulo": "Louças e Metais",
+      "secao": "memorial",
+      "campo_sistema": "loucasMetais",
+      "opcoes": [
+        "Linha Popular",
+        "Linha Média",
+        "Linha Luxo"
+      ],
+      "opcoes_exibicao": [
+        "Linha Popular",
+        "Linha Média",
+        "Linha Luxo"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BG$2:$BG$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V100:AB100",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "V102",
+      "rotulo": "Pards./Painéis Á. Secas",
+      "secao": "memorial",
+      "campo_sistema": "paredesAreasSecas",
+      "opcoes": [
+        "Alvenaria",
+        "Gesso",
+        "Madeira",
+        "Concreto",
+        "Aço",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Alvenaria",
+        "Gesso",
+        "Madeira",
+        "Concreto",
+        "Aço",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BF$2:$BF$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V102:AB102",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "V104",
+      "rotulo": "Revest.Piso Á.Molhadas",
+      "secao": "memorial",
+      "campo_sistema": "pisoAreasMolhadas",
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BD$2:$BD$8",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V104:AB104",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "O104",
+      "rotulo": "Revest.Piso Á.Secas",
+      "secao": "memorial",
+      "campo_sistema": "pisoAreasSecas",
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Vinílico",
+        "Emborrachado",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Laminado",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Vinílico",
+        "Emborrachado",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Laminado",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BE$2:$BE$11",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O104:U104",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "O108",
+      "rotulo": "Coleta/Tratmto. Esgoto",
+      "secao": "instalacoes",
+      "campo_sistema": "esgoto",
+      "opcoes": [
+        "Rede de Esgoto",
+        "Fossa e Filtro",
+        "Fossa e Sumidouro",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Rede de Esgoto",
+        "Fossa e Filtro",
+        "Fossa e Sumidouro",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BI$2:$BI$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O108:U108",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "V108",
+      "rotulo": "Ger. Alternt. de Energia",
+      "secao": "instalacoes",
+      "campo_sistema": "energiaAlternativa",
+      "opcoes": [
+        "Nenhuma",
+        "Fotovoltaica",
+        "Eólica",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Nenhuma",
+        "Fotovoltaica",
+        "Eólica",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BK$2:$BK$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V108:AB108",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "V106",
+      "rotulo": "Abastecimento d'Água",
+      "secao": "instalacoes",
+      "campo_sistema": "abastecimentoAgua",
+      "opcoes": [
+        "Concessionária",
+        "Poço",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Concessionária",
+        "Poço",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BH$2:$BH$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V106:AB106",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "G108",
+      "rotulo": "Drenagem",
+      "secao": "instalacoes",
+      "campo_sistema": "drenagem",
+      "opcoes": [
+        "Rede de Água Pluvial",
+        "Interna ao terreno",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Rede de Água Pluvial",
+        "Interna ao terreno",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BJ$2:$BJ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G108:N108",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AQ58",
+      "rotulo": "Finalidade",
+      "secao": "matricula",
+      "campo_sistema": "finalidade",
+      "opcoes": [
+        "Aq.Terreno e Constr. FGTS",
+        " Constr.Terr.Próprio FGTS",
+        "Aq.Terreno e Constr. SBPE",
+        " Constr.Terr.Próprio SBPE"
+      ],
+      "opcoes_exibicao": [
+        "Aq.Terreno e Constr. FGTS",
+        "Constr.Terr.Próprio FGTS",
+        "Aq.Terreno e Constr. SBPE",
+        "Constr.Terr.Próprio SBPE"
+      ],
+      "opcoes_com_espaco_extra": true,
+      "fonte": "literal: \"Aq.Terreno e Constr. FGTS, Constr.Terr.Próprio FGTS,Aq.Terreno e Constr. SBPE, Constr.Terr.Próprio SBPE\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AQ58:AW58",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "M96",
+      "rotulo": "Padrão Acabamento",
+      "secao": "memorial",
+      "campo_sistema": "padraoAcabamento",
+      "opcoes": [
+        "Baixo",
+        "Normal",
+        "Alto"
+      ],
+      "opcoes_exibicao": [
+        "Baixo",
+        "Normal",
+        "Alto"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Baixo,Normal,Alto\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "M96",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AC98",
+      "rotulo": "Pavtos.",
+      "secao": "memorial",
+      "campo_sistema": "pavimentos",
+      "opcoes": [
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AC98:AE98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AR98",
+      "rotulo": "Tipo de Vagas",
+      "secao": "memorial",
+      "campo_sistema": "tipoVagas",
+      "opcoes": [
+        "Coberta(s)",
+        "Descoberta(s)"
+      ],
+      "opcoes_exibicao": [
+        "Coberta(s)",
+        "Descoberta(s)"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Coberta(s),Descoberta(s)\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AR98:AW98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AC100",
+      "rotulo": "Á. Serviço",
+      "secao": "memorial",
+      "campo_sistema": "areaServico",
+      "opcoes": [
+        "Não",
+        "Interna",
+        "Externa coberta",
+        "Externa descoberta"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Interna",
+        "Externa coberta",
+        "Externa descoberta"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BL$2:$BL$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AC100:AH100",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AI100",
+      "rotulo": "Cozinha",
+      "secao": "memorial",
+      "campo_sistema": "cozinha",
+      "opcoes": [
+        "Cozinha",
+        "Cozinha+A.Serviço",
+        "Cozinha+Copa",
+        "Cozinha americana"
+      ],
+      "opcoes_exibicao": [
+        "Cozinha",
+        "Cozinha+A.Serviço",
+        "Cozinha+Copa",
+        "Cozinha americana"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BM$2:$BM$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AI100:AO100",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AI102",
+      "rotulo": "Água Quente",
+      "secao": "memorial",
+      "campo_sistema": "aguaQuente",
+      "opcoes": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BO$2:$BO$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AI102",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AR64",
+      "rotulo": "Terreno é próprio",
+      "secao": "documentacao",
+      "campo_sistema": "terrenoProprio",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AR64:AW64",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AB81",
+      "rotulo": "Existe previsão de uso de EPS como elemento, componente, sistema na sua obra?",
+      "secao": "sistema",
+      "campo_sistema": "usoEps",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AB81:AE81",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Q84",
+      "rotulo": "As paredes tem função estrutural?",
+      "secao": "sistema",
+      "campo_sistema": "paredesEstruturais",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q84:T84",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AC102",
+      "rotulo": "Calefação",
+      "secao": "memorial",
+      "campo_sistema": "calefacao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AC102",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AP102",
+      "rotulo": "Itens Sustentabilid.",
+      "secao": "memorial",
+      "campo_sistema": "itensSustentabilidade",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AP102",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AR109",
+      "rotulo": "A solução de Coleta/Tratamento de esgoto atende aos requisitos de Localização e Distância previstos na NBR 17076?",
+      "secao": "instalacoes",
+      "campo_sistema": "esgotoDistancias",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AR109:AW110",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AR110",
+      "rotulo": "A solução projetada prevê mecanismos e/ou elementos que impeçam a interferência, contaminação e/ou prejuízo às estruturas existentes?",
+      "secao": "instalacoes",
+      "campo_sistema": "esgotoContaminacao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AR109:AW110",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "M163",
+      "rotulo": "Tem Justificativa? (prazo fora das referências)",
+      "secao": "cronograma",
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "M163:P163",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AM96",
+      "rotulo": "Implantação/Inserção",
+      "secao": "memorial",
+      "campo_sistema": "implantacao",
+      "opcoes": [
+        "Isolada",
+        "Isolada(parte empr.não-condom.)",
+        "Condomínio"
+      ],
+      "opcoes_exibicao": [
+        "Isolada",
+        "Isolada(parte empr.não-condom.)",
+        "Condomínio"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BN$2:$BN$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AM96:AW96",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Q63",
+      "rotulo": "Certidão de Matrícula do Imóvel",
+      "secao": "documentacao",
+      "campo_sistema": null,
+      "opcoes": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_exibicao": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Apresentado,Não apresentado\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q63:V66",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Q64",
+      "rotulo": "Alvará/Licença da Obra",
+      "secao": "documentacao",
+      "campo_sistema": "alvaraSituacao",
+      "opcoes": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_exibicao": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Apresentado,Não apresentado\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q63:V66",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Q65",
+      "rotulo": "ART/RRT/TRT de Proj. Arquitetura",
+      "secao": "documentacao",
+      "campo_sistema": "artProjetoSituacao",
+      "opcoes": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_exibicao": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Apresentado,Não apresentado\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q63:V66",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Q66",
+      "rotulo": "ART/RRT/TRT de Exec. de Obra",
+      "secao": "documentacao",
+      "campo_sistema": "artExecucaoSituacao",
+      "opcoes": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_exibicao": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Apresentado,Não apresentado\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q63:V66",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AL63",
+      "rotulo": "Projeto Legal/Arquit. c/ divisões",
+      "secao": "documentacao",
+      "campo_sistema": null,
+      "opcoes": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_exibicao": [
+        "Apresentado",
+        "Não apresentado"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Apresentado,Não apresentado\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AL63:AQ63",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AN140",
+      "rotulo": "Executor da obra",
+      "secao": "custos",
+      "campo_sistema": null,
+      "opcoes": [
+        "Construtora",
+        "Profissional Autônomo"
+      ],
+      "opcoes_exibicao": [
+        "Construtora",
+        "Profissional Autônomo"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Construtora,Profissional Autônomo\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AN140:AW140",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AF98",
+      "rotulo": "Quartos",
+      "secao": "memorial",
+      "campo_sistema": "quartos",
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF98:AQ98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AI98",
+      "rotulo": "Suítes",
+      "secao": "memorial",
+      "campo_sistema": "suites",
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF98:AQ98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AL98",
+      "rotulo": "Salas",
+      "secao": "memorial",
+      "campo_sistema": "salas",
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF98:AQ98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AO98",
+      "rotulo": "Vagas",
+      "secao": "memorial",
+      "campo_sistema": "vagas",
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF98:AQ98",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Q67",
+      "rotulo": "Projeto Legal Aprovado",
+      "secao": "documentacao",
+      "campo_sistema": "projetoLegalSituacao",
+      "opcoes": [
+        "Apresentado projeto aprovado",
+        "Apresentado comprovação de Licenciamento Declaratório",
+        "Não apresentado"
+      ],
+      "opcoes_exibicao": [
+        "Apresentado projeto aprovado",
+        "Apresentado comprovação de Licenciamento Declaratório",
+        "Não apresentado"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Apresentado projeto aprovado,Apresentado comprovação de Licenciamento Declaratório,Não apresentado\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q67:AN67",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AS84",
+      "rotulo": "As fôrmas permanecem nas paredes acabadas?",
+      "secao": "sistema",
+      "campo_sistema": "formasPermanecem",
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS84:AW84",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AS89",
+      "rotulo": "Apresentou Doc. Complem. Sistema Inovador?",
+      "secao": "sistema",
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS89:AW89",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "Y93",
+      "rotulo": "Optante pelo Selo Casa Azul - Unidade Isolada?",
+      "secao": "sistema",
+      "campo_sistema": "seloCasaAzul",
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Y93",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AS93",
+      "rotulo": "Apresentou docum. Complementar Selo?",
+      "secao": "sistema",
+      "campo_sistema": "docSeloCasaAzul",
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS93:AW93",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AP81",
+      "rotulo": "Montagem/fabricação das paredes",
+      "secao": "sistema",
+      "campo_sistema": "montagemParedes",
+      "opcoes": [
+        "Pré-fabricadas em canteiro",
+        "In loco",
+        "Em fábrica"
+      ],
+      "opcoes_exibicao": [
+        "Pré-fabricadas em canteiro",
+        "In loco",
+        "Em fábrica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Pré-fabricadas em canteiro,In loco,Em fábrica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AP81",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "S75",
+      "rotulo": "Sistema Construtivo",
+      "secao": "sistema",
+      "campo_sistema": "sistemaConstrutivo",
+      "opcoes": [
+        "Conv:Alvenaria estrutural",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos cerâmico",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos concreto",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos gesso",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos solo-cimento",
+        "Conv:Paredes de concreto moldada no local NBR nº 16055",
+        "Conv:Painéis de Paredes de concreto Pré-moldados NBR nº 16475",
+        "Conv:Painéis de PVC preenchidos com concreto NBR nº 17077",
+        "Conv:Light Wood Frame NBR nº 16936 ",
+        "Conv:Light Steel Framing NBR nº 16970",
+        "Conv:Painel leve modular - pré-fabricado_NBR nº 17073",
+        "Conv:Parede Concreto Celular moldada no local NBR nº 17071",
+        "Inovador:especificar sistema",
+        "Outros (escolher se não encontrou na lista a solução convencional que pretende usar)"
+      ],
+      "opcoes_exibicao": [
+        "Conv:Alvenaria estrutural",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos cerâmico",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos concreto",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos gesso",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos solo-cimento",
+        "Conv:Paredes de concreto moldada no local NBR nº 16055",
+        "Conv:Painéis de Paredes de concreto Pré-moldados NBR nº 16475",
+        "Conv:Painéis de PVC preenchidos com concreto NBR nº 17077",
+        "Conv:Light Wood Frame NBR nº 16936",
+        "Conv:Light Steel Framing NBR nº 16970",
+        "Conv:Painel leve modular - pré-fabricado_NBR nº 17073",
+        "Conv:Parede Concreto Celular moldada no local NBR nº 17071",
+        "Inovador:especificar sistema",
+        "Outros (escolher se não encontrou na lista a solução convencional que pretende usar)"
+      ],
+      "opcoes_com_espaco_extra": true,
+      "fonte": "intervalo Proposta_Constr_Individual!$BB$95:$BB$108",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "S75",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "G106",
+      "rotulo": "Esquadrias Externas",
+      "secao": "memorial",
+      "campo_sistema": "esquadriasExternas",
+      "opcoes": [
+        "Alumínio",
+        "Ferro",
+        "Vidro Temperado",
+        "PVC",
+        "Madeira",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Alumínio",
+        "Ferro",
+        "Vidro Temperado",
+        "PVC",
+        "Madeira",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BQ$2:$BQ$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G106:U106",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "G104",
+      "rotulo": "Revest.Parede.Á.Molhadas",
+      "secao": "memorial",
+      "campo_sistema": "revestParedeMolhadas",
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "São Tomé",
+        "Emborrachado",
+        "Granita",
+        "Formicado",
+        "Porcelanato 2ª",
+        "Granito/Mármore 2ª",
+        "Pintura/Textura",
+        "Grafiato",
+        "Cerâmica Extra",
+        "Árdosia",
+        "Granito/Mármore 1ª"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "São Tomé",
+        "Emborrachado",
+        "Granita",
+        "Formicado",
+        "Porcelanato 2ª",
+        "Granito/Mármore 2ª",
+        "Pintura/Textura",
+        "Grafiato",
+        "Cerâmica Extra",
+        "Árdosia",
+        "Granito/Mármore 1ª"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Proposta_Constr_Individual!$BP$2:$BP$14",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G104:N104",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Proposta_Constr_Individual",
+      "celula": "AA84",
+      "rotulo": "Tipo de Fôrmas?",
+      "secao": "sistema",
+      "campo_sistema": "tipoFormas",
+      "opcoes": [
+        "Madeira",
+        "Aço",
+        "EPS",
+        "Alumínio",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Madeira",
+        "Aço",
+        "EPS",
+        "Alumínio",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Madeira,Aço,EPS,Alumínio,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AA84:AD84",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT63:AW63",
+      "rotulo": "Pontuação pretendida (critério Obrigatório)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT63:AW63",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT65:AW67",
+      "rotulo": "Pontuação pretendida (critério Obrigatório)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT65:AW67",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT73:AW73",
+      "rotulo": "Pontuação pretendida (critério Opcional)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT73:AW73",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT75:AW76",
+      "rotulo": "Pontuação pretendida (critério Opcional)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT75:AW76",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT61:AW62",
+      "rotulo": "Pontuação pretendida (critério Obrigatório)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT61:AW62",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT64:AW64",
+      "rotulo": "Pontuação pretendida (critério Obrigatório)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT64:AW64",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT74:AW74",
+      "rotulo": "Pontuação pretendida (critério Opcional)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT74:AW74",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT69:AW69",
+      "rotulo": "Pontuação pretendida (critério Obrigatório Ouro)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT69:AW69",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT68:AW68",
+      "rotulo": "Pontuação pretendida (critério Obrigatório Ouro)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "2"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "2"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,2\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT68:AW68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT70:AW72",
+      "rotulo": "Pontuação pretendida (critério Obrigatório Ouro)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "2"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "2"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,2\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT70:AW72",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AT78",
+      "rotulo": "Município com precipitação média anual inferior a 1000mm no mapa do SNIRH Sistema Nacional de Informações sobre Recursos Hídricos?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Selo Casa Azul - Unid.Isolada",
+      "celula": "AU78:AW79",
+      "rotulo": "Município com precipitação média anual inferior a 1000mm no mapa do SNIRH Sistema Nacional de Informações sobre Recursos Hídricos?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AU78:AW79",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AN82",
+      "rotulo": "Houve Repatuação de prazo?",
+      "secao": "pls",
+      "campo_sistema": "dados.pls.houveRepactuacao",
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AN82",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AU84",
+      "rotulo": "A execução da obra está observando as condições contratadas?",
+      "secao": "pls",
+      "campo_sistema": "dados.pls.condicoesContratadas",
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AU84",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AS85",
+      "rotulo": "A placa/adesivo CAIXA está afixada na obra?",
+      "secao": "pls",
+      "campo_sistema": "dados.pls.placaAfixada",
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS85",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AS88",
+      "rotulo": "Projeto e especificações estão sendo cumpridos?",
+      "secao": "pls",
+      "campo_sistema": "dados.pls.projetoCumprido",
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS88:AS89",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AS89",
+      "rotulo": "Os serviços estão sendo executados de modo a prevenir o aparecimento de danos físicos/vícios futuros?",
+      "secao": "pls",
+      "campo_sistema": "dados.pls.prevencaoDanos",
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS88:AS89",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AI62",
+      "rotulo": "UF – RTP (célula com fórmula =Proposta!AI47; validação herdada, não é entrada)",
+      "secao": "pls-identificacao",
+      "campo_sistema": null,
+      "opcoes": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_exibicao": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RR,RO,RJ,RN,RS,SC,SP,SE,TO\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AI62:AJ62",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AI65",
+      "rotulo": "UF – RTE (célula com fórmula =Proposta!AI50; validação herdada, não é entrada)",
+      "secao": "pls-identificacao",
+      "campo_sistema": null,
+      "opcoes": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_exibicao": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RR,RO,RJ,RN,RS,SC,SP,SE,TO\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AI65:AJ65",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AV71",
+      "rotulo": "UF do imóvel (célula com fórmula =Proposta!AV56; validação herdada, não é entrada)",
+      "secao": "pls-identificacao",
+      "campo_sistema": null,
+      "opcoes": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_exibicao": [
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RR",
+        "RO",
+        "RJ",
+        "RN",
+        "RS",
+        "SC",
+        "SP",
+        "SE",
+        "TO"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG,PA,PB,PR,PE,PI,RR,RO,RJ,RN,RS,SC,SP,SE,TO\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AV71:AW71",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "X73",
+      "rotulo": "Hemisfério (célula com fórmula =Proposta!X58; validação herdada, não é entrada)",
+      "secao": "pls-identificacao",
+      "campo_sistema": null,
+      "opcoes": [
+        "N",
+        "S"
+      ],
+      "opcoes_exibicao": [
+        "N",
+        "S"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"N,S\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "X73",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "V85:V104",
+      "rotulo": "Execução do Item (%) dos 20 serviços (V85=item 1 … V104=item 20); gravado como fração (5% = 0,05)",
+      "secao": "pls",
+      "campo_sistema": "execucoes[]",
+      "opcoes": [
+        "0%",
+        "5%",
+        "10%",
+        "15%",
+        "20%",
+        "25%",
+        "30%",
+        "35%",
+        "40%",
+        "45%",
+        "50%",
+        "55%",
+        "60%",
+        "65%",
+        "70%",
+        "75%",
+        "80%",
+        "85%",
+        "90%",
+        "95%",
+        "100%"
+      ],
+      "opcoes_exibicao": [
+        "0%",
+        "5%",
+        "10%",
+        "15%",
+        "20%",
+        "25%",
+        "30%",
+        "35%",
+        "40%",
+        "45%",
+        "50%",
+        "55%",
+        "60%",
+        "65%",
+        "70%",
+        "75%",
+        "80%",
+        "85%",
+        "90%",
+        "95%",
+        "100%"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0%,5%,10%,15%,20%,25%,30%,35%,40%,45%,50%,55%,60%,65%,70%,75%,80%,85%,90%,95%,100%\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V85:X104",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AS175",
+      "rotulo": "Todos os itens/serviços para atendimento aos Critérios do Selo Casa Azul estão concluídos? (AS172:AS174 ficam dentro das mesclas de texto M172:AW174 e não têm efeito)",
+      "secao": "pls-selo",
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS172:AW175",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AS170",
+      "rotulo": "É optante pelo Selo Casa Azul Caixa - Unidade Isolada?",
+      "secao": "pls-selo",
+      "campo_sistema": "dados.pls.seloCasaAzul",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS170:AW171",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "PLS",
+      "celula": "AS171",
+      "rotulo": "Existem itens/serviços concluídos ou em execução para atendimento aos Critérios do Selo Casa Azul?",
+      "secao": "pls-selo",
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS170:AW171",
+      "rotulo_origem": "revisado"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AT88",
+      "rotulo": "Apresentou Doc. Complem. Sistema Inovador?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AT88",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AF206:AI206",
+      "rotulo": "Sim",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "sim",
+        "não"
+      ],
+      "opcoes_exibicao": [
+        "sim",
+        "não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"sim,não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF206:AI206",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "P85:W85",
+      "rotulo": "Montagem/fabricação das paredes",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Pré-fabricadas em canteiro",
+        "In loco",
+        "Em fábrica"
+      ],
+      "opcoes_exibicao": [
+        "Pré-fabricadas em canteiro",
+        "In loco",
+        "Em fábrica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Pré-fabricadas em canteiro,In loco,Em fábrica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "P85:W85",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AB85",
+      "rotulo": "Tipo de Fôrmas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Metálica",
+        "Madeira",
+        "EPS",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Metálica",
+        "Madeira",
+        "EPS",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Metálica,Madeira,EPS,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AB85",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Q72:T73",
+      "rotulo": "A proposta prevê alteração de área?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q72:T73",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AU85",
+      "rotulo": "As fôrmas permanecem incorporadas nas paredes acabadas?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AU85",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Q64:U64",
+      "rotulo": "A proposta prevê alteração de especificações?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q64:U64",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AS68",
+      "rotulo": "Calefação",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AS70:AW70",
+      "rotulo": "Sustentabilidade",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AS70:AW70",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "O71:P71",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O71:P71",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Q71:T80",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q71:T80",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "U71:X72",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "U71:X72",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "O74:P74",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O74:P74",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "U74:U80",
+      "rotulo": "Nova Área Coberta Padrão",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "U74:U80",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "V74:X74",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V74:X74",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "P76:P78",
+      "rotulo": "Indique alterações (preencha apenas o que foi alterado)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "P76:P78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "V76:X78",
+      "rotulo": "Quartos",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V76:X78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "O78",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O78",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "O80:P80",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "O80:P80",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "V80:X80",
+      "rotulo": "Informe qual(quais) serviço(s) foi(foram) alterado(s)/incluído(s)/ excluído(s)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V80:X80",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "V81:Y81",
+      "rotulo": "Informe qual(quais) serviço(s) foi(foram) alterado(s)/incluído(s)/ excluído(s)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V81:Y81",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "R86:U86",
+      "rotulo": "A paredes desempenham função estrutural?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_exibicao": [
+        "Sim",
+        "Não"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Sim,Não\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "R86:U86",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Q75",
+      "rotulo": "A proposta prevê inclusão ou exclusão de cômodos?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Inclusão",
+        "Exclusão",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Inclusão",
+        "Exclusão",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Inclusão,Exclusão,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q75",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Q79:Q80",
+      "rotulo": "A proposta prevê alteração de serviços?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Inclusão",
+        "Exclusão",
+        "Não se aplica"
+      ],
+      "opcoes_exibicao": [
+        "Inclusão",
+        "Exclusão",
+        "Não se aplica"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Inclusão,Exclusão,Não se aplica\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q79:Q80",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "S77:S78",
+      "rotulo": "Quartos",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "S77:S78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "V77:V78",
+      "rotulo": "Suítes",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "V77:V78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Y77:Y78",
+      "rotulo": "Salas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Y77:Y78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AB77:AB78",
+      "rotulo": "Vagas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AB77:AB78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AE77",
+      "rotulo": "Banheiro",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"0,1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AE77",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AE78",
+      "rotulo": "Banheiro",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Coberta(s)",
+        "Descoberta(s)"
+      ],
+      "opcoes_exibicao": [
+        "Coberta(s)",
+        "Descoberta(s)"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Coberta(s),Descoberta(s)\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AE78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "P77:P78",
+      "rotulo": "Pavtos.",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_exibicao": [
+        "1",
+        "2",
+        "3",
+        "4+"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"1,2,3,4+\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "P77:P78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AQ78",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Cozinha",
+        "Cozinha+A.Serviço",
+        "Cozinha+Copa",
+        "Cozinha americana"
+      ],
+      "opcoes_exibicao": [
+        "Cozinha",
+        "Cozinha+A.Serviço",
+        "Cozinha+Copa",
+        "Cozinha americana"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BO$2:$BO$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AQ78",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AK78",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Não",
+        "Interna",
+        "Externa coberta",
+        "Externa descoberta"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Interna",
+        "Externa coberta",
+        "Externa descoberta"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BN$2:$BN$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AK78",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "S70",
+      "rotulo": "Pards./Painéis Á. Secas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Alvenaria",
+        "Gesso",
+        "Madeira",
+        "Concreto",
+        "Aço",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Alvenaria",
+        "Gesso",
+        "Madeira",
+        "Concreto",
+        "Aço",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BH$2:$BH$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "S70",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "S68",
+      "rotulo": "Louças e Metais",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Linha Popular",
+        "Linha Média",
+        "Linha Luxo"
+      ],
+      "opcoes_exibicao": [
+        "Linha Popular",
+        "Linha Média",
+        "Linha Luxo"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BI$2:$BI$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "S68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Q66",
+      "rotulo": "Teto",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Telha aparente",
+        "Forro",
+        "Laje",
+        "Laje+Forro",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Telha aparente",
+        "Forro",
+        "Laje",
+        "Laje+Forro",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BA$2:$BA$6",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Q66",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G66",
+      "rotulo": "Cobertura",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Telha Metálica c/ Platibanda",
+        "Telha Metálica s/ Platibanda",
+        "Telha de Fibrocimto. c/ Platibanda",
+        "Telha de Fibrocimto. s/ Platibanda",
+        "Telha de Cerâmica/Concreto",
+        "Laje Impermeabilizada",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Telha Metálica c/ Platibanda",
+        "Telha Metálica s/ Platibanda",
+        "Telha de Fibrocimto. c/ Platibanda",
+        "Telha de Fibrocimto. s/ Platibanda",
+        "Telha de Cerâmica/Concreto",
+        "Laje Impermeabilizada",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BB$2:$BB$8",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G66",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G68",
+      "rotulo": "Acabamento Paredes Externas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BC$2:$BC$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G70",
+      "rotulo": "Acabamento Paredes Internas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Sem revestimento",
+        "Pintura/Textura/Grafiato",
+        "Pint./Text./Grafto. e det. em Pedra/Cerâmica",
+        "Cerâmica/Porcelanato",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BC$2:$BC$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G70",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "Z70",
+      "rotulo": "Drenagem",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Rede de Água Pluvial",
+        "Interna ao terreno",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Rede de Água Pluvial",
+        "Interna ao terreno",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BL$2:$BL$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "Z70",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AM68",
+      "rotulo": "Abastecimento d'Água",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Concessionária",
+        "Poço",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Concessionária",
+        "Poço",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BJ$2:$BJ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AM68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AX68",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Concessionária",
+        "Poço",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Concessionária",
+        "Poço",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BJ$2:$BJ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AX68",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AM70",
+      "rotulo": "Ger. Alternt. de Energia",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Nenhuma",
+        "Fotovoltaica",
+        "Eólica",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Nenhuma",
+        "Fotovoltaica",
+        "Eólica",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BM$2:$BM$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AM70",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AX70",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Nenhuma",
+        "Fotovoltaica",
+        "Eólica",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Nenhuma",
+        "Fotovoltaica",
+        "Eólica",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BM$2:$BM$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AX70",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AF70",
+      "rotulo": "Coleta/Tratmto. Esgoto",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Rede de Esgoto",
+        "Fossa e Filtro",
+        "Fossa e Sumidouro",
+        "Outra"
+      ],
+      "opcoes_exibicao": [
+        "Rede de Esgoto",
+        "Fossa e Filtro",
+        "Fossa e Sumidouro",
+        "Outra"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BK$2:$BK$5",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF70",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AC66",
+      "rotulo": "Revest.Piso Á.Secas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Vinílico",
+        "Emborrachado",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Laminado",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Vinílico",
+        "Emborrachado",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Laminado",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BG$2:$BG$11",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AC66",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "U66",
+      "rotulo": "Revest.Pards.Á.Molhadas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "São Tomé",
+        "Emborrachado",
+        "Granita",
+        "Formicado",
+        "Porcelanato 2ª",
+        "Granito/Mármore 2ª",
+        "Pintura/Textura",
+        "Grafiato",
+        "Cerâmica Extra",
+        "Porcelanato de 1ª",
+        "Cerâmica/pintura"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "São Tomé",
+        "Emborrachado",
+        "Granita",
+        "Formicado",
+        "Porcelanato 2ª",
+        "Granito/Mármore 2ª",
+        "Pintura/Textura",
+        "Grafiato",
+        "Cerâmica Extra",
+        "Porcelanato de 1ª",
+        "Cerâmica/pintura"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BE$2:$BE$14",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "U66",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AJ66",
+      "rotulo": "Revest.Piso Á.Molhadas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BF$2:$BF$8",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AJ66",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AX66",
+      "rotulo": null,
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Cimentado",
+        "Cerâmica Comercial",
+        "Pedra",
+        "Porcelanato 1ª",
+        "Porcelanato 2ª",
+        "Granito/Mármore",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BF$2:$BF$8",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AX66",
+      "rotulo_origem": "sem rótulo identificável (provável validação residual)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "X68",
+      "rotulo": "Esquadrias Externas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Alumínio",
+        "Ferro",
+        "Vidro Temperado",
+        "PVC",
+        "Madeira",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Alumínio",
+        "Ferro",
+        "Vidro Temperado",
+        "PVC",
+        "Madeira",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BD$2:$BD$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "X68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AF68",
+      "rotulo": "Esquadrias Internas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Alumínio",
+        "Ferro",
+        "Vidro Temperado",
+        "PVC",
+        "Madeira",
+        "Outros"
+      ],
+      "opcoes_exibicao": [
+        "Alumínio",
+        "Ferro",
+        "Vidro Temperado",
+        "PVC",
+        "Madeira",
+        "Outros"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BD$2:$BD$7",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AF68",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AP66",
+      "rotulo": "Água Quente",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BQ$2:$BQ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AP66",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G71:N71",
+      "rotulo": "Acabamento Paredes Internas",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BQ$2:$BQ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G71:N71",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G74:N74",
+      "rotulo": "A proposta prevê alteração de área?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BQ$2:$BQ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G74:N74",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G78:N78",
+      "rotulo": "Indique alterações (preencha apenas o que foi alterado)",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BQ$2:$BQ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G78:N78",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "G80:N80",
+      "rotulo": "A proposta prevê alteração de serviços?",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_exibicao": [
+        "Não",
+        "Aquecimento solar",
+        "Aquecimento à gás"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "intervalo Alteração_Projeto_Especific!$BQ$2:$BQ$4",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "G80:N80",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "AN118:AW118",
+      "rotulo": "Executor da obra",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Construtora",
+        "Profissional Autônomo"
+      ],
+      "opcoes_exibicao": [
+        "Construtora",
+        "Profissional Autônomo"
+      ],
+      "opcoes_com_espaco_extra": false,
+      "fonte": "literal: \"Construtora,Profissional Autônomo\"",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "AN118:AW118",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    },
+    {
+      "aba": "Alteração_Projeto_Especific",
+      "celula": "P82:AW82",
+      "rotulo": "Informe o novo sistema proposto:",
+      "secao": null,
+      "campo_sistema": null,
+      "opcoes": [
+        "Conv:Alvenaria estrutural",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos cerâmico",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos concreto",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos gesso",
+        "Conv:Paredes de concreto moldada no local NBR nº 16055",
+        "Conv:Painéis de Paredes de concreto Pré-moldados NBR nº 16475",
+        "Conv:Painéis de PVC preenchidos com concreto NBR nº 17077",
+        "Conv:Light Wood Frame NBR nº 16936 ",
+        "Conv:Light Steel Framing NBR nº 16970",
+        "Conv:Painel leve modular - pré-fabricado_NBR nº 17073",
+        "Conv:Parede Concreto Celular moldada no local NBR nº 17071",
+        "Inovador:especificar sistema",
+        "Outros (escolher se não encontrou na lista a solução convencional que pretende usar)"
+      ],
+      "opcoes_exibicao": [
+        "Conv:Alvenaria estrutural",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos cerâmico",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos concreto",
+        "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos gesso",
+        "Conv:Paredes de concreto moldada no local NBR nº 16055",
+        "Conv:Painéis de Paredes de concreto Pré-moldados NBR nº 16475",
+        "Conv:Painéis de PVC preenchidos com concreto NBR nº 17077",
+        "Conv:Light Wood Frame NBR nº 16936",
+        "Conv:Light Steel Framing NBR nº 16970",
+        "Conv:Painel leve modular - pré-fabricado_NBR nº 17073",
+        "Conv:Parede Concreto Celular moldada no local NBR nº 17071",
+        "Inovador:especificar sistema",
+        "Outros (escolher se não encontrou na lista a solução convencional que pretende usar)"
+      ],
+      "opcoes_com_espaco_extra": true,
+      "fonte": "intervalo Alteração_Projeto_Especific!$AZ$93:$AZ$105",
+      "permite_branco": true,
+      "estilo_erro": "parar",
+      "intervalo_validacao": "P82:AW82",
+      "rotulo_origem": "automatico (texto travado mais próximo; conferir)"
+    }
+  ]
+}

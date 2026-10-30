@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Home, X, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { aplicarValorEstimadoAvaliacao } from "@/lib/actions/avaliacoes";
+import { Modal } from "@/components/ui/modal";
 
 interface Props {
   avaliacaoId: string;
@@ -90,14 +91,8 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
       </button>
 
       {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-          onClick={() => !loading && setOpen(false)}
-        >
-          <div
-            className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal rotulo="Comparáveis ZAP Imóveis" onFechar={() => !loading && setOpen(false)} fecharAoClicarFora tamanho="lg">
+          <div>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-[var(--brand-dark)]">
               <div className="flex items-center gap-2">
                 <Home size={15} className="text-blue-400" />
@@ -209,7 +204,7 @@ export function ZapComparaveisBtn({ avaliacaoId, ...props }: Props) {
               )}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

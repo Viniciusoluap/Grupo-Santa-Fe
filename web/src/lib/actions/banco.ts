@@ -1,4 +1,5 @@
 "use server";
+import { CONFIRMACAO_EXCLUSAO, confirmacaoExclusaoValida } from "@/lib/bpo-lote";
 import { exigirModuloAcao, exigirAdminAtivo } from "@/lib/auth/modulos";
 import { preservarLancamentoNaLimpeza } from "@/lib/bpo-limpeza";
 import { revalidatePath } from "next/cache";
@@ -193,12 +194,13 @@ export async function previaLimpezaContaBancaria(id: string) {
 }
 
 /** Backup e limpeza atômicos. A conta fica inativa; credenciais nunca entram no snapshot. */
-export async function excluirContaBancaria(id: string, confirmarRotulo?: string) {
+export async function excluirContaBancaria(id: string, confirmacao?: string) {
   return capturarErroAcao(async () => {
     const administrador = await exigirAdminAtivo();
     await exigirModuloAcao("bpo", { somenteEquipe: true });
+    // Lote 3, item 13B: confirmação digitando EXCLUIR (case-sensitive, sem acento).
+    if (!confirmacaoExclusaoValida(confirmacao)) throw new Error(`Digite ${CONFIRMACAO_EXCLUSAO} para confirmar a exclusão da conta.`);
     const p = exigirResultado(await previaLimpezaContaBancaria(id));
-    if (!confirmarRotulo || confirmarRotulo.trim() !== p.rotulo) throw new Error("Digite exatamente o nome da conta exibido na prévia para confirmar.");
     const res = await prisma.$transaction(async (tx) => {
       const conta = await tx.contaBancaria.findUnique({ where: { id }, select: { id: true, banco: true, agencia: true, conta: true, tipo: true, descricao: true, saldoAtual: true, ativo: true, pluggyItemId: true, pluggyAccountId: true, webhookUrl: true, ultimaSincronizacao: true, provedor: true, dataInicial: true, ultimoErro: true, saldoExtrato: true, saldoExtratoData: true, criadoEm: true } });
       if (!conta) throw new Error("Conta removida ou alterada. Atualize a prévia.");
@@ -215,7 +217,7 @@ export async function excluirContaBancaria(id: string, confirmarRotulo?: string)
       if (remover.length) await tx.bpoLancamento.deleteMany({ where: { id: { in: remover.map((l) => l.id) } } });
       await tx.transacaoBancaria.deleteMany({ where: { contaId: id } });
       await tx.contaBancaria.update({ where: { id }, data: { ativo: false, ultimaSincronizacao: null, saldoAtual: 0, saldoExtrato: null, saldoExtratoData: null } });
-      return { backupId: backup.id, transacoes: transacoes.length, lancamentosRemovidos: remover.length, lancamentosPreservados: manter.length };
+      return { backupId: backup.id, excluidaEm: backup.criadoEm.toISOString(), excluidaPor: administrador.nome, transacoes: transacoes.length, lancamentosRemovidos: remover.length, lancamentosPreservados: manter.length };
     });
     revalidatePath(BPO);
     return { success: true, ...res };

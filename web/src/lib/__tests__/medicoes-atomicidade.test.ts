@@ -10,6 +10,8 @@ const mock = vi.hoisted(() => ({
     update: vi.fn(async () => { mock.estado.alterado = true; }),
   },
 }));
+// obra-progresso importa @/lib/drive-organizacao (server-only) desde a organização do Drive.
+vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/obras/acesso-empreiteiro", () => ({ exigirObraOuEmpreiteiro: async () => "admin" }));
 vi.mock("@/lib/db", () => {

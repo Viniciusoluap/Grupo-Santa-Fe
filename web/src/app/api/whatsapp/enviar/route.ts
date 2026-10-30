@@ -8,6 +8,7 @@ import { configEvolution } from "@/lib/whatsapp/evolution-config";
 import { enviarWhatsappBusiness } from "@/lib/whatsapp/business";
 import { valoresDosLeads } from "@/lib/whatsapp/valores-leads";
 import { limparExtras, textosPorDestinatario } from "@/lib/whatsapp/variaveis";
+import { LEAD_ATIVO_WHATSAPP } from "@/lib/whatsapp/conversas";
 
 interface Destinatario {
   id: string;
@@ -46,7 +47,8 @@ export async function POST(req: NextRequest) {
 
   const leadsEncontrados = leadIds.length
     ? await prisma.lead.findMany({
-        where: { id: { in: leadIds } },
+        // Lote 03, correção 03: lead excluído ou arquivado no CRM não recebe envio.
+        where: { id: { in: leadIds }, ...LEAD_ATIVO_WHATSAPP },
         select: { id: true, nome: true, telefone: true, corretorId: true },
       })
     : [];

@@ -241,3 +241,16 @@ describe("aplicarEdicao — percentual (pontoDecimal)", () => {
     expect(digitar("2.345", { casas: 4, pontoDecimal: true }).numero).toBe(2.345);
   });
 });
+
+describe("padrão numérico global na exportação (lote 3, correção 11)", () => {
+  it("exporta 1.000.000,00 e relê o mesmo número, sem erro de ponto flutuante", () => {
+    const valores = [1000000, 1234.5, 0.1 + 0.2, 99999999.99, -2500.75, 0];
+    for (const v of valores) {
+      const texto = formatarNumero(v, { casas: 2 });
+      expect(texto).toMatch(/^-?\d{1,3}(\.\d{3})*,\d{2}$/);
+      expect(lerNumero(texto)).toBeCloseTo(Math.round(v * 100) / 100, 10);
+    }
+    expect(formatarNumero(0.1 + 0.2, { casas: 2 })).toBe("0,30");
+    expect(formatarNumero(99999999.99, { casas: 2 })).toBe("99.999.999,99");
+  });
+});

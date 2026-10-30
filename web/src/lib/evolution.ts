@@ -1,5 +1,6 @@
 // Pedido de 25/10: WhatsApp por QR code via Evolution API (Baileys) hospedada pelo dono (Railway),
 // até a integração da Lógyca. Gêmeo de Prospecta/server/_core/evolution.ts.
+import { chaveTelefone } from "@/lib/whatsapp/conversas";
 export type EvolutionConfig = { url: string; apiKey: string };
 type Fetch = typeof fetch;
 
@@ -139,12 +140,7 @@ export function textoDaMensagem(message: MensagemEvolution | undefined | null): 
 
 /** Mesmo telefone? Compara DDD + 8 últimos dígitos (o WhatsApp às vezes omite o 9º dígito). */
 export function mesmoTelefone(a: string | null | undefined, b: string | null | undefined): boolean {
-  const n = (x: string) => {
-    let d = (x ?? "").replace(/\D/g, "");
-    if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
-    return d.length >= 10 ? `${d.slice(0, 2)}${d.slice(-8)}` : d;
-  };
-  const x = n(a ?? ""), y = n(b ?? "");
+  const x = chaveTelefone(a), y = chaveTelefone(b);
   return Boolean(x) && x === y;
 }
 

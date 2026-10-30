@@ -18,7 +18,6 @@ import { gerarPdfPci, gerarPlanilhaPci, lerFormularioPci, PastaXlsx } from "@/li
 import { lerPci } from "@/lib/caixa/pci";
 import { PastaBiff8 } from "@/lib/caixa/biff8";
 import { imagensDaAba } from "@/lib/caixa/biff8-imagens";
-
 const MODELO = new Uint8Array(readFileSync(new URL("../caixa/__fixtures__/pci-modelo-anonimo.xls", import.meta.url)));
 
 function formularioCompleto(): FormularioPci {
@@ -28,12 +27,14 @@ function formularioCompleto(): FormularioPci {
     rtpNome: "ENG PROJETO", rtpEmail: "proj@teste.local", rtpRegistro: "1112223334", rtpUf: "MA", rtpCpf: "111.222.333-44", rtpDdd: 99, rtpTelefone: "981112222",
     rteNome: "ENG EXECUCAO", rteEmail: "exec@teste.local", rteRegistro: "12345/D", rteUf: "PI", rteCpf: "555.666.777-88", rteDdd: 86, rteTelefone: "999887766",
     endereco: "RUA NOVA, 10", complemento: "LOTE 5, QUADRA B", bairro: "CENTRO", cep: "65901-230", municipio: "IMPERATRIZ", uf: "MA",
-    matricula: "4321", cartorio: "2º OFICIO", latitude: `05° 29' 18" S`, longitude: `47° 28' 30.5" W`, construtora: "CONSTRUTORA TESTE", cnpjConstrutora: "11.222.333/0001-81", finalidade: "Construção em terreno próprio",
+    matricula: "4321", cartorio: "2º OFICIO", latitude: `05° 29' 18" S`, longitude: `47° 28' 30.5" W`, construtora: "CONSTRUTORA TESTE", cnpjConstrutora: "11.222.333/0001-81", finalidade: " Constr.Terr.Próprio FGTS",
     alvaraSituacao: "Apresentado", alvaraValidade: "2027-03-15", terrenoProprio: "Sim", artProjetoSituacao: "Apresentado", artProjetoNumero: "MA123", artExecucaoSituacao: "Apresentado", artExecucaoNumero: "MA456", projetoLegalSituacao: "Apresentado projeto aprovado",
     areaCoberta: 60.5, areaPermeavel: 100, areaAcessoria: 4.5, areaTerreno: 300, valorTerreno: 80000, destinacao: "Residencial", valorImovel: 250000,
-    padraoAcabamento: "Normal", implantacao: "Isolada", cobertura: "Telha cerâmica", teto: "Forro PVC", pavimentos: 1, quartos: 3, suites: 1, salas: 1, vagas: 2, tipoVagas: "Coberta(s)",
-    divisaoInterna: "3 QUARTOS, SALA, COZINHA", sistemaConstrutivo: "Conv:Estrut Concreto", especificacaoSistema: "CONCRETO ARMADO", usoEps: "Não", seloCasaAzul: "Não",
-    drenagem: "Interna ao terreno", esgoto: "Rede pública", esgotoDescricao: "LIGAÇÃO NA REDE", bdi: 20, prazoMeses: 4, localData: "IMPERATRIZ, 27 DE OUTUBRO DE 2026",
+    padraoAcabamento: "Normal", implantacao: "Isolada", cobertura: "Telha de Cerâmica/Concreto", teto: "Forro", pavimentos: "1", quartos: "3", suites: "1", salas: "1", vagas: "4+", tipoVagas: "Coberta(s)",
+    divisaoInterna: "3 QUARTOS, SALA, COZINHA", sistemaConstrutivo: "Conv:Alvenaria estrutural", especificacaoSistema: "CONCRETO ARMADO", usoEps: "Não", seloCasaAzul: "Não",
+    drenagem: "Interna ao terreno", esgoto: "Rede de Esgoto", esgotoDescricao: "LIGAÇÃO NA REDE", executor: "Construtora", bdi: 20, prazoMeses: 4, preExecutado: 10,
+    certidaoMatricula: "Apresentado", projetoArquitetonico: "Apresentado", docSistemaInovador: "Não se aplica", justificativaIncidencias: "BDI ACIMA DO LIMITE: ADMINISTRAÇÃO LOCAL",
+    obrasPreExistentes: "FUNDAÇÃO EXECUTADA", observacoes: "SEM OBSERVAÇÕES", localData: "IMPERATRIZ, 27 DE OUTUBRO DE 2026",
   });
   f.custos = [5000, 10000, 15000, 12000, 6000, 0, 8000, 7000, 9000, 1500, 5000, 4500, 10000, 1500, 5000, 5000, 5000, 5000, 500];
   f.adicionais[0] = { descricao: "MURO", valor: 5000 };
@@ -90,8 +91,10 @@ describe("Gerador de PCI — mapa de células (ida e volta)", () => {
     expect(quadro[0].imagem.dados.length).toBeLessThan(200);
   });
 
-  it("xlsb: só leitura, mensagem pede a versão .xls/.xlsm", () => {
-    expect(() => gerarPlanilhaPci(new Uint8Array([0x50, 0x4b]), "xlsb", formularioPciVazio())).toThrow(/\.xls ou \.xlsm/);
+  it("Lote 03: saída sempre .xls — xlsb/xlsm (ou bytes que não são .xls) bloqueiam pedindo a versão .xls", () => {
+    expect(() => gerarPlanilhaPci(new Uint8Array([0x50, 0x4b]), "xlsb", formularioPciVazio())).toThrow(/Envie a versão \.xls do modelo oficial/);
+    expect(() => gerarPlanilhaPci(xlsmSintetico(), "xlsm", formularioPciVazio())).toThrow(/Envie a versão \.xls do modelo oficial/);
+    expect(() => gerarPlanilhaPci(xlsmSintetico(), "xls", formularioPciVazio())).toThrow(/Envie a versão \.xls/);
   });
 });
 
@@ -112,35 +115,17 @@ function xlsmSintetico(): Uint8Array {
   });
 }
 
-describe("Gerador de PCI — .xlsm (XML no zip)", () => {
-  it("lê strings compartilhadas e grava todas as células, preservando macros e fórmulas", () => {
+describe("Gerador de PCI — .xlsm (XML no zip): só leitura", () => {
+  it("lê strings compartilhadas e os campos; a gravação no XML continua preservando macros e fórmulas", () => {
     const original = new PastaXlsx(unzipSync(xlsmSintetico()));
     expect(original.ler("Proposta_Constr_Individual", "G44")).toBe("ANTIGO & CIA");
-    const form = formularioCompleto();
-    form.campos.proponenteNome = "JOÃO <TESTE> & FILHOS";
-    const r = gerarPlanilhaPci(xlsmSintetico(), "xlsm", form);
-    expect(r.formato).toBe("xlsm");
-    const zip = unzipSync(r.bytes);
+    expect(lerFormularioPci(xlsmSintetico()).campos.proponenteNome).toBe("ANTIGO & CIA");
+    const pasta = new PastaXlsx(unzipSync(xlsmSintetico()));
+    const recusadas = pasta.escreverVarias("Proposta_Constr_Individual", [{ celula: "G44", valor: "JOÃO <TESTE> & FILHOS" }, { celula: "AC73", valor: 5 }]);
+    expect(recusadas).toEqual(["AC73"]);
+    const zip = unzipSync(pasta.salvar());
     expect(Array.from(zip["xl/vbaProject.bin"])).toEqual([1, 2, 3, 4, 5]);
-    expect(strFromU8(zip["xl/workbook.xml"])).toContain('fullCalcOnLoad="1"');
-    const xml = strFromU8(zip["xl/worksheets/sheet1.xml"]);
-    expect(xml).toContain("<f>G73+U73</f>");
-    expect(xml).toMatch(/<c r="G44" s="3" t="inlineStr">/);
-    const rows = [...xml.matchAll(/<row r="(\d+)"/g)].map((m) => Number(m[1]));
-    expect(rows).toEqual([...rows].sort((a, b) => a - b));
-    const volta = lerFormularioPci(r.bytes);
-    expect(volta.campos.proponenteNome).toBe("JOÃO <TESTE> & FILHOS");
-    expect(volta.campos).toEqual({ ...form.campos, proponenteNome: "JOÃO <TESTE> & FILHOS", valorFinanciado: null });
-    expect(volta.custos).toEqual(form.custos);
-    expect(volta.cronograma).toEqual(form.cronograma);
-  });
-
-  it("não sobrescreve fórmula do modelo e avisa", () => {
-    const sheetComFormula = xlsmSintetico();
-    const zip = unzipSync(sheetComFormula);
-    zip["xl/worksheets/sheet1.xml"] = strToU8(strFromU8(zip["xl/worksheets/sheet1.xml"]).replace(`<c r="Y44" s="3"/>`, `<c r="Y44"><f>A1</f><v>0</v></c>`));
-    const r = gerarPlanilhaPci(zipSync(zip), "xlsm", formularioCompleto());
-    expect(r.avisos.some((a) => a.includes("Y44"))).toBe(true);
+    expect(strFromU8(zip["xl/worksheets/sheet1.xml"])).toContain("<f>G73+U73</f>");
   });
 });
 

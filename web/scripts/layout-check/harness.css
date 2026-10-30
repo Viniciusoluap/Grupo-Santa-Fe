@@ -1,0 +1,4 @@
+@import "../../src/app/globals.css";
+/* O harness fica fora de src/: inclui as classes dos componentes reais e do próprio harness. */
+@source "../../src";
+@source "./render.tsx";

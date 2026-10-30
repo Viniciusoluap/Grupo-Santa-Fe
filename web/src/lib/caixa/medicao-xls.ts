@@ -11,6 +11,7 @@ import type { DadosAlteracao, DadosMedicaoCaixa, DadosPls, DadosRepactuacao, Tip
 import { PastaBiff8 } from "./biff8";
 import { substituirFotos, type FotoXls, type QuadroFoto } from "./biff8-imagens";
 import { ABA_ALTERACAO, ABA_PLS, ABA_REPACTUACAO, isoParaSerial, type DadosPci } from "./pci";
+import { curvasPadraoPci, situacaoCurvaPls, situacaoPropostoPls, valorCurvaPci, type CurvasPci, type SituacaoCurvaPls, type SituacaoPropostoPls } from "@/lib/pci-curvas";
 
 export interface FotoMedicao extends FotoXls {
   legenda: string | null;
@@ -192,11 +193,80 @@ export function curvaDeEvolucao(inicio: string | null, medicoes: MedicaoHistoric
   for (let k = 0; k <= etapas; k++) {
     const vPls = pls.get(k) ?? null;
     const vAf = aferido.get(k) ?? null;
-    if (vAf !== null) adotado = vAf;
+    // AO: aferido vazio ou 0 → usa o PLS (mesma regra do modelo).
+    if (vAf !== null && vAf !== 0) adotado = vAf;
     else if (vPls !== null) adotado = vPls;
     linhas.push({ etapa: k, pls: vPls, aferido: vAf, adotado: k <= ultima ? adotado ?? 0 : null, mes: inicio ? somarMeses(inicio, k) : null });
   }
   return linhas;
+}
+
+/** Execução do item (PLS!V85:V104): a lista do modelo só aceita 0% a 100% em passos de 5%. */
+export function execucaoPlsValida(v: number): boolean {
+  return Number.isFinite(v) && v >= 0 && v <= 100 && Math.abs(v / 5 - Math.round(v / 5)) < 1e-9;
+}
+
+export interface SituacaoPls {
+  /** Etapa da vistoria: INT(DAYS360(início; levantamento)/30) (Calculos_Cronograma!D6). */
+  etapa: number | null;
+  /** Fim do contrato (BL89): início + etapas repactuadas, ou contratação + 24 meses. */
+  fimContrato: string | null;
+  prazoExtrapolado: boolean;
+  /** Curvas padrão recalculadas pela faixa do valor do imóvel (AQ77). */
+  curvas: CurvasPci | null;
+  adotado: number | null;
+  acumuladoPls: number | null;
+  proposto: number | null;
+  /** U110 — Situação da obra - Cronog./Curva de Referência. */
+  situacaoCurva: SituacaoCurvaPls;
+  /** U111 — Situação da obra - Cronograma Proposto. */
+  situacaoProposto: SituacaoPropostoPls;
+  /** AS168 — adotado abaixo da curva lenta na etapa da vistoria e nas duas anteriores. */
+  atraso3Etapas: boolean;
+  /** Dados obrigatórios ausentes: o PDF mostra "pendente: <campo>" (nunca inventa datas). */
+  pendencias: string[];
+  avisos: string[];
+}
+
+/**
+ * Lote 03, correção 08: situação da obra recalculada no servidor com as fórmulas
+ * da PLS (U110 = BN98, U111 = BN100, BL89, AS168), sem confiar no cache das
+ * fórmulas da PCI. "Acumul. Aferido" = medições anteriores confirmadas como
+ * recebidas pela CAIXA (receivedAt/recebidaEm); "Acumul. PLS" = executado declarado.
+ */
+export function situacaoDaPls(e: EntradaMedicaoCaixa): SituacaoPls {
+  const r = calcularPls(e);
+  const p = e.dados.pls;
+  const pendencias: string[] = [];
+  const avisos: string[] = [];
+  if (!r.numeroContrato) pendencias.push("Nº do contrato");
+  if (!r.dataContratacao) pendencias.push("Data de contratação");
+  if (!r.inicio) pendencias.push("Data de início da obra");
+  if (r.valorImovel === null || r.valorImovel <= 0) pendencias.push("Valor do imóvel");
+  if (!e.pci.prazoMeses) pendencias.push("Nº de etapas original (prazo da PCI)");
+  if (!p.alvaraVigencia) pendencias.push("Vigência do alvará");
+  const repactuada = p.houveRepactuacao && !!p.etapasRepactuadas;
+  if (p.houveRepactuacao && !p.etapasRepactuadas) pendencias.push("Etapas repactuadas");
+  const fimContrato = repactuada ? (r.inicio ? somarMeses(r.inicio, p.etapasRepactuadas!) : null) : r.dataContratacao ? somarMeses(r.dataContratacao, 24) : null;
+  const prazoExtrapolado = !!fimContrato && p.dataLevantamento > fimContrato;
+  const curvas = curvasPadraoPci(r.valorImovel);
+  const etapas = Math.min(72, Math.max(r.prazo ?? 0, e.pci.cronogramaProposto.length - 1, r.etapa ?? 0));
+  const curva = r.etapa === null ? [] : curvaDeEvolucao(r.inicio, [...e.anteriores, { data: p.dataLevantamento, progresso: r.acumulado }], etapas);
+  const linha = r.etapa === null ? undefined : curva[r.etapa];
+  const adotado = linha?.adotado ?? null;
+  const acumuladoPls = linha ? linha.pls ?? 0 : null;
+  const proposto = r.etapa !== null && r.etapa < e.pci.cronogramaProposto.length ? e.pci.cronogramaProposto[r.etapa] : null;
+  const situacaoCurva = situacaoCurvaPls({ etapa: r.etapa, adotado, curvas, prazoExtrapolado });
+  const situacaoProposto = situacaoPropostoPls({ etapa: r.etapa, acumuladoPls, proposto, prazoExtrapolado });
+  let atraso3Etapas = false;
+  if (curvas && r.etapa !== null && r.etapa >= 2) {
+    atraso3Etapas = [r.etapa, r.etapa - 1, r.etapa - 2].every((k) => (curva[k]?.adotado ?? 0) < valorCurvaPci(curvas.lenta, k));
+  }
+  if (!e.anteriores.some((m) => m.aferido)) avisos.push("Acumul. Aferido em branco: nenhuma medição anterior foi confirmada como recebida pela CAIXA.");
+  e.execucoes.forEach((v, k) => {
+    if (v && !execucaoPlsValida(v)) avisos.push(`Execução do item ${k + 1}: ${String(v).replace(".", ",")}% não segue a lista da CAIXA (0% a 100% em passos de 5%).`);
+  });
+  return { etapa: r.etapa, fimContrato, prazoExtrapolado, curvas, adotado, acumuladoPls, proposto, situacaoCurva, situacaoProposto, atraso3Etapas, pendencias, avisos };
 }
 
 function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
@@ -228,6 +298,11 @@ function preencherPls(pasta: PastaBiff8, e: EntradaMedicaoCaixa) {
   // Sem contrato válido, limpa o "0.00000000000-0" do modelo (o PDF também fica em branco).
   pasta.escrever(ABA_PLS, "S51", r.numeroContrato || null);
   if (r.valorImovel !== null) pasta.escrever(ABA_PLS, "AQ77", r.valorImovel);
+  // Lote 03, correção 08: nº de etapas original (AV78) = prazo da PCI. Sem ele, AV83 = 0 e a curva perde as etapas.
+  if (e.pci.prazoMeses) pasta.escrever(ABA_PLS, "AV78", e.pci.prazoMeses);
+  const sit = situacaoDaPls(e);
+  gravarSeFormula(pasta, "U110", sit.situacaoCurva);
+  gravarSeFormula(pasta, "U111", sit.situacaoProposto);
   if (r.dataContratacao) pasta.escrever(ABA_PLS, "AL78", isoParaSerial(r.dataContratacao));
   if (r.inicio && e.obra?.inicio) escreverSobreFormula(pasta, "AL79", isoParaSerial(r.inicio));
   else if (r.inicio) pasta.gravarResultado(ABA_PLS, "AL79", isoParaSerial(r.inicio));
@@ -261,7 +336,7 @@ function escreverSobreFormula(pasta: PastaBiff8, celula: string, valor: number) 
 }
 
 /** Atualiza só o resultado em cache de uma fórmula (o Excel recalcula ao abrir). */
-function gravarSeFormula(pasta: PastaBiff8, celula: string, valor: number) {
+function gravarSeFormula(pasta: PastaBiff8, celula: string, valor: number | string) {
   try {
     if (pasta.ehFormula(ABA_PLS, celula)) pasta.gravarResultado(ABA_PLS, celula, valor);
   } catch {

@@ -6,9 +6,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { categoriaValida, resumoPorCliente } from "@/lib/bpo-categorias";
-import { validarOperacaoBpo } from "@/lib/bpo-operacional";
+import { categoriaContabilDaOperacional, categoriaNaEdicao, categoriaSemVinculo, validarOperacaoBpo } from "@/lib/bpo-operacional";
 import { resolverVinculoBpo } from "@/lib/bpo-catalogo";
 import { calcularBaixa, saldoLancamento, valorRealizado } from "@/lib/bpo-parciais";
+import { exigirNaoCombinada } from "@/lib/bpo-lote";
 
 const texto = (valor: FormDataEntryValue | null) => String(valor ?? "").trim();
 
@@ -126,15 +127,17 @@ export async function criarCobranca(formData: FormData) {
 
   const tipoEntrada = texto(formData.get("tipo"));
   if (!['cobranca', 'despesa'].includes(tipoEntrada)) throw new Error("Tipo inválido.");
-  const categoria = texto(formData.get("categoria"));
-  if (!categoriaValida(categoria) || categoria === "Transferência interna") throw new Error("Escolha uma categoria válida.");
   const categoriaOperacional = texto(formData.get("categoriaOperacional")) || null;
   const etapa = texto(formData.get("etapa")) || null;
   const tipoDespesaObra = texto(formData.get("tipoDespesaObra")) || null;
-  const vinculoOperacionalId = texto(formData.get("vinculoOperacionalId"));
+  const vinculoOperacionalId = texto(formData.get("vinculoOperacionalId")) || null;
   validarOperacaoBpo({ tipo: tipoEntrada, categoriaOperacional, vinculoOperacionalId, tipoDespesaObra, etapa });
-  const vinculo = await resolverVinculoBpo(tipoEntrada, categoriaOperacional!, vinculoOperacionalId);
-  const clienteVinculado = vinculo.leadId ? await prisma.bpoCliente.findUnique({ where: { leadId: vinculo.leadId }, select: { id: true } }) : null;
+  // Lote 3, item 12: sem "Categoria contábil" na tela, o servidor deriva da Categoria Operacional.
+  const categoriaInformada = texto(formData.get("categoria"));
+  if (categoriaInformada && (!categoriaValida(categoriaInformada) || categoriaInformada === "Transferência interna")) throw new Error("Escolha uma categoria válida.");
+  const categoria = categoriaInformada || categoriaContabilDaOperacional(tipoEntrada, categoriaOperacional, tipoDespesaObra);
+  const vinculo = categoriaSemVinculo(categoriaOperacional) ? null : await resolverVinculoBpo(tipoEntrada, categoriaOperacional!, vinculoOperacionalId!);
+  const clienteVinculado = vinculo?.leadId ? await prisma.bpoCliente.findUnique({ where: { leadId: vinculo.leadId }, select: { id: true } }) : null;
   const requestKey = texto(formData.get("requestKey"));
   if (!requestKey || requestKey.length > 120) throw new Error("Identificador do formulário inválido. Reabra o formulário.");
   const valor = Number(formData.get("valor"));
@@ -145,20 +148,20 @@ export async function criarCobranca(formData: FormData) {
     create: {
       requestKey,
       clienteId: clienteVinculado?.id ?? clienteId,
-      clienteNomeLivre: clienteVinculado ? null : vinculo.clienteNome ?? clienteNomeLivre,
+      clienteNomeLivre: clienteVinculado ? null : vinculo?.clienteNome ?? clienteNomeLivre,
       tipo: tipoEntrada === "cobranca" ? "recebimento" : "despesa",
       categoria,
       categoriaContabil: categoria,
       categoriaOperacional,
       vinculoOperacionalId,
-      vinculoOperacionalRotulo: vinculo.rotulo,
+      vinculoOperacionalRotulo: vinculo?.rotulo ?? null,
       tipoDespesaObra,
       etapa,
       descricao: formData.get("descricao") as string,
       valor,
       vencimento,
       competencia: formData.get("competencia") as string,
-      centroCustos: (formData.get("centroCustos") as string) || null,
+      centroCustos: texto(formData.get("centroCustos")) || null,
     },
   });
 
@@ -171,7 +174,7 @@ export async function resumoBpoPorLead(leadId: string) {
   const clientes = await prisma.bpoCliente.findMany({ where: { leadId }, select: { id: true, razaoSocial: true } });
   if (!clientes.length) return { clientes: [], recebido: 0, emAberto: 0 };
   const lancamentos = await prisma.bpoLancamento.findMany({
-    where: { clienteId: { in: clientes.map((c) => c.id) } },
+    where: { clienteId: { in: clientes.map((c) => c.id) }, combinadaEmId: null },
     select: { clienteId: true, tipo: true, valor: true, valorRecebido: true, pago: true, categoria: true },
   });
   const totais = resumoPorCliente(lancamentos);
@@ -187,6 +190,7 @@ export async function resumoBpoPorLead(leadId: string) {
 export async function pagarLancamento(id: string) {
   await exigirModuloAcao("bpo");
   const l = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id } });
+  exigirNaoCombinada(l);
   if (l.pago) return;
   await registrarBaixaBpo({ id, version: l.version, requestKey: `quitar:${id}:${l.version}`, valor: saldoLancamento(l), data: new Date().toISOString(), motivo: "Quitação manual do saldo restante" });
 
@@ -206,10 +210,11 @@ export async function registrarBaixaBpo(input: { id: string; version: number; re
       return { clienteId: null, repetida: true };
     }
     const antes = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: input.id } });
+    exigirNaoCombinada(antes);
     if (antes.version !== input.version) throw new Error("O lançamento foi alterado. Atualize a tela.");
     if (antes.transacaoId || antes.asaasPaymentId) throw new Error("Registro externo ou conciliado: confirme o recebimento na origem e sincronize antes de alterar a baixa.");
     const baixa = calcularBaixa(antes, input.valor);
-    const gravado = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version }, data: { ...baixa, pagoEm: baixa.pago ? data : null, version: { increment: 1 } } });
+    const gravado = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null }, data: { ...baixa, pagoEm: baixa.pago ? data : null, version: { increment: 1 } } });
     if (!gravado.count) throw new Error("O lançamento foi alterado. Atualize a tela.");
     await tx.bpoBaixa.create({ data: { lancamentoId: antes.id, requestKey: input.requestKey, valor: Math.round(input.valor * 100) / 100, data, motivo: input.motivo.trim(), usuarioId: usuario.id } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: antes.id, lancamentoReferencia: antes.id, versaoAnterior: antes.version, alteradoPorUsuarioId: usuario.id, motivo: input.motivo.trim(), antesJson: JSON.stringify(antes), depoisJson: JSON.stringify({ ...antes, ...baixa, pagoEm: baixa.pago ? data : null, version: antes.version + 1 }) } });
@@ -233,7 +238,7 @@ export async function atualizarStatusBpoCliente(formData: FormData) {
 /** Alteração financeira auditável: exige a versão lida na tela e registra antes/depois e motivo. */
 export async function editarLancamentoBpo(input: {
   id: string; version: number; motivo: string; descricao: string; valor: number;
-  categoria: string; categoriaOperacional?: string | null; competencia: string; vencimento: string; clienteId?: string | null;
+  categoria?: string | null; categoriaOperacional?: string | null; competencia: string; vencimento: string; clienteId?: string | null;
   clienteNomeLivre?: string | null; centroCustos?: string | null; categoriaContabil?: string | null;
   vinculoOperacionalId?: string | null; tipoDespesaObra?: string | null; etapa?: string | null;
 }) {
@@ -241,33 +246,40 @@ export async function editarLancamentoBpo(input: {
   if (!Number.isInteger(input.version) || input.version < 1) throw new Error("Versão inválida. Atualize a tela.");
   if (input.motivo.trim().length < 3 || !input.descricao.trim() || !Number.isFinite(input.valor) || input.valor <= 0) throw new Error("Informe motivo, descrição e valor válidos.");
   if (!/^\d{4}-\d{2}$/.test(input.competencia)) throw new Error("Competência inválida.");
-  if (!categoriaValida(input.categoria) || input.categoria === "Transferência interna") throw new Error("Categoria contábil inválida.");
+  if (input.categoria && (!categoriaValida(input.categoria) || input.categoria === "Transferência interna")) throw new Error("Categoria contábil inválida.");
   const vencimento = new Date(input.vencimento);
   if (Number.isNaN(vencimento.getTime())) throw new Error("Vencimento inválido.");
   const session = await auth();
   const usuarioId = typeof session?.user?.id === "string" ? session.user.id : null;
   const updated = await prisma.$transaction(async (tx) => {
     const antes = await tx.bpoLancamento.findUnique({ where: { id: input.id } });
+    if (antes) exigirNaoCombinada(antes);
     if (!antes || antes.version !== input.version) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     if (Math.round(input.valor * 100) < Math.round(valorRealizado(antes) * 100)) throw new Error("O valor não pode ser menor que o total já recebido/pago.");
     if (Math.round(input.valor * 100) !== Math.round(antes.valor * 100) && (antes.pago || antes.transacaoId || antes.asaasPaymentId)) throw new Error("Lançamento quitado ou externo: ajuste o valor na origem ou registre um estorno auditado antes de alterar o total.");
     if (!antes.pago && valorRealizado(antes) > 0 && Math.round(input.valor * 100) === Math.round(valorRealizado(antes) * 100)) throw new Error("O novo total deve superar o valor já recebido. Para quitar, registre a baixa ou um ajuste formal.");
     validarOperacaoBpo({ ...input, tipo: antes.tipo }, false);
-    const vinculo = input.categoriaOperacional && input.vinculoOperacionalId ? await resolverVinculoBpo(antes.tipo, input.categoriaOperacional, input.vinculoOperacionalId) : null;
-    const result = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version }, data: {
-      descricao: input.descricao.trim(), valor: input.valor, categoria: input.categoria,
-      categoriaContabil: input.categoriaContabil?.trim() || input.categoria,
+    const vinculo = input.categoriaOperacional && input.vinculoOperacionalId && !categoriaSemVinculo(input.categoriaOperacional) ? await resolverVinculoBpo(antes.tipo, input.categoriaOperacional, input.vinculoOperacionalId) : null;
+    // Item 12: sem categoria na tela, mantém a gravada ou deriva da operacional quando ela muda.
+    const categoria = input.categoria || categoriaNaEdicao(antes.tipo, antes, input);
+    const result = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null }, data: {
+      descricao: input.descricao.trim(), valor: input.valor, categoria,
+      categoriaContabil: input.categoriaContabil?.trim() || (input.categoria || categoria !== antes.categoria ? categoria : antes.categoriaContabil ?? categoria),
       categoriaOperacional: input.categoriaOperacional || null,
       vinculoOperacionalId: input.vinculoOperacionalId || null,
       vinculoOperacionalRotulo: vinculo?.rotulo ?? null,
       tipoDespesaObra: input.tipoDespesaObra || null,
       etapa: input.etapa || null,
       clienteId: input.clienteId || null, clienteNomeLivre: input.clienteId ? null : input.clienteNomeLivre?.trim() || null,
-      vencimento, competencia: input.competencia, centroCustos: input.centroCustos?.trim() || null,
+      vencimento, competencia: input.competencia,
+      // Item 12: centro de custos saiu da tela; ausente = preserva o valor gravado.
+      ...(input.centroCustos === undefined ? {} : { centroCustos: input.centroCustos?.trim() || null }),
       version: { increment: 1 },
     } });
     if (!result.count) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     const depois = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: input.id } });
+    // Revisão do PR #180 (P2, paridade): lançamento do extrato — a movimentação de origem acompanha o cliente.
+    if (depois.transacaoId && depois.clienteId !== antes.clienteId) await tx.transacaoBancaria.update({ where: { id: depois.transacaoId }, data: { bpoClienteId: depois.clienteId } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: input.id, lancamentoReferencia: input.id,
       versaoAnterior: antes.version, alteradoPorUsuarioId: usuarioId, motivo: input.motivo.trim(),
       antesJson: JSON.stringify(antes), depoisJson: JSON.stringify(depois) } });

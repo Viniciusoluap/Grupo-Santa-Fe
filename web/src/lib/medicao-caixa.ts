@@ -6,6 +6,8 @@
 // preenche na medição. A leitura da PCI e a geração do .xls/.pdf ficam no
 // servidor (server/caixa/).
 
+import { opcoesPci } from "@/lib/pci-listas";
+
 export type TipoMedicao = "pls" | "repactuacao" | "alteracao";
 
 export const TIPOS_MEDICAO: { valor: TipoMedicao; rotulo: string }[] = [
@@ -24,18 +26,9 @@ export const OPCOES_MONTAGEM = ["Pré-fabricadas em canteiro", "In loco", "Em f�
 export const OPCOES_FORMAS = ["Metálica", "Madeira", "EPS", "Não se aplica"] as const;
 export const OPCOES_FORMAS_INCORPORADAS = ["Sim", "Não", "Não se aplica"] as const;
 export const OPCOES_EXECUTOR = ["Construtora", "Profissional Autônomo"] as const;
-export const OPCOES_SISTEMA_CONSTRUTIVO = [
-  "Conv:Estrut Concreto, Aço ou Madeira/Vedação blocos cerâmico ou de concreto",
-  "Conv:Paredes de concreto moldada no local NBR nº 16055",
-  "Conv:Painéis de Paredes de concreto Pré-moldado NBR nº 16475",
-  "Conv:Painéis de PVC preenchidos com concreto NBR nº 16823",
-  "Conv:Light Wood Frame NBR nº 16936",
-  "Conv:Light Steel Framing NBR nº 16970",
-  "Conv:Painel leve modular - pré-fabricado_NBR 15575",
-  "Conv:Parede Concreto Celular moldada no local NBR nº 16055",
-  "Inovador:especificar sistema",
-  "Outros (escolher se não encontrou na lista a solução convencional que pretende usar)",
-] as const;
+/** Lote 03, correção 07: listas exatas da aba Alteração_Projeto_Especific do modelo oficial (P82 e Q72). */
+export const OPCOES_SISTEMA_CONSTRUTIVO = opcoesPci("P82:AW82", "Alteração_Projeto_Especific");
+export const OPCOES_ALTERA_AREA = opcoesPci("Q72:T73", "Alteração_Projeto_Especific");
 
 /** Campos da PLS (Planilha de Levantamento de Serviços). Datas em ISO aaaa-mm-dd. */
 export interface DadosPls {
@@ -283,7 +276,7 @@ export function validarDadosMedicao(tipo: TipoMedicao, d: DadosMedicaoCaixa): st
       if (!textoAte(a.justificativa, LIMITE_TEXTO_LONGO)) erros.push("Justificativa muito longa.");
       for (const [rotulo, v, lista] of [
         ["Alteração de especificações", a.alteraEspecificacoes, SIM_NAO],
-        ["Alteração de área", a.alteraArea, SIM_NAO],
+        ["Alteração de área", a.alteraArea, OPCOES_ALTERA_AREA],
         ["Cômodos", a.comodos, OPCOES_COMODOS_SERVICOS],
         ["Serviços", a.servicos, OPCOES_COMODOS_SERVICOS],
         ["Alteração do sistema construtivo", a.alteraSistema, SIM_NAO],

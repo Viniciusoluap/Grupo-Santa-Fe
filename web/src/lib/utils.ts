@@ -17,11 +17,15 @@ export function formatCurrency(value: number | null | undefined): string {
 
 export function formatArea(value: number | null | undefined): string {
   if (value == null) return "Pendente de configuração";
-  return `${value.toLocaleString("pt-BR")} m²`;
+  // Padrão numérico global (lote 3): 1.000.000,00 — sempre 2 casas.
+  return `${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
 }
 
+// Padrão numérico global (lote 3): sempre 2 casas ("6,00%"), igual ao
+// `formatPercent` da Prospecta (`client/src/lib/format.ts`).
 export function formatPercent(value: number): string {
-  return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+  const numero = Number.isFinite(value) ? value : 0;
+  return `${numero.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
 export function formatTelefone(tel: string): string {

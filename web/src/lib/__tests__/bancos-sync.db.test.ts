@@ -80,7 +80,7 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
     expect(await bancos.sincronizarConta(conta.id, fetchFake as never)).toMatchObject({ ok: true, novos: 0 });
   });
 
-  it("Pluggy: credenciais 'plain:' do banco, from = data inicial, saldo atualizado e segredos recriptografados", async () => {
+  it("Pluggy: credenciais 'plain:' do banco, corte local pela data inicial, saldo atualizado e segredos recriptografados", async () => {
     await prisma.configuracaoPluggy.deleteMany();
     await prisma.configuracaoPluggy.create({ data: { id: 1, clientIdEncrypted: "plain:cid", clientSecretEncrypted: "plain:csec" } });
     const conta = await prisma.contaBancaria.create({
@@ -92,8 +92,13 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
         return resposta({ apiKey: "tok" });
       }
       if (u.includes("/transactions?")) {
-        expect(u).toContain("from=2026-08-15");
-        return resposta({ totalPages: 1, results: [{ id: `${conta.id}-t1`, date: "2026-09-01T00:00:00Z", description: "Pix", amount: 70, type: "CREDIT" }] });
+        // Lote 3, item 13A: sem pageSize nem filtro de data na URL; o corte por data é local.
+        expect(u).not.toContain("pageSize");
+        expect(u).not.toContain("dateFrom");
+        return resposta({ totalPages: 1, results: [
+          { id: `${conta.id}-t0`, date: "2026-08-14T00:00:00Z", description: "Antes da data inicial", amount: 1, type: "CREDIT" },
+          { id: `${conta.id}-t1`, date: "2026-09-01T00:00:00Z", description: "Pix", amount: 70, type: "CREDIT" },
+        ] });
       }
       return resposta({ balance: 70 });
     });
@@ -185,8 +190,15 @@ describe.skipIf(!url)("BPO › Bancos (banco real, APIs simuladas)", () => {
     const recusada = await acoes.criarContaBancaria({ provedor: "asaas", banco: `${MARCA} Asaas 2`, apiKey: "$aact_x" });
     expect(recusada).toEqual({ erroAcao: expect.stringMatching(/^O Asaas recusou o acesso \(HTTP 401\)\. Confira se a chave está ativa e se há restrição de IP/) });
 
-    // Remover só tira da lista (as movimentações continuam no histórico).
-    expect(await acoes.excluirContaBancaria(r.id)).toEqual({ success: true });
+    // Lote 3, item 13B: sem digitar EXCLUIR (case-sensitive) nada é alterado.
+    for (const errado of [undefined, "excluir", "EXCLUÍR", conta.banco]) {
+      expect(await acoes.excluirContaBancaria(r.id, errado)).toEqual({ erroAcao: expect.stringMatching(/EXCLUIR/) });
+    }
+    expect((await prisma.contaBancaria.findUniqueOrThrow({ where: { id: r.id } })).ativo).toBe(true);
+    // Com EXCLUIR: backup com usuário e data; a conta fica inativa.
+    expect(await acoes.excluirContaBancaria(r.id, "EXCLUIR")).toMatchObject({ success: true, transacoes: 0, excluidaEm: expect.any(String) });
+    expect(await prisma.bpoContaLimpezaBackup.count({ where: { contaReferencia: r.id, criadoPorUsuarioId: { not: null } } })).toBe(1);
+    await prisma.bpoContaLimpezaBackup.deleteMany({ where: { contaReferencia: r.id } });
     expect((await prisma.contaBancaria.findUniqueOrThrow({ where: { id: r.id } })).ativo).toBe(false);
   });
 });

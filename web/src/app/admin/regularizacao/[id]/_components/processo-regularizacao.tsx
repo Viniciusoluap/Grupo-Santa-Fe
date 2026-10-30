@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ListChecks, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ListChecks, Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { CampoDecimal, inputCls } from "@/app/admin/obras/[id]/editar/_components/financeiro-obra";
 import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
+import { Modal as ModalBase } from "@/components/ui/modal";
+import { NumeroInput } from "@/components/ui/numero-input";
 import { centavosDe } from "@/lib/financeiro/obra";
 import {
   GRUPOS_FINANCEIROS,
@@ -38,18 +40,9 @@ const tituloCls = "flex items-center gap-2 font-bold text-[var(--brand-dark)] te
 const botaoSec = "flex items-center gap-1 border border-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase tracking-wider px-3 py-1.5";
 const botaoPri = "w-full bg-[var(--brand-yellow)] text-[var(--brand-dark)] font-bold text-xs uppercase py-2.5 disabled:opacity-50";
 
+// Correção 11 (lote 3): usa o modal compartilhado (largura responsiva, rolagem interna, Esc).
 function Modal({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={titulo}>
-      <div className="bg-white w-full max-w-lg p-5 space-y-3 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h4 className="font-black text-[var(--brand-dark)] uppercase text-sm">{titulo}</h4>
-          <button type="button" onClick={onFechar} aria-label="Fechar"><X size={16} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+  return <ModalBase titulo={titulo} onFechar={onFechar} tamanho="lg" classeCorpo="space-y-3">{children}</ModalBase>;
 }
 
 /** Executa a ação, mostra o erro (em português) e atualiza a página. */
@@ -132,8 +125,8 @@ export function EtapasProcesso({ regularizacaoId, etapas, progressoEtapas }: {
         <Modal titulo={editando.id ? "Editar etapa" : "Nova etapa"} onFechar={() => setEditando(null)}>
           <label className={labelCls}>Nome da etapa *<input className={`${inputCls} mt-1 normal-case font-normal`} maxLength={120} value={editando.nome ?? ""} onChange={(e) => setEditando({ ...editando, nome: e.target.value })} /></label>
           <label className={labelCls}>Progresso (%)
-            <input className={`${inputCls} mt-1`} type="number" min={0} max={100} step={1} value={editando.progresso ?? 0}
-              onChange={(e) => setEditando({ ...editando, progresso: Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))) })} />
+            <NumeroInput classeContainer="mt-1" className={inputCls} casas={0} sufixo="%" min={0} max={100} aria-label="Progresso (%)" value={editando.progresso ?? 0}
+              onChange={(v) => setEditando({ ...editando, progresso: Math.max(0, Math.min(100, Math.round(v ?? 0))) })} />
           </label>
           <label className={labelCls}>Observações<textarea className={`${inputCls} mt-1 normal-case font-normal`} maxLength={2000} rows={3} value={editando.observacoes ?? ""} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })} /></label>
           {erro && <p role="alert" className="text-xs text-red-600">{erro}</p>}

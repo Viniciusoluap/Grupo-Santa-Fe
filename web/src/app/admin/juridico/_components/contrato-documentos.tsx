@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, X, Download, ExternalLink } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 
 interface Documento {
   id: string;
@@ -41,8 +42,8 @@ export function ContratoDocumentos({ contratoNumero, documentos }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white text-slate-900 w-full max-w-lg max-h-[90dvh] overflow-y-auto shadow-2xl">
+        <Modal rotulo={`Documentos ${contratoNumero}`} onFechar={() => setOpen(false)} tamanho="lg" className="text-slate-900">
+          <div>
             <div className="bg-[var(--brand-dark)] flex items-center justify-between px-5 py-4">
               <div>
                 <p className="text-[var(--brand-yellow)] font-black text-sm uppercase tracking-wide">Documentos</p>
@@ -89,7 +90,7 @@ export function ContratoDocumentos({ contratoNumero, documentos }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

@@ -30,11 +30,12 @@ describe("formatCurrency", () => {
 
 describe("formatArea", () => {
   it.each([
-    [0, "0 m²"],
-    [120, "120 m²"],
-    [1500, "1.500 m²"],
-    [120.5, "120,5 m²"],
-    [-10, "-10 m²"],
+    [0, "0,00 m²"],
+    [120, "120,00 m²"],
+    [1500, "1.500,00 m²"],
+    [120.5, "120,50 m²"],
+    [1000000, "1.000.000,00 m²"],
+    [-10, "-10,00 m²"],
   ])("formats %s using the pt-BR area convention", (value, expected) => {
     expect(formatArea(value)).toBe(expected);
   });
@@ -42,19 +43,23 @@ describe("formatArea", () => {
 
 describe("formatPercent", () => {
   it("formats zero", () => {
-    expect(formatPercent(0)).toBe("0%");
+    expect(formatPercent(0)).toBe("0,00%");
   });
   it("formats an integer value", () => {
-    expect(formatPercent(20)).toBe("20%");
+    expect(formatPercent(20)).toBe("20,00%");
   });
   it("formats a decimal value using the pt-BR comma", () => {
-    expect(formatPercent(12.5)).toBe("12,5%");
+    expect(formatPercent(12.5)).toBe("12,50%");
+    expect(formatPercent(1234.5)).toBe("1.234,50%");
   });
   it("caps at 2 decimal digits", () => {
     expect(formatPercent(6.666)).toBe("6,67%");
   });
   it("formats a negative value", () => {
-    expect(formatPercent(-5)).toBe("-5%");
+    expect(formatPercent(-5)).toBe("-5,00%");
+  });
+  it("trata NaN/Infinity como zero (paridade com a Prospecta)", () => {
+    expect(formatPercent(NaN)).toBe("0,00%");
   });
 });
 

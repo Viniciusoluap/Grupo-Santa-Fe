@@ -15,8 +15,35 @@ describe("Pluggy v2", () => {
       { externalId: "id-item-1", identificadorBancario: "provider-77", data: "2026-10-01", descricao: "PIX MARIA", valor: 25, tipo: "credito", categoria: undefined, titular: "Maria" },
     ]);
     expect(fetchFake).toHaveBeenCalledTimes(2);
-    expect(fetchFake.mock.calls[0][0]).toContain("dateFrom=2026-01-01");
-    expect(fetchFake.mock.calls[0][0]).not.toContain("&from=");
+    // Lote 3, item 13A: a v2 recusa `pageSize` ("property pageSize should not exist"); só accountId + cursor.
+    expect(fetchFake.mock.calls[0][0]).toMatch(/\/v2\/transactions\?accountId=acc1$/);
+    expect(fetchFake.mock.calls[0][0]).not.toContain("pageSize");
+    expect(fetchFake.mock.calls[0][0]).not.toContain("dateFrom");
+    expect(fetchFake.mock.calls[1][0]).toContain("after=cursor-opaco");
+  });
+
+  it("13A: sem pageSize nem filtro de data na URL; corta por data e deduplica localmente", async () => {
+    const fetchFake = vi.fn((url: string) => {
+      expect(url).not.toContain("pageSize");
+      if (!url.includes("after=")) return Promise.resolve({ ok: true, json: async () => ({
+        next: "?accountId=acc1&after=p2",
+        results: [
+          { id: "antiga", date: "2026-07-31T23:00:00Z", description: "Antes do corte", amount: 5, type: "CREDIT" },
+          { id: "nova", date: "2026-08-01T10:00:00Z", description: "No corte", amount: 7, type: "DEBIT" },
+        ],
+      }) } as Response);
+      return Promise.resolve({ ok: true, json: async () => ({ next: null, results: [
+        { id: "nova", date: "2026-08-01T10:00:00Z", description: "No corte", amount: 7, type: "DEBIT" },
+        { id: "depois", date: "2026-08-02", description: "Depois", amount: 9, type: "CREDIT" },
+      ] }) } as Response);
+    });
+    const txs = await fetchPluggyTransactions("tok", "acc1", "2026-08-01", fetchFake as never);
+    expect(txs.map((t) => t.externalId)).toEqual(["nova", "depois"]);
+  });
+
+  it("13A: cursor repetido interrompe a sincronização (não duplica)", async () => {
+    const fake = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [], next: "?accountId=acc&after=x" }) });
+    await expect(fetchPluggyTransactions("tok", "acc", null, fake)).rejects.toThrow("cursor repetido");
   });
 
   it("rejeita cursor de outro host antes de enviar a chave", async () => {

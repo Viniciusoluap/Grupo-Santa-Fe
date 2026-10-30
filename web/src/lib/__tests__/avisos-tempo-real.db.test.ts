@@ -163,7 +163,7 @@ describe.skipIf(!url)("webhooks Pluggy e Asaas (banco real)", () => {
       expect(await bancos.tokenWebhookAsaas()).toBe("token-da-env-1");
       expect((await asaasWebhook(post("/api/asaas/webhook", { "asaas-access-token": "token-novo-123" }, {}))).status).toBe(401);
       await prisma.configuracao.deleteMany({ where: { chave: "asaas.webhookToken" } });
-      expect((await asaasWebhook(post("/api/asaas/webhook", { "asaas-access-token": "token-da-env-1" }, {}))).status).toBe(200);
+      expect((await asaasWebhook(post("/api/asaas/webhook", { "asaas-access-token": "token-da-env-1" }, { event: "TRANSFER_DONE" }))).status).toBe(200);
     } finally { delete process.env.ASAAS_WEBHOOK_TOKEN; }
   });
 

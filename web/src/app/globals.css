@@ -44,6 +44,39 @@ html.area-admin body {
   overscroll-behavior-x: none;
 }
 
+/* Correção 11 (lote 3, 29/10) — layout global. Gêmeo de
+   `client/src/index.css` na Prospecta. Fica em `@layer base` para as
+   classes utilitárias continuarem valendo por cima.
+   Datas/meses nativos: o Safari do iPhone/iPad dá a eles uma largura mínima
+   intrínseca e ignora `width: 100%`, o que empurra grades e corta modais.
+   Sem aparência nativa no iOS eles respeitam o contêiner (o seletor nativo
+   continua abrindo ao tocar). Selects também não podem passar da coluna. */
+@layer base {
+  input[type="date"],
+  input[type="month"],
+  input[type="time"],
+  input[type="week"],
+  input[type="datetime-local"],
+  select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  @supports (-webkit-touch-callout: none) {
+    input[type="date"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    input[type="datetime-local"] {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: 2.25rem;
+    }
+  }
+  input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

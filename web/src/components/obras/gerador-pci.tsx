@@ -19,8 +19,10 @@ import {
   SECOES_PCI,
   SERVICOS_CUSTO_PCI,
   SERVICO_OUTROS_PCI,
+  analisarCronogramaPci,
   aplicarEngenheiroPci,
   calcularTotaisPci,
+  errosPci,
   numeroPci,
   pendenciasPci,
   type CampoPci,
@@ -39,7 +41,19 @@ type Engenheiro = DadosGeradorPci["engenheiros"][number];
 function Campo({ campo, valor, onChange }: { campo: CampoPci; valor: string | number | null; onChange: (v: string | number | null) => void }) {
   const id = `pci-${campo.id}`;
   let controle;
-  if (campo.tipo === "numero" || campo.tipo === "inteiro") {
+  if (campo.tipo === "lista") {
+    // Lote 03, correção 07: lista do modelo oficial — grava a opção exata, mostra sem espaços nas pontas.
+    const opcoes = campo.opcoes ?? [];
+    const foraDaLista = valor !== null && valor !== "" && !opcoes.includes(String(valor));
+    controle = (
+      <select id={id} value={valor === null ? "" : String(valor)} onChange={(e) => onChange(e.target.value || null)} aria-invalid={foraDaLista || undefined}
+        className={`${campoCls} ${foraDaLista ? "border-red-400" : ""}`}>
+        <option value="">— selecione —</option>
+        {foraDaLista && <option value={String(valor)} disabled>{String(valor)} (fora da lista oficial)</option>}
+        {opcoes.map((o) => <option key={o} value={o}>{o.trim()}</option>)}
+      </select>
+    );
+  } else if (campo.tipo === "numero" || campo.tipo === "inteiro") {
     controle = <NumeroInput id={id} value={numeroPci(valor)} onChange={onChange} casas={campo.tipo === "inteiro" ? 0 : 2} negativo={false} className={campoCls} />;
   } else if (campo.tipo === "data") {
     controle = <input id={id} type="date" value={typeof valor === "string" ? valor : ""} onChange={(e) => onChange(e.target.value || null)} className={campoCls} />;
@@ -95,6 +109,9 @@ export function GeradorPci({ obraId }: { obraId: string }) {
 
   const totais = useMemo(() => (form ? calcularTotaisPci(form) : null), [form]);
   const pendencias = useMemo(() => (form ? pendenciasPci(form) : []), [form]);
+  // Lote 03, correção 06: validação do cronograma durante a digitação (o servidor valida de novo).
+  const cronograma = useMemo(() => (form ? analisarCronogramaPci(form) : null), [form]);
+  const erros = useMemo(() => (form ? errosPci(form, { paraGerar: false }) : []), [form]);
 
   if (erro) return <div role="alert" className="text-sm text-red-700">{erro} <button type="button" className="underline" onClick={() => void carregar(false)}>Tentar novamente</button></div>;
   if (!dados || !form) return <p role="status" className="text-sm text-gray-600">Carregando o Gerador de PCI…</p>;
@@ -147,8 +164,9 @@ export function GeradorPci({ obraId }: { obraId: string }) {
     finally { setBaixando(null); }
   }
 
-  const secaoCampos = (secao: SecaoPci) => CAMPOS_PCI.filter((c) => c.secao === secao).map((c) => <Campo key={c.id} campo={c} valor={form.campos[c.id] ?? null} onChange={(v) => setCampo(c.id, v)} />);
-  const podeGerar = !!d.modelo && d.modelo.formato !== "xlsb";
+  const secaoCampos = (secao: SecaoPci) => CAMPOS_PCI.filter((c) => c.secao === secao && (!c.visivel || c.visivel(form.campos))).map((c) => <Campo key={c.id} campo={c} valor={form.campos[c.id] ?? null} onChange={(v) => setCampo(c.id, v)} />);
+  // Revisão do PR #180 (paridade): .xlsm/.xlsb geram a partir da versão .xls compatível — o servidor informa se ela existe.
+  const podeGerar = !!d.modelo && d.baseCompativelDisponivel;
 
   return (
     <section className="space-y-4 border border-gray-200 bg-white p-5">
@@ -173,6 +191,12 @@ export function GeradorPci({ obraId }: { obraId: string }) {
         </div>
       </div>
       {d.avisoModelo && <p role="alert" className="flex items-start gap-2 border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900"><AlertTriangle size={16} className="mt-0.5 shrink-0" /> {d.avisoModelo}</p>}
+      {erros.length > 0 && (
+        <div role="alert" className="border border-red-300 bg-red-50 p-2 text-sm text-red-800">
+          <p className="font-bold">Corrija antes de salvar ou gerar:</p>
+          <ul className="ml-5 mt-1 list-disc">{erros.map((p) => <li key={p}>{p}</li>)}</ul>
+        </div>
+      )}
       {pendencias.length > 0 && (
         <details className="border border-amber-200 bg-amber-50/60 p-2 text-sm text-amber-900">
           <summary className="cursor-pointer">{pendencias.length} pendência(s) para conferir antes de enviar à CAIXA (não impedem gerar)</summary>
@@ -208,7 +232,7 @@ export function GeradorPci({ obraId }: { obraId: string }) {
                 </table>
                 <p className={`${rotuloCls} mt-3`}>Serviços adicionais (somam no item 20 &quot;Outros&quot;)</p>
                 {form.adicionais.map((a, i) => (
-                  <div key={i} className="mt-1 grid grid-cols-[1fr_160px] gap-2">
+                  <div key={i} className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px]">
                     <input aria-label={`Serviço adicional ${i + 1}`} value={a.descricao} placeholder={`Serviço adicional ${i + 1}`} className={campoCls}
                       onChange={(e) => setForm({ ...form, adicionais: form.adicionais.map((x, k) => (k === i ? { ...x, descricao: e.target.value } : x)) })} />
                     <NumeroInput aria-label={`Custo do serviço adicional ${i + 1}`} value={a.valor} negativo={false} className={campoCls}
@@ -220,14 +244,30 @@ export function GeradorPci({ obraId }: { obraId: string }) {
             {s.id === "cronograma" && (
               <div className="sm:col-span-2">
                 {prazo < 1 ? <p className="text-sm text-gray-600">Informe o prazo (meses) para montar o cronograma.</p> : (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {Array.from({ length: prazo }, (_, k) => (
-                      <div key={k}>
-                        <label className={rotuloCls} htmlFor={`pci-etapa-${k}`}>Etapa {k + 1} — % acumulado</label>
-                        <NumeroInput id={`pci-etapa-${k}`} value={form.cronograma[k] ?? null} negativo={false} max={100} sufixo="%" className={campoCls}
-                          onChange={(v) => { const c = Array.from({ length: prazo }, (_, j) => form.cronograma[j] ?? null); c[k] = v; setForm({ ...form, cronograma: c }); }} />
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <p className="mb-2 text-xs text-gray-600">Informe o % ACUMULADO da obra ao fim de cada etapa (0,00 a 100,00, sem diminuir; a última etapa termina em 100,00). A etapa 0 é o pré-executado. O incremental é a diferença entre etapas consecutivas.</p>
+                    <table className="w-full text-sm text-gray-800">
+                      <thead><tr className="text-left text-xs uppercase text-gray-500"><th className="p-1">Etapa</th><th className="p-1">% acumulado proposto</th><th className="p-1 text-right">% da etapa (incremental)</th><th className="p-1">Validação</th></tr></thead>
+                      <tbody>
+                        <tr className="border-t border-gray-100"><td className="p-1">0</td><td className="p-1">{brl(cronograma?.etapa0 ?? 0)}% (pré-executado)</td><td className="p-1 text-right">{brl(cronograma?.etapa0 ?? 0)}</td><td /></tr>
+                        {Array.from({ length: prazo }, (_, k) => {
+                          const problemas = [...(cronograma?.erros.filter((e) => e.etapa === k + 1).map((e) => ({ m: e.mensagem, erro: e.tipo === "valor" })) ?? []), ...(cronograma?.avisos.filter((a) => a.etapa === k + 1).map((a) => ({ m: a.mensagem, erro: false })) ?? [])];
+                          const inc = cronograma?.incrementais[k] ?? null;
+                          return (
+                            <tr key={k} className="border-t border-gray-100 align-top">
+                              <td className="p-1"><label htmlFor={`pci-etapa-${k}`}>{k + 1}</label></td>
+                              <td className="p-1 min-w-[130px]">
+                                <NumeroInput id={`pci-etapa-${k}`} value={form.cronograma[k] ?? null} negativo={false} casas={2} pontoDecimal sufixo="%" aria-invalid={problemas.some((p) => p.erro) || undefined}
+                                  className={`${campoCls} ${problemas.some((p) => p.erro) ? "border-red-400" : ""}`}
+                                  onChange={(v) => { const c = Array.from({ length: prazo }, (_, j) => form.cronograma[j] ?? null); c[k] = v; setForm({ ...form, cronograma: c }); }} />
+                              </td>
+                              <td className="p-1 text-right">{inc === null ? "—" : brl(inc)}</td>
+                              <td className="p-1 text-xs">{problemas.map((p) => <span key={p.m} className={`block ${p.erro ? "text-red-700" : "text-amber-700"}`}>{p.m}</span>)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
