@@ -43,3 +43,11 @@ Concluir QA independente, publicar a etapa e abrir PRs; validar builds, merge e 
 (b) Manuais: revisão de código concluída; navegação de produção pendente.
 (c) Produção: aguardando READY e smoke; nenhuma operação real do Drive executada.
 - Próximo passo: conferir produção READY e aliases oficiais, executar smoke e verificar a organização das telas sem alterar a conexão.
+
+## Etapa 4 — publicação e validação
+- Produção confirmada READY no commit de merge `88bf83d1a320e7932672fa789c8241dd89939590`, deployment `dpl_4nLD7Pc7kiQ2n8gjVnXmZ9Jca7vH`, com alias oficial https://www.gruposantafee.com.br.
+- (a) Automáticos: build de produção aprovado, smoke HTTP 200 (`/login`, novo deployment confirmado no HTML); consulta de logs error/fatal dos novos deployments nos últimos 15 minutos sem entradas.
+- (b) Manuais: Prospecta validada em sessão administrativa autenticada. Usuários e acesso exibe cadastro de usuários, sem card Drive nem atalho de Integrações. Integrações exibe um único card Drive com JSON OAuth, reconexão, teste, desconexão e organização. Callback sem estado válido retorna à nova tela e apresenta o erro esperado, sem alterar a conexão.
+- (c) Limites: navegação autenticada do Santa Fé não executada nesta sessão; coberta aqui por paridade de código, tipos, testes, QA, build e smoke. Não foram executadas reconexão, troca de credenciais ou organização real de arquivos, pois a correção é de localização das telas.
+- Pendências de implementação: nenhuma nesta solicitação. Próximo passo: nenhuma ação técnica obrigatória; acompanhar o uso normal da tela.
+- Branch e histórico anterior preservados. Handoff final versionado na branch de trabalho para continuidade.
