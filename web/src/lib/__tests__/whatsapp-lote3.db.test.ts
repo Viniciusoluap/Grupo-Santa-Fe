@@ -7,6 +7,8 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const sessao = vi.hoisted(() => ({ user: { id: "", role: "admin", corretorId: undefined as string | undefined } }));
 vi.mock("@/auth", () => ({ auth: async () => sessao }));
 vi.mock("@/lib/whatsapp/evolution-config", () => ({ configEvolution: async () => ({ url: "https://evo.teste", apiKey: "k" }), urlServidorEvolution: async () => "https://evo.teste" }));
+const lixeira = vi.hoisted(() => vi.fn(async (_ids: (string | null | undefined)[]) => true));
+vi.mock("@/lib/drive-organizacao", async (original) => ({ ...(await original<typeof import("@/lib/drive-organizacao")>()), lixeiraDeArquivosSemUso: lixeira }));
 vi.mock("@/lib/evolution", async (original) => ({ ...(await original<typeof import("@/lib/evolution")>()), enviarTextoEvolution: vi.fn(async () => "ext-ok") }));
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url;
@@ -76,7 +78,7 @@ describe.skipIf(!url)("WhatsApp › lote 03 (banco real)", () => {
     await msg(conexaoAdmin.id, JID_OUTRO);
     const fica = await msg(conexaoAdmin.id, `55939${R}7777`);
     await msg(conexaoB.id, JID_SEM_LEAD); // outra conexão
-    await prisma.whatsappMidia.create({ data: { mensagemId: m1.id, conteudo: Buffer.from("x") } });
+    await prisma.whatsappMidia.create({ data: { mensagemId: m1.id, conteudo: Buffer.from("x"), driveFileId: `drive-${SUF}` } });
     const leadsAntes = await prisma.lead.count({ where: { nome: { contains: SUF } } });
 
     expect(await acoes.previaExclusaoConversasWhatsapp([JID_SEM_LEAD, JID_OUTRO])).toEqual({ conversas: 2, mensagens: 3 });
@@ -90,6 +92,8 @@ describe.skipIf(!url)("WhatsApp › lote 03 (banco real)", () => {
     expect((await prisma.mensagemWhatsapp.findMany({ where: { conexaoId: conexaoAdmin.id }, select: { id: true } })).map((m) => m.id)).toEqual([fica.id]);
     expect(await prisma.mensagemWhatsapp.count({ where: { conexaoId: conexaoB.id } })).toBe(1);
     expect(await prisma.whatsappMidia.count({ where: { mensagemId: m1.id } })).toBe(0);
+    // Revisão PR #242 (P2): a cópia da mídia no Drive vai para a lixeira, como na exclusão unitária.
+    expect(lixeira).toHaveBeenLastCalledWith([`drive-${SUF}`]);
     expect(await prisma.lead.count({ where: { nome: { contains: SUF } } })).toBe(leadsAntes);
     await prisma.mensagemWhatsapp.deleteMany({ where: { conexaoId: { in: [conexaoAdmin.id, conexaoB.id] } } });
   });
