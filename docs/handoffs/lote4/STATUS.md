@@ -85,5 +85,27 @@ d. **Alternativa ao Pluggy**: `docs/handoffs/lote4/ALTERNATIVA-PLUGGY.md` (web b
 Testes (a) automáticos: todos os novos passando nos dois. (b) manuais: nenhum. (c) produção: Testar Asaas/Pluggy
 na tela; Inter só depois de ligado e com a integração criada pelo dono.
 
-## Próximas etapas
-5. Suíte completa nos dois (próximo passo).
+## Etapa 5 — Suíte completa (30/10) — CONCLUÍDA
+
+(a) Automáticos:
+- Prospecta: `pnpm check` OK; `pnpm vitest run` **181 arquivos / 1420 testes, todos passando**; `pnpm build` OK.
+- Santa Fé: `tsc --noEmit` OK; vitest sem banco **1091 passando / 156 pulados (testes de banco), 0 falhas**;
+  vitest com banco `santafe_l9`: **1236 passando, 11 falhas — todas nos 5 arquivos pré-existentes conhecidos**
+  (exclusao-definitiva, projeto-engenheiro, medicao-drive, bancos-sync Asaas, obra-pagamento-etapa); `next build` OK;
+  ESLint dos arquivos alterados: só os 2 erros pré-existentes de `viabilidade-tab.tsx`.
+(b) Manuais: nenhum (telas não abertas no navegador).
+(c) Pendente em produção: ver "O que o dono precisa fazer".
+
+## O que o dono precisa fazer
+1. Autorizar merge/deploy e **aplicar as migrações aditivas ANTES do deploy** (sem elas a exclusão em lote do BPO falha):
+   Prospecta `drizzle/0097_bpo_restaurar_exclusoes.sql` (Neon); Santa Fé `web/prisma/migrations/20261030120000_bpo_restaurar_exclusoes` (Supabase).
+2. Configurações › Integrações: "Testar" Asaas e Pluggy; se recusar, "Trocar" e colar de novo (nunca pelo chat).
+3. (Opcional) Banco Inter: criar a integração no Internet Banking PJ e autorizar ligar `BANCO_INTER_API=1`.
+
+## Pendências
+- Conferir rotas do Inter em developers.inter.co (web bloqueada nesta sessão) antes de ligar o conector.
+- Validação em produção das telas (m², CSV, Exclusões em lote) após o deploy.
+
+## Próximo passo exato
+Abrir PRs `claude/lote4-ajustes-20261030` → main nos dois repositórios (quem tiver autorização de PR), aplicar as
+migrações acima com autorização, merge, deploy e smoke test das 3 telas.
