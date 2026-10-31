@@ -2,6 +2,7 @@
 // Lote 2, correção 04 (AD-02): dados profissionais e documentos do Engenheiro, em
 // Configurações › Usuários. Só o admin edita; o próprio usuário pode consultar.
 import { useCallback, useEffect, useState } from "react";
+import { formatCPF } from "@/lib/cpf";
 import { Download, Eye, FileArchive, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { excluirDocumentoUsuario, obterPerfilEngenheiro, salvarPerfilEngenheiro } from "@/lib/actions/engenheiro";
 import { baixarDocumentoUsuario, baixarTodosDocumentosUsuario, enviarDocumentoUsuario, visualizarDocumentoUsuario } from "@/lib/documentos-usuario-cliente";
@@ -11,8 +12,8 @@ import {
 } from "@/lib/engenheiro";
 
 type Dados = Exclude<Awaited<ReturnType<typeof obterPerfilEngenheiro>>, { erro: string }>;
-type Form = { telefone: string; cep: string; logradouro: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string; crea: string; creaUf: string; creasAdicionais: { numero: string; uf: string }[] };
-const VAZIO: Form = { telefone: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", crea: "", creaUf: "", creasAdicionais: [] };
+type Form = { cpf: string; telefone: string; cep: string; logradouro: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string; crea: string; creaUf: string; creasAdicionais: { numero: string; uf: string }[] };
+const VAZIO: Form = { cpf: "", telefone: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", crea: "", creaUf: "", creasAdicionais: [] };
 const rotulo = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1";
 const campo = "w-full border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--brand-yellow)] disabled:bg-gray-50";
 const botao = "inline-flex items-center gap-1 border border-gray-200 px-2 py-1 text-xs font-bold text-[var(--brand-dark)] hover:bg-gray-50 disabled:opacity-50";
@@ -31,7 +32,7 @@ export function PerfilEngenheiro({ usuarioId }: { usuarioId: string }) {
     if ("erro" in r) { setErro(r.erro ?? "Falha ao carregar."); return; }
     setDados(r);
     const p = r.perfil;
-    setForm({ telefone: p.telefone ?? "", cep: p.cep ?? "", logradouro: p.logradouro ?? "", numero: p.numero ?? "", complemento: p.complemento ?? "", bairro: p.bairro ?? "", cidade: p.cidade ?? "", uf: p.uf ?? "", crea: p.crea ?? "", creaUf: p.creaUf ?? "", creasAdicionais: p.creasAdicionais });
+    setForm({ cpf: formatCPF(p.cpf ?? ""), telefone: p.telefone ?? "", cep: p.cep ?? "", logradouro: p.logradouro ?? "", numero: p.numero ?? "", complemento: p.complemento ?? "", bairro: p.bairro ?? "", cidade: p.cidade ?? "", uf: p.uf ?? "", crea: p.crea ?? "", creaUf: p.creaUf ?? "", creasAdicionais: p.creasAdicionais });
   }, [usuarioId]);
   useEffect(() => { void carregar(); }, [carregar]);
 
@@ -91,6 +92,7 @@ export function PerfilEngenheiro({ usuarioId }: { usuarioId: string }) {
           <div><label className={rotulo}>Bairro</label><input value={form.bairro} onChange={set("bairro")} className={campo} /></div>
           <div><label className={rotulo}>Cidade</label><input value={form.cidade} onChange={set("cidade")} className={campo} /></div>
           <div><label className={rotulo}>UF</label><select aria-label="UF do endereço" value={form.uf} onChange={set("uf")} className={campo}><option value="">—</option>{UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}</select></div>
+          <div><label htmlFor={`engenheiro-cpf-${usuarioId}`} className={rotulo}>CPF do engenheiro</label><input id={`engenheiro-cpf-${usuarioId}`} name="cpf" value={form.cpf} onChange={(e) => setForm((f) => ({ ...f, cpf: formatCPF(e.target.value) }))} inputMode="numeric" maxLength={14} placeholder="000.000.000-00" className={campo} /></div>
           <div className="sm:col-span-3 space-y-1">
             <label className={rotulo}>CREAs adicionais (outros estados)</label>
             {form.creasAdicionais.map((c, i) => (

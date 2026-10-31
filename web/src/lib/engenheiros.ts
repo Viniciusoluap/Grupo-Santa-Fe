@@ -47,6 +47,7 @@ export async function listarEngenheiros(opcoes: { apenasEngenheiros?: boolean } 
 /** Grava (ou reativa) o perfil Engenheiro. Só chamar depois da checagem de admin. */
 export async function gravarPerfilEngenheiro(usuarioId: string, dados: PerfilEngenheiroDados, autorId: string | null) {
   const valores = {
+    ...(dados.cpf !== undefined ? { cpf: dados.cpf } : {}),
     ativo: true, telefone: dados.telefone, cep: dados.cep, logradouro: dados.logradouro, numero: dados.numero,
     complemento: dados.complemento, bairro: dados.bairro, cidade: dados.cidade, uf: dados.uf,
     crea: dados.crea, creaUf: dados.creaUf, creasAdicionais: dados.creasAdicionais, atualizadoPorId: autorId,

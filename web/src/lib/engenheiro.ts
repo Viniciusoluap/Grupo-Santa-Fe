@@ -2,6 +2,7 @@
 // Regras puras (sem banco) compartilhadas por servidor e tela. Mesma regra no
 // Prospecta em shared/engenheiro.ts.
 import { zipSync } from "fflate";
+import { formatCPF, validateCPF } from "./cpf";
 
 export const UFS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",
@@ -108,6 +109,8 @@ export function creaAoTrocarEngenheiro(
 // ─── Perfil ──────────────────────────────────────────────────────────────────
 
 export type PerfilEngenheiroDados = {
+  /** Ausente preserva o valor gravado; null limpa explicitamente. */
+  cpf?: string | null;
   telefone: string | null;
   cep: string | null;
   logradouro: string | null;
@@ -129,6 +132,15 @@ const texto = (v: unknown, max: number) => {
 
 /** Valida e normaliza o formulário do perfil. Campos vazios ficam null (nada é inventado). */
 export function validarPerfilEngenheiro(entrada: Record<string, unknown>): { ok: true; dados: PerfilEngenheiroDados } | { ok: false; erro: string } {
+  let cpf: string | null | undefined;
+  if (entrada.cpf !== undefined) {
+    if (entrada.cpf !== null && typeof entrada.cpf !== "string") return { ok: false, erro: "CPF inválido." };
+    const bruto = (entrada.cpf as string | null)?.trim() ?? "";
+    if (bruto) {
+      if (!/^[0-9.\-\s]+$/.test(bruto) || !validateCPF(bruto).valid) return { ok: false, erro: "CPF inválido. Confira os 11 dígitos." };
+      cpf = formatCPF(bruto);
+    } else cpf = null;
+  }
   const telefone = texto(entrada.telefone, 20);
   if (telefone && !/^[0-9()+\-.\s]{8,20}$/.test(telefone)) return { ok: false, erro: "Telefone inválido." };
   const cepBruto = texto(entrada.cep, 12);
@@ -169,6 +181,7 @@ export function validarPerfilEngenheiro(entrada: Record<string, unknown>): { ok:
   return {
     ok: true,
     dados: {
+      ...(cpf !== undefined ? { cpf } : {}),
       telefone,
       cep,
       logradouro: texto(entrada.logradouro, 255),

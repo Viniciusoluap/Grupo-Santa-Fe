@@ -37,6 +37,7 @@ export async function obterPerfilEngenheiro(usuarioId: string) {
       podeGerenciar: acesso.gerenciar,
       engenheiro: alvo.papel === "colaborador" && p?.ativo === true,
       perfil: {
+        cpf: p?.cpf ?? null,
         telefone: p?.telefone ?? alvo.telefone ?? null, cep: p?.cep ?? null, logradouro: p?.logradouro ?? null, numero: p?.numero ?? null,
         complemento: p?.complemento ?? null, bairro: p?.bairro ?? null, cidade: p?.cidade ?? null, uf: p?.uf ?? null,
         crea: p?.crea ?? null, creaUf: p?.creaUf ?? null, creasAdicionais: lerCreasAdicionais(p?.creasAdicionais),

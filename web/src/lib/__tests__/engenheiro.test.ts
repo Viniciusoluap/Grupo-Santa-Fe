@@ -23,6 +23,22 @@ describe("correção 04 — validação do perfil Engenheiro", () => {
     expect(vazio.ok && vazio.dados.crea).toBe(null);
   });
 
+  it("CPF é opcional; omissão preserva e vazio limpa, validando quando informado", () => {
+    const omitido = validarPerfilEngenheiro({});
+    expect(omitido.ok && Object.hasOwn(omitido.dados, "cpf")).toBe(false);
+    for (const cpf of ["", "   ", null]) {
+      const vazio = validarPerfilEngenheiro({ cpf });
+      expect(vazio.ok && vazio.dados.cpf).toBe(null);
+    }
+    for (const cpf of ["52998224725", "529.982.247-25"]) {
+      const valido = validarPerfilEngenheiro({ cpf });
+      expect(valido.ok && valido.dados.cpf).toBe("529.982.247-25");
+    }
+    for (const cpf of ["11111111111", "52998224724", "123", "abc52998224725", 52998224725]) {
+      expect(validarPerfilEngenheiro({ cpf }).ok).toBe(false);
+    }
+  });
+
   it("rejeita CREA/UF inválidos ou incompletos", () => {
     expect(validarPerfilEngenheiro({ crea: "12", creaUf: "GO" })).toEqual({ ok: false, erro: "Número do CREA inválido." });
     expect(validarPerfilEngenheiro({ crea: "123456", creaUf: "XX" })).toEqual({ ok: false, erro: "UF do CREA inválida." });

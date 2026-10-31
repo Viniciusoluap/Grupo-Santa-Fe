@@ -1778,6 +1778,7 @@ model PerfilEngenheiro {
   usuarioId       String   @id
   usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   ativo           Boolean  @default(true)
+  cpf             String?  @db.VarChar(14)
   telefone        String?  @db.VarChar(20)
   cep             String?  @db.VarChar(9)
   logradouro      String?  @db.VarChar(255)
