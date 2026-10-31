@@ -36,3 +36,13 @@ Publicar checkpoint inicial, implementar schema/migração, validação, persist
 
 ### Próximo passo
 Com schema de produção aplicado e revisão QA independente sem bloqueantes, publicar PRs, verificar builds, realizar merge e validar campo em produção sem inserir CPF de teste em cadastro real.
+
+## Etapa 3 — revisão e merge
+- QA independente e revisão automática Codex aprovados, sem achados novos; ressalva de lint legado registrada acima.
+- Preview `dpl_6pYLJr5qZuU4VTMCsVQVNNnjxFQD` confirmado READY no head publicado antes do merge.
+- PR #247 mesclada; commit `e8d1e9cf7ae8e4aa01affe615623ed58a9ca706e`.
+- Produção `dpl_BmZU9zPmbjxjM7XBx1YDKztCucd4` em compilação, aguardando READY e conferência do alias oficial.
+(a) Automáticos: checks locais e build de preview aprovados; schema aditivo de produção aplicado antes de publicar código.
+(b) Manuais: revisão do diff concluída; interface publicada ainda pendente.
+(c) Pendentes: produção READY, smoke e conferência visual do campo, sem gravar dados pessoais de teste em cadastros reais.
+- Próximo passo: acompanhar produção, executar smoke, registrar validação real e limitações.
