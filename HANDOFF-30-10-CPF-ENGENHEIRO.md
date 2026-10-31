@@ -46,3 +46,11 @@ Com schema de produção aplicado e revisão QA independente sem bloqueantes, pu
 (b) Manuais: revisão do diff concluída; interface publicada ainda pendente.
 (c) Pendentes: produção READY, smoke e conferência visual do campo, sem gravar dados pessoais de teste em cadastros reais.
 - Próximo passo: acompanhar produção, executar smoke, registrar validação real e limitações.
+
+## Etapa 4 — produção e encerramento
+- Produção READY no commit `e8d1e9cf7ae8e4aa01affe615623ed58a9ca706e`, deployment `dpl_BmZU9zPmbjxjM7XBx1YDKztCucd4`, alias oficial https://www.gruposantafee.com.br confirmado.
+(a) Automáticos: build de produção aprovado; smoke `/login` HTTP 200, HTML identifica novo deployment. Logs error/fatal do deployment nos últimos 15 minutos sem entradas.
+(b) Manuais: Prospecta validada em sessão administrativa autenticada. Campo CPF do engenheiro único, editável, na sequência Cidade/UF/CPF, com placeholder brasileiro e limite de 14 caracteres. Máscara conferida com entrada inválida temporária, removida sem salvar; nenhum CPF de teste persistido. Botão de salvar perfil disponível.
+(c) Limites: navegação autenticada Santa Fé não executada nesta sessão; validação coberta por paridade de código, tipos, testes, QA, schema, build e smoke. Não executado salvamento de CPF em cadastro real; persistência coberta pela implementação revisada e testes de regras, sem alegar prova manual de gravação em produção.
+- Pendências de implementação: nenhuma nesta solicitação. Próximo passo: uso normal do cadastro para preencher o CPF quando disponível.
+- Handoff final versionado na branch de trabalho; histórico e branches anteriores preservados, sem reset ou force push.
