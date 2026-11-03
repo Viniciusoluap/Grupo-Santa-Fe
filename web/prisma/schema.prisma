@@ -748,6 +748,8 @@ model BpoCliente {
 }
 
 model BpoLancamento {
+  /// Limpeza de ajustes: tombstone local recuperável; preserva os vínculos e as chaves externas.
+  exclusaoLoteBackupId       String?
   id                        String                     @id @default(cuid())
   movimentosObra            ObraMovimento[]
   recebimentosRegularizacao RegularizacaoRecebimento[]

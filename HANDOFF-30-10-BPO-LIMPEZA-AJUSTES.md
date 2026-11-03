@@ -15,3 +15,19 @@
 
 ## Próximo passo
 Fechar desenho transacional com orquestração, implementar com paridade, testar exclusão/restauração em banco isolado e publicar com os gates existentes.
+
+## Etapa 2 — implementação Santa Fé
+- Modo explícito `limpezaAjustes` no modal/API: cria backup e histórico e marca os lançamentos localmente, sem apagar recebimentos, vínculos, combinações ou referências externas. A exclusão normal mantém as proteções anteriores.
+- Prévia de ajustes com impressão SHA-256 do alcance; a execução bloqueia as linhas e revalida o conjunto antes de gravar. Trocar o modo limpa confirmação e prévia anteriores.
+- Listas, totais, cliente, notificações e seletores de novos vínculos deixam de oferecer registros arquivados; mutações antigas validam também o marcador no UPDATE.
+- Restauração do novo formato remove somente o marcador daquele backup, sem recriar IDs nem passar pelo restaurador legado que limpava vínculos externos. Sincronização preserva a exclusão local.
+- Migração aditiva `20261031010000_bpo_limpeza_ajustes`: coluna nullable e gatilhos para impedir novos vínculos, reativação ou aumento de alocação em lançamentos arquivados, mantendo os vínculos operacionais existentes.
+(a) Automáticos: Prisma generate e TypeScript aprovados; diff-check aprovado. Testes isolados de banco, regressão e lint ainda em execução.
+(b) Manuais: revisão de código em andamento; nenhuma operação de limpeza executada.
+(c) Produção: schema, publicação e verificação de interface pendentes, sob a orquestração do root.
+- Próximo passo: concluir testes significativos em ambiente isolado, revisão independente e publicar após os gates.
+
+## Checkpoint de retomada — implementação parcial
+- Código em andamento preservado na branch de trabalho, sem PR nem merge de produção nesta etapa.
+- Verificações finais de integridade, regressão e escala ainda pendentes; não tratar este checkpoint como entrega concluída.
+- Próximo passo: concluir testes e revisão independente, aplicar a migração aditiva sob a orquestração e publicar somente após os gates. Nenhuma limpeza de dados de produção executada.

@@ -1,6 +1,6 @@
 "use client";
 // Lote 3, item 16: ações em lote de Cobranças/Despesas (gêmeo de Prospecta client/src/components/bpo/LoteLancamentos.tsx).
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
@@ -52,10 +52,19 @@ function ExcluirLoteModal({ aba, modo, ids, filtros, onFechar }: { aba: AbaLote;
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState("");
   const [pendente, iniciar] = useTransition();
-  const [entrada] = useState(() => ({ aba, modo, ...(modo === "selecionados" ? { ids } : { filtros }) }));
-  useEffect(() => { previaExclusaoLote(entrada).then((r) => ("erro" in r ? setErro(r.erro) : setPrevia(r))); }, [entrada]);
+  const [limpezaAjustes, setLimpezaAjustes] = useState(false);
+  const entrada = useMemo(() => ({ aba, modo, limpezaAjustes, ...(modo === "selecionados" ? { ids } : { filtros }) }), [aba, modo, ids, filtros, limpezaAjustes]);
+  useEffect(() => {
+    let ativa = true;
+    previaExclusaoLote(entrada).then((r) => { if (ativa) { if ("erro" in r) setErro(r.erro); else setPrevia(r); } });
+    return () => { ativa = false; };
+  }, [entrada]);
   return (
     <Moldura titulo={modo === "tudo" ? `Excluir tudo — ${aba === "cobrancas" ? "Cobranças" : "Despesas"}` : "Excluir selecionados"} onFechar={() => onFechar()}>
+      <label className="flex items-start gap-2 rounded border border-orange-300 bg-orange-50 p-3 text-sm">
+        <input type="checkbox" checked={limpezaAjustes} disabled={pendente} onChange={(e) => { setLimpezaAjustes(e.target.checked); setConfirmacao(""); setPrevia(null); setErro(null); }} />
+        <span><strong>Limpeza temporária de ajustes</strong><br />Incluir pagos, importados e cobranças do Asaas. Retira os lançamentos das listas e dos totais do BPO, preservando os dados para restaurar. Não cancela cobranças nem altera contas bancárias.</span>
+      </label>
       {erro && <p className="text-red-700">{erro}</p>}
       {!previa && !erro && <p className="text-gray-500">Calculando impacto…</p>}
       {previa && <>
@@ -73,7 +82,7 @@ function ExcluirLoteModal({ aba, modo, ids, filtros, onFechar }: { aba: AbaLote;
         </label>
         <button type="button" className="w-full bg-red-700 px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50" disabled={!previa.excluiveis || !confirmacaoExclusaoValida(confirmacao) || pendente}
           onClick={() => iniciar(async () => {
-            const r = await excluirLancamentosEmLote({ ...entrada, confirmacao });
+            const r = await excluirLancamentosEmLote({ ...entrada, confirmacao, previaToken: previa.previaToken });
             if ("erro" in r) { setErro(r.erro ?? "Falha ao excluir."); return; }
             router.refresh();
             onFechar(`${r.excluidos} lançamento(s) excluído(s)${r.backupId ? ` · backup ${r.backupId}` : ""}. ${r.protegidos} protegido(s) preservado(s).`);

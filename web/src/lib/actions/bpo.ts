@@ -174,7 +174,7 @@ export async function resumoBpoPorLead(leadId: string) {
   const clientes = await prisma.bpoCliente.findMany({ where: { leadId }, select: { id: true, razaoSocial: true } });
   if (!clientes.length) return { clientes: [], recebido: 0, emAberto: 0 };
   const lancamentos = await prisma.bpoLancamento.findMany({
-    where: { clienteId: { in: clientes.map((c) => c.id) }, combinadaEmId: null },
+    where: { clienteId: { in: clientes.map((c) => c.id) }, combinadaEmId: null, exclusaoLoteBackupId: null },
     select: { clienteId: true, tipo: true, valor: true, valorRecebido: true, pago: true, categoria: true },
   });
   const totais = resumoPorCliente(lancamentos);
@@ -214,7 +214,7 @@ export async function registrarBaixaBpo(input: { id: string; version: number; re
     if (antes.version !== input.version) throw new Error("O lançamento foi alterado. Atualize a tela.");
     if (antes.transacaoId || antes.asaasPaymentId) throw new Error("Registro externo ou conciliado: confirme o recebimento na origem e sincronize antes de alterar a baixa.");
     const baixa = calcularBaixa(antes, input.valor);
-    const gravado = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null }, data: { ...baixa, pagoEm: baixa.pago ? data : null, version: { increment: 1 } } });
+    const gravado = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null, exclusaoLoteBackupId: null }, data: { ...baixa, pagoEm: baixa.pago ? data : null, version: { increment: 1 } } });
     if (!gravado.count) throw new Error("O lançamento foi alterado. Atualize a tela.");
     await tx.bpoBaixa.create({ data: { lancamentoId: antes.id, requestKey: input.requestKey, valor: Math.round(input.valor * 100) / 100, data, motivo: input.motivo.trim(), usuarioId: usuario.id } });
     await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: antes.id, lancamentoReferencia: antes.id, versaoAnterior: antes.version, alteradoPorUsuarioId: usuario.id, motivo: input.motivo.trim(), antesJson: JSON.stringify(antes), depoisJson: JSON.stringify({ ...antes, ...baixa, pagoEm: baixa.pago ? data : null, version: antes.version + 1 }) } });
@@ -262,7 +262,7 @@ export async function editarLancamentoBpo(input: {
     const vinculo = input.categoriaOperacional && input.vinculoOperacionalId && !categoriaSemVinculo(input.categoriaOperacional) ? await resolverVinculoBpo(antes.tipo, input.categoriaOperacional, input.vinculoOperacionalId) : null;
     // Item 12: sem categoria na tela, mantém a gravada ou deriva da operacional quando ela muda.
     const categoria = input.categoria || categoriaNaEdicao(antes.tipo, antes, input);
-    const result = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null }, data: {
+    const result = await tx.bpoLancamento.updateMany({ where: { id: input.id, version: input.version, combinadaEmId: null, exclusaoLoteBackupId: null }, data: {
       descricao: input.descricao.trim(), valor: input.valor, categoria,
       categoriaContabil: input.categoriaContabil?.trim() || (input.categoria || categoria !== antes.categoria ? categoria : antes.categoriaContabil ?? categoria),
       categoriaOperacional: input.categoriaOperacional || null,

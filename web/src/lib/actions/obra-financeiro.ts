@@ -190,7 +190,7 @@ export async function listarEmpreiteiros() {
 export async function listarBpoDisponiveis(natureza: (typeof NATUREZAS)[number]) {
   await exigirAdmin();
   const lancamentos = await prisma.bpoLancamento.findMany({
-    where: { pago: true, tipo: natureza === "pagamento" ? "despesa" : { not: "despesa" } },
+    where: { exclusaoLoteBackupId: null, pago: true, tipo: natureza === "pagamento" ? "despesa" : { not: "despesa" } },
     orderBy: { vencimento: "asc" },
     select: {
       id: true, descricao: true, valor: true,

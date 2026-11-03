@@ -34,13 +34,13 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
       // Lote 3, item 16: originais combinadas saem da lista (a nova cobrança já soma os valores).
-      where: { combinadaEmId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
+      where: { combinadaEmId: null, exclusaoLoteBackupId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
       orderBy: { vencimento: "desc" },
       take: 2000,
       include: { cliente: { select: { razaoSocial: true } } },
     }),
     // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
-    prisma.bpoLancamento.findMany({ where: { combinadaEmId: null }, select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
+    prisma.bpoLancamento.findMany({ where: { combinadaEmId: null, exclusaoLoteBackupId: null }, select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true } }),
     prisma.bpoCliente.findMany({
       select: { id: true, razaoSocial: true, leadId: true },
       orderBy: { razaoSocial: "asc" },
