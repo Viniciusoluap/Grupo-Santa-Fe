@@ -22,7 +22,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       where: {
         lancamento: { is: null },
         AND: [
-          ...(pagamentosArquivados.length ? [{ OR: [{ asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] }] : []),
+          ...(pagamentosArquivados.length ? [{ OR: [{ tipo: { not: "credito" } }, { asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] }] : []),
           ...(origensArquivadas.length ? [{ OR: [{ externalId: null }, { externalId: { notIn: origensArquivadas } }] }] : []),
         ],
         ...(filtro.contaId ? { contaId: filtro.contaId } : {}),
@@ -35,15 +35,26 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     if (!lote.length) break;
 
     // A cleanup may have detached a legitimate operational entry. Reattach by the stable
-    // bank identifier before creating anything, preserving value, category and its audit.
+    // bank identifier before creating anything, preserving its classification and audit.
     const reanexados = new Set<string>();
+    let vinculosRestaurados = 0;
     for (const t of lote) {
-      const select = { id: true, transacaoId: true, exclusaoLoteBackupId: true } as const;
+      const select = { id: true, transacaoId: true, asaasPaymentId: true, exclusaoLoteBackupId: true } as const;
       const pelaOrigem = t.externalId ? await prisma.bpoLancamento.findUnique({ where: { origemTransacaoKey: t.externalId }, select }) : null;
-      const existente = pelaOrigem ?? (t.asaasPaymentId ? await prisma.bpoLancamento.findUnique({ where: { asaasPaymentId: t.asaasPaymentId }, select }) : null);
+      const pagamento = t.tipo === "credito" ? t.asaasPaymentId : null;
+      const existente = pelaOrigem ?? (pagamento ? await prisma.bpoLancamento.findUnique({ where: { asaasPaymentId: pagamento }, select }) : null);
       if (existente?.exclusaoLoteBackupId) { reanexados.add(t.id); continue; }
       if (existente && !existente.transacaoId) {
-        await prisma.bpoLancamento.updateMany({ where: { id: existente.id, transacaoId: null, exclusaoLoteBackupId: null }, data: { transacaoId: t.id, version: { increment: 1 } } });
+        // O crédito pode chegar após a janela de sincronização da cobrança.
+        const r = await prisma.bpoLancamento.updateMany({
+          where: { id: existente.id, transacaoId: null, exclusaoLoteBackupId: null },
+          data: {
+            transacaoId: t.id,
+            version: { increment: 1 },
+            ...(pagamento && existente.asaasPaymentId === pagamento ? { pago: true, pagoEm: t.data, valor: t.valor } : {}),
+          },
+        });
+        vinculosRestaurados += r.count;
         reanexados.add(t.id);
       }
     }
@@ -95,7 +106,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     });
     criados += r.count;
     // Concorrência: se outro processo vinculou este lote, não há o que fazer aqui.
-    if (r.count === 0 || lote.length < LOTE) break;
+    if (r.count + vinculosRestaurados === 0 || lote.length < LOTE) break;
   }
   return { criados, categorizadas };
 }

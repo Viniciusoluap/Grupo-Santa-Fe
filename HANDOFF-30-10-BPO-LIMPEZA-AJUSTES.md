@@ -44,3 +44,15 @@ Fechar desenho transacional com orquestração, implementar com paridade, testar
 (c) Produção — publicação, migração e conferência de interface seguem com a orquestração.
 
 Próximo passo — publicar esta revisão na branch de trabalho, conferir o PR e verificar a migração e a publicação antes da conferência da interface.
+
+## Revisão do PR #248 — conciliação de crédito Asaas tardio
+
+- Corrigido o ponto da revisão automática em `web/src/lib/bancos/lancamentos-bpo.ts`. Ao reencontrar uma cobrança por ID exato de pagamento, o crédito bancário vincula e baixa o lançamento original usando data e valor do extrato, mesmo após a janela de sincronização de cobranças. Competência e vencimento originais permanecem.
+- O filtro em `web/src/lib/bancos/cobrancas-asaas.ts` separa créditos de tarifas e outros débitos com o mesmo ID. O processamento em lotes continua quando houver reanexações mesmo sem novos lançamentos.
+- A migração aditiva já foi aplicada e conferida pela orquestração. Este ajuste dispensa alteração no schema.
+
+(a) Automáticos — 44 testes passaram em seis arquivos, incluindo os cenários de crédito tardio após restauração, reprocessamento idempotente e débito separado, com Prisma sobre PostgreSQL isolado. TypeScript, ESLint dos arquivos alterados e diff-check passaram.
+(b) Manuais — revisão da conciliação, do escopo do arquivo e dos campos do lançamento.
+(c) Produção — prévia da interface e publicação desta revisão aguardam os gates do PR. Nenhuma limpeza de produção foi executada.
+
+Próximo passo — publicar a revisão incremental na branch do PR #248, conferir a revisão e o preview da Vercel e prosseguir com o merge e a validação do deploy.

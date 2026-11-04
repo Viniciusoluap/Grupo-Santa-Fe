@@ -159,6 +159,49 @@ describe("Limpeza temporária BPO — Prisma/PostgreSQL isolado", () => {
     expect(await p.bpoLancamentoExclusaoBackup.count()).toBe(1);
   });
 
+  it("baixa a mesma cobrança ao vincular crédito Asaas recebido depois do arquivamento", async () => {
+    const p = harness.prisma;
+    const conta = await p.contaBancaria.create({ data: { banco: "Asaas isolado", conta: "1" } });
+    const vencimento = new Date("2026-08-01T12:00:00Z");
+    await novo("cobranca-antiga", {
+      asaasPaymentId: "pay-antigo", origemEfetiva: "asaas", vencimento, competencia: "2026-08",
+    });
+    const { backupId } = await limpar(["cobranca-antiga"]);
+    if (!backupId) throw new Error("Falha no arquivamento da cobrança");
+    const credito = await p.transacaoBancaria.create({ data: {
+      contaId: conta.id, externalId: "asaas:credito-antigo", asaasPaymentId: "pay-antigo",
+      data, descricao: "Crédito confirmado", valor: 98.01, tipo: "credito",
+    } });
+    expect(await extrato.vincularTransacoesAoBpo()).toMatchObject({ criados: 0 });
+    expect(await p.bpoLancamento.findUnique({ where: { id: "cobranca-antiga" } })).toMatchObject({
+      exclusaoLoteBackupId: backupId, transacaoId: null, pago: false, valor: 100,
+    });
+
+    expect(await lote.restaurarExclusaoEmLote({ backupId, confirmacao: "RESTAURAR" })).toMatchObject({ restaurados: 1 });
+    expect(await extrato.reprocessarMovimentacoes()).toMatchObject({ criados: 0 });
+    expect(await extrato.reprocessarMovimentacoes()).toMatchObject({ criados: 0 });
+    expect(await p.bpoLancamento.count()).toBe(1);
+    expect(await p.bpoLancamento.findUnique({ where: { id: "cobranca-antiga" } })).toMatchObject({
+      asaasPaymentId: "pay-antigo", transacaoId: credito.id, pago: true, pagoEm: data, valor: 98.01,
+      vencimento, competencia: "2026-08",
+    });
+  });
+
+  it("importa separadamente débito Asaas com o ID de uma cobrança arquivada", async () => {
+    const p = harness.prisma;
+    const conta = await p.contaBancaria.create({ data: { banco: "Asaas isolado", conta: "1" } });
+    await novo("cobranca-arquivada", { asaasPaymentId: "pay-com-tarifa" });
+    await limpar(["cobranca-arquivada"]);
+    const tarifa = await p.transacaoBancaria.create({ data: {
+      contaId: conta.id, externalId: "asaas:tarifa", asaasPaymentId: "pay-com-tarifa",
+      data, descricao: "Tarifa Asaas", valor: 1.99, tipo: "debito",
+    } });
+    expect(await extrato.vincularTransacoesAoBpo()).toMatchObject({ criados: 1 });
+    expect(await p.bpoLancamento.findUnique({ where: { transacaoId: tarifa.id } })).toMatchObject({
+      tipo: "despesa", valor: 1.99, asaasPaymentId: null, exclusaoLoteBackupId: null,
+    });
+  });
+
   it("gatilhos preservam vínculo antigo mas rejeitam novo vínculo, reativação e aumento após arquivar", async () => {
     const p = harness.prisma;
     await novo("vinculado", { pago: true, valorRecebido: 100 });
