@@ -15,12 +15,16 @@ const LOTE = 500;
 export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: string[] } = {}) {
   let criados = 0, categorizadas = 0;
   for (;;) {
-    const tombstones = await prisma.bpoLancamento.findMany({ where: { exclusaoLoteBackupId: { not: null }, asaasPaymentId: { not: null } }, select: { asaasPaymentId: true } });
+    const tombstones = await prisma.bpoLancamento.findMany({ where: { exclusaoLoteBackupId: { not: null } }, select: { asaasPaymentId: true, origemTransacaoKey: true } });
     const pagamentosArquivados = tombstones.flatMap((l) => l.asaasPaymentId ? [l.asaasPaymentId] : []);
+    const origensArquivadas = tombstones.flatMap((l) => l.origemTransacaoKey ? [l.origemTransacaoKey] : []);
     const lote = await prisma.transacaoBancaria.findMany({
       where: {
         lancamento: { is: null },
-        ...(pagamentosArquivados.length ? { OR: [{ asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] } : {}),
+        AND: [
+          ...(pagamentosArquivados.length ? [{ OR: [{ asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] }] : []),
+          ...(origensArquivadas.length ? [{ OR: [{ externalId: null }, { externalId: { notIn: origensArquivadas } }] }] : []),
+        ],
         ...(filtro.contaId ? { contaId: filtro.contaId } : {}),
         ...(filtro.ids ? { id: { in: filtro.ids } } : {}),
       },
@@ -39,7 +43,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       const existente = pelaOrigem ?? (t.asaasPaymentId ? await prisma.bpoLancamento.findUnique({ where: { asaasPaymentId: t.asaasPaymentId }, select }) : null);
       if (existente?.exclusaoLoteBackupId) { reanexados.add(t.id); continue; }
       if (existente && !existente.transacaoId) {
-        await prisma.bpoLancamento.update({ where: { id: existente.id }, data: { transacaoId: t.id, version: { increment: 1 } } });
+        await prisma.bpoLancamento.updateMany({ where: { id: existente.id, transacaoId: null, exclusaoLoteBackupId: null }, data: { transacaoId: t.id, version: { increment: 1 } } });
         reanexados.add(t.id);
       }
     }

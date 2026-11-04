@@ -62,13 +62,19 @@ export async function excluirLancamentosEmLote(input: EntradaLote & { confirmaca
     if (input.modo === "selecionados" && !(input.ids ?? []).length) return { erro: "Selecione ao menos um lançamento." };
     const r = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT 1::int AS locked FROM pg_advisory_xact_lock(hashtext('bpo_exclusao_lote'))`;
+      const idsBloqueados = new Set<string>();
       if (input.limpezaAjustes === true) {
         const candidatos = await alcance(tx, input);
         const chaves = candidatos.excluiveis.map((l) => l.id);
-        if (chaves.length) await tx.$queryRaw(Prisma.sql`SELECT id FROM bpo_lancamentos WHERE id IN (${Prisma.join(chaves)}) ORDER BY id FOR UPDATE`);
+        if (chaves.length) {
+          const bloqueados = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM bpo_lancamentos WHERE id IN (${Prisma.join(chaves)}) ORDER BY id FOR UPDATE`);
+          for (const { id } of bloqueados) idsBloqueados.add(id);
+        }
       }
       const { resumo, excluiveis } = await alcance(tx, input);
-      if (input.limpezaAjustes === true && (!input.previaToken || input.previaToken !== resumo.previaToken)) throw new Error("Os lançamentos mudaram depois da prévia. Atualize a prévia e confirme novamente.");
+      if (input.limpezaAjustes === true && (
+        !input.previaToken || input.previaToken !== resumo.previaToken || excluiveis.some(({ id }) => !idsBloqueados.has(id))
+      )) throw new Error("Os lançamentos mudaram depois da prévia. Atualize a prévia e confirme novamente.");
       if (!excluiveis.length) return { ...resumo, excluidos: 0, backupId: null as string | null };
       const ids = excluiveis.map((l) => l.id);
       const backup = await tx.bpoLancamentoExclusaoBackup.create({ data: {
@@ -255,21 +261,34 @@ export async function restaurarExclusaoEmLote(input: { backupId: string; confirm
       if (arquivamento) await tx.$queryRaw(Prisma.sql`SELECT id FROM bpo_lancamentos WHERE id IN (${Prisma.join(snapshot.map((s) => String(s.id)))}) ORDER BY id FOR UPDATE`);
       const plano = await planoDoBackup(tx, b.snapshotJson, b.id);
       const avisos: string[] = plano.itens.filter((i) => i.acao !== "restaurar").flatMap((i) => i.avisos.map((a) => `${i.descricao || i.id}: ${a}`));
-      for (const item of plano.itens) {
-        if (item.acao !== "restaurar") continue;
-        const versaoAnterior = Number(item.dados.version ?? 1) || 1;
-        const dados = { ...item.dados, version: versaoAnterior + 1 } as Prisma.BpoLancamentoUncheckedCreateInput;
-        if (arquivamento) {
-          const voltou = await tx.bpoLancamento.updateMany({ where: { id: item.id, exclusaoLoteBackupId: b.id, version: versaoAnterior }, data: { exclusaoLoteBackupId: null, version: { increment: 1 } } });
-          if (voltou.count !== 1) throw new Error("Um lançamento mudou durante a restauração. Atualize a prévia.");
-          dados.exclusaoLoteBackupId = null;
-        } else await tx.bpoLancamento.create({ data: dados });
-        await tx.bpoLancamentoHistorico.create({ data: {
-          lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior, alteradoPorUsuarioId: admin.id,
-          motivo: `Restaurado da exclusão em lote (backup ${b.id})${item.avisos.length ? ` — ${item.avisos.join(" ")}` : ""}`,
-          antesJson: JSON.stringify({ excluido: true, backupId: b.id }), depoisJson: JSON.stringify(dados),
-        } });
-        for (const a of item.avisos) avisos.push(`${item.descricao || item.id}: ${a}`);
+      const itensRestauraveis = plano.itens.filter((item) => item.acao === "restaurar");
+      if (arquivamento && itensRestauraveis.length) {
+        // As linhas já estão bloqueadas. Uma atualização e um histórico em lote mantêm
+        // a restauração de centenas de registros dentro do mesmo limite transacional.
+        const ids = itensRestauraveis.map((item) => item.id);
+        const voltou = await tx.bpoLancamento.updateMany({
+          where: { id: { in: ids }, exclusaoLoteBackupId: b.id },
+          data: { exclusaoLoteBackupId: null, version: { increment: 1 } },
+        });
+        if (voltou.count !== ids.length) throw new Error("Um lançamento mudou durante a restauração. Atualize a prévia.");
+        const depois = new Map((await tx.bpoLancamento.findMany({ where: { id: { in: ids } } })).map((l) => [l.id, l]));
+        await tx.bpoLancamentoHistorico.createMany({ data: itensRestauraveis.map((item) => ({
+          lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior: Number(item.dados.version ?? 1),
+          alteradoPorUsuarioId: admin.id, motivo: `Restaurado da limpeza local de ajustes (backup ${b.id})`,
+          antesJson: JSON.stringify(item.dados), depoisJson: JSON.stringify(depois.get(item.id)),
+        })) });
+      } else if (!arquivamento) {
+        for (const item of itensRestauraveis) {
+          const versaoAnterior = Number(item.dados.version ?? 1) || 1;
+          const dados = { ...item.dados, version: versaoAnterior + 1 } as Prisma.BpoLancamentoUncheckedCreateInput;
+          await tx.bpoLancamento.create({ data: dados });
+          await tx.bpoLancamentoHistorico.create({ data: {
+            lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior, alteradoPorUsuarioId: admin.id,
+            motivo: `Restaurado da exclusão em lote (backup ${b.id})${item.avisos.length ? ` — ${item.avisos.join(" ")}` : ""}`,
+            antesJson: JSON.stringify({ excluido: true, backupId: b.id }), depoisJson: JSON.stringify(dados),
+          } });
+          for (const a of item.avisos) avisos.push(`${item.descricao || item.id}: ${a}`);
+        }
       }
       const resumo = { restaurados: plano.restaurar, jaExistiam: plano.jaExistem, comAviso: plano.comAviso };
       const marcado = await tx.bpoLancamentoExclusaoBackup.updateMany({

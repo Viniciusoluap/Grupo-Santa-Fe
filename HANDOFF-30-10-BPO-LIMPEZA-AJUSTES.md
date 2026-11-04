@@ -31,3 +31,16 @@ Fechar desenho transacional com orquestração, implementar com paridade, testar
 - Código em andamento preservado na branch de trabalho, sem PR nem merge de produção nesta etapa.
 - Verificações finais de integridade, regressão e escala ainda pendentes; não tratar este checkpoint como entrega concluída.
 - Próximo passo: concluir testes e revisão independente, aplicar a migração aditiva sob a orquestração e publicar somente após os gates. Nenhuma limpeza de dados de produção executada.
+
+## Validação local do Santa Fé — 04/11/2026
+
+- Concluída a restauração em lote com bloqueio de linhas e histórico gravado na mesma transação. A exclusão para ajustes compara a prévia com o conjunto recalculado e exige que cada lançamento tenha sido efetivamente bloqueado.
+- A sincronização ignora origens bancárias e cobranças Asaas arquivadas, inclusive quando os lançamentos perderam o vínculo com o extrato. O teste exercita mais de 500 origens ignoradas e a importação de uma transação nova.
+- A limpeza da conta bancária usa a mesma trava de exclusão em lote antes de decidir quais lançamentos preservar. Lançamentos arquivados mantêm o backup e a chave estável de origem.
+- Arquivos principais `web/src/lib/actions/banco.ts`, `web/src/lib/actions/bpo-lote.ts`, `web/src/lib/bancos/lancamentos-bpo.ts` e `web/src/lib/__tests__/bpo-limpeza-ajustes.db.test.ts`.
+
+(a) Automáticos — 58 testes aprovados em seis arquivos, incluindo Prisma sobre PostgreSQL isolado para 823 lançamentos com recebimentos, histórico e vínculos preservados, prévia obsoleta, escopo, sincronização, limpeza de conta e gatilhos. A migração foi aplicada duas vezes nesse banco, com verificação da criação efetiva da coluna. TypeScript e diff-check aprovados. ESLint sem erros, com um aviso anterior de variável não usada na página de detalhes de BPO.
+(b) Manuais — revisão dos trechos de transação, trava, auditoria e sincronização.
+(c) Produção — publicação, migração e conferência de interface seguem com a orquestração.
+
+Próximo passo — publicar esta revisão na branch de trabalho, conferir o PR e verificar a migração e a publicação antes da conferência da interface.
