@@ -23,7 +23,7 @@ async function carregarCandidatos(): Promise<CandidatoCliente[]> {
 
 function lancamentosLivres(ids?: string[]) {
   return prisma.bpoLancamento.findMany({
-    where: { clienteId: null, combinadaEmId: null, ...(ids ? { id: { in: ids } } : {}) },
+    where: { clienteId: null, combinadaEmId: null, exclusaoLoteBackupId: null, ...(ids ? { id: { in: ids } } : {}) },
     select: { id: true, version: true, clienteNomeLivre: true, descricao: true, tipo: true, categoriaOperacional: true, vinculoOperacionalId: true, transacao: { select: { titular: true, bpoClienteId: true } } },
   });
 }
@@ -112,7 +112,7 @@ async function vincular(input: { id: string; version: number; motivo: string } &
         }
       }
     }
-    const r = await tx.bpoLancamento.updateMany({ where: { id: antes.id, version: antes.version, combinadaEmId: null }, data: { clienteId, clienteNomeLivre: null, version: { increment: 1 } } });
+    const r = await tx.bpoLancamento.updateMany({ where: { id: antes.id, version: antes.version, combinadaEmId: null, exclusaoLoteBackupId: null }, data: { clienteId, clienteNomeLivre: null, version: { increment: 1 } } });
     if (!r.count) throw new Error("O lançamento foi alterado por outra pessoa. Atualize a tela.");
     // Revisão do PR #180 (P2, paridade): lançamento vindo do extrato — a movimentação de origem passa a apontar
     // para o mesmo cliente (a tela Bancos e a reconstrução do lançamento leem o cliente da movimentação).

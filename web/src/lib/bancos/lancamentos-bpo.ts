@@ -15,25 +15,46 @@ const LOTE = 500;
 export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: string[] } = {}) {
   let criados = 0, categorizadas = 0;
   for (;;) {
+    const tombstones = await prisma.bpoLancamento.findMany({ where: { exclusaoLoteBackupId: { not: null } }, select: { asaasPaymentId: true, origemTransacaoKey: true } });
+    const pagamentosArquivados = tombstones.flatMap((l) => l.asaasPaymentId ? [l.asaasPaymentId] : []);
+    const origensArquivadas = tombstones.flatMap((l) => l.origemTransacaoKey ? [l.origemTransacaoKey] : []);
     const lote = await prisma.transacaoBancaria.findMany({
       where: {
         lancamento: { is: null },
+        AND: [
+          ...(pagamentosArquivados.length ? [{ OR: [{ tipo: { not: "credito" } }, { asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] }] : []),
+          ...(origensArquivadas.length ? [{ OR: [{ externalId: null }, { externalId: { notIn: origensArquivadas } }] }] : []),
+        ],
         ...(filtro.contaId ? { contaId: filtro.contaId } : {}),
         ...(filtro.ids ? { id: { in: filtro.ids } } : {}),
       },
       orderBy: { id: "asc" },
       take: LOTE,
-      select: { id: true, externalId: true, data: true, descricao: true, descricaoOriginal: true, titular: true, valor: true, tipo: true, categoria: true, bpoClienteId: true },
+      select: { id: true, externalId: true, asaasPaymentId: true, data: true, descricao: true, descricaoOriginal: true, titular: true, valor: true, tipo: true, categoria: true, bpoClienteId: true },
     });
     if (!lote.length) break;
 
     // A cleanup may have detached a legitimate operational entry. Reattach by the stable
-    // bank identifier before creating anything, preserving value, category and its audit.
+    // bank identifier before creating anything, preserving its classification and audit.
     const reanexados = new Set<string>();
-    for (const t of lote) if (t.externalId) {
-      const existente = await prisma.bpoLancamento.findUnique({ where: { origemTransacaoKey: t.externalId }, select: { id: true, transacaoId: true } });
+    let vinculosRestaurados = 0;
+    for (const t of lote) {
+      const select = { id: true, transacaoId: true, asaasPaymentId: true, exclusaoLoteBackupId: true } as const;
+      const pelaOrigem = t.externalId ? await prisma.bpoLancamento.findUnique({ where: { origemTransacaoKey: t.externalId }, select }) : null;
+      const pagamento = t.tipo === "credito" ? t.asaasPaymentId : null;
+      const existente = pelaOrigem ?? (pagamento ? await prisma.bpoLancamento.findUnique({ where: { asaasPaymentId: pagamento }, select }) : null);
+      if (existente?.exclusaoLoteBackupId) { reanexados.add(t.id); continue; }
       if (existente && !existente.transacaoId) {
-        await prisma.bpoLancamento.update({ where: { id: existente.id }, data: { transacaoId: t.id, version: { increment: 1 } } });
+        // O crédito pode chegar após a janela de sincronização da cobrança.
+        const r = await prisma.bpoLancamento.updateMany({
+          where: { id: existente.id, transacaoId: null, exclusaoLoteBackupId: null },
+          data: {
+            transacaoId: t.id,
+            version: { increment: 1 },
+            ...(pagamento && existente.asaasPaymentId === pagamento ? { pago: true, pagoEm: t.data, valor: t.valor } : {}),
+          },
+        });
+        vinculosRestaurados += r.count;
         reanexados.add(t.id);
       }
     }
@@ -85,7 +106,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     });
     criados += r.count;
     // Concorrência: se outro processo vinculou este lote, não há o que fazer aqui.
-    if (r.count === 0 || lote.length < LOTE) break;
+    if (r.count + vinculosRestaurados === 0 || lote.length < LOTE) break;
   }
   return { criados, categorizadas };
 }
@@ -161,8 +182,8 @@ export async function classificarTransacao(id: string, input: { categoria?: stri
     ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
   } });
   await vincularTransacoesAoBpo({ ids: [id] });
-  await prisma.bpoLancamento.update({
-    where: { transacaoId: id },
+  await prisma.bpoLancamento.updateMany({
+    where: { transacaoId: id, exclusaoLoteBackupId: null },
     data: {
       ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
       ...(clienteId !== undefined ? { clienteId } : {}),
@@ -185,7 +206,7 @@ export async function classificarTransacao(id: string, input: { categoria?: stri
         ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
         ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
       } });
-      await prisma.bpoLancamento.updateMany({ where: { transacaoId: { in: iguais } }, data: {
+      await prisma.bpoLancamento.updateMany({ where: { transacaoId: { in: iguais }, exclusaoLoteBackupId: null }, data: {
         ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
         ...(clienteId !== undefined ? { clienteId } : {}),
       } });

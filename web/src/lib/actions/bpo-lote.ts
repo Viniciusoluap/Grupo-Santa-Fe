@@ -4,6 +4,7 @@
 // extrato, baixa, obra, regularização, combinação) nunca são apagados; toda exclusão grava backup
 // JSON (bpo_lancamento_exclusoes_backup) e histórico por lançamento, em transação. Só admin.
 // Gêmeo da Prospecta: server/bpo-lote.ts.
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -14,12 +15,12 @@ import { CONFIRMACAO_RESTAURACAO, confirmacaoRestauracaoValida, lerSnapshot, pla
 import { CONFIRMACAO_EXCLUSAO, confirmacaoExclusaoValida, filtrarLancamentosLote, resumirExclusao, validarCombinacao, type FiltrosLote, type ResumoExclusao } from "@/lib/bpo-lote";
 
 export type AbaLote = "cobrancas" | "despesas";
-export type EntradaLote = { aba: AbaLote; modo: "selecionados" | "tudo"; ids?: string[]; filtros?: FiltrosLote };
+export type EntradaLote = { aba: AbaLote; modo: "selecionados" | "tudo"; ids?: string[]; filtros?: FiltrosLote; limpezaAjustes?: boolean; previaToken?: string };
 type Tx = Prisma.TransactionClient | typeof prisma;
 
 async function lancamentosDaAba(db: Tx, aba: AbaLote, ids?: string[]) {
   const linhas = await db.bpoLancamento.findMany({
-    where: { combinadaEmId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }], ...(ids ? { id: { in: ids } } : {}) },
+    where: { exclusaoLoteBackupId: null, combinadaEmId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }], ...(ids ? { id: { in: ids } } : {}) },
     include: {
       cliente: { select: { razaoSocial: true } },
       _count: { select: { baixas: true, movimentosObra: true, recebimentosRegularizacao: true } },
@@ -41,7 +42,9 @@ async function alcance(db: Tx, input: EntradaLote) {
   const todos = await lancamentosDaAba(db, input.aba);
   const ids = new Set(input.ids ?? []);
   const base = input.modo === "tudo" ? filtrarLancamentosLote(todos, input.filtros ?? {}) : todos.filter((l) => ids.has(l.id));
-  return resumirExclusao(todos.length, base, input.modo === "selecionados" ? ids.size : 0);
+  const resultado = resumirExclusao(todos.length, base, input.modo === "selecionados" ? ids.size : 0, input.limpezaAjustes === true);
+  if (input.limpezaAjustes) resultado.resumo.previaToken = createHash("sha256").update(JSON.stringify({ aba: input.aba, modo: input.modo, linhas: [...base].sort((a, b) => a.id.localeCompare(b.id)) })).digest("hex");
+  return resultado;
 }
 
 export async function previaExclusaoLote(input: EntradaLote): Promise<ResumoExclusao | { erro: string }> {
@@ -59,21 +62,38 @@ export async function excluirLancamentosEmLote(input: EntradaLote & { confirmaca
     if (input.modo === "selecionados" && !(input.ids ?? []).length) return { erro: "Selecione ao menos um lançamento." };
     const r = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT 1::int AS locked FROM pg_advisory_xact_lock(hashtext('bpo_exclusao_lote'))`;
+      const idsBloqueados = new Set<string>();
+      if (input.limpezaAjustes === true) {
+        const candidatos = await alcance(tx, input);
+        const chaves = candidatos.excluiveis.map((l) => l.id);
+        if (chaves.length) {
+          const bloqueados = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM bpo_lancamentos WHERE id IN (${Prisma.join(chaves)}) ORDER BY id FOR UPDATE`);
+          for (const { id } of bloqueados) idsBloqueados.add(id);
+        }
+      }
       const { resumo, excluiveis } = await alcance(tx, input);
+      if (input.limpezaAjustes === true && (
+        !input.previaToken || input.previaToken !== resumo.previaToken || excluiveis.some(({ id }) => !idsBloqueados.has(id))
+      )) throw new Error("Os lançamentos mudaram depois da prévia. Atualize a prévia e confirme novamente.");
       if (!excluiveis.length) return { ...resumo, excluidos: 0, backupId: null as string | null };
       const ids = excluiveis.map((l) => l.id);
       const backup = await tx.bpoLancamentoExclusaoBackup.create({ data: {
         modo: input.modo, aba: input.aba, filtrosJson: JSON.stringify(input.modo === "tudo" ? input.filtros ?? {} : { ids: input.ids }),
-        quantidade: ids.length, protegidos: resumo.protegidos, snapshotJson: JSON.stringify(excluiveis), criadoPorUsuarioId: admin.id,
+        quantidade: ids.length, protegidos: resumo.protegidos, snapshotJson: JSON.stringify(excluiveis.map((l) => input.limpezaAjustes === true ? { ...l, __limpezaAjustes: true } : l)), criadoPorUsuarioId: admin.id,
       } });
       await tx.bpoLancamentoHistorico.createMany({ data: excluiveis.map((l) => ({
         lancamentoId: l.id, lancamentoReferencia: l.id, versaoAnterior: l.version, alteradoPorUsuarioId: admin.id,
         motivo: `Excluído em lote (${input.modo === "tudo" ? "Excluir tudo" : "Excluir selecionados"}; backup ${backup.id})`,
         antesJson: JSON.stringify(l), depoisJson: JSON.stringify({ excluido: true, backupId: backup.id }),
       })) });
+      if (input.limpezaAjustes === true) {
+        const arquivados = await tx.bpoLancamento.updateMany({ where: { id: { in: ids }, exclusaoLoteBackupId: null }, data: { exclusaoLoteBackupId: backup.id, version: { increment: 1 } } });
+        if (arquivados.count !== ids.length) throw new Error("Algum lançamento mudou. Atualize a prévia e tente novamente.");
+        return { ...resumo, excluidos: arquivados.count, backupId: backup.id };
+      }
       // Revalida a proteção no próprio DELETE: se algo mudou desde a leitura, nada é apagado.
       const apagados = await tx.bpoLancamento.deleteMany({ where: {
-        id: { in: ids }, asaasPaymentId: null, transacaoId: null, combinadaEmId: null, pago: false, valorRecebido: 0,
+        id: { in: ids }, exclusaoLoteBackupId: null, asaasPaymentId: null, transacaoId: null, combinadaEmId: null, pago: false, valorRecebido: 0,
         baixas: { none: {} }, movimentosObra: { none: {} }, recebimentosRegularizacao: { none: {} },
       } });
       if (apagados.count !== ids.length) throw new Error("Algum lançamento mudou durante a confirmação. Atualize a prévia e tente novamente.");
@@ -116,7 +136,7 @@ export async function combinarPagamentos(input: { ids: string[]; requestKey: str
         origemEfetiva: "manual",
       } });
       for (const o of linhas) {
-        const g = await tx.bpoLancamento.updateMany({ where: { id: o.id, version: o.version, combinadaEmId: null }, data: { combinadaEmId: nova.id, version: { increment: 1 } } });
+        const g = await tx.bpoLancamento.updateMany({ where: { id: o.id, version: o.version, exclusaoLoteBackupId: null, combinadaEmId: null }, data: { combinadaEmId: nova.id, version: { increment: 1 } } });
         if (!g.count) throw new Error("Uma das cobranças foi alterada por outra pessoa. Atualize a tela.");
         const depois = await tx.bpoLancamento.findUniqueOrThrow({ where: { id: o.id } });
         await tx.bpoLancamentoHistorico.create({ data: { lancamentoId: o.id, lancamentoReferencia: o.id, versaoAnterior: o.version, alteradoPorUsuarioId: u.id, motivo: `Combinada na cobrança ${nova.id} (combinar pagamentos)`, antesJson: JSON.stringify(o), depoisJson: JSON.stringify(depois) } });
@@ -166,9 +186,22 @@ export async function listarExclusoesEmLote(): Promise<ExclusaoEmLoteResumo[] | 
   } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao listar as exclusões." }; }
 }
 
-async function planoDoBackup(db: Tx, snapshotJson: string): Promise<PlanoRestauracao> {
+async function planoDoBackup(db: Tx, snapshotJson: string, backupId?: string): Promise<PlanoRestauracao> {
   const snapshot = lerSnapshot(snapshotJson);
+  if (snapshot.some((s) => s.__limpezaAjustes === true) && !snapshot.every((s) => s.__limpezaAjustes === true)) throw new Error("Backup corrompido: formatos de exclusão misturados.");
   const ids = snapshot.map((s) => String(s.id));
+  if (snapshot.length && snapshot.every((s) => s.__limpezaAjustes === true)) {
+    const atuais = await db.bpoLancamento.findMany({ where: { id: { in: ids } } });
+    const porId = new Map(atuais.map((l) => [l.id, l]));
+    const itens: PlanoRestauracao["itens"] = snapshot.map((s) => {
+      const atual = porId.get(String(s.id));
+      const restaura = !!backupId && atual?.exclusaoLoteBackupId === backupId;
+      return { id: String(s.id), descricao: String(s.descricao ?? ""), valor: Number(s.valor ?? 0), vencimento: s.vencimento ? String(s.vencimento) : null,
+        clienteNome: String(s.clienteNome ?? s.clienteNomeLivre ?? "") || null, acao: restaura ? "restaurar" : "ja_existe",
+        avisos: restaura ? [] : ["O lançamento não está mais arquivado nesta exclusão; não será alterado."], dados: atual ? { ...atual } : {} };
+    });
+    return { itens, restaurar: itens.filter((i) => i.acao === "restaurar").length, jaExistem: itens.filter((i) => i.acao === "ja_existe").length, comAviso: itens.filter((i) => i.avisos.length).length };
+  }
   const clienteIds = Array.from(new Set(snapshot.map((s) => s.clienteId).filter((x) => x != null).map(String)));
   const existentes = ids.length ? await db.bpoLancamento.findMany({ where: { id: { in: ids } }, select: { id: true } }) : [];
   const clientes = clienteIds.length ? await db.bpoCliente.findMany({ where: { id: { in: clienteIds } }, select: { id: true } }) : [];
@@ -199,7 +232,7 @@ export async function previaRestauracaoExclusao(backupId: string) {
     await exigirAdminAtivo();
     const b = await prisma.bpoLancamentoExclusaoBackup.findUnique({ where: { id: backupId } });
     if (!b) return { erro: "Exclusão em lote não encontrada." };
-    const plano = await planoDoBackup(prisma, b.snapshotJson);
+    const plano = await planoDoBackup(prisma, b.snapshotJson, b.id);
     return {
       backupId: b.id, aba: b.aba, criadoEm: b.criadoEm.toISOString(), restauradoEm: b.restauradoEm?.toISOString() ?? null,
       restaurar: plano.restaurar, jaExistem: plano.jaExistem, comAviso: plano.comAviso,
@@ -223,19 +256,39 @@ export async function restaurarExclusaoEmLote(input: { backupId: string; confirm
       const b = await tx.bpoLancamentoExclusaoBackup.findUnique({ where: { id: input.backupId } });
       if (!b) throw new Error("Exclusão em lote não encontrada.");
       if (b.restauradoEm) throw new Error(`Esta exclusão já foi restaurada em ${b.restauradoEm.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`);
-      const plano = await planoDoBackup(tx, b.snapshotJson);
-      const avisos: string[] = [];
-      for (const item of plano.itens) {
-        if (item.acao !== "restaurar") continue;
-        const versaoAnterior = Number(item.dados.version ?? 1) || 1;
-        const dados = { ...item.dados, version: versaoAnterior + 1 } as Prisma.BpoLancamentoUncheckedCreateInput;
-        await tx.bpoLancamento.create({ data: dados });
-        await tx.bpoLancamentoHistorico.create({ data: {
-          lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior, alteradoPorUsuarioId: admin.id,
-          motivo: `Restaurado da exclusão em lote (backup ${b.id})${item.avisos.length ? ` — ${item.avisos.join(" ")}` : ""}`,
-          antesJson: JSON.stringify({ excluido: true, backupId: b.id }), depoisJson: JSON.stringify(dados),
-        } });
-        for (const a of item.avisos) avisos.push(`${item.descricao || item.id}: ${a}`);
+      const snapshot = lerSnapshot(b.snapshotJson);
+      const arquivamento = snapshot.length > 0 && snapshot.every((s) => s.__limpezaAjustes === true);
+      if (arquivamento) await tx.$queryRaw(Prisma.sql`SELECT id FROM bpo_lancamentos WHERE id IN (${Prisma.join(snapshot.map((s) => String(s.id)))}) ORDER BY id FOR UPDATE`);
+      const plano = await planoDoBackup(tx, b.snapshotJson, b.id);
+      const avisos: string[] = plano.itens.filter((i) => i.acao !== "restaurar").flatMap((i) => i.avisos.map((a) => `${i.descricao || i.id}: ${a}`));
+      const itensRestauraveis = plano.itens.filter((item) => item.acao === "restaurar");
+      if (arquivamento && itensRestauraveis.length) {
+        // As linhas já estão bloqueadas. Uma atualização e um histórico em lote mantêm
+        // a restauração de centenas de registros dentro do mesmo limite transacional.
+        const ids = itensRestauraveis.map((item) => item.id);
+        const voltou = await tx.bpoLancamento.updateMany({
+          where: { id: { in: ids }, exclusaoLoteBackupId: b.id },
+          data: { exclusaoLoteBackupId: null, version: { increment: 1 } },
+        });
+        if (voltou.count !== ids.length) throw new Error("Um lançamento mudou durante a restauração. Atualize a prévia.");
+        const depois = new Map((await tx.bpoLancamento.findMany({ where: { id: { in: ids } } })).map((l) => [l.id, l]));
+        await tx.bpoLancamentoHistorico.createMany({ data: itensRestauraveis.map((item) => ({
+          lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior: Number(item.dados.version ?? 1),
+          alteradoPorUsuarioId: admin.id, motivo: `Restaurado da limpeza local de ajustes (backup ${b.id})`,
+          antesJson: JSON.stringify(item.dados), depoisJson: JSON.stringify(depois.get(item.id)),
+        })) });
+      } else if (!arquivamento) {
+        for (const item of itensRestauraveis) {
+          const versaoAnterior = Number(item.dados.version ?? 1) || 1;
+          const dados = { ...item.dados, version: versaoAnterior + 1 } as Prisma.BpoLancamentoUncheckedCreateInput;
+          await tx.bpoLancamento.create({ data: dados });
+          await tx.bpoLancamentoHistorico.create({ data: {
+            lancamentoId: item.id, lancamentoReferencia: item.id, versaoAnterior, alteradoPorUsuarioId: admin.id,
+            motivo: `Restaurado da exclusão em lote (backup ${b.id})${item.avisos.length ? ` — ${item.avisos.join(" ")}` : ""}`,
+            antesJson: JSON.stringify({ excluido: true, backupId: b.id }), depoisJson: JSON.stringify(dados),
+          } });
+          for (const a of item.avisos) avisos.push(`${item.descricao || item.id}: ${a}`);
+        }
       }
       const resumo = { restaurados: plano.restaurar, jaExistiam: plano.jaExistem, comAviso: plano.comAviso };
       const marcado = await tx.bpoLancamentoExclusaoBackup.updateMany({

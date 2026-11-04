@@ -22,7 +22,7 @@ export default async function BpoClientePage({ params }: PageProps) {
   const { id } = await params;
   const cliente = await prisma.bpoCliente.findUnique({
     where: { id },
-    include: { lancamentos: { where: { combinadaEmId: null }, orderBy: { vencimento: "desc" } } },
+    include: { lancamentos: { where: { combinadaEmId: null, exclusaoLoteBackupId: null }, orderBy: { vencimento: "desc" } } },
   });
   if (!cliente) notFound();
 

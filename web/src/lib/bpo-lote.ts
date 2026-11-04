@@ -1,6 +1,6 @@
 // Lote 3 (29/10/2026), itens 13B e 16: confirmação forte, proteção de registros financeiros,
 // filtros da aba aplicados no servidor e "Combinar pagamentos". Regras puras (sem banco/rede).
-// Gêmeo da Prospecta: shared/financeiro/bpo-lote.ts.
+// Gêmeo no Santa Fé: web/src/lib/bpo-lote.ts.
 
 /** Texto exigido para confirmar exclusões (case-sensitive, sem acento). */
 export const CONFIRMACAO_EXCLUSAO = "EXCLUIR";
@@ -17,6 +17,7 @@ export const ROTULOS_PROTECAO: Record<MotivoProtecao, string> = {
 };
 
 export type SituacaoProtecao = {
+  exclusaoLoteBackupId?: string | number | null;
   asaasPaymentId?: string | null;
   /** Prospecta: bankTransactionId; Santa Fé: transacaoId. */
   transacaoBancaria?: string | number | null;
@@ -46,12 +47,14 @@ export function motivosProtecao(l: SituacaoProtecao): MotivoProtecao[] {
 }
 
 /**
- * Revisão do PR (Codex P1): a original de uma combinação continua no banco só para rastreabilidade —
- * quem estiver com a lista antiga aberta não pode mais dar baixa, quitar, editar nem vincular nela.
+ * Revisão do PR (Codex P1, Santa Fé #242): a original de uma combinação continua no banco só para
+ * rastreabilidade — quem estiver com a lista antiga aberta não pode mais dar baixa, quitar, editar
+ * nem vincular nela. Gêmeo do Santa Fé: web/src/lib/bpo-lote.ts.
  */
 export const mensagemLancamentoCombinado = (combinadaEmId: string | number) =>
   `Esta cobrança já foi combinada na cobrança #${combinadaEmId} e não pode mais ser baixada, quitada ou alterada. Atualize a tela e use a cobrança combinada.`;
-export function exigirNaoCombinada(l: { combinadaEmId?: string | number | null }) {
+export function exigirNaoCombinada(l: { combinadaEmId?: string | number | null; exclusaoLoteBackupId?: string | number | null }) {
+  if (l.exclusaoLoteBackupId != null) throw new Error("Este lançamento foi excluído na limpeza de ajustes. Restaure o lote antes de alterá-lo.");
   if (l.combinadaEmId != null && l.combinadaEmId !== "") throw new Error(mensagemLancamentoCombinado(l.combinadaEmId));
 }
 
@@ -97,21 +100,22 @@ export function filtrarLancamentosLote<T extends LancamentoFiltravel>(itens: T[]
 }
 
 export type ResumoExclusao = {
+  limpezaAjustes?: boolean; previaToken?: string;
   totalAba: number; alcancados: number; selecionados: number; excluiveis: number; protegidos: number;
   porMotivo: Partial<Record<MotivoProtecao, number>>;
 };
 
 /** Prévia: total da aba, alcançados (filtro ou seleção), excluíveis e protegidos (por motivo). */
-export function resumirExclusao<T extends SituacaoProtecao & { id: string | number }>(totalAba: number, alcancados: T[], selecionados: number) {
+export function resumirExclusao<T extends SituacaoProtecao & { id: string | number }>(totalAba: number, alcancados: T[], selecionados: number, limpezaAjustes = false) {
   const porMotivo: Partial<Record<MotivoProtecao, number>> = {};
   const excluiveis: T[] = [];
   let protegidos = 0;
   for (const l of alcancados) {
-    const m = motivosProtecao(l);
+    const m = limpezaAjustes ? [] : motivosProtecao(l);
     if (m.length) { protegidos++; m.forEach(x => { porMotivo[x] = (porMotivo[x] ?? 0) + 1; }); }
     else excluiveis.push(l);
   }
-  const resumo: ResumoExclusao = { totalAba, alcancados: alcancados.length, selecionados, excluiveis: excluiveis.length, protegidos, porMotivo };
+  const resumo: ResumoExclusao = { limpezaAjustes, totalAba, alcancados: alcancados.length, selecionados, excluiveis: excluiveis.length, protegidos, porMotivo };
   return { resumo, excluiveis };
 }
 

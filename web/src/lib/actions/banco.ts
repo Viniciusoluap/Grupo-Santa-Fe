@@ -215,6 +215,8 @@ export async function excluirContaBancaria(id: string, confirmacao?: string) {
     if (!confirmacaoExclusaoValida(confirmacao)) throw new Error(`Digite ${CONFIRMACAO_EXCLUSAO} para confirmar a exclusão da conta.`);
     const p = exigirResultado(await previaLimpezaContaBancaria(id));
     const res = await prisma.$transaction(async (tx) => {
+      // A decisão de preservar ou apagar deve observar qualquer arquivamento concorrente.
+      await tx.$queryRaw`SELECT 1::int AS locked FROM pg_advisory_xact_lock(hashtext('bpo_exclusao_lote'))`;
       const conta = await tx.contaBancaria.findUnique({ where: { id }, select: { id: true, banco: true, agencia: true, conta: true, tipo: true, descricao: true, saldoAtual: true, ativo: true, pluggyItemId: true, pluggyAccountId: true, webhookUrl: true, ultimaSincronizacao: true, provedor: true, dataInicial: true, ultimoErro: true, saldoExtrato: true, saldoExtratoData: true, criadoEm: true } });
       if (!conta) throw new Error("Conta removida ou alterada. Atualize a prévia.");
       const transacoes = await tx.transacaoBancaria.findMany({ where: { contaId: id }, include: { lancamento: { include: { movimentosObra: { select: { id: true } }, recebimentosRegularizacao: { select: { id: true } } } } } });

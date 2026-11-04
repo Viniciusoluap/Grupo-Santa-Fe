@@ -20,14 +20,15 @@ export async function sincronizarCobrancasAsaas(apiKey: string, desde: string, f
   for (const cobranca of cobrancas) {
     const paga = situacaoCobrancaAsaas(cobranca.status) === "pago";
     const credito = await prisma.transacaoBancaria.findFirst({
-      where: { asaasPaymentId: cobranca.id },
-      select: { id: true, data: true, valor: true, lancamento: { select: { id: true } } },
+      where: { asaasPaymentId: cobranca.id, tipo: "credito" },
+      select: { id: true, data: true, valor: true, lancamento: { select: { id: true, exclusaoLoteBackupId: true } } },
     });
     const existente = await prisma.bpoLancamento.findUnique({ where: { asaasPaymentId: cobranca.id } });
     const vencimento = new Date(`${cobranca.dueDate}T12:00:00Z`);
     const descricao = ["Cobrança Asaas", cobranca.customer, cobranca.description].filter(Boolean).join(" — ").slice(0, 500);
+    if (existente?.exclusaoLoteBackupId || credito?.lancamento?.exclusaoLoteBackupId) continue;
     if (existente) {
-      await prisma.bpoLancamento.update({ where: { id: existente.id }, data: {
+      await prisma.bpoLancamento.update({ where: { id: existente.id, exclusaoLoteBackupId: null }, data: {
         pago: credito ? true : paga,
         pagoEm: credito?.data ?? (paga ? new Date(`${cobranca.paymentDate ?? cobranca.dueDate}T12:00:00Z`) : null),
         valor: credito?.valor ?? cobranca.value,
@@ -40,7 +41,7 @@ export async function sincronizarCobrancasAsaas(apiKey: string, desde: string, f
       continue;
     }
     if (credito?.lancamento) {
-      await prisma.bpoLancamento.update({ where: { id: credito.lancamento.id }, data: { asaasPaymentId: cobranca.id, descricao, pago: true } });
+      await prisma.bpoLancamento.update({ where: { id: credito.lancamento.id, exclusaoLoteBackupId: null }, data: { asaasPaymentId: cobranca.id, descricao, pago: true } });
       reconciliadas++;
       continue;
     }
