@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(async () => ({ id: "contrato-1" })),
+  findUniqueOrThrow: vi.fn(async () => ({ tipo: "prestacao_servicos" })),
+  opcoesContrato: vi.fn(),
   update: vi.fn(async () => ({ id: "contrato-1" })),
   delete: vi.fn(async () => ({ id: "contrato-1" })),
   revalidate: vi.fn(),
@@ -13,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/auth", () => ({ auth: vi.fn(async () => ({ user: { role: "admin" } })) }));
 vi.mock("@/lib/auth/rbac", () => ({ requireActionRole: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: { contrato: mocks } }));
+vi.mock("@/lib/contratos/dados", () => ({ opcoesModelosContrato: mocks.opcoesContrato }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
@@ -65,10 +68,31 @@ describe("contratos preservados no Jurídico", () => {
     return data;
   }
 
-  it("cria o contrato e volta para uma página existente do Jurídico", async () => {
-    await expect(criarContrato(form())).rejects.toThrow("REDIRECT:/admin/juridico");
+  it("cria o novo contrato no Jurídico com a obra e as partes vinculadas", async () => {
+    mocks.opcoesContrato.mockResolvedValue({
+      obras: [{
+        id: "obra-1", leadId: "lead-1", imovelId: "imovel-1", cliente: "Cliente",
+        cpfCliente: "123.456.789-09", enderecoImovel: "Rua A, 30", foro: "Canaã dos Carajás/PA",
+        area: "78", matricula: "547", cartorio: "Registro de Imóveis", prazo: "6",
+        valorExecucao: "135000.00", corretorId: "",
+      }],
+      empreiteiros: [{ id: "empreiteiro-1", nome: "Empreiteiro", documento: "987.654.321-00", endereco: "Rua B, 20" }],
+      corretores: [],
+    });
+    const dados = new FormData();
+    dados.set("tipo", "execucao_obra");
+    dados.set("obraId", "obra-1");
+    dados.set("empreiteiroId", "empreiteiro-1");
+    dados.set("empresaNome", "Grupo Santa Fé");
+    dados.set("empresaDocumento", "41.865.900/0001-89");
+    dados.set("empresaEndereco", "Rua C, 10");
+    dados.set("dataAssinatura", "2026-11-09");
+    await expect(criarContrato(dados)).resolves.toEqual({ ok: true, id: "contrato-1" });
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ parteA: "Cliente", parteB: "Grupo Santa Fé", valor: 2500 }),
+      data: expect.objectContaining({
+        parteA: "Grupo Santa Fé", parteB: "Empreiteiro", valor: 135000,
+        obraId: "obra-1", leadId: "lead-1", imovelId: "imovel-1", empreiteiroId: "empreiteiro-1",
+      }),
     }));
     expect(mocks.revalidate).toHaveBeenCalledWith("/admin/juridico");
   });

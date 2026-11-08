@@ -7,11 +7,12 @@ import { gerarPdfContrato, marcarAssinaturaStatus } from "@/lib/actions/juridico
 
 interface Props {
   contratoId: string;
+  modelo?: boolean;
   pdfUrl?: string;
   assinaturaStatus?: string;
 }
 
-export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus }: Props) {
+export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus, modelo }: Props) {
   const [loading, setLoading] = useState<"pdf" | "upload" | "solicitar" | null>(null);
   const [currentPdfUrl, setCurrentPdfUrl] = useState(pdfUrl);
   const [status, setStatus] = useState(assinaturaStatus ?? "pendente");
@@ -21,6 +22,7 @@ export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus }: Props) {
     setLoading("pdf");
     try {
       const result = await gerarPdfContrato(contratoId);
+      if (!result.url) throw new Error(result.error || "Falha ao gerar PDF.");
       setCurrentPdfUrl(result.url);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Erro ao gerar PDF");
@@ -58,7 +60,11 @@ export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus }: Props) {
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      {currentPdfUrl ? (
+      {modelo ? (
+        <a href={`/api/juridico/contratos/${contratoId}/pdf`} className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700">
+          <FileText size={10} /> Gerar PDF
+        </a>
+      ) : currentPdfUrl ? (
         <a
           href={currentPdfUrl}
           target="_blank"
@@ -77,7 +83,7 @@ export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus }: Props) {
           Gerar PDF
         </button>
       )}
-      {currentPdfUrl && status !== "assinado" && status !== "solicitado" && (
+      {!modelo && currentPdfUrl && status !== "assinado" && status !== "solicitado" && (
         <button
           onClick={handleSolicitar}
           disabled={loading !== null}
@@ -94,7 +100,7 @@ export function ContratoAcoes({ contratoId, pdfUrl, assinaturaStatus }: Props) {
         className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 transition-colors"
       >
         {loading === "upload" ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
-        Assinar
+        {modelo ? "Anexar PDF com todas as assinaturas" : "Assinar"}
       </button>
       <input
         ref={fileRef}

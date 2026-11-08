@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { salvarContratoCliente } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 import { jsPDF } from "jspdf";
+import { modeloNovo } from "@/lib/contratos/modelos";
 
 function formatCurrencyPdf(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -20,6 +21,7 @@ export async function gerarPdfContrato(contratoId: string) {
     include: { imovel: true },
   });
   if (!contrato) throw new Error("Contrato não encontrado");
+  if (modeloNovo(contrato.tipo)) throw new Error("Use Gerar PDF no Jurídico para baixar o modelo.");
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
@@ -156,8 +158,9 @@ export async function uploadContratoAssinado(contratoId: string, formData: FormD
   if (arquivo.type !== "application/pdf") throw new Error("Apenas PDF é aceito");
   if (arquivo.size > 10 * 1024 * 1024) throw new Error("Arquivo deve ter menos de 10MB");
 
-  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, select: { numero: true, leadId: true } });
+  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, select: { numero: true, leadId: true, tipo: true } });
   if (!contrato) throw new Error("Contrato não encontrado");
+  if (modeloNovo(contrato.tipo)) await exigirModuloAcao("juridico", { somenteEquipe: true });
 
   const blob = await salvarContratoCliente({ leadId: contrato.leadId, rotulo: `Contrato ${contrato.numero} assinado`, nome: `${contrato.numero}-assinado-${Date.now()}.pdf`, bytes: arquivo });
   if (!blob.url) return { error: blob.erro };
@@ -189,6 +192,8 @@ export async function marcarAssinaturaStatus(contratoId: string, status: string)
   const allowed = ["pendente", "solicitado", "assinado", "rejeitado"];
   if (!allowed.includes(status)) throw new Error("Status inválido");
 
+  const atual = await prisma.contrato.findUniqueOrThrow({ where: { id: contratoId }, select: { tipo: true } });
+  if (modeloNovo(atual.tipo)) throw new Error("Anexe o PDF com todas as assinaturas no Jurídico.");
   await prisma.contrato.update({
     where: { id: contratoId },
     data: { assinaturaStatus: status },

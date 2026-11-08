@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { salvarContratoCliente } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
+import { modeloNovo } from "@/lib/contratos/modelos";
 
 // Upload do contrato assinado feito pelo PRÓPRIO CLIENTE no portal.
 // Segurança: o contrato precisa pertencer ao lead da sessão (isolamento por leadId).
@@ -15,9 +16,10 @@ export async function enviarContratoAssinadoPortal(contratoId: string, formData:
 
   const contrato = await prisma.contrato.findUnique({
     where: { id: contratoId },
-    select: { numero: true, leadId: true },
+    select: { numero: true, leadId: true, tipo: true },
   });
   if (!contrato || contrato.leadId !== leadId) throw new Error("Contrato não encontrado");
+  if (modeloNovo(contrato.tipo)) throw new Error("O PDF com todas as assinaturas deve ser anexado pela equipe do Jurídico.");
 
   const arquivo = formData.get("arquivo") as File | null;
   if (!arquivo || arquivo.size === 0) throw new Error("Nenhum arquivo enviado");
