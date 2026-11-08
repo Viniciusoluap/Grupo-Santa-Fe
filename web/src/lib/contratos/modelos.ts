@@ -1,7 +1,7 @@
-import { isValidCPF } from "../cpf.js";
-import { calcularComissaoObra } from "../financeiro/comissao.js";
-import { centavosDe } from "../financeiro/obra.js";
-import { CLAUSULAS_ATC, CLAUSULAS_EXECUCAO } from "./textos.js";
+import { isValidCPF } from "../cpf";
+import { calcularComissaoObra } from "../financeiro/comissao";
+import { centavosDe } from "../financeiro/obra";
+import { CLAUSULAS_ATC, CLAUSULAS_EXECUCAO } from "./textos";
 
 export const MODELOS_CONTRATO = {
   construcao_atc: "CONSTRUÇÃO ATC",

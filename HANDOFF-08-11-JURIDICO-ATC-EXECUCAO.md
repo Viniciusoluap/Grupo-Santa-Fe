@@ -19,3 +19,10 @@
 Revisar o PR isolado e o texto contratual antes do uso comercial. Aplicar a migração aditiva primeiro em banco de teste, validar os dois fluxos pelo Jurídico e pelo CRM e conferir a base atual dos trabalhos paralelos antes do merge e do deploy.
 
 O schema fica em `web/prisma/schema.prisma` e a migração em `web/prisma/migrations/20261108110000_juridico_modelos_atc_execucao/migration.sql`. Segue a convenção do repositório de aplicar o SQL versionado no PostgreSQL. O formulário usa razão social, CNPJ válido e endereço das Configurações da empresa. A suíte completa passou com 1.109 testes e 156 ignorados antes da checagem final de validação cadastral.
+
+## Preparação da publicação autorizada em 08/11
+
+- O primeiro preview do PR #249 falhou porque o Turbopack não resolveu imports internos de TypeScript com extensão .js. Os quatro imports de contratos foram alinhados ao padrão do Next.js deste repositório.
+- (a) Os quatro testes dos modelos passaram após a correção. A migração no banco de teste Neon dedicado do Santa Fé criou as cinco colunas e três chaves estrangeiras esperadas.
+- (b) Na configuração societária de produção, confirmei que há entradas preenchidas para razão social, CNPJ e endereço.
+- (c) Pendentes nesta etapa: confirmação do novo build, migração de produção, merge, confirmação do deploy associado ao merge e validação autenticada com uma obra real.
