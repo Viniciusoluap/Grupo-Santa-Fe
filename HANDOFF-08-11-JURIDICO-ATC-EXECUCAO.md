@@ -26,3 +26,11 @@ O schema fica em `web/prisma/schema.prisma` e a migração em `web/prisma/migrat
 - (a) Os quatro testes dos modelos passaram após a correção. A migração no banco de teste Neon dedicado do Santa Fé criou as cinco colunas e três chaves estrangeiras esperadas.
 - (b) Na configuração societária de produção, confirmei que há entradas preenchidas para razão social, CNPJ e endereço.
 - (c) Pendentes nesta etapa: confirmação do novo build, migração de produção, merge, confirmação do deploy associado ao merge e validação autenticada com uma obra real.
+
+## Produção confirmada em 08/11/2026
+
+- PR #249 integrado à main no commit `e641b9bb174d81e9d484adf682f9772744ffe6c9`. Deploy de produção Vercel `dpl_Euf4aadnGRmikpZXPGs85YzdDifN` READY. Deploy anterior para referência de rollback `dpl_3bpKenzeM8uVr8pPtXrQdh4J1e5K`.
+- Migração aditiva confirmada em produção com cinco colunas e três chaves estrangeiras. Nenhum contrato real foi criado durante a publicação.
+- (a) TypeScript e 13 testes direcionados passaram. O preview corrigido e o build de produção concluíram. O login no domínio oficial respondeu HTTP 200. A rota de PDF recusou acesso sem sessão com HTTP 403.
+- (b) Consultei o cadastro de produção e conferi razão social, endereço e dígitos verificadores do CNPJ. As duas obras têm cliente vinculado, porém nenhuma tem imóvel vinculado.
+- (c) Pendente emissão autenticada de um contrato real pelo Jurídico ou CRM. No Santa Fé, vincular o imóvel correto à obra antes de emitir. O fluxo existente em Editar obra permite informar a Localização exata e criar o vínculo. Na validação, gerar o PDF e conferir as partes, comissão, data e anexação do PDF assinado.
