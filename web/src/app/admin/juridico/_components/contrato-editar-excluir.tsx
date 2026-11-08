@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Loader2, X } from "lucide-react";
 import { editarContrato, excluirContrato } from "@/lib/actions/contratos";
 import { NumeroInput } from "@/components/ui/numero-input";
+import { modeloNovo } from "@/lib/contratos/modelos";
 import { Modal } from "@/components/ui/modal";
 
 const TIPOS_CONTRATO = [
@@ -125,14 +126,15 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
             <form action={handleSalvar} className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <input type="hidden" name="id" value={contrato.id} />
 
-              <Campo label="Tipo">
-                <select name="tipo" defaultValue={contrato.tipo} className={inputCls}>
-                  {TIPOS_CONTRATO.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </Campo>
-
+              {!modeloNovo(contrato.tipo) && (
+                <Campo label="Tipo">
+                  <select name="tipo" defaultValue={contrato.tipo} className={inputCls}>
+                    {TIPOS_CONTRATO.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </Campo>
+              )}
               <Campo label="Status">
                 <select name="status" defaultValue={contrato.status} className={inputCls}>
                   {STATUS_OPCOES.map((s) => (
@@ -141,39 +143,40 @@ export function ContratoEditarExcluir({ contrato }: { contrato: ContratoEditavel
                 </select>
               </Campo>
 
-              <Campo label="Parte A (Contratante)">
-                <input name="parteA" required defaultValue={contrato.parteA} className={inputCls} />
-              </Campo>
-              <Campo label="Doc. Parte A">
-                <input name="parteADoc" defaultValue={contrato.parteADoc ?? ""} className={inputCls} />
-              </Campo>
-
-              <Campo label="Parte B (Contratado)">
-                <input name="parteB" required defaultValue={contrato.parteB} className={inputCls} />
-              </Campo>
-              <Campo label="Doc. Parte B">
-                <input name="parteBDoc" defaultValue={contrato.parteBDoc ?? ""} className={inputCls} />
-              </Campo>
-
-              <Campo label="Valor (R$)">
-                <NumeroInput name="valor" prefixo="R$" negativo={false} defaultValue={contrato.valor} className={inputCls} />
-              </Campo>
-              <Campo label="Vencimento">
-                <input name="vencimento" type="date" defaultValue={contrato.vencimento ?? ""} className={inputCls} />
-              </Campo>
-
-              <div className="sm:col-span-2">
-                <Campo label="Descrição">
-                  <input name="descricao" defaultValue={contrato.descricao ?? ""} className={inputCls} />
+              {!modeloNovo(contrato.tipo) && <>
+                <Campo label="Parte A (Contratante)">
+                  <input name="parteA" required defaultValue={contrato.parteA} className={inputCls} />
                 </Campo>
-              </div>
-
-              <div className="sm:col-span-2">
-                <Campo label="Cláusulas">
-                  <textarea name="clausulas" rows={4} defaultValue={contrato.clausulas ?? ""} className={inputCls} />
+                <Campo label="Doc. Parte A">
+                  <input name="parteADoc" defaultValue={contrato.parteADoc ?? ""} className={inputCls} />
                 </Campo>
-              </div>
 
+                <Campo label="Parte B (Contratado)">
+                  <input name="parteB" required defaultValue={contrato.parteB} className={inputCls} />
+                </Campo>
+                <Campo label="Doc. Parte B">
+                  <input name="parteBDoc" defaultValue={contrato.parteBDoc ?? ""} className={inputCls} />
+                </Campo>
+
+                <Campo label="Valor (R$)">
+                  <NumeroInput name="valor" prefixo="R$" negativo={false} defaultValue={contrato.valor} className={inputCls} />
+                </Campo>
+                <Campo label="Vencimento">
+                  <input name="vencimento" type="date" defaultValue={contrato.vencimento ?? ""} className={inputCls} />
+                </Campo>
+
+                <div className="sm:col-span-2">
+                  <Campo label="Descrição">
+                    <input name="descricao" defaultValue={contrato.descricao ?? ""} className={inputCls} />
+                  </Campo>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Campo label="Cláusulas">
+                    <textarea name="clausulas" rows={4} defaultValue={contrato.clausulas ?? ""} className={inputCls} />
+                  </Campo>
+                </div>
+              </>}
               <div className="sm:col-span-2 flex justify-end gap-2">
                 <button
                   type="button"

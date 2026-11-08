@@ -237,6 +237,7 @@ model Corretor {
   leads          Lead[]
   visitas        Visita[]
   comissoes      Comissao[]
+  contratosIntermediados Contrato[] @relation("ContratoCorretor")
   financiamentos Financiamento[]
   criadoEm       DateTime               @default(now())
   atualizadoEm   DateTime               @updatedAt
@@ -399,6 +400,7 @@ model Obra {
   fotos                           ObraFoto[]
   movimentos                      ObraMovimento[]
   investidores                    ObraInvestidor[]
+  contratos                       Contrato[]
   etapas                          ObraEtapa[]
   diario                          ObraDiario[]
   criadoEm                        DateTime                 @default(now())
@@ -671,6 +673,14 @@ model Contrato {
   lead                Lead?               @relation("ContratoLead", fields: [leadId], references: [id], onDelete: SetNull)
   valor               Float
   vencimento          DateTime?
+  dataAssinatura      DateTime?           @db.Date
+  obraId              String?
+  obra                Obra?               @relation(fields: [obraId], references: [id], onDelete: SetNull)
+  empreiteiroId       String?
+  empreiteiro         Usuario?            @relation("ContratoEmpreiteiro", fields: [empreiteiroId], references: [id], onDelete: SetNull)
+  corretorId          String?
+  corretor            Corretor?           @relation("ContratoCorretor", fields: [corretorId], references: [id], onDelete: SetNull)
+  assinantes          Json?               @db.JsonB
   descricao           String              @default("")
   clausulas           String              @default("")
   contratoAssinadoUrl String?
@@ -908,6 +918,7 @@ model Avaliacao {
 model Usuario {
   id                          String                @id @default(cuid())
   obrasComoEmpreiteiro        Obra[]                @relation("ObraEmpreiteiro")
+  contratosComoEmpreiteiro    Contrato[]            @relation("ContratoEmpreiteiro")
   projetosComoEngenheiro      Projeto[]             @relation("ProjetoEngenheiro")
   revisoesSolicitadas         ProjetoRevisao[]      @relation("RevisaoSolicitante")
   revisoesComoColaborador     ProjetoRevisao[]      @relation("RevisaoColaborador")

@@ -2,10 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { exigirModuloAcao } from "@/lib/auth/modulos";
 import { prisma } from "@/lib/db";
+import { MODELOS_CONTRATO, modeloNovo } from "@/lib/contratos/modelos";
+import { gerarPdfModelo } from "@/lib/contratos/pdf";
 import { salvarContratoCliente } from "@/lib/blob";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await exigirModuloAcao("juridico", { somenteEquipe: true });
+  } catch {
+    return NextResponse.json({ error: "Sem permissão para o Jurídico." }, { status: 403 });
+  }
+  const { id } = await params;
+  const contrato = await prisma.contrato.findUnique({
+    where: { id },
+    select: { tipo: true, numero: true, dataAssinatura: true, clausulas: true, assinantes: true },
+  });
+  if (!contrato || !modeloNovo(contrato.tipo) || !contrato.dataAssinatura ||
+      !Array.isArray(contrato.assinantes) || !contrato.assinantes.every((v) => typeof v === "string")) {
+    return NextResponse.json({ error: "Contrato ou modelo não encontrado." }, { status: 404 });
+  }
+  const pdf = gerarPdfModelo({
+    numero: contrato.numero, titulo: MODELOS_CONTRATO[contrato.tipo],
+    data: contrato.dataAssinatura, clausulas: contrato.clausulas, assinaturas: contrato.assinantes,
+  });
+  return new Response(pdf.output("arraybuffer"), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${contrato.numero.replace(/[^a-zA-Z0-9_-]/g, "-")}.pdf"`,
+      "Cache-Control": "private, no-store",
+    },
+  });
+}
 
 // Item 11 (18/10): anexar o PDF do contrato a partir do lead — envio com progresso
 // real (rota em vez de ação do servidor) e o arquivo gravado como no Jurídico.

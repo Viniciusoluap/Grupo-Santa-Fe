@@ -9,6 +9,8 @@ import { ContratoDocumentos } from "./_components/contrato-documentos";
 import { ChatAdmin } from "./_components/chat-admin";
 import { ROTULO_TIPO_CONTRATO } from "@/lib/juridico/tipos-contrato";
 import { rotulo } from "@/lib/rotulos";
+import { opcoesModelosContrato } from "@/lib/contratos/dados";
+import { MODELOS_CONTRATO, modeloNovo } from "@/lib/contratos/modelos";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   rascunho:  { bg: "bg-gray-100",   text: "text-gray-600" },
@@ -30,14 +32,14 @@ type Tab = "contratos" | "chat";
 export default async function JuridicoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; contrato?: string }>;
+  searchParams: Promise<{ tab?: string; contrato?: string; novo?: string }>;
 }) {
-  await exigirModuloPagina("juridico");
+  const usuario = await exigirModuloPagina("juridico");
 
   const sp = await searchParams;
   const activeTab: Tab = sp.tab === "chat" ? "chat" : "contratos";
 
-  const [contratos, leads, configsDB] = await Promise.all([
+  const [contratos, leads, opcoes] = await Promise.all([
     prisma.contrato.findMany({
       orderBy: { criadoEm: "desc" },
       include: {
@@ -50,16 +52,10 @@ export default async function JuridicoPage({
       select: { id: true, nome: true, telefone: true, email: true },
       orderBy: { nome: "asc" },
     }),
-    prisma.configuracao.findMany({
-      where: { chave: { in: ["razao_social", "cnpj"] } },
-    }),
+    activeTab === "contratos" && (usuario.perfil === "admin" || usuario.perfil === "colaborador")
+      ? opcoesModelosContrato()
+      : null,
   ]);
-
-  const configMap = Object.fromEntries(configsDB.map((c) => [c.chave, c.valor]));
-  const empresa = {
-    razaoSocial: configMap["razao_social"] ?? "Grupo Santa Fé",
-    cnpj: configMap["cnpj"] ?? "",
-  };
 
   const ativos = contratos.filter((c) => c.status === "ativo").length;
   const rascunhos = contratos.filter((c) => c.status === "rascunho").length;
@@ -118,12 +114,12 @@ export default async function JuridicoPage({
       {activeTab === "contratos" && (
         <>
           {/* Quick add form */}
-          <div className="bg-white border border-gray-100 p-5">
+          {opcoes && <div className="bg-white border border-gray-100 p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Plus size={12} /> Novo Contrato
             </p>
-            <JuridicoNovoContrato leads={leads} empresa={empresa} />
-          </div>
+            <JuridicoNovoContrato key={sp.contrato ?? sp.novo} opcoes={opcoes} leadId={sp.novo} />
+          </div>}
 
           {/* Contracts list */}
           {contratos.length === 0 ? (
@@ -138,7 +134,7 @@ export default async function JuridicoPage({
                 <table className="w-full text-sm">
                   <thead className="bg-[var(--brand-dark)]">
                     <tr>
-                      {["Número", "Tipo", "Parte A", "Parte B", "Valor", "Vencimento", "Assinatura", "Docs", "Status", "Ações"].map((h) => (
+                      {["Número", "Tipo", "Parte A", "Parte B", "Valor", "Data da assinatura", "Assinatura", "Docs", "Status", "Ações"].map((h) => (
                         <th key={h} className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-3 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -151,12 +147,13 @@ export default async function JuridicoPage({
                       return (
                         <tr key={c.id} id={`contrato-${c.id}`} className={`hover:bg-gray-50 transition-colors scroll-mt-24 ${sp.contrato === c.id ? "bg-yellow-50 ring-2 ring-inset ring-[var(--brand-yellow)]" : ""}`}>
                           <td className="px-3 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{c.numero}</td>
-                          <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{ROTULO_TIPO_CONTRATO[c.tipo] ?? rotulo(c.tipo)}</td>
+                          <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">{modeloNovo(c.tipo) ? MODELOS_CONTRATO[c.tipo] : ROTULO_TIPO_CONTRATO[c.tipo] ?? rotulo(c.tipo)}</td>
                           <td className="px-3 py-3 font-medium text-[var(--brand-dark)] max-w-[120px] truncate text-xs">{c.parteA}</td>
                           <td className="px-3 py-3 text-gray-600 max-w-[120px] truncate text-xs">{c.parteB}</td>
                           <td className="px-3 py-3 font-bold text-[var(--brand-dark)] text-xs whitespace-nowrap">{formatCurrency(c.valor)}</td>
                           <td className="px-3 py-3 text-gray-500 text-xs whitespace-nowrap">
-                            {c.vencimento ? new Date(c.vencimento).toLocaleDateString("pt-BR") : "—"}
+                            {c.dataAssinatura ? c.dataAssinatura.toISOString().slice(0, 10).split("-").reverse().join("/") :
+                              c.vencimento ? `Venc. ${c.vencimento.toLocaleDateString("pt-BR")}` : "—"}
                           </td>
                           <td className="px-3 py-3">
                             <span className="flex items-center gap-1 text-[10px] font-bold text-gray-600 whitespace-nowrap">
@@ -179,6 +176,7 @@ export default async function JuridicoPage({
                             <div className="flex flex-col gap-1.5">
                               <ContratoAcoes
                                 contratoId={c.id}
+                                modelo={modeloNovo(c.tipo)}
                                 pdfUrl={pdfDoc?.url}
                                 assinaturaStatus={c.assinaturaStatus}
                               />
