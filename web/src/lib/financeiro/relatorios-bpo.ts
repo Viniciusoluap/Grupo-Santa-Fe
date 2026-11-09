@@ -10,9 +10,9 @@
 //   sem início, a data de criação. Cada obra conta uma única vez (por id).
 // - VGV simulado: obra com lead usa o VGV simulado do lead (Prospecta:
 //   leads.simulation_value; Santa Fé: Lead.orcamento); sem lead, o VGV da obra.
-// - Entrada: regra do financeiro da obra — VGV − financiamento − FGTS − subsídio,
-//   só quando os quatro estão preenchidos; obra sem esses dados fica fora da
-//   soma da entrada (e é contada em `obrasSemEntrada`).
+// - Composição: entrada = VGV − financiamento − FGTS − subsídio. A pizza usa
+//   apenas obras cujas parcelas estão preenchidas e não são negativas. O VGV
+//   dessas obras e o VGV ainda sem composição são informados separadamente.
 // - Funil (18.2): leads ativos do CRM (sem excluídos/arquivados), criados no
 //   período; etapa resolvida pela regra do CRM; sem etapa válida →
 //   "Aguardando classificação".
@@ -69,10 +69,13 @@ export type IndicadoresObras = {
   obrasElegiveis: number;
   /** null quando não há obra elegível (tela mostra "—"). */
   ticketMedio: number | null;
+  vgvComComposicao: number;
+  vgvSemComposicao: number;
+  obrasSemComposicao: number;
   financiadoTotal: number;
   subsidioTotal: number;
   entradaTotal: number;
-  obrasSemEntrada: number;
+  fgtsTotal: number;
 };
 
 export function vgvSimuladoCentavos(o: Pick<ObraRelatorio, "leadId" | "vgvLead" | "vgv">): number | null {
@@ -89,42 +92,51 @@ export function obraElegivel(o: ObraRelatorio, p: Periodo): boolean {
 export function indicadoresDeObras(obras: ObraRelatorio[], p: Periodo): IndicadoresObras {
   const unicas = new Map<string, ObraRelatorio>();
   for (const o of obras) if (obraElegivel(o, p)) unicas.set(String(o.id), o);
-  let vgv = 0, financiado = 0, subsidio = 0, entrada = 0, semEntrada = 0;
+  let vgv = 0, vgvComComposicao = 0, obrasSemComposicao = 0;
+  let financiado = 0, subsidio = 0, entrada = 0, totalFgts = 0;
   for (const o of Array.from(unicas.values())) {
     const v = vgvSimuladoCentavos(o)!;
     const fin = centavosDe(o.financiamento);
     const fgts = centavosDe(o.fgts);
     const sub = centavosDe(o.subsidio);
     vgv += v;
-    financiado += fin ?? 0;
-    subsidio += sub ?? 0;
-    if (fin === null || fgts === null || sub === null) semEntrada++;
-    else entrada += v - fin - fgts - sub;
+    if (fin === null || fgts === null || sub === null ||
+        fin < 0 || fgts < 0 || sub < 0 || fin + fgts + sub > v) {
+      obrasSemComposicao++;
+      continue;
+    }
+    vgvComComposicao += v;
+    financiado += fin;
+    subsidio += sub;
+    entrada += v - fin - fgts - sub;
+    totalFgts += fgts;
   }
   const n = unicas.size;
   return {
     vgvTotal: reais(vgv),
     obrasElegiveis: n,
     ticketMedio: n > 0 ? reais(Math.round(vgv / n)) : null,
+    vgvComComposicao: reais(vgvComComposicao),
+    vgvSemComposicao: reais(vgv - vgvComComposicao),
+    obrasSemComposicao,
     financiadoTotal: reais(financiado),
     subsidioTotal: reais(subsidio),
     entradaTotal: reais(entrada),
-    obrasSemEntrada: semEntrada,
+    fgtsTotal: reais(totalFgts),
   };
 }
 
-export const NOTA_NUMEROS_DE_OBRA = "Comparação entre métricas; as fatias não somam um total.";
 export const AJUDA_VGV_DE_OBRAS =
   "Soma do VGV simulado das obras não canceladas com VGV maior que zero. O período considera a data de início da obra ou, quando não houver início, a data de criação. Ticket médio = VGV total ÷ número de obras.";
 
-/** Fatias do gráfico "Números de Obra" (valores ≥ 0 para o gráfico; o valor real fica em `valor`). */
-export function numerosDeObra(i: IndicadoresObras): { chave: string; nome: string; valor: number; fatia: number }[] {
+/** As quatro parcelas das mesmas obras somam o VGV com composição. */
+export function numerosDeObra(i: IndicadoresObras) {
   return [
-    { chave: "vgv", nome: "VGV total simulado", valor: i.vgvTotal },
-    { chave: "financiado", nome: "Financiado total", valor: i.financiadoTotal },
-    { chave: "subsidio", nome: "Subsídio total", valor: i.subsidioTotal },
-    { chave: "entrada", nome: "Entrada total dos clientes", valor: i.entradaTotal },
-  ].map((f) => ({ ...f, fatia: Math.max(0, f.valor) }));
+    { chave: "financiado", nome: "Financiamento", valor: i.financiadoTotal },
+    { chave: "subsidio", nome: "Subsídio", valor: i.subsidioTotal },
+    { chave: "entrada", nome: "Entrada dos clientes", valor: i.entradaTotal },
+    { chave: "fgts", nome: "FGTS", valor: i.fgtsTotal },
+  ];
 }
 
 // ---------------------------------------------------------------------- 18.2

@@ -20,7 +20,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Modal } from "@/components/ui/modal";
 import { PercentInput } from "@/components/ui/percent-input";
 import { TrendingUp, DollarSign, Users, Award, HardHat, Info } from "lucide-react";
-import { AJUDA_VGV_DE_OBRAS, MENSAGEM_RANKING_VAZIO, NOTA_NUMEROS_DE_OBRA } from "@/lib/financeiro/relatorios-bpo";
+import { AJUDA_VGV_DE_OBRAS, MENSAGEM_RANKING_VAZIO } from "@/lib/financeiro/relatorios-bpo";
 import type { IndicadoresRelatorios } from "@/lib/financeiro/relatorios-bpo-dados";
 import { ehDespesa } from "@/lib/bpo-categorias";
 import { MESES_DRE, dreFiltrado, type CelulaDre, type LinhaDre, type ResumoContabil } from "@/lib/financeiro/bpo-resultado";
@@ -143,7 +143,7 @@ function fmt(v: number) {
 // LOTE C: o cursor padrão do Tooltip do recharts em gráfico de barras é um retângulo cinza
 // (#ccc) do tamanho da faixa; com poucas categorias ele cobre o gráfico inteiro ("bloco cinza").
 const CURSOR_BARRA = { fill: "rgba(245, 196, 0, 0.08)" };
-const CORES_NUMEROS_OBRA = ["#F5C400", "#2563EB", "#16A34A", "#9333EA"];
+const CORES_NUMEROS_OBRA = ["#2563EB", "#16A34A", "#9333EA", "#F5C400"];
 
 /** Lote 03 (paridade com a Prospecta): datas "AAAA-MM-DD" → "dd/mm/aaaa". */
 function dataBr(iso: string) {
@@ -170,7 +170,7 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   const dreTemDados = dreMensal.some((m) => m.receitas || m.despesas);
   const totalReceita = monthlySales.reduce((s, m) => s + m.receita, 0);
   const totalVendas = monthlySales.reduce((s, m) => s + m.vendas, 0);
-  const numerosObraGrafico = numerosDeObra.filter((f) => f.fatia > 0);
+  const numerosObraGrafico = numerosDeObra.filter((f) => f.valor > 0);
 
   const now = new Date();
   const periodoLabel = (() => {
@@ -214,17 +214,17 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
         de Corretores. Receita, DRE e vendas mensais mostram os últimos 12 meses ({periodoLabel}); Unidades Disponíveis é a situação atual.
       </p>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {kpis.map((k) => (
-          <div key={k.label} className="bg-white border border-gray-100 p-4">
-            <div className="flex items-center justify-between mb-3">
+          <div key={k.label} className="min-w-0 bg-white border border-gray-100 px-3 py-4 sm:px-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <p className="text-xs font-bold text-gray-600 uppercase tracking-widest flex items-center gap-1">
                 {k.label}
                 {"ajuda" in k && k.ajuda && <span title={k.ajuda} aria-label={k.ajuda}><Info size={12} className="text-gray-400" /></span>}
               </p>
-              <k.icon size={16} className="text-gray-500" />
+              <k.icon size={16} className="shrink-0 text-gray-500" />
             </div>
-            <p className="font-black text-[var(--brand-dark)] text-2xl leading-none">{k.value}</p>
+            <p className="font-black text-[var(--brand-dark)] text-xl leading-tight tabular-nums [overflow-wrap:anywhere]">{k.value}</p>
             <p className="text-xs mt-1 text-green-500">{k.delta}</p>
           </div>
         ))}
@@ -288,12 +288,16 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
 
         <div className="bg-white border border-gray-100 p-5">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Números de Obra</p>
+          <p className="text-sm text-gray-600">VGV total simulado</p>
+          <p className="text-xl font-black text-[var(--brand-dark)] [overflow-wrap:anywhere]">{formatCurrency(vgvObras.vgvTotal)}</p>
           {numerosObraGrafico.length === 0 ? (
-            <p className="text-gray-600 text-sm text-center py-8">Nenhuma obra com VGV no período.</p>
+            <p className="text-gray-600 text-sm text-center py-8">
+              {vgvObras.obrasElegiveis > 0 ? "Nenhuma obra com composição válida no período." : "Nenhuma obra com VGV no período."}
+            </p>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
-                <Pie data={numerosObraGrafico} cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="fatia" nameKey="nome" strokeWidth={0}>
+                <Pie data={numerosObraGrafico} cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="valor" nameKey="nome" strokeWidth={0}>
                   {numerosObraGrafico.map((f) => <Cell key={f.chave} fill={CORES_NUMEROS_OBRA[numerosDeObra.findIndex((n) => n.chave === f.chave)]} />)}
                 </Pie>
                 <Tooltip formatter={(v, nome) => [formatCurrency(Number(v ?? 0)), String(nome)]} />
@@ -302,19 +306,24 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
           )}
           <div className="space-y-2 mt-2">
             {numerosDeObra.map((d, i) => (
-              <div key={d.chave} className="flex items-center justify-between gap-2">
+              <div key={d.chave} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: CORES_NUMEROS_OBRA[i] }} />
                   <span className="text-sm text-gray-600">{d.nome}</span>
                 </div>
-                <span className="text-xs font-black text-[var(--brand-dark)]">{formatCurrency(d.valor)}</span>
+                <span className="text-xs font-black text-[var(--brand-dark)] [overflow-wrap:anywhere]">{formatCurrency(d.valor)}</span>
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-3">
-            {NOTA_NUMEROS_DE_OBRA}
-            {vgvObras.obrasSemEntrada > 0 && ` A entrada não inclui ${vgvObras.obrasSemEntrada} obra(s) sem financiamento, FGTS ou subsídio informados.`}
-          </p>
+          {vgvObras.obrasSemComposicao > 0 && (
+            <div className="mt-3 border-t border-gray-100 pt-2 text-xs text-gray-600 [overflow-wrap:anywhere]">
+              <p>VGV representado na pizza <strong>{formatCurrency(vgvObras.vgvComComposicao)}</strong></p>
+              <p>VGV sem composição <strong>{formatCurrency(vgvObras.vgvSemComposicao)}</strong></p>
+              <p className="mt-1">
+                {vgvObras.obrasSemComposicao} obra(s) com dados de financiamento, subsídio ou FGTS incompletos ou inconsistentes.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
