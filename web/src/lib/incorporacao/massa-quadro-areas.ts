@@ -11,6 +11,10 @@
 //                   + sistema viário (vias e sobras de quadra = o restante)
 //   área pública total = sistema viário + área verde + área institucional
 //
+// Com viário GEOMÉTRICO (motor v2): sistema viário = área das vias desenhadas e
+//   área parcelável = vendável + verde + institucional + viário + sobras de quadra,
+// onde as sobras são o remanescente que o desenho não aproveita (nunca "viário" fictício).
+//
 // As não parceláveis são somadas uma vez e limitadas à área bruta; se a soma
 // passar da gleba, o quadro avisa (sobreposição provável entre restrições).
 
@@ -30,6 +34,15 @@ export interface EntradaQuadroAreas {
   areaInstitucionalM2: number;
   areaVerdeM2: number;
   precoM2Lote: number;
+  /**
+   * Área do sistema viário DESENHADO (geométrica). Quando informada, o sistema viário do
+   * quadro é exatamente essa área e o que sobra da área parcelável vira "sobras de quadra"
+   * (remanescente não aproveitado). Quando ausente, mantém o cálculo legado: viário = resto.
+   */
+  sistemaViarioM2?: number;
+  /** Modo de definição da área viária e valor manual (quando houver) — só para exibição/auditoria. */
+  modoSistemaViario?: "automatico" | "manual";
+  sistemaViarioInformadoM2?: number;
 }
 
 export interface QuadroAreasMassa {
@@ -54,6 +67,10 @@ export interface QuadroAreasMassa {
   aproveitamentoParcelavel: number;
   vgv: number;
   avisos: string[];
+  /** Sobras de quadra / remanescente não aproveitado (só no cálculo com viário geométrico). */
+  sobrasM2?: number;
+  modoSistemaViario?: "automatico" | "manual";
+  sistemaViarioInformadoM2?: number;
 }
 
 export const RESTRICOES_VAZIAS: RestricoesNaoParcelaveis = {
@@ -96,8 +113,18 @@ export function calcularQuadroAreasMassa(e: EntradaQuadroAreas): QuadroAreasMass
   const vendavel = positivo(e.areaVendavelM2);
   const verde = positivo(e.areaVerdeM2);
   const institucional = positivo(e.areaInstitucionalM2);
+  const geometrico = e.sistemaViarioM2 !== undefined && Number.isFinite(e.sistemaViarioM2);
   let viario = areaParcelavel - vendavel - verde - institucional;
-  if (viario < -0.5) {
+  let sobras: number | undefined;
+  if (geometrico) {
+    const viarioGeo = positivo(e.sistemaViarioM2);
+    sobras = viario - viarioGeo;
+    if (sobras < -0.5) {
+      avisos.push(`Vias desenhadas (${r2(viarioGeo)} m²), lotes e doações somam mais que a área parcelável em ${r2(-sobras)} m² — as áreas não parceláveis informadas não cabem fora do desenho. Revise as restrições.`);
+    }
+    sobras = Math.max(0, sobras);
+    viario = viarioGeo;
+  } else if (viario < -0.5) {
     avisos.push("Lotes e doações somam mais que a área parcelável — o cenário ocupa áreas não parceláveis. Revise as restrições ou gere novos cenários.");
   }
   viario = Math.max(0, viario);
@@ -122,6 +149,11 @@ export function calcularQuadroAreasMassa(e: EntradaQuadroAreas): QuadroAreasMass
     aproveitamentoParcelavel: areaParcelavel > 0 ? vendavel / areaParcelavel : 0,
     vgv: Math.round(vendavel * positivo(e.precoM2Lote)),
     avisos,
+    ...(geometrico ? {
+      sobrasM2: r2(sobras ?? 0),
+      modoSistemaViario: e.modoSistemaViario ?? "automatico",
+      ...(e.sistemaViarioInformadoM2 !== undefined ? { sistemaViarioInformadoM2: r2(positivo(e.sistemaViarioInformadoM2)) } : {}),
+    } : {}),
   };
 }
 
@@ -135,10 +167,11 @@ export function linhasQuadroAreas(q: QuadroAreasMassa): { rotulo: string; m2: nu
     { rotulo: "Faixa de servidão", m2: q.faixaServidaoM2 },
     { rotulo: "Outras não parceláveis", m2: q.outrasNaoParcelaveisM2 },
     { rotulo: "Área parcelável", m2: q.areaParcelavelM2, destaque: true },
-    { rotulo: "Sistema viário (inclui sobras de quadra)", m2: q.sistemaViarioM2 },
+    { rotulo: q.sobrasM2 !== undefined ? "Sistema viário (desenhado)" : "Sistema viário (inclui sobras de quadra)", m2: q.sistemaViarioM2 },
     { rotulo: "Área verde", m2: q.areaVerdeM2 },
     { rotulo: "Área institucional", m2: q.areaInstitucionalM2 },
     { rotulo: "Área pública total", m2: q.areaPublicaTotalM2, destaque: true },
     { rotulo: "Área líquida vendável", m2: q.areaLiquidaVendavelM2, destaque: true },
+    ...(q.sobrasM2 !== undefined ? [{ rotulo: "Sobras de quadra (remanescente)", m2: q.sobrasM2 }] : []),
   ];
 }
