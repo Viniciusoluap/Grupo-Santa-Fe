@@ -13,3 +13,10 @@
 - (c) Verificar o build do PR e abrir BPO > Relatórios com o período do print. Conferir os cartões no tablet e comparar as quatro parcelas com o VGV representado na pizza. Confirmar o valor separado das obras ainda sem composição antes de publicar em produção.
 
 Santa Fé: 17 testes direcionados passaram. O teste de integração com banco foi ignorado por falta de banco de teste configurado no runner.
+
+## Publicação em produção
+
+- PR #250 incorporado à main no commit `442edf23d2ad045156d55979b42d18f2132a4d7e`. Deploy Vercel `dpl_5eZRuqSQ5qwe8hT3ywHTC5wnoawi` pronto e associado ao domínio oficial. Deploy anterior para referência de rollback `dpl_Euf4aadnGRmikpZXPGs85YzdDifN`.
+- (a) Preview e build de produção concluíram. A página de login do domínio oficial respondeu HTTP 200.
+- (b) A verificação visual com dados simulados foi feita na Prospecta.
+- (c) Próximo passo de aceite: abrir BPO > Relatórios com sessão autenticada e conferir os cartões e a composição do VGV com os dados reais do período.
