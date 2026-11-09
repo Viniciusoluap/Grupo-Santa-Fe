@@ -73,24 +73,34 @@ describe("14 — VGV de Obras e Ticket Médio", () => {
 });
 
 describe("18.1 — Números de Obra", () => {
-  it("totaliza financiado, subsídio e entrada (VGV − financiamento − FGTS − subsídio)", () => {
+  it("compõe o VGV da pizza com as quatro parcelas da mesma base de obras", () => {
     const r = indicadoresDeObras([
-      obra({ id: 1 }),
+      obra({ id: 1, vgv: "200000.01", financiamento: "150000.02", fgts: "10000.03", subsidio: "20000.04" }),
       obra({ id: 2, fgts: null, financiamento: "100000.00", subsidio: "5000.00" }),
     ], P);
-    expect(r.financiadoTotal).toBe(250000);
-    expect(r.subsidioTotal).toBe(25000);
-    expect(r.entradaTotal).toBe(20000); // só a obra 1 tem os quatro valores
-    expect(r.obrasSemEntrada).toBe(1);
+    expect(r).toMatchObject({
+      vgvTotal: 400000.01, vgvComComposicao: 200000.01, vgvSemComposicao: 200000,
+      obrasSemComposicao: 1, obrasElegiveis: 2,
+    });
     const fatias = numerosDeObra(r);
-    expect(fatias.map((f) => f.nome)).toEqual(["VGV total simulado", "Financiado total", "Subsídio total", "Entrada total dos clientes"]);
-    expect(fatias[0].valor).toBe(400000);
+    expect(fatias.map(({ chave, valor }) => [chave, valor])).toEqual([
+      ["financiado", 150000.02], ["subsidio", 20000.04], ["entrada", 19999.92], ["fgts", 10000.03],
+    ]);
+    expect(fatias.reduce((total, f) => total + Math.round(f.valor * 100), 0)).toBe(Math.round(r.vgvComComposicao * 100));
   });
 
-  it("entrada negativa não vira fatia negativa", () => {
-    const r = indicadoresDeObras([obra({ financiamento: "250000.00" })], P);
-    expect(r.entradaTotal).toBe(-80000);
-    expect(numerosDeObra(r)[3].fatia).toBe(0);
+  it("sinaliza componentes inconsistentes e mantém o VGV dessas obras no total", () => {
+    const r = indicadoresDeObras([
+      obra({ id: 1, financiamento: "250000.00" }),
+      obra({ id: 2, fgts: "-100.00" }),
+    ], P);
+    expect(r).toMatchObject({ vgvTotal: 400000, vgvComComposicao: 0, vgvSemComposicao: 400000, obrasSemComposicao: 2 });
+    expect(numerosDeObra(r).every((f) => f.valor === 0)).toBe(true);
+  });
+
+  it("aceita parcelas zeradas quando o zero está informado", () => {
+    const r = indicadoresDeObras([obra({ financiamento: "0", fgts: "0", subsidio: "0" })], P);
+    expect(r).toMatchObject({ vgvTotal: 200000, vgvComComposicao: 200000, vgvSemComposicao: 0, obrasSemComposicao: 0, entradaTotal: 200000 });
   });
 });
 
