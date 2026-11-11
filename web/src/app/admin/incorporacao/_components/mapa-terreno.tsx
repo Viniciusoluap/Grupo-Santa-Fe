@@ -275,7 +275,7 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
               <option value="200">200 m</option><option value="500">500 m (ex.: lei municipal de Imperatriz)</option>
             </select>
           } />
-        <LinhaCamada cor={CORES.rio} titulo="Rios e cursos d'água (ANA)" e={estados.hidrografia} onRetry={() => carregar(["hidrografia"], true)}
+        <LinhaCamada cor={CORES.rio} titulo="Rios e cursos d'água (ANA/DNIT)" e={estados.hidrografia} onRetry={() => carregar(["hidrografia"], true)}
           ok={d => `${d.rios.length} trecho(s) · ${d.aguas.length} lâmina(s) d'água${d.aguas[0]?.properties.nome ? ` (${d.aguas[0].properties.nome})` : ""} · ${d.nascentes.length} nascente(s)`}
           vazio="nenhum curso d'água oficial a 600 m" />
         <LinhaCamada cor={CORES.via} titulo="OpenStreetMap (complemento)" e={estados.osm} onRetry={() => carregar(["osm"], true)}
