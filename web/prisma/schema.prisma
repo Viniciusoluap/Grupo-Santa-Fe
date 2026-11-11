@@ -1433,6 +1433,23 @@ model EstudoUnidadeEvento {
 
 // ─── ARQUIVOS (armazenamento no próprio banco — sem dependência de Blob) ───────
 
+/// Partes de um anexo em envio (Due Diligence/registro): a Vercel limita cada requisição a ~4,5 MB, então
+/// arquivos de até 50 MB chegam em partes de 2 MiB e são juntados na finalização. Partes abandonadas há mais
+/// de um dia são apagadas no próximo envio. Gêmeo de `incorporation_upload_parts` da Prospecta.
+model EstudoDocumentoParte {
+  uploadId  String   @db.VarChar(64)
+  parte     Int
+  estudoId  String
+  itemId    String   @db.VarChar(80)
+  usuarioId String
+  dados     Bytes
+  criadoEm  DateTime @default(now())
+
+  @@id([uploadId, parte])
+  @@index([criadoEm])
+  @@map("estudo_documento_partes")
+}
+
 model Arquivo {
   id                String                   @id @default(cuid())
   nome              String

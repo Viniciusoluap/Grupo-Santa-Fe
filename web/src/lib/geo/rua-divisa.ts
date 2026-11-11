@@ -28,6 +28,32 @@ export interface OpcoesViaDivisa {
   limiteComprimentoM?: number;
 }
 
+/** Ajustes da implantação por lados escolhidos (rua de cima/esquerda/direita/baixo). */
+export interface ExtrasImplantacao {
+  /** Áreas já ocupadas (outras vias, lotes de outra divisa) — subtraídas dos lotes. */
+  ocupados?: Position[][];
+  /**
+   * Fundo variável: a frente fica EXATAMENTE na testada e, quando a faixa perpendicular não atinge a
+   * área mínima, a divisa lateral do lote gira para trás (o fundo alarga) em vez de aumentar a frente.
+   */
+  fundoVariavel?: boolean;
+  /** A via ocupa a divisa escolhida inteira (não para no último lote). */
+  viaInteira?: boolean;
+  /** A divisa JÁ é via pública: não cria via interna (lote com frente direta na divisa). */
+  semVia?: boolean;
+  /**
+   * Fundo até o MEIO da distância à divisa oposta (lotes "de costas" para outra via): o fundo de cada lote é a
+   * metade da distância, medida no próprio lote, até o outro lado da gleba (limitada por `fundoMaxM`), e a frente
+   * é a menor (≥ testada) que atinge a área mínima — ex.: faixa de 33,6 m entre duas ruas → fundo 16,81 m e
+   * frente 125 ÷ 16,81 = 7,44 m.
+   */
+  fundoAteMeio?: boolean;
+  /** Fração da travessia que fica com este trecho (padrão 0,5 = meio). O lado com frente longa pode ficar mais fundo. */
+  fracaoFundo?: number;
+  /** Fundo máximo do lote (m). Padrão: 2 × profundidade. Com vias em divisas opostas, a profundidade informada. */
+  fundoMaxM?: number;
+}
+
 export interface ImplantacaoViaDivisa extends ImplantacaoFrame {
   /** Polígonos da via já recortados pela gleba (traçado livre, não retangular). */
   viasLivres: Position[][];
@@ -204,7 +230,7 @@ function subtrairOcupados(g: Geo, ocupados: { ret: Ret; f: Feature<Polygon> }[])
 }
 
 /** Implanta os lotes ao longo de uma cadeia de divisa (um sentido, uma fase). */
-export function implantarNaDivisa(anelFechado: Position[], arestas: number[], reverso: boolean, fase: number, o: OpcoesViaDivisa, raio = 0): ImplantacaoViaDivisa | null {
+export function implantarNaDivisa(anelFechado: Position[], arestas: number[], reverso: boolean, fase: number, o: OpcoesViaDivisa, raio = 0, extras: ExtrasImplantacao = {}): ImplantacaoViaDivisa | null {
   const v = anelFechado.slice(0, -1);
   const n = v.length;
   const ccw = areaComSinal(v) > 0;
@@ -213,12 +239,23 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
   if (l.total < o.testada) return null;
   const gleba = turfPolygon([anelFechado]);
   const limite = Math.min(l.total, o.limiteComprimentoM ?? Infinity);
-  const anelVia = limpar(poligonoVia(l, l.total, o.via));
+  const anelVia = extras.semVia ? null : limpar(poligonoVia(l, l.total, o.via));
   const viaToda = anelVia ? seguro(() => intersect(featureCollection([turfPolygon([anelVia]), gleba]))) : null;
-  if (!viaToda) return null;
-  const ocupados: { ret: Ret; f: Feature<Polygon> }[] = poligonos(viaToda.geometry as Polygon | MultiPolygon)
-    .map((rs) => limpar(rs[0])).filter((a): a is Position[] => !!a).map((a) => ({ ret: bboxDe(a), f: turfPolygon([a]) }));
-  const Lmax = 2 * o.profundidade;
+  if (!viaToda && !extras.semVia) return null;
+  const ocupados: { ret: Ret; f: Feature<Polygon> }[] = viaToda ? poligonos(viaToda.geometry as Polygon | MultiPolygon)
+    .map((rs) => limpar(rs[0])).filter((a): a is Position[] => !!a).map((a) => ({ ret: bboxDe(a), f: turfPolygon([a]) })) : [];
+  for (const a of extras.ocupados ?? []) { const c = limpar(a); if (c) ocupados.push({ ret: bboxDe(c), f: turfPolygon([c]) }); }
+  const LmaxBase = extras.fundoMaxM ?? 2 * o.profundidade;
+  const arestasGleba = anelFechado.slice(0, -1).map((p, i) => [p, anelFechado[i + 1]] as [Position, Position]);
+  /** Distância, a partir de p na direção d, até sair da gleba (primeira divisa encontrada além de 1 cm). */
+  const atravessar = (p: V, d: V): number => {
+    let m = Infinity;
+    for (const [a, b] of arestasGleba) {
+      const x = cruzaRetas(p, d, a, sub(b, a));
+      if (x && x.t > 0.01 && x.u >= -1e-9 && x.u <= 1 + 1e-9) m = Math.min(m, x.t);
+    }
+    return m;
+  };
   const minArea = Math.max(o.loteMinimoM2, 1);
   const lotes: LoteFrame[] = [];
   // Cabeceiras: o primeiro/último lote pode seguir a divisa vizinha à via (absorve o triângulo
@@ -229,6 +266,26 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
   const vIni = v[seq[0]] as V, vFim = v[seq[seq.length - 1]] as V;
   const eIni = unit(sub(v[vizinho(seq[0], seq[1])], vIni));
   const eFim = unit(sub(v[vizinho(seq[seq.length - 1], seq[seq.length - 2])], vFim));
+  // via pública em todas as divisas: cada esquina é repartida pela BISSETRIZ do ângulo (cantos não retos) — o lote
+  // deste trecho fica do seu lado da bissetriz e não toma a frente do trecho vizinho
+  // a "zona do vizinho" junto ao canto: triângulo entre a bissetriz e a divisa vizinha (até a profundidade máxima)
+  const cantoDoVizinho = (vert: V, tTrecho: V, eViz: V): { ret: Ret; f: Feature<Polygon> } | null => {
+    let b = unit(add(tTrecho, eViz));
+    if (len(add(tTrecho, eViz)) < 1e-9) b = [-tTrecho[1], tTrecho[0]];
+    const teste = add(vert, mul(b, 0.05));
+    if (!pontoDentro(anelFechado, teste[0], teste[1])) b = mul(b, -1);
+    // só até onde a bissetriz sai da gleba (num terreno em "U" ela não pode atravessar para o outro braço)
+    const R = Math.min(atravessar(vert, b), Math.max(o.testada, extras.fundoMaxM ?? 2 * o.profundidade) * 2);
+    if (!Number.isFinite(R) || R <= 0.01) return null;
+    // ângulo entre a bissetriz e a divisa vizinha: o lado do triângulo sobre a divisa vizinha tem R / cos
+    const cos = Math.max(0.2, Math.abs(b[0] * eViz[0] + b[1] * eViz[1]));
+    const anel = limpar([vert, add(vert, mul(b, R)), add(vert, mul(eViz, R / cos)), vert]);
+    return anel ? { ret: bboxDe(anel), f: turfPolygon([anel]) } : null;
+  };
+  const cantos = extras.semVia
+    ? [cantoDoVizinho(vIni, unit(sub(v[seq[1]], vIni)), eIni), cantoDoVizinho(vFim, unit(sub(v[seq[seq.length - 2]], vFim)), eFim)]
+      .filter((x): x is { ret: Ret; f: Feature<Polygon> } => !!x)
+    : [];
   /**
    * Direção do corte entre lotes no ponto s da via. Sem leque (raio 0): perpendicular à via
    * (bissetriz nos vértices). Com leque: gira gradualmente ±raio em torno de cada vértice e,
@@ -247,8 +304,20 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
     return d;
   };
   /** Lote entre s0 e s1 (frente sobre a via), recortado pela gleba e livre de via/lotes; null se inviável. */
-  const loteEntre = (s0: number, s1: number, ponta: { ini?: boolean; fim?: boolean } = {}): { anel: Position[]; area: number; frente: number } | null => {
+  /** Tangente da via (sentido de implantação) no ponto s. */
+  const tangente = (sPos: number): V => unit(sub(pontoEm(l, Math.min(l.total, sPos + 0.5)).p, pontoEm(l, Math.max(0, sPos - 0.5)).p));
+  const loteEntre = (s0: number, s1: number, ponta: { ini?: boolean; fim?: boolean } = {}, giro = 0): { anel: Position[]; area: number; frente: number } | null => {
     const a = { p: pontoEm(l, s0).p, d: direcao(s0) }, b = { p: pontoEm(l, s1).p, d: direcao(s1) };
+    let Lmax = LmaxBase;
+    if (extras.fundoAteMeio) {
+      // metade da travessia medida no meio e nas duas laterais do lote (a menor), para o fundo ficar no eixo entre as vias
+      const meio = pontoEm(l, (s0 + s1) / 2);
+      const dm = unit(add(a.d, b.d).every((c) => Math.abs(c) < 1e-9) ? meio.d : add(a.d, b.d));
+      const D = Math.min(atravessar(meio.p, dm), atravessar(a.p, a.d), atravessar(b.p, b.d));
+      if (Number.isFinite(D)) Lmax = Math.min(LmaxBase, D * (extras.fracaoFundo ?? 0.5));
+    }
+    // fundo variável: a divisa lateral final gira para a frente (o fundo alarga; a frente não muda)
+    if (giro > 0) b.d = unit(add(mul(b.d, Math.cos(giro)), mul(tangente(s1), Math.sin(giro))));
     const frente = caminho(l, s0, s1);
     const fa = add(a.p, mul(a.d, Lmax)), fb = add(b.p, mul(b.d, Lmax));
     let fundo: V[];
@@ -267,7 +336,7 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
     if (!anelQ) return null;
     const recorte = seguro(() => intersect(featureCollection([turfPolygon([anelQ]), gleba])));
     if (!recorte) return null;
-    const livre = subtrairOcupados(recorte as Geo, ocupados);
+    const livre = subtrairOcupados(recorte as Geo, cantos.length ? [...cantos, ...ocupados] : ocupados);
     if (!livre) return null;
     // fica só a parte encostada na frente (no meio da frente, logo para dentro do lote)
     const meio = pontoEm(l, (s0 + s1) / 2);
@@ -298,10 +367,23 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
     // frente MÍNIMA (≥ testada informada) que atinge a área mínima: testada exata quando basta;
     // senão busca binária até 4 × a testada (nos trechos rasos, perto das cabeceiras)
     let s1 = s0 + o.testada;
-    const primeiro = lotes.length === 0 && s0 === 0;
+    // com via pública em todas as divisas, o lote da ponta NÃO dobra a esquina: a divisa vizinha é frente de outros lotes
+    const primeiro = lotes.length === 0 && s0 === 0 && !extras.semVia;
     const pontaIni = primeiro ? { ini: true } : {};
     let lote = (primeiro ? loteEntre(s0, s1, pontaIni) : null) ?? loteEntre(s0, s1);
-    if (!valido(lote)) {
+    if (!valido(lote) && extras.fundoVariavel && s1 <= limite + 1e-9) {
+      // frente exata: gira a divisa lateral final até a área mínima (busca do menor giro, até 75°)
+      const tentaGiro = (g: number) => (primeiro ? loteEntre(s0, s1, pontaIni, g) : null) ?? loteEntre(s0, s1, {}, g);
+      const gMax = (75 * Math.PI) / 180;
+      const lMax = tentaGiro(gMax);
+      if (valido(lMax)) {
+        let lo = 0, hi = gMax, melhor = lMax;
+        for (let it = 0; it < 12; it++) { const mid = (lo + hi) / 2; const lm = tentaGiro(mid); if (valido(lm)) { hi = mid; melhor = lm; } else lo = mid; }
+        lote = melhor;
+      }
+    }
+    // frente exata (fundo variável): nunca alarga a frente de um lote do meio — a posição inviável fica livre
+    if (!valido(lote) && !extras.fundoVariavel) {
       const sMax = Math.min(s0 + maxFrente, limite);
       const tenta = (sx: number) => (primeiro ? loteEntre(s0, sx, pontaIni) : null) ?? loteEntre(s0, sx);
       const loteMax = sMax > s1 + 1e-9 ? tenta(sMax) : null;
@@ -336,7 +418,7 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
   if (lotes.length === 0) return null;
   // Último lote: se o que sobra da via até o fim da divisa não comporta outro lote, ele vai até a
   // cabeceira seguindo a divisa vizinha (sem criar lote novo, sem deixar triângulo sem dono).
-  if (o.limiteComprimentoM === undefined && l.total - sUltimo > 1e-6 && l.total - sUltimo < o.testada + 1e-9) {
+  if (o.limiteComprimentoM === undefined && !extras.semVia && l.total - sUltimo > 1e-6 && l.total - sUltimo < o.testada + 1e-9) {
     const ultimo = lotes[lotes.length - 1];
     const s0u = s0Ultimo; // início NOMINAL do último lote na via
     ocupados.pop();
@@ -350,8 +432,8 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
       ocupados.push({ ret: ultimo.ret, f: turfPolygon([ultimo.anel]) });
     }
   }
-  const sFimVia = o.limiteComprimentoM !== undefined ? limite : sUltimo;
-  const anelViaFinal = limpar(poligonoVia(l, sFimVia, o.via));
+  const sFimVia = o.limiteComprimentoM !== undefined ? limite : extras.viaInteira ? l.total : sUltimo;
+  const anelViaFinal = extras.semVia ? null : limpar(poligonoVia(l, sFimVia, o.via));
   const via = anelViaFinal ? seguro(() => intersect(featureCollection([turfPolygon([anelViaFinal]), gleba]))) : null;
   const viasLivres = via ? poligonos(via.geometry as Polygon | MultiPolygon).map((rs) => rs[0]) : [];
   return {
@@ -361,7 +443,7 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
       "Rua Simples não inclui balão de retorno; o acesso externo ocorre pelo início da via na divisa e deve ser confirmado em projeto.",
     ],
     arestasDivisa: arestas, comprimentoViaM: sFimVia, comprimentoDisponivelM: l.total,
-    chave: `div|${arestas.join(",")}|${reverso ? "r" : "d"}|${fase}|r${raio}`,
+    chave: `div|${arestas.join(",")}|${reverso ? "r" : "d"}|${fase}|r${raio}${extras.fundoVariavel ? "|fv" : ""}`,
   };
 }
 
@@ -395,6 +477,127 @@ export function buscarViaDivisa(anelFechado: Position[], o: OpcoesViaDivisa, max
     }
   }
   return ordenar(out).slice(0, max);
+}
+
+/**
+ * Redivide a ZONA de uma divisa (região já atribuída a ela, sem via) em `n` lotes de ÁREA IGUAL: os cortes são
+ * perpendiculares à divisa (bissetriz nos vértices) e a posição de cada um é achada por busca binária da área
+ * acumulada — a frente de cada lote varia e a área total da zona é mantida (o que sobraria na ponta é repartido).
+ * Devolve null se algum lote ficar com área ou frente abaixo do mínimo, ou se a geometria não fechar.
+ */
+export function dividirZonaPorArea(anelFechado: Position[], arestas: number[], reverso: boolean, zona: Position[], n: number,
+  minimos: { areaM2: number; frenteM: number }, modo: "igual" | "minimo" = "igual"): { anel: Position[]; area: number; frente: number }[] | null {
+  if (n < 1 && modo !== "minimo") return null;
+  const v = anelFechado.slice(0, -1);
+  const nv = v.length;
+  const ccw = areaComSinal(v) > 0;
+  const normalDentro = (i: number): V => { const u = unit(sub(v[(i + 1) % nv], v[i])); return ccw ? [-u[1], u[0]] : [u[1], -u[0]]; };
+  const l = montarLinha(v, arestas, normalDentro, 0, reverso);
+  const zonaF = turfPolygon([zona]);
+  const areaZona = areaPlanar(zona);
+  if (n === 1 && modo !== "minimo") return areaZona >= minimos.areaM2 ? [{ anel: zona, area: areaZona, frente: l.total }] : null;
+  /** Distância, de p na direção d, até sair do anel (primeira aresta além de 2 cm). */
+  const sair = (anel: Position[], p: V, d: V): number => {
+    let m = Infinity;
+    for (let i = 0; i < anel.length - 1; i++) {
+      const x = cruzaRetas(p, d, anel[i], sub(anel[i + 1], anel[i]));
+      if (x && x.t > 0.02 && x.u >= -1e-9 && x.u <= 1 + 1e-9) m = Math.min(m, x.t);
+    }
+    return m;
+  };
+  type G = Feature<Polygon | MultiPolygon>;
+  // pó de recorte (< 0,01 m²) não conta como pedaço: vai para o vizinho no fechamento dos 100%
+  const partesDe = (g: G) => poligonos(g.geometry as Polygon | MultiPolygon).map((rs) => rs[0]).filter((a) => areaPlanar(a) > 0.01);
+  const dentroDaZona = (sPos: number) => { const c = pontoEm(l, sPos); const q = add(c.p, mul(c.d, 0.05)); return pontoDentro(zona, q[0], q[1]); };
+  /**
+   * Parte do resto R que fica ANTES do corte em s: o corte é uma fenda finíssima ao longo da perpendicular à divisa,
+   * do ponto da frente até sair de R; o que não está do lado de depois do corte é "antes".
+   */
+  const antes = (R: G, sPos: number): Position[][] | null => {
+    const c = pontoEm(l, sPos);
+    const aneis = partesDe(R);
+    const alcance = Math.min(...aneis.map((a) => sair(a, c.p, c.d)).filter((x) => Number.isFinite(x)), 4 * minimos.areaM2 / Math.max(minimos.frenteM, 1e-9));
+    if (!Number.isFinite(alcance)) return null;
+    const lat: V = [-c.d[1], c.d[0]];
+    const w = 0.001;
+    const p0 = add(c.p, mul(c.d, -0.05)), p1 = add(c.p, mul(c.d, alcance + 0.05));
+    const fenda = limpar([add(p0, mul(lat, -w)), add(p1, mul(lat, -w)), add(p1, mul(lat, w)), add(p0, mul(lat, w)), add(p0, mul(lat, -w))]);
+    if (!fenda) return null;
+    const cortado = seguro(() => difference(featureCollection([R, turfPolygon([fenda])])));
+    if (!cortado) return null;
+    // "antes" = o pedaço encostado na frente logo ANTES do corte
+    const pb = pontoEm(l, Math.max(0, sPos - 0.05));
+    const q = add(pb.p, mul(pb.d, 0.05));
+    return partesDe(cortado as G).filter((a) => pontoDentro(a, q[0], q[1]));
+  };
+  const areaDe = (xs: Position[][] | null) => (xs ?? []).reduce((s, a) => s + areaPlanar(a), 0);
+  // trecho da frente coberto pela zona (a zona pode começar/terminar no meio da divisa)
+  let sZ0 = -1, sZ1 = -1;
+  for (let x = 0; x <= l.total + 1e-9; x += 0.25) if (dentroDaZona(Math.min(x, l.total))) { if (sZ0 < 0) sZ0 = Math.min(x, l.total); sZ1 = Math.min(x, l.total); }
+  if (sZ0 < 0 || sZ1 - sZ0 < minimos.frenteM * n - 1e-6) return null;
+  const out: { anel: Position[]; area: number; frente: number }[] = [];
+  let R: G = zonaF;
+  let sAnt = sZ0;
+  // modo "mínimo": guloso — cada lote com a área mínima até o resto não comportar dois; o último fica com o resto
+  const total = modo === "minimo" ? Number.MAX_SAFE_INTEGER : n;
+  for (let i = 0; i < total; i++) {
+    let pedacos: Position[][];
+    let s1 = sZ1;
+    const ultimo = modo === "minimo" ? areaDe(partesDe(R)) < 2 * minimos.areaM2 : i === n - 1;
+    if (!ultimo) {
+      let lo = sAnt, hi = sZ1;
+      // "igual": reparte o que resta pelos lotes que faltam; "mínimo": cada lote com a área mínima (o resto vai ao último)
+      // margem de 5 cm² sobre a mínima: o arredondamento do contorno (0,1 mm) nunca deixa um lote abaixo dela
+      const alvo = modo === "minimo" ? minimos.areaM2 + 0.05 : Math.max(minimos.areaM2 + 0.05, areaDe(partesDe(R)) / (n - i));
+      // fim útil: o último ponto da frente que ainda encosta no que resta da zona
+      const restoAneis = partesDe(R);
+      const encosta = (x: number) => { const c = pontoEm(l, Math.max(0, x - 0.05)); const q = add(c.p, mul(c.d, 0.05)); return restoAneis.some((a) => pontoDentro(a, q[0], q[1])); };
+      while (hi > sAnt + 0.25 && !encosta(hi)) hi -= 0.25;
+      if (areaDe(antes(R, hi)) < alvo - 0.01) return null;
+      for (let it = 0; it < 17; it++) { const mid = (lo + hi) / 2; if (areaDe(antes(R, mid)) < alvo) lo = mid; else hi = mid; }
+      // frente mínima respeitada: se a área-alvo cabe numa frente menor, o corte vai até a frente mínima
+      s1 = Math.max(hi, Math.min(sZ1, sAnt + minimos.frenteM));
+      pedacos = antes(R, s1) ?? [];
+    } else {
+      pedacos = partesDe(R).sort((a, b) => areaPlanar(b) - areaPlanar(a)).slice(0, 1); // o resto (pó) fecha no vizinho
+    }
+    if (pedacos.length !== 1) return null; // cada lote é um pedaço só
+    const anel = limpar(pedacos[0]);
+    if (!anel) return null;
+    const area = areaPlanar(anel);
+    if (area < minimos.areaM2 || s1 - sAnt < minimos.frenteM - 1e-6) return null;
+    out.push({ anel, area, frente: s1 - sAnt });
+    if (ultimo) break;
+    const resto = seguro(() => difference(featureCollection([R, turfPolygon([anel])])));
+    if (!resto) return null;
+    R = resto as G;
+    sAnt = s1;
+  }
+  return out;
+}
+
+/** Polígono da via ao longo de toda a cadeia de arestas (recortado pela gleba). */
+export function viaDaCadeia(anelFechado: Position[], arestas: number[], via: number): Position[][] {
+  const v = anelFechado.slice(0, -1);
+  const n = v.length;
+  const ccw = areaComSinal(v) > 0;
+  const normalDentro = (i: number): V => { const u = unit(sub(v[(i + 1) % n], v[i])); return ccw ? [-u[1], u[0]] : [u[1], -u[0]]; };
+  const l = montarLinha(v, arestas, normalDentro, via, false);
+  const anelVia = limpar(poligonoVia(l, l.total, via));
+  const r = anelVia ? seguro(() => intersect(featureCollection([turfPolygon([anelVia]), turfPolygon([anelFechado])]))) : null;
+  return r ? poligonos(r.geometry as Polygon | MultiPolygon).map((rs) => rs[0]) : [];
+}
+
+/** Subtrai das áreas `a` as áreas `b` (para não contar duas vezes a via no cruzamento de duas divisas). */
+export function subtrairAreas(a: Position[][], b: Position[][]): Position[][] {
+  const out: Position[][] = [];
+  for (const anel of a) {
+    const c = limpar(anel);
+    if (!c) continue;
+    const r = subtrairOcupados(turfPolygon([c]), b.map((x) => limpar(x)).filter((x): x is Position[] => !!x).map((x) => ({ ret: bboxDe(x), f: turfPolygon([x]) })));
+    if (r) out.push(...poligonos(r.geometry as Polygon | MultiPolygon).map((rs) => rs[0]));
+  }
+  return out;
 }
 
 export { areaGeo as _areaGeo };

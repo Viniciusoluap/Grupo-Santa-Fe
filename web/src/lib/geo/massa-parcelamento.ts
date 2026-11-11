@@ -25,6 +25,8 @@ import {
 } from "./geometria-parcelamento";
 import { buscarRuaSimples, gerarRuaSimplesFrame, implantacaoDoCandidatoRua, type CandidatoRua } from "./rua-simples";
 import { buscarViaDivisa, divisasOpostas } from "./rua-divisa";
+import { buscarPorLados, LADOS_GLEBA, type LadoGleba } from "./lados-gleba";
+import { buscarViasPublicas } from "./vias-publicas";
 
 export { areaPlanar, rotacionar } from "./geometria-parcelamento";
 
@@ -36,12 +38,13 @@ export const ROTULO_ESTUDO_PRELIMINAR = "Estudo preliminar — não substitui pr
 /** Versão do algoritmo — entra na assinatura: mudou o algoritmo, mudou a versão. */
 export const VERSAO_ALGORITMO_MASSA = "2.0.0";
 
-export type TipologiaMassa = "grid" | "cul_de_sac" | "rua_simples";
+export type TipologiaMassa = "grid" | "cul_de_sac" | "rua_simples" | "vias_publicas";
 
 export const TIPOLOGIAS_MASSA: { value: TipologiaMassa; label: string }[] = [
   { value: "grid", label: "Grade (grid)" },
   { value: "cul_de_sac", label: "Cul-de-sac (ruas sem saída com balão)" },
   { value: "rua_simples", label: "Rua simples (via única de mão dupla)" },
+  { value: "vias_publicas", label: "Vias públicas (divisas já voltadas para vias — 100% de aproveitamento)" },
 ];
 
 export type ModoSistemaViario = "automatico" | "manual";
@@ -65,8 +68,10 @@ export interface ParametrosMassa {
   formatoLote?: "retangular" | "divisa";
   /** Rua Simples: traçado "reta" (padrão) ou "divisa" (via acompanha a divisa, com curvas; lotes acompanham a divisa). */
   tracadoVia?: "reta" | "divisa";
-  /** Rua pela divisa: restringe os cenários à divisa oposta ao primeiro cenário automático. */
+  /** Legado: restringe os cenários à divisa oposta ao primeiro cenário automático (substituído por `ladosVia`). */
   inverterLadoVia?: boolean;
+  /** Rua pela divisa: lados onde a via deve ficar (rua de cima/esquerda/direita/baixo). Vazio = automático. */
+  ladosVia?: LadoGleba[];
   /** Áreas não parceláveis informadas em m² (quando não vierem do KML/mapa). */
   appM2?: number;
   supressaoVegetalM2?: number;
@@ -109,6 +114,8 @@ export interface SistemaViarioCenario {
 
 export interface CenarioMassa {
   viaLadoOposto?: boolean;
+  /** Lados escolhidos para a via (quando o usuário marcou rua de cima/esquerda/direita/baixo). */
+  ladosVia?: LadoGleba[];
   id: string;
   anguloVia: number;
   testadaLoteM: number;
@@ -193,7 +200,8 @@ export function validarParametrosMassa(p: ParametrosMassa): string | null {
   if (!Number.isFinite(p.loteMinimoM2) || p.loteMinimoM2 < 0) {
     return "Lote mínimo não pode ser negativo.";
   }
-  if (!Number.isFinite(p.comprimentoMaxQuadraM) || p.comprimentoMaxQuadraM <= 0) {
+  // vias públicas: não há quadra nem via interna a desenhar — comprimento da quadra e largura da via não se aplicam
+  if (p.tipologia !== "vias_publicas" && (!Number.isFinite(p.comprimentoMaxQuadraM) || p.comprimentoMaxQuadraM <= 0)) {
     return "Comprimento máximo da quadra deve ser um número maior que 0.";
   }
   if (!Number.isFinite(p.percentInstitucional) || p.percentInstitucional < 0 || p.percentInstitucional >= 1) {
@@ -209,7 +217,7 @@ export function validarParametrosMassa(p: ParametrosMassa): string | null {
     return "Preço do lote (R$/m²) deve ser um número maior que 0.";
   }
   if (p.tipologia !== undefined && !TIPOLOGIAS_MASSA.some((t) => t.value === p.tipologia)) {
-    return "Tipologia do cenário inválida (use grid, cul-de-sac ou rua simples).";
+    return "Tipologia do cenário inválida (use grid, cul-de-sac, rua simples ou vias públicas).";
   }
   const restricoes: [keyof ParametrosMassa, string][] = [
     ["appM2", "APP"], ["supressaoVegetalM2", "Supressão vegetal"], ["faixaTransmissaoM2", "Faixa de transmissão"],
@@ -224,6 +232,9 @@ export function validarParametrosMassa(p: ParametrosMassa): string | null {
   const areaLote = p.testadaLoteM * p.profundidadeLoteM;
   if (p.inverterLadoVia !== undefined && typeof p.inverterLadoVia !== "boolean") {
     return "Seleção de lado da via inválida.";
+  }
+  if (p.ladosVia !== undefined && (!Array.isArray(p.ladosVia) || p.ladosVia.some((l) => !LADOS_GLEBA.includes(l)))) {
+    return "Lado da via inválido (use rua de cima, da esquerda, da direita ou de baixo).";
   }
   if (p.tracadoVia !== undefined && p.tracadoVia !== "reta" && p.tracadoVia !== "divisa") {
     return "Traçado da via inválido (use reta ou acompanha a divisa).";
@@ -853,11 +864,39 @@ export function gerarEstudoMassa(
   let brutos: Bruto[] = [];
   let avaliados = 0;
   const avisos: string[] = [];
-  const inverterVia = tipologia === "rua_simples" && params.tracadoVia === "divisa" && params.inverterLadoVia === true;
+  // ordem canônica dos lados (a assinatura e os cartões não dependem da ordem dos cliques)
+  const ladosVia = tipologia === "rua_simples" && params.tracadoVia === "divisa" && (params.ladosVia?.length ?? 0) > 0
+    ? LADOS_GLEBA.filter((l) => params.ladosVia!.includes(l)) : null;
+  const inverterVia = !ladosVia && tipologia === "rua_simples" && params.tracadoVia === "divisa" && params.inverterLadoVia === true;
   const arestasPorImplantacao = new Map<string, number[]>();
   const limiteCandidatosVia = 12;
 
-  if (tipologia === "rua_simples" && params.tracadoVia === "divisa") {
+  if (tipologia === "vias_publicas") {
+    progresso(0.1, "Desmembrando os lotes com frente para as vias públicas");
+    const impls = buscarViasPublicas(anelM, { testada: g.testada, profundidade: g.profundidade, loteMinimoM2: params.loteMinimoM2 }, 4,
+      (f) => progresso(0.1 + 0.8 * f, "Desmembrando os lotes com frente para as vias públicas"));
+    avaliados = impls.length;
+    const fr0 = prepararFrameAnel(anelM, 0, Math.max(g.testada, g.profundidade) * 2);
+    impls.forEach((impl) => brutos.push(avaliarImplantacao(ctx, impl.chave, fr0, impl, 1)));
+    if (impls.length === 0) {
+      return { ...vazio(tipologia, assinatura, "Nenhum lote viável com frente para as vias públicas existentes.",
+        ["Confira a testada, a profundidade e a área mínima do lote frente ao tamanho das divisas da gleba."]), candidatosAvaliados: 0 };
+    }
+  } else if (ladosVia) {
+    progresso(0.1, "Traçando a via nos lados escolhidos");
+    const impls = buscarPorLados(anelM, ladosVia, { testada: g.testada, profundidade: g.profundidade, via: g.via, loteMinimoM2: params.loteMinimoM2 }, 6,
+      (f) => progresso(0.1 + 0.5 * f, "Implantando os lotes com frente exata e fundo variável"));
+    avaliados = impls.length;
+    const fr0 = prepararFrameAnel(anelM, 0, Math.max(g.testada, g.profundidade, g.via) * 2);
+    impls.forEach((impl, i) => {
+      brutos.push(avaliarImplantacao(ctx, impl.chave, fr0, impl, Math.max(g.via * g.testada, 1)));
+      progresso(0.6 + 0.3 * ((i + 1) / impls.length), "Avaliando implantações candidatas");
+    });
+    if (impls.length === 0) {
+      return { ...vazio(tipologia, assinatura, "Nenhum lote viável com a via somente nos lados escolhidos.",
+        ["Confira a largura da via, a testada e a área mínima, ou marque outro lado para a rua."]), candidatosAvaliados: 0 };
+    }
+  } else if (tipologia === "rua_simples" && params.tracadoVia === "divisa") {
     progresso(0.1, "Traçando a via pela divisa");
     const lim = manual ? (params.areaSistemaViarioM2 ?? 0) / Math.max(g.via, 1e-9) : undefined;
     const impls = buscarViaDivisa(anelM, { testada: g.testada, profundidade: g.profundidade, via: g.via, loteMinimoM2: params.loteMinimoM2, limiteComprimentoM: lim }, inverterVia ? Infinity : limiteCandidatosVia,
@@ -1043,6 +1082,7 @@ export function gerarEstudoMassa(
   const cenarios = escolhidos.map((e, i) => ({
     ...montarCenario(ctx, i, e.b, e.criterio),
     ...(inverterVia ? { viaLadoOposto: true } : {}),
+    ...(ladosVia ? { ladosVia } : {}),
   }));
   if (cenarios.length < 3) avisos.push(`Foram encontradas ${cenarios.length} alternativa(s) geometricamente válida(s) e distinta(s) — nenhum cartão foi preenchido artificialmente.`);
   progresso(1, "Concluído");

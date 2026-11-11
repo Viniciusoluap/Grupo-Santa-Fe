@@ -33,3 +33,13 @@ export function progressoDueDiligence(value: DueDiligence) {
   const concluidos = itens.filter(Boolean).length;
   return { total: itens.length, concluidos, percentual: itens.length ? Math.round(concluidos * 100 / itens.length) : 0 };
 }
+
+/** Move o item de `index` para `index + offset` (etapas, tarefas e documentos). Fora dos limites, nada muda. */
+export function moverItem<T>(lista: T[], index: number, offset: number): T[] {
+  const alvo = index + offset;
+  if (index < 0 || index >= lista.length || alvo < 0 || alvo >= lista.length) return lista;
+  const nova = [...lista];
+  const [item] = nova.splice(index, 1);
+  nova.splice(alvo, 0, item);
+  return nova;
+}
