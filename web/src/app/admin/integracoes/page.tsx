@@ -12,6 +12,7 @@ import { estadoOAuth } from "@/lib/google-drive-conexao";
 import { origemDaRequisicao } from "@/lib/google-drive-oauth";
 import { ultimoRelatorioDrive } from "@/lib/drive-organizacao";
 import { GoogleDriveCard } from "./_components/google-drive-card";
+import { MapboxCard } from "./_components/mapbox-card";
 import { SubPciAtual } from "@/components/admin/sub-pci-atual";
 
 // LOTE B (25/10): Configurações › Integrações — Asaas, Pluggy, WhatsApp (Evolution) e Google Drive num lugar só.
@@ -46,6 +47,7 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
       </div>
       <IntegracoesClient inicial={status} />
       <GoogleDriveCard retorno={retornoDrive} inicial={statusDrive} relatorioInicial={relatorioDrive} />
+      <MapboxCard />
       <SubPciAtual />
     </div>
   );
