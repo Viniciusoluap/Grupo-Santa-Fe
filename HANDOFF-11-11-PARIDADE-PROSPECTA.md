@@ -83,7 +83,8 @@ Testes (a) automáticos:
   área viária manual, quantidade dinâmica, frente efetiva) e `planta-tecnica-unidades.test.ts` (10) — 54 ✅.
 - `planta-tecnica-render.test.tsx` (1): componente renderizado no servidor desenha todos os lotes do cenário.
 - typecheck limpo; eslint limpo nos arquivos do bloco (o erro antigo de `Date.now()` no massa-tab deixou de existir).
-- Suíte completa: ver resultado registrado abaixo.
+- Suíte completa do web: 164 arquivos / 1188 testes passando (28 arquivos pulados, como antes); `next build` compilou
+  (para na geração estática por falta de banco no ambiente, como nos blocos anteriores). Commit 1139eb8.
 (b) manuais: nenhum (a tela exige login e banco).
 (c) produção: pendente — abrir um estudo com KML, gerar Grade, Cul-de-sac e Rua Simples (mesmo resultado a cada clique),
 alternar Desenho técnico/Satélite, testar área viária manual; ver Unidades em Q01 / L01 com 6 por página.
