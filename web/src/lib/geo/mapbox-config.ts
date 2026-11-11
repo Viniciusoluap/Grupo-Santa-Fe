@@ -32,7 +32,9 @@ export async function tokenMapbox(deps: MapboxDeps = mapboxDepsPadrao): Promise<
   let valor: { token: string; fonte: "env" | "banco" } | null = null;
   try {
     const gravado = await deps.lerBanco(CHAVE_SEGREDO_MAPBOX);
-    if (gravado) valor = { token: descriptografarSegredo(gravado), fonte: "banco" };
+    // O token é público (pk.): também aceitamos o valor gravado em texto puro, o que
+    // permite configurar direto no banco, sem painel. Valor criptografado continua valendo.
+    if (gravado) valor = { token: gravado.startsWith("pk.") ? gravado : descriptografarSegredo(gravado), fonte: "banco" };
   } catch { valor = null; }
   cache = { em: Date.now(), valor };
   return valor;

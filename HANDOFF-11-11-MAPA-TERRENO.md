@@ -52,3 +52,15 @@ gravar 0 por falha do Overpass e regravava a cada render). Viabilidade/Relatóri
 ## Próximo passo exato
 Abrir um estudo com KML em produção (ex.: o terreno de 47,75 ha no Tocantins), conferir a legenda e o valor de APP na Viabilidade;
 se o Overpass ficar indisponível na Vercel, nada muda nas fontes oficiais. Depois: incluir ferrovias/dutos (pendência 3).
+
+## Atualização 11/11 (noite) — revisão, token Mapbox e publicação
+
+- Branch atualizada com a `main` (merge limpo) antes do PR; checagens refeitas depois do merge.
+- Token Mapbox: o dono criou a conta; foram criados dois tokens **públicos** (`pk.`), um por
+  sistema, cada um restrito ao domínio do próprio site (testado: imagem 200 no domínio certo,
+  403 em outro). Os tokens secretos criados por engano foram excluídos da conta.
+- A Vercel recusou criar variável de produção por esta sessão (403). Por isso
+  `tokenMapbox()` passou a aceitar também o token público gravado em texto puro no banco
+  (chave `segredo.mapbox_token`), além do valor criptografado salvo pela tela. Teste novo cobre.
+- Próximo passo exato: após o deploy, gravar o token de cada sistema no banco correspondente
+  (nunca copiar entre empresas), confirmar `GET /api/incorporacao/mapa-base` e os domínios oficiais.

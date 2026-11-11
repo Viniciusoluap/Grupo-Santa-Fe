@@ -45,6 +45,11 @@ describe("token do Mapbox", () => {
     expect(await tokenMapbox(deps("TokenValid", TOKEN))).toEqual({ token: TOKEN, fonte: "env" });
     expect(await tokenMapbox(deps())).toBeNull();
   });
+  it("lê token público gravado em texto puro no banco (configuração sem painel)", async () => {
+    const d = deps();
+    d.banco.set(CHAVE_SEGREDO_MAPBOX, TOKEN);
+    expect(await tokenMapbox(d)).toEqual({ token: TOKEN, fonte: "banco" });
+  });
   it("satélite em @2x", () => {
     expect(urlSateliteMapbox(TOKEN)).toContain("mapbox.satellite/{z}/{x}/{y}@2x");
   });
