@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { alterarEtapaLead, excluirLead } from "@/lib/actions/leads";
 import { LEAD_TEMPERATURAS, leadTemperaturaRotulo } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
 import { Plus, LayoutGrid, List, Search, CalendarDays, ArrowRight } from "lucide-react";
@@ -20,6 +22,12 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
   const [situacao, setSituacao] = useState<HistoricoFiltro>("ativos");
   const [stage, setStage] = useState("");
   const [temperatura, setTemperatura] = useState("");
+  // Pedido de 11/11 (paridade com a Prospecta): seleção múltipla na lista para excluir ou mover de etapa vários leads.
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [etapaEmLote, setEtapaEmLote] = useState("");
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [emLote, iniciarLote] = useTransition();
+  const router = useRouter();
   const responsaveis = [...new Map(leads.flatMap((l) => l.responsavel ? [[l.responsavel.id, l.responsavel] as const] : [])).values()].sort((a, b) => a.nome.localeCompare(b.nome));
   const servicos = [...new Set(leads.flatMap((l) => parseServicosLead(l.servico)))].sort();
   const encontrados = leads.filter((l) => {
@@ -43,6 +51,33 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
   });
   const kanban = view === "kanban" && ["ativos", "a_classificar"].includes(situacao);
   const inputClass = "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)]";
+  const selecionaveis = filtrados.filter((l) => !l.excluidoEm);
+  const selecionadosVisiveis = selecionaveis.filter((l) => selecionados.has(l.id));
+  const todosMarcados = selecionaveis.length > 0 && selecionaveis.every((l) => selecionados.has(l.id));
+  const alternar = (id: string) => setSelecionados((atual) => { const novo = new Set(atual); if (novo.has(id)) novo.delete(id); else novo.add(id); return novo; });
+  const emLoteExecutar = (acao: (lead: LeadListItem) => Promise<unknown>, rotulo: string) => iniciarLote(async () => {
+    const falhas: string[] = [];
+    let ok = 0;
+    for (const lead of selecionadosVisiveis) {
+      try { await acao(lead); ok++; } catch (error) { falhas.push(`${lead.nome}: ${error instanceof Error ? error.message : "falha"}`); }
+    }
+    setSelecionados(new Set());
+    setAviso(`${ok} lead(s) ${rotulo}.${falhas.length ? ` Não foi possível concluir ${falhas.length}: ${falhas.slice(0, 3).join("; ")}${falhas.length > 3 ? "…" : ""}` : ""}`);
+    router.refresh();
+  });
+  const moverSelecionados = () => {
+    if (!etapaEmLote || !selecionadosVisiveis.length) return;
+    const rotulo = LEAD_STAGE_CONFIG[etapaEmLote as keyof typeof LEAD_STAGE_CONFIG].label;
+    if (!window.confirm(`Mover ${selecionadosVisiveis.length} lead(s) para "${rotulo}"?`)) return;
+    emLoteExecutar((lead) => alterarEtapaLead(lead.id, etapaEmLote, lead.etapaOperacional, new Date(lead.atualizadoEm).toISOString()), `movido(s) para "${rotulo}"`);
+    setEtapaEmLote("");
+  };
+  const excluirSelecionados = () => {
+    if (!selecionadosVisiveis.length) return;
+    if (!window.confirm(`Excluir ${selecionadosVisiveis.length} lead(s) da operação?\nCadastro, histórico e serviços vinculados são preservados.`)) return;
+    emLoteExecutar((lead) => excluirLead(lead.id), "excluído(s) da operação");
+  };
+
   return <div className="space-y-5 min-w-0">
     <div className="flex items-center justify-between gap-4 flex-wrap">
       <div><h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">CRM Santa Fé</h1><p className="text-gray-600 text-sm mt-1">{leads.filter(leadNoPipelineAtivo).length} ativos · {leads.length} registros preservados</p></div>
@@ -70,13 +105,24 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
       <label className="text-xs text-gray-600">Situação<select className={`${inputClass} mt-1`} value={situacao} onChange={(e) => { setSituacao(e.target.value as HistoricoFiltro); setStage(""); }}><option value="ativos">Pipeline ativo</option><option value="a_classificar">A classificar ({naoClassificados})</option><option value="perdidos">Perdidos</option><option value="arquivados">Arquivados</option><option value="excluidos">Excluídos · histórico</option><option value="todos">Todos · histórico completo</option></select></label>
     </div>
     <div className="flex justify-between gap-3 text-xs text-gray-600"><p>{filtrados.length} leads encontrados{stage && ` · ${LEAD_STAGE_CONFIG[stage as keyof typeof LEAD_STAGE_CONFIG].label}`}</p>{(stage || search || responsavel || servico || temperatura || situacao !== "ativos") && <button className="font-bold hover:underline" onClick={() => { setSearch(""); setResponsavel(""); setServico(""); setTemperatura(""); setStage(""); setSituacao("ativos"); }}>Limpar filtros</button>}</div>
+    {!kanban && selecionadosVisiveis.length > 0 && <div role="region" aria-label="Ações em lote" className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--brand-yellow)] bg-white p-3 text-sm">
+      <span className="font-bold text-[var(--brand-dark)]">{selecionadosVisiveis.length} selecionado(s)</span>
+      <select aria-label="Etapa de destino" value={etapaEmLote} onChange={(e) => setEtapaEmLote(e.target.value)} className={`${inputClass} w-56`}>
+        <option value="">Mover para a etapa…</option>{LEAD_STAGES.map((s) => <option key={s} value={s}>{LEAD_STAGE_CONFIG[s].label}</option>)}
+      </select>
+      <button type="button" disabled={!etapaEmLote || emLote} onClick={moverSelecionados} className="rounded bg-[var(--brand-dark)] px-3 py-2 text-xs font-bold text-[var(--brand-yellow)] disabled:opacity-50">Mover selecionados</button>
+      <button type="button" disabled={emLote} onClick={excluirSelecionados} className="rounded border border-red-300 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">Excluir selecionados</button>
+      <button type="button" disabled={emLote} onClick={() => setSelecionados(new Set())} className="text-xs font-bold text-gray-600 hover:underline">Limpar seleção</button>
+      {emLote && <span className="text-xs text-gray-600">Processando…</span>}
+    </div>}
+    {aviso && <p role="status" className="text-xs text-gray-700">{aviso}</p>}
     {kanban ? <LeadKanban leads={filtrados} /> : <div className="bg-white border border-gray-100 rounded-lg overflow-x-auto">
-      <table className="w-full text-sm"><thead className="bg-gray-50 text-xs text-gray-600"><tr>{["Lead", "Serviços", "Responsável", "Orçamento", "Etapa / situação", "Histórico"].map((label) => <th key={label} className="px-4 py-3 text-left font-bold">{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
+      <table className="w-full text-sm"><thead className="bg-gray-50 text-xs text-gray-600"><tr><th className="w-10 px-4 py-3"><input type="checkbox" aria-label="Selecionar todos os leads da lista" checked={todosMarcados} disabled={!selecionaveis.length || emLote} onChange={() => setSelecionados(todosMarcados ? new Set() : new Set(selecionaveis.map((l) => l.id)))} /></th>{["Lead", "Serviços", "Responsável", "Orçamento", "Etapa / situação", "Histórico"].map((label) => <th key={label} className="px-4 py-3 text-left font-bold">{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
         {filtrados.map((lead) => {
           const etapa = etapaDoLead(lead);
-          return <tr key={lead.id} className="hover:bg-gray-50"><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-[var(--brand-dark)] hover:underline">{lead.nome}</Link><p className="text-xs text-gray-600">{formatTelefone(lead.telefone)} · {leadTemperaturaRotulo(lead.temperatura)}</p></td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{parseServicosLead(lead.servico).map((s) => <span key={s} className="text-[10px] rounded bg-gray-100 text-gray-600 px-1.5 py-0.5">{s}</span>)}</div></td><td className="px-4 py-3 text-gray-600">{lead.responsavel?.nome ?? "Sem responsável"}</td><td className="px-4 py-3 text-gray-600">{lead.orcamento !== null ? formatCurrency(lead.orcamento) : "—"}</td><td className="px-4 py-3"><p className="text-[10px] font-bold">{lead.excluidoEm || ["excluido", "deleted"].includes(lead.status) ? "EXCLUÍDO" : lead.arquivadoEm || ["arquivado", "archived"].includes(lead.status) ? "ARQUIVADO" : ["perdido", "lost"].includes(lead.status) ? "PERDIDO" : etapa ? LEAD_STAGE_CONFIG[etapa].label : "A CLASSIFICAR"}</p><p className="text-[10px] text-gray-600 mt-1">Original: {LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.label ?? lead.status}</p></td><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-xs hover:underline">Ver detalhes</Link></td></tr>;
+          return <tr key={lead.id} className={`hover:bg-gray-50 ${selecionados.has(lead.id) ? "bg-amber-50" : ""}`}><td className="w-10 px-4 py-3">{!lead.excluidoEm && <input type="checkbox" aria-label={`Selecionar ${lead.nome}`} checked={selecionados.has(lead.id)} disabled={emLote} onChange={() => alternar(lead.id)} />}</td><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-[var(--brand-dark)] hover:underline">{lead.nome}</Link><p className="text-xs text-gray-600">{formatTelefone(lead.telefone)} · {leadTemperaturaRotulo(lead.temperatura)}</p></td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{parseServicosLead(lead.servico).map((s) => <span key={s} className="text-[10px] rounded bg-gray-100 text-gray-600 px-1.5 py-0.5">{s}</span>)}</div></td><td className="px-4 py-3 text-gray-600">{lead.responsavel?.nome ?? "Sem responsável"}</td><td className="px-4 py-3 text-gray-600">{lead.orcamento !== null ? formatCurrency(lead.orcamento) : "—"}</td><td className="px-4 py-3"><p className="text-[10px] font-bold">{lead.excluidoEm || ["excluido", "deleted"].includes(lead.status) ? "EXCLUÍDO" : lead.arquivadoEm || ["arquivado", "archived"].includes(lead.status) ? "ARQUIVADO" : ["perdido", "lost"].includes(lead.status) ? "PERDIDO" : etapa ? LEAD_STAGE_CONFIG[etapa].label : "A CLASSIFICAR"}</p><p className="text-[10px] text-gray-600 mt-1">Original: {LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.label ?? lead.status}</p></td><td className="px-4 py-3"><Link href={`/admin/leads/${lead.id}`} className="font-bold text-xs hover:underline">Ver detalhes</Link></td></tr>;
         })}
-        {filtrados.length === 0 && <tr><td colSpan={6} className="text-center p-8 text-gray-600">Nenhum lead para estes filtros.</td></tr>}
+        {filtrados.length === 0 && <tr><td colSpan={7} className="text-center p-8 text-gray-600">Nenhum lead para estes filtros.</td></tr>}
       </tbody></table>
     </div>}
   </div>;
