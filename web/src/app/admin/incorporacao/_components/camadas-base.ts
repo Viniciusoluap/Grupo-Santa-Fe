@@ -1,8 +1,9 @@
-// Camadas de fundo dos mapas da Incorporação (Terreno e Estudo de Massa) —
+// Camadas de fundo (Leaflet) do Estudo de Massa — o mapa do Terreno passou para MapLibre em 11/11 —
 // Lote 2, correção 10 (mesma decisão do mapa operacional, AD-09): satélite Esri
 // World Imagery + referência de ruas e rótulos por cima, com alternância para o
 // mapa de ruas (OpenStreetMap), escala métrica e atribuição. Sem chave de API.
 import type * as Leaflet from "leaflet";
+import { zoomNativoEsri } from "@/lib/geo/camadas-terreno";
 
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
 
@@ -23,6 +24,14 @@ export function adicionarCamadasBase(L: typeof Leaflet, map: Leaflet.Map) {
     attribution: "© OpenStreetMap", maxZoom: 20, maxNativeZoom: 19,
   });
   sateliteComRuas.addTo(map);
+  // 11/11: o teto 17 é só o ponto de partida — onde a Esri tem foto mais detalhada
+  // (capitais: 19–20), consulta o tilemap e usa o zoom nativo real da região.
+  map.whenReady(() => {
+    const c = map.getCenter();
+    void zoomNativoEsri(c.lat, c.lng).then(z => {
+      if (z > 17) { satelite.options.maxNativeZoom = z; satelite.redraw(); }
+    }).catch(() => undefined);
+  });
   L.control.layers({ "Satélite + ruas": sateliteComRuas, "Ruas (OpenStreetMap)": mapaRuas }, undefined, { position: "topright", collapsed: false }).addTo(map);
   L.control.scale({ metric: true, imperial: false, position: "bottomleft" }).addTo(map);
 }

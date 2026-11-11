@@ -10,7 +10,10 @@ import { verificarWebhookAsaas, WebhookRecoveryError, type WebhookDiagnostic } f
 import {
   salvarAsaasIntegracao, salvarEvolutionIntegracao, salvarPluggyIntegracao, statusIntegracoes, testarIntegracao,
   type ResultadoTeste, type ServicoIntegracao, type StatusIntegracoes,
+  finalDaChave,
 } from "@/lib/integracoes";
+import { removerTokenMapbox, salvarTokenMapbox, tokenMapbox } from "@/lib/geo/mapbox-config";
+import { verificarTokenMapbox } from "@/lib/geo/mapbox-token";
 
 const ROTA = "/admin/integracoes";
 const SERVICOS: readonly ServicoIntegracao[] = ["asaas", "pluggy", "whatsapp"];
@@ -67,4 +70,37 @@ export async function salvarEvolutionIntegracaoAcao(input: { url: string; apiKey
     revalidatePath("/admin/whatsapp");
     return { url: r.url };
   } catch (e) { return { erro: motivo(e, "Não foi possível salvar.") }; }
+}
+
+// ─── Mapbox (opcional, 11/11): token PÚBLICO para o satélite do mapa do terreno. Sem ele, Esri. ───
+// Gêmeo das procedures integracoes.statusMapbox/testarMapbox/salvarMapbox/removerMapbox da Prospecta.
+export async function statusMapboxAcao(): Promise<{ configurado: boolean; final: string | null; fonte: "env" | "banco" | null; erro?: string }> {
+  try {
+    await exigirAdminAtivo();
+    const t = await tokenMapbox().catch(() => null);
+    return { configurado: Boolean(t), final: finalDaChave(t?.token), fonte: t?.fonte ?? null };
+  } catch (e) { return { configurado: false, final: null, fonte: null, erro: motivo(e) }; }
+}
+
+export async function testarMapboxAcao(): Promise<{ ok: boolean; mensagem: string }> {
+  try {
+    await exigirAdminAtivo();
+    const t = await tokenMapbox().catch(() => null);
+    if (!t) return { ok: true, mensagem: "Sem token do Mapbox — o mapa do terreno usa o satélite da Esri (funciona sem configurar nada)." };
+    return await verificarTokenMapbox(t.token);
+  } catch (e) { return { ok: false, mensagem: motivo(e) }; }
+}
+
+export async function salvarMapboxAcao(token: string): Promise<{ mensagem?: string; erro?: string }> {
+  try {
+    await exigirAdminAtivo();
+    const r = await salvarTokenMapbox(token);
+    revalidatePath(ROTA);
+    return { mensagem: r.mensagem };
+  } catch (e) { return { erro: motivo(e, "Não foi possível salvar.") }; }
+}
+
+export async function removerMapboxAcao(): Promise<{ erro?: string }> {
+  try { await exigirAdminAtivo(); await removerTokenMapbox(); revalidatePath(ROTA); return {}; }
+  catch (e) { return { erro: motivo(e) }; }
 }
