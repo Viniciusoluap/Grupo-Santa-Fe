@@ -23,7 +23,7 @@ import { formatArea } from "@/lib/utils";
 interface Props {
   geojson: string; // Feature<Polygon> da gleba
   lotes: LoteGerado[];
-  /** Balões de retorno do cul-de-sac ([lng, lat]). */
+  /** Vias desenhadas (corredores + balões do cul-de-sac), [lng, lat]. */
   vias?: Position[][];
   height?: number;
 }
@@ -97,7 +97,7 @@ export function MapaMassa({ geojson, lotes, vias, height = 420 }: Props) {
           try {
             L.polygon(via.map((p: Position) => [p[1], p[0]] as [number, number]), {
               color: "#6b7280", weight: 1, fillColor: CORES_MASSA.via, fillOpacity: 0.85,
-            }).bindTooltip("Balão de retorno (cul-de-sac)").addTo(map);
+            }).bindTooltip("Sistema viário").addTo(map);
           } catch { /* geometria inválida */ }
         }
 

@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, CheckCircle2, FolderOpen, Grid3x3, Loader2, Save, Send, Star, Trash2, Trophy, CopyPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FolderOpen, Grid3x3, Loader2, Save, Send, Star, Trash2, Trophy, CopyPlus, PenTool, Satellite } from "lucide-react";
 import { formatCurrency, parseNumeroBR, formatArea } from "@/lib/utils";
 import {
-  gerarCenariosMassa, validarParametrosMassa, ROTULO_ESTUDO_PRELIMINAR, TIPOLOGIAS_MASSA,
-  type CenarioMassa, type ParametrosMassa, type TipologiaMassa,
-} from "@/lib/geo/massa";
+  assinaturaEntradas, criarProjecao, validarParametrosMassa, ROTULO_ESTUDO_PRELIMINAR, TIPOLOGIAS_MASSA,
+  type CenarioMassa, type EstudoMassaGerado, type ParametrosMassa, type TipologiaMassa,
+} from "@/lib/geo/massa-parcelamento";
+import { executarMotorMassa } from "./executar-massa";
+import { LADOS_GLEBA, ROTULO_LADO, medirLados, type LadoGleba } from "@/lib/geo/lados-gleba";
+import { PlantaTecnica } from "./planta-tecnica";
 import { linhasQuadroAreas, type QuadroAreasMassa } from "@/lib/incorporacao/massa-quadro-areas";
 import { AVISO_SEM_POLIGONAL, parseLotesAvulsos, resumoLotesAvulsos } from "@/lib/incorporacao/lotes-avulsos";
 import type { EstudoMassaSalvo } from "@/lib/incorporacao/estudos-massa";
@@ -17,9 +20,6 @@ import {
 } from "@/lib/actions/estudos-massa";
 import { exigirResultado } from "@/lib/acao-resultado";
 import { CORES_MASSA } from "./mapa-massa";
-import { executarMotorMassa } from "./executar-massa";
-import { LADOS_GLEBA, ROTULO_LADO, medirLados, type LadoGleba } from "@/lib/geo/lados-gleba";
-import { criarProjecao } from "@/lib/geo/massa";
 import type { EstudoData } from "./incorporacao-detail";
 import type { Feature, Polygon } from "geojson";
 
@@ -28,7 +28,7 @@ const MapaMassa = dynamic(() => import("./mapa-massa").then((m) => m.MapaMassa),
   loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: 460 }} />,
 });
 
-type CampoNumerico = Exclude<keyof ParametrosMassa, "tipologia" | "tracadoVia" | "inverterLadoVia" | "ladosVia" | "modoSistemaViario">;
+type CampoNumerico = Exclude<keyof ParametrosMassa, "tipologia" | "modoSistemaViario" | "formatoLote" | "tracadoVia" | "inverterLadoVia" | "ladosVia">;
 
 const CAMPOS: { k: CampoNumerico; label: string }[] = [
   { k: "testadaLoteM", label: "Testada do lote (m)" },
@@ -49,7 +49,9 @@ const CAMPOS_RESTRICOES: { k: CampoNumerico; label: string }[] = [
   { k: "outrasNaoParcelaveisM2", label: "Outras não parceláveis (m²)" },
 ];
 
-const TODOS_CAMPOS = [...CAMPOS, ...CAMPOS_RESTRICOES, { k: "areaSistemaViarioM2" as const }];
+const TODOS_CAMPOS = [...CAMPOS, ...CAMPOS_RESTRICOES, { k: "areaSistemaViarioM2" as CampoNumerico, label: "Área do sistema viário (m²)" }];
+
+const ROTULO_TIPOLOGIA: Record<TipologiaMassa, string> = { grid: "grade", cul_de_sac: "cul-de-sac", rua_simples: "rua simples", vias_publicas: "vias públicas" };
 
 /** Formata um número para exibição no padrão brasileiro (campo de texto). */
 function formatarCampo(v: number | undefined): string {
@@ -88,6 +90,7 @@ function paramsIniciais(estudo: EstudoData): ParametrosMassa {
   };
   return {
     tipologia: "grid",
+    modoSistemaViario: "automatico",
     // APP calculada no mapa do Terreno (KML) entra como padrão; pode ser ajustada.
     appM2: estudo.appAreaM2 ?? 0,
     supressaoVegetalM2: 0,
@@ -109,9 +112,14 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
   const [selecionado, setSelecionado] = useState<string | null>(estudo.cenarioEscolhidoId);
   const [busy, setBusy] = useState(false);
   const [gerando, setGerando] = useState(false);
-  const [progresso, setProgresso] = useState<{ fracao: number; etapa: string } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
+  // motor v2: progresso real, motivo de inviabilidade, avisos e cache por assinatura das entradas
+  const [progresso, setProgresso] = useState<{ fracao: number; etapa: string } | null>(null);
+  const [inviabilidade, setInviabilidade] = useState<EstudoMassaGerado["inviabilidade"]>(null);
+  const [avisos, setAvisos] = useState<string[]>([]);
+  const [visao, setVisao] = useState<"tecnico" | "satelite">("tecnico");
+  const cache = useRef<{ assinatura: string; resultado: EstudoMassaGerado } | null>(null);
   // Estudos salvos (correção 11)
   const [salvos, setSalvos] = useState<EstudoMassaSalvo[]>([]);
   const [carregandoSalvos, setCarregandoSalvos] = useState(true);
@@ -127,7 +135,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
       return p ? { id: p.id, nome: p.nome, versao: p.versao } : null;
     });
     setNome((atual) => atual || lista.find((s) => s.principal)?.nome || "");
-  }, []);
+  }, [setNome]);
 
   const carregarSalvos = useCallback(async () => {
     try {
@@ -150,19 +158,6 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
     return () => { vivo = false; };
   }, [estudo.id, aplicarLista]);
 
-  // comprimento de cada lado da gleba (cima/esquerda/direita/baixo), medido no KML
-  const ladosMedidos = useMemo(() => {
-    if (!estudo.geojson || estudo.centroLng == null || estudo.centroLat == null) return null;
-    try {
-      const geom = (JSON.parse(estudo.geojson) as Feature<Polygon>).geometry;
-      if (geom?.type !== "Polygon") return null;
-      const proj = criarProjecao([estudo.centroLng, estudo.centroLat]);
-      const anelM = geom.coordinates[0].map((p) => proj.paraMetros(p));
-      anelM[anelM.length - 1] = anelM[0];
-      return medirLados(anelM);
-    } catch { return null; }
-  }, [estudo.geojson, estudo.centroLng, estudo.centroLat]);
-
   function upd(k: CampoNumerico, valorTexto: string) {
     setCamposTexto((c) => ({ ...c, [k]: valorTexto }));
     setParams((p) => ({ ...p, [k]: parseNumeroBR(valorTexto) }));
@@ -175,35 +170,69 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
     setCamposTexto((c) => ({ ...c, [k]: formatarCampo(params[k]) }));
   }
 
+  const contorno = useMemo(() => {
+    try {
+      return estudo.geojson ? (JSON.parse(estudo.geojson) as Feature<Polygon>).geometry ?? null : null;
+    } catch {
+      return null;
+    }
+  }, [estudo.geojson]);
+
+  // comprimento de cada lado da gleba (cima/esquerda/direita/baixo), medido no KML
+  const ladosMedidos = useMemo(() => {
+    if (contorno?.type !== "Polygon" || estudo.centroLng == null || estudo.centroLat == null) return null;
+    try {
+      const anelGeo = contorno.coordinates[0];
+      const proj = criarProjecao([estudo.centroLng, estudo.centroLat]);
+      const anelM = anelGeo.map((p) => proj.paraMetros(p));
+      anelM[anelM.length - 1] = anelM[0];
+      return medirLados(anelM);
+    } catch { return null; }
+  }, [contorno, estudo.centroLng, estudo.centroLat]);
+
   async function gerar(entradas = params) {
-    if (gerando || !estudo.geojson || estudo.centroLat == null || estudo.centroLng == null) return;
+    if (!estudo.geojson || !estudo.centroLat || !estudo.centroLng) return;
+    if (gerando) return; // impede execuções concorrentes
+
     const erroValidacao = validarParametrosMassa(entradas);
-    if (erroValidacao) { setErro(erroValidacao); return; }
+    if (erroValidacao) {
+      setErro(erroValidacao);
+      return;
+    }
 
     setErro(null);
-    setGerando(true);
-    try {
-      const feature = JSON.parse(estudo.geojson) as Feature<Polygon>;
-      const anel = feature.geometry.coordinates[0];
-      if (!anel || anel.length < 4) throw new Error("Geometria da gleba inválida ou incompleta.");
-      const centro: [number, number] = [estudo.centroLng, estudo.centroLat];
-      if (entradas.tipologia === "rua_simples" || entradas.tipologia === "vias_publicas") {
-        setProgresso({ fracao: 0, etapa: "Iniciando" });
-        const resultado = await executarMotorMassa(anel, centro, entradas, (fracao, etapa) => setProgresso({ fracao, etapa }));
-        setCenarios(resultado.cenarios);
-        setSelecionado(resultado.cenarios[0]?.id ?? null);
-        setErro(resultado.inviabilidade?.motivo ?? null);
+    const anel = contorno?.coordinates[0];
+    if (!anel || anel.length < 4) {
+      setErro("Geometria da gleba inválida ou incompleta. Reenvie o KML na aba Terreno.");
+      return;
+    }
+    const centro: [number, number] = [estudo.centroLng, estudo.centroLat];
+    const assinatura = assinaturaEntradas(anel, entradas);
+    const aplicar = (r: EstudoMassaGerado) => {
+      setAvisos(r.avisos);
+      setInviabilidade(r.inviabilidade);
+      if (r.cenarios.length === 0) {
+        // nenhum cenário válido: mantém os anteriores fora da tela de comparação, sem inventar cartões
+        setCenarios([]);
+        setSelecionado(null);
+        setErro(r.inviabilidade?.motivo ?? "Nenhum cenário válido com esses parâmetros.");
         return;
       }
-      // Deixa o spinner aparecer antes do cálculo legado síncrono.
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      const novos = gerarCenariosMassa(anel, centro, entradas, { populacao: 14, geracoes: 12, seed: Date.now() % 100000, nCenarios: 3 });
-      if (!novos.length) throw new Error("Nenhum cenário gerado com os parâmetros informados.");
-      setCenarios(novos);
-      setSelecionado(novos.find((c) => !c.inviabilidade)?.id ?? novos[0]?.id ?? null);
-      if (novos.every((c) => c.inviabilidade)) setErro(novos[0].inviabilidade ?? "Nenhum cenário viável com esses parâmetros.");
+      setCenarios(r.cenarios);
+      setSelecionado(r.cenarios[0].id);
+    };
+    // mesmas entradas + mesma versão do algoritmo = mesmo resultado: reaproveita sem recalcular
+    if (cache.current?.assinatura === assinatura) { aplicar(cache.current.resultado); return; }
+
+    setGerando(true);
+    setProgresso({ fracao: 0, etapa: "Iniciando" });
+    try {
+      const r = await executarMotorMassa(anel, centro, entradas, (fracao, etapa) => setProgresso({ fracao, etapa }));
+      cache.current = { assinatura, resultado: r };
+      aplicar(r);
     } catch (e) {
       console.error("Erro ao gerar cenários de massa:", e);
+      // falha nunca apaga os cenários anteriores nem os parâmetros digitados
       setErro("Não foi possível gerar os cenários com esses parâmetros. Verifique os valores informados e tente novamente.");
     } finally {
       setGerando(false);
@@ -354,9 +383,20 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
               <label htmlFor="massa-tracado-via" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Traçado da via</label>
               <select id="massa-tracado-via" value={params.tracadoVia ?? "reta"}
                 onChange={(e) => { setParams((p) => ({ ...p, tracadoVia: e.target.value as "reta" | "divisa" })); setErro(null); }}
-                className="w-full text-sm border border-gray-200 px-2 py-1.5 bg-white">
+                className="w-full text-sm border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:border-[var(--brand-yellow)]">
                 <option value="reta">Reta</option>
                 <option value="divisa">Acompanha a divisa (com curvas)</option>
+              </select>
+            </div>
+          )}
+          {params.tipologia === "rua_simples" && params.tracadoVia !== "divisa" && (
+            <div className="col-span-2">
+              <label htmlFor="massa-formato-lote" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Formato do lote</label>
+              <select id="massa-formato-lote" value={params.formatoLote ?? "retangular"}
+                onChange={(e) => { setParams((p) => ({ ...p, formatoLote: e.target.value as "retangular" | "divisa" })); setErro(null); }}
+                className="w-full text-sm border border-gray-200 px-2 py-1.5 bg-white focus:outline-none focus:border-[var(--brand-yellow)]">
+                <option value="retangular">Retangular exato (testada × profundidade)</option>
+                <option value="divisa">Acompanha a divisa (fundo até o limite, área ≥ mínima)</option>
               </select>
             </div>
           )}
@@ -375,70 +415,79 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
         <p className="text-[10px] text-gray-500 mt-2">
           Cada restrição entra uma única vez no quadro de áreas. A APP vem preenchida com a área calculada no mapa do Terreno, quando houver.
         </p>
-        {params.tipologia === "rua_simples" && (
-          <div className="mt-4">
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Área do sistema viário (m²)</p>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="inline-flex items-center gap-2 text-xs text-gray-700">
-                <input type="checkbox" checked={params.modoSistemaViario === "manual"}
-                  onChange={(e) => setParams((p) => ({ ...p, modoSistemaViario: e.target.checked ? "manual" : "automatico" }))} />
-                Informar área viária manualmente
-              </label>
-              {params.modoSistemaViario === "manual" && (
-                <CampoTexto id="massa-areaSistemaViarioM2" label="Área viária (m²)" valor={camposTexto.areaSistemaViarioM2}
-                  onChange={(v) => upd("areaSistemaViarioM2", v)} onBlur={() => reformatarCampo("areaSistemaViarioM2")} />
-              )}
-              {params.tracadoVia === "divisa" && (
-                <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-xs font-semibold text-gray-700" aria-label="Lados da gleba com rua">
-                  {LADOS_GLEBA.map((lado) => {
-                    const medida = ladosMedidos?.find((x) => x.lado === lado);
-                    const marcado = params.ladosVia?.includes(lado) ?? false;
-                    return (
-                      <label key={lado} className="inline-flex items-center gap-1.5" title={medida ? `${medida.comprimentoM.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} m de divisa — cabem até ${Math.floor(medida.comprimentoM / Math.max(params.testadaLoteM, 1e-9))} frentes de ${params.testadaLoteM.toLocaleString("pt-BR")} m` : undefined}>
-                        <input type="checkbox" checked={marcado} disabled={gerando || busy || !estudo.geojson || (medida?.comprimentoM ?? 0) <= 0}
-                          onChange={(e) => {
-                            const atuais = new Set<LadoGleba>(params.ladosVia ?? []);
-                            if (e.target.checked) atuais.add(lado); else atuais.delete(lado);
-                            const entradas = { ...params, inverterLadoVia: false, ladosVia: LADOS_GLEBA.filter((l) => atuais.has(l)) };
-                            setParams(entradas);
-                            void gerar(entradas);
-                          }} />
-                        {ROTULO_LADO[lado]}
-                        {medida && medida.comprimentoM > 0 && <span className="font-normal text-gray-400">({medida.comprimentoM.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} m)</span>}
-                      </label>
-                    );
-                  })}
-                </fieldset>
-              )}
-            </div>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-4 mb-2">Área do sistema viário (m²)</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <fieldset className="flex gap-3 text-xs text-gray-700" aria-label="Modo da área do sistema viário">
+            <label className="inline-flex items-center gap-1.5">
+              <input type="radio" name="massa-modo-viario" checked={(params.modoSistemaViario ?? "automatico") === "automatico"}
+                onChange={() => { setParams((p) => ({ ...p, modoSistemaViario: "automatico" })); setErro(null); }} /> Automático (área das vias desenhadas)
+            </label>
+            <label className="inline-flex items-center gap-1.5">
+              <input type="radio" name="massa-modo-viario" checked={params.modoSistemaViario === "manual"}
+                onChange={() => { setParams((p) => ({ ...p, modoSistemaViario: "manual" })); setErro(null); }} /> Manual
+            </label>
+          </fieldset>
+          <div className="w-48">
+            <CampoTexto id="massa-areaSistemaViarioM2" label="Área viária (m²)" valor={camposTexto.areaSistemaViarioM2 ?? ""}
+              desabilitado={params.modoSistemaViario !== "manual"}
+              onChange={(v) => upd("areaSistemaViarioM2", v)} onBlur={() => reformatarCampo("areaSistemaViarioM2")} />
           </div>
-        )}
-        {params.tipologia === "vias_publicas" && (
-          <p className="text-[10px] text-gray-500 mt-2">
-            Vias públicas: todas as divisas da gleba (por fora e por dentro) já são frente para via pública — o motor não desenha via interna e não usa largura da via nem quadra máxima. 100% da área vira lote: as únicas exigências são frente ≥ testada e área ≥ lote mínimo; fundos, laterais e frentes maiores variam de lote para lote, e a profundidade informada é só referência (sem sobras).
-          </p>
-        )}
-        {params.tipologia === "rua_simples" && params.tracadoVia === "divisa" && (
-          <p className="text-[10px] text-gray-500 mt-2">
-            {(params.ladosVia?.length ?? 0) > 0
-              ? "Rua somente nos lados marcados: cada lote tem a frente EXATA da testada sobre a via e o fundo variável até a divisa oposta (a divisa lateral gira quando a faixa não atinge a área mínima). A quantidade máxima é o comprimento da divisa ÷ testada. Sem lado marcado, o motor escolhe a divisa automaticamente."
-              : "Via pela divisa: marque a(s) rua(s) de cima, da esquerda, da direita ou de baixo para fixar onde a via fica. Sem marcação, o motor escolhe a divisa; a testada é a frente MÍNIMA de cada lote (maior só onde preciso para atingir a área mínima) e os lotes vão até a divisa oposta."}
-          </p>
-        )}
+          {params.tipologia === "rua_simples" && params.tracadoVia === "divisa" && (
+            <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-xs font-semibold text-gray-700" aria-label="Lados da gleba com rua">
+              {LADOS_GLEBA.map((lado) => {
+                const medida = ladosMedidos?.find((x) => x.lado === lado);
+                const marcado = params.ladosVia?.includes(lado) ?? false;
+                return (
+                  <label key={lado} className="inline-flex items-center gap-1.5" title={medida ? `${medida.comprimentoM.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} m de divisa — cabem até ${Math.floor(medida.comprimentoM / Math.max(params.testadaLoteM, 1e-9))} frentes de ${params.testadaLoteM.toLocaleString("pt-BR")} m` : undefined}>
+                    <input type="checkbox" checked={marcado} disabled={gerando || busy || !estudo.geojson || (medida?.comprimentoM ?? 0) <= 0}
+                      onChange={(e) => {
+                        const atuais = new Set<LadoGleba>(params.ladosVia ?? []);
+                        if (e.target.checked) atuais.add(lado); else atuais.delete(lado);
+                        const entradas = { ...params, inverterLadoVia: false, ladosVia: LADOS_GLEBA.filter((l) => atuais.has(l)) };
+                        setParams(entradas);
+                        void gerar(entradas);
+                      }} />
+                    {ROTULO_LADO[lado]}
+                    {medida && medida.comprimentoM > 0 && <span className="font-normal text-gray-400">({medida.comprimentoM.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} m)</span>}
+                  </label>
+                );
+              })}
+            </fieldset>
+          )}
+        </div>
+        <p className="text-[10px] text-gray-500 mt-1">
+          {params.modoSistemaViario === "manual"
+            ? "Manual: o motor ajusta a malha para a via desenhada bater com o valor (±5%) — Rua Simples: comprimento da via; Grade/Cul-de-sac: quadras mais curtas (nunca acima do máximo informado) ou supressão de ruas de menor aproveitamento. Se nenhum ajuste fechar, mostra a divergência e não cria implantação fictícia."
+            : `Automático: usa a área geométrica das vias desenhadas${cenarioAtivo?.sistemaViario ? ` — cenário atual: ${m2(cenarioAtivo.sistemaViario.areaGeometricaM2)}` : ""}.`}
+          {params.tipologia === "rua_simples" && " Na Rua Simples o comprimento máximo da quadra não se aplica (via única)."}
+          {params.tipologia === "vias_publicas" && " Vias públicas: todas as divisas da gleba (por fora e por dentro) já são frente para via pública — o motor não desenha via interna e não usa largura da via nem quadra máxima. 100% da área vira lote: as únicas exigências são frente ≥ testada e área ≥ lote mínimo; fundos, laterais e frentes maiores variam de lote para lote, e a profundidade informada é só referência (sem sobras)."}
+          {params.tipologia === "rua_simples" && params.tracadoVia === "divisa" && ((params.ladosVia?.length ?? 0) > 0
+            ? " Rua somente nos lados marcados: cada lote tem a frente EXATA da testada sobre a via e o fundo variável até a divisa oposta (a divisa lateral gira quando a faixa não atinge a área mínima). A quantidade máxima é o comprimento da divisa ÷ testada. Sem lado marcado, o motor escolhe a divisa automaticamente."
+            : " Via pela divisa: marque a(s) rua(s) de cima, da esquerda, da direita ou de baixo para fixar onde a via fica. Sem marcação, o motor escolhe a divisa; a testada é a frente MÍNIMA de cada lote (maior só onde preciso para atingir a área mínima) e os lotes vão até a divisa oposta.")}
+        </p>
         <button onClick={() => void gerar()} disabled={gerando || busy || !estudo.geojson}
           className="mt-4 flex items-center gap-1.5 text-xs font-bold px-5 py-2.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 disabled:opacity-50">
           {gerando ? <Loader2 size={14} className="animate-spin" /> : <Grid3x3 size={14} />}
           {gerando ? "Calculando cenários…" : "Gerar cenários otimizados"}
         </button>
         {progresso && (
-          <p role="status" className="mt-2 text-xs text-gray-600">{progresso.etapa} · {Math.round(progresso.fracao * 100)}%</p>
+          <div className="mt-2 max-w-md" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progresso.fracao * 100)} aria-label="Progresso do cálculo">
+            <div className="h-1.5 bg-gray-100"><div className="h-1.5 bg-[var(--brand-yellow)] transition-all" style={{ width: `${Math.round(progresso.fracao * 100)}%` }} /></div>
+            <p className="text-[10px] text-gray-600 mt-1">{progresso.etapa} · {Math.round(progresso.fracao * 100)}%</p>
+          </div>
         )}
         {erro && (
           <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-100 p-3">
             <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-red-700">{erro}</p>
+            <div className="text-xs text-red-700 space-y-1">
+              <p>{erro}</p>
+              {inviabilidade?.causas.length ? (
+                <ul className="list-disc pl-4">{inviabilidade.causas.map((c) => <li key={c}>{c}</li>)}</ul>
+              ) : null}
+            </div>
           </div>
         )}
+        {avisos.map((a) => <p key={a} className="mt-2 text-[11px] text-gray-600">{a}</p>)}
       </div>
 
       {cenarios.length > 0 && (
@@ -454,15 +503,17 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
                     <p className="text-xs font-black text-[var(--brand-dark)] uppercase flex items-center gap-1">
                       {i === 0 && <Trophy size={12} className="text-[var(--brand-yellow)]" />} Cenário {i + 1}
                     </p>
-                    <span className="text-[10px] text-gray-600">{c.tipologia === "rua_simples" ? "rua simples" : c.tipologia === "cul_de_sac" ? "cul-de-sac" : c.tipologia === "vias_publicas" ? "vias públicas" : "grid"} · malha {c.anguloVia}°</span>
+                    <span className="text-[10px] text-gray-600">{ROTULO_TIPOLOGIA[c.tipologia ?? "grid"]} · {c.anguloVia.toLocaleString("pt-BR")}°</span>
                   </div>
+                  {c.criterioRotulo && <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">{c.criterioRotulo}</p>}
                   <p className="font-black text-[var(--brand-dark)] text-xl leading-none mb-1">{c.kpis.lotesVendaveis} lotes</p>
                   <p className="text-[11px] text-gray-500">
                     {formatArea(c.kpis.areaVendavelM2)} vendáveis · {(c.kpis.aproveitamento * 100).toFixed(0)}% aproveitamento
                   </p>
                   <p className="text-sm font-bold text-green-600 mt-1">VGV {formatCurrency(c.kpis.vgv)}</p>
                   <p className="text-[10px] text-gray-600 mt-1">
-                    lote {c.testadaLoteM}×{c.profundidadeLoteM}m · via {c.larguraViaM}m
+                    lote {c.testadaLoteM.toLocaleString("pt-BR")} × {c.profundidadeLoteM.toLocaleString("pt-BR")} m · via {c.larguraViaM.toLocaleString("pt-BR")} m
+                    {c.sistemaViario ? ` · viário ${formatArea(c.sistemaViario.areaGeometricaM2)}` : ""}
                   </p>
                   {c.inviabilidade && <p className="text-[11px] text-red-700 mt-2">{c.inviabilidade}</p>}
                 </button>
@@ -473,15 +524,31 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
           {/* Mapa do cenário selecionado */}
           {cenarioAtivo && (
             <div className="bg-white border border-gray-100 p-2">
-              <MapaMassa geojson={estudo.geojson} lotes={cenarioAtivo.lotes} vias={cenarioAtivo.ruas ?? cenarioAtivo.vias} height={460} />
+              <div className="flex gap-1 mb-2" role="tablist" aria-label="Modo de visualização">
+                <button role="tab" aria-selected={visao === "tecnico"} onClick={() => setVisao("tecnico")}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 border ${visao === "tecnico" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)] border-transparent" : "border-gray-200 text-[var(--brand-dark)]"}`}>
+                  <PenTool size={13} /> Desenho técnico
+                </button>
+                <button role="tab" aria-selected={visao === "satelite"} onClick={() => setVisao("satelite")}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 border ${visao === "satelite" ? "bg-[var(--brand-dark)] text-[var(--brand-yellow)] border-transparent" : "border-gray-200 text-[var(--brand-dark)]"}`}>
+                  <Satellite size={13} /> Satélite
+                </button>
+              </div>
+              {visao === "tecnico" && estudo.centroLng != null && estudo.centroLat != null ? (
+                <PlantaTecnica geojson={estudo.geojson} cenario={cenarioAtivo} centro={[estudo.centroLng, estudo.centroLat]}
+                  height={520} titulo={`${cenarioAtivo.id} · ${ROTULO_TIPOLOGIA[cenarioAtivo.tipologia ?? "grid"]}`} />
+              ) : (
+                <>
+              <MapaMassa geojson={estudo.geojson} lotes={cenarioAtivo.lotes} vias={[...(cenarioAtivo.ruas ?? []), ...(cenarioAtivo.vias ?? [])]} height={460} />
               <div className="flex flex-wrap gap-3 p-2 text-[10px] text-gray-600">
                 <Legenda cor={CORES_MASSA.vendavel} texto="Lotes vendáveis" />
                 <Legenda cor={CORES_MASSA.institucional} texto="Institucional" />
                 <Legenda cor={CORES_MASSA.verde} texto="Área verde" />
                 <Legenda cor={CORES_MASSA.nao_parcelavel} texto="Não parcelável (restrições)" />
-                {cenarioAtivo.tipologia === "rua_simples" && <Legenda cor={CORES_MASSA.via} texto="Sistema viário" />}
-                {cenarioAtivo.tipologia === "cul_de_sac" && <Legenda cor={CORES_MASSA.via} texto="Balão de retorno" />}
+                <Legenda cor={CORES_MASSA.via} texto={cenarioAtivo.tipologia === "cul_de_sac" ? "Vias e balões de retorno" : "Vias"} />
               </div>
+                </>
+              )}
               <p className="text-[10px] font-bold text-amber-800 px-2 pb-2">{ROTULO_ESTUDO_PRELIMINAR}.</p>
               {(cenarioAtivo.limitacoes ?? []).map((l) => <p key={l} className="text-[10px] text-gray-600 px-2 pb-1">{l}</p>)}
             </div>
@@ -496,7 +563,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
           <Grid3x3 size={28} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Nenhum cenário gerado</p>
           <p className="text-gray-600 text-sm mt-1">
-            O motor testa dezenas de malhas viárias e dimensões de lote e devolve as 3 melhores por VGV.
+            O motor testa, de forma determinística, orientações e posições da malha com as dimensões informadas e devolve até 3 alternativas válidas e distintas.
           </p>
         </div>
       )}
@@ -561,7 +628,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
                     {aberto?.id === s.id && <span className="ml-2 text-[10px] font-bold uppercase text-gray-600">(aberto)</span>}
                   </p>
                   <p className="text-[11px] text-gray-600">
-                    {s.indicadores ? `${s.indicadores.lotesVendaveis} lotes · ${m2(s.indicadores.areaVendavelM2)} vendáveis · VGV ${formatCurrency(s.indicadores.vgv)} · ${s.indicadores.tipologia === "cul_de_sac" ? "cul-de-sac" : "grid"}` : "Sem indicadores"}
+                    {s.indicadores ? `${s.indicadores.lotesVendaveis} lotes · ${m2(s.indicadores.areaVendavelM2)} vendáveis · VGV ${formatCurrency(s.indicadores.vgv)} · ${ROTULO_TIPOLOGIA[s.indicadores.tipologia ?? "grid"] ?? s.indicadores.tipologia}` : "Sem indicadores"}
                     {" · "}{s.autorNome ?? "autor não registrado"} · {new Date(s.atualizadoEm).toLocaleString("pt-BR")}
                   </p>
                 </div>
@@ -584,13 +651,13 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
   );
 }
 
-function CampoTexto({ id, label, valor, onChange, onBlur }: { id: string; label: string; valor: string; onChange: (v: string) => void; onBlur: () => void }) {
+function CampoTexto({ id, label, valor, onChange, onBlur, desabilitado }: { id: string; label: string; valor: string; onChange: (v: string) => void; onBlur: () => void; desabilitado?: boolean }) {
   return (
     <div>
       <label htmlFor={id} className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">{label}</label>
-      <input id={id} type="text" inputMode="decimal" value={valor}
+      <input id={id} type="text" inputMode="decimal" value={valor} disabled={desabilitado}
         onChange={(e) => onChange(e.target.value)} onBlur={onBlur} placeholder="0,00"
-        className="w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)]" />
+        className="w-full text-sm border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-[var(--brand-yellow)] disabled:bg-gray-50 disabled:text-gray-400" />
     </div>
   );
 }

@@ -57,3 +57,36 @@ técnico com Satélite, área viária manual — levantar item a item contra o R
 - `web/src/lib/crm/agenda-registros.ts`: `tarefaAtrasada` e filtros "Tarefas atrasadas e do dia" e "Tarefas atrasadas"
   na Agenda (o Santa Fé mostra as tarefas na Agenda, não numa tela de Tarefas e SLA como a Prospecta).
 - Testes: `agenda-registros.test.ts` (+2). Produção: pendente.
+
+## Bloco 3 — Estudo de Massa: motor v2 em todas as tipologias, desenho técnico, área viária, unidades (autorizado em 11/11)
+Levantamento: os módulos do motor (`massa-parcelamento.ts`, `geometria-parcelamento.ts`, `rua-simples.ts`,
+`rua-divisa.ts`, `lados-gleba.ts`, `vias-publicas*.ts`) e `massa-quadro-areas.ts` já eram idênticos aos da Prospecta.
+O que faltava era a tela e a exibição:
+- `web/src/app/admin/incorporacao/_components/massa-tab.tsx`: igual à da Prospecta. Grade e Cul-de-sac saem do
+  motor genético antigo (seed `Date.now()`, resultado diferente a cada clique, dimensões alteradas) e passam ao motor
+  v2 determinístico (worker com barra de progresso, até 3 cenários por critério, motivo + causas da inviabilidade,
+  avisos, cache por assinatura das entradas); "Área do sistema viário" automático/manual em todas as tipologias
+  (manual ajusta a malha ±5% ou mostra a divergência); "Formato do lote" na Rua Simples reta; alternância
+  **Desenho técnico** (padrão) / **Satélite**.
+- `web/src/lib/geo/planta-tecnica.ts` (gêmeo do `shared/incorporacao/planta-tecnica.ts`) e
+  `_components/planta-tecnica.tsx` (zoom, pan, seleção do lote com destaque da quadra, exportar SVG, imprimir).
+  Ajuste de lint do React Compiler: o reenquadramento é feito durante a renderização (sem `setState` em efeito).
+- `_components/mapa-massa.tsx`: tooltip "Sistema viário" (vias + balões).
+- `web/src/lib/incorporacao/unidades.ts`: `formatarCodigoLote`, `parseCodigoUnidade`, `codigoExibicao`,
+  `compararCodigoUnidade`, `paginar`. `_components/unidades-tab.tsx`: exibição Q01 / L01 (código gravado não muda),
+  ordem numérica, filtro por status, 6 por página com setas.
+- `web/src/lib/geo/massa.ts` (motor antigo) fica no repositório só para os testes legados; nenhuma tela o usa mais
+  para gerar cenários (o `relatorio-tab` importa dele apenas o rótulo).
+
+Testes (a) automáticos:
+- `massa-parcelamento-v2.test.ts` (44, portado da Prospecta: dimensões exatas, determinismo 10×, Morada do Bosque 29,
+  área viária manual, quantidade dinâmica, frente efetiva) e `planta-tecnica-unidades.test.ts` (10) — 54 ✅.
+- `planta-tecnica-render.test.tsx` (1): componente renderizado no servidor desenha todos os lotes do cenário.
+- typecheck limpo; eslint limpo nos arquivos do bloco (o erro antigo de `Date.now()` no massa-tab deixou de existir).
+- Suíte completa: ver resultado registrado abaixo.
+(b) manuais: nenhum (a tela exige login e banco).
+(c) produção: pendente — abrir um estudo com KML, gerar Grade, Cul-de-sac e Rua Simples (mesmo resultado a cada clique),
+alternar Desenho técnico/Satélite, testar área viária manual; ver Unidades em Q01 / L01 com 6 por página.
+
+Próximo: bloco 4 (Mercado com dois motores, chaves no banco, Negociação — excluir proposta/permuta % VGV —
+e correções 09–12 da Viabilidade), item a item contra o ROADMAP da Prospecta.
