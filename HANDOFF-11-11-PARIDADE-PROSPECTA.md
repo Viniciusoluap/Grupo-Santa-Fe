@@ -44,3 +44,16 @@ Com autorização do dono: aplicar a migração `20261111180000_anexos_em_partes
 PR #252 e conferir o deploy. Depois, bloco 3: motor de parcelamento e tipologias (grade e cul-de-sac do Santa Fé
 ainda usam o motor genético antigo em `web/src/lib/geo/massa.ts`; a Prospecta usa o motor v2 para todas), desenho
 técnico com Satélite, área viária manual — levantar item a item contra o ROADMAP da Prospecta.
+
+## Merge e deploy dos blocos 1 e 2 (autorizados pelo dono em 11/11)
+- Migração `anexos_em_partes_20261111` aplicada no Supabase de produção (`giulchozonhzyopmgmkv`) antes do merge:
+  tabela `estudo_documento_partes` criada e conferida (7 colunas); nada existente alterado.
+- PR #252 mergeado em `main` (7d66694); deploy de produção `dpl_A1BLXzqcf9nqmvsjXKPUbj5ToJHM` READY em
+  gruposantafee.com.br; sem erros de runtime nos primeiros minutos.
+- (c) Pendente em produção: testar Vias públicas e os 4 lados num estudo com KML; anexar foto, DWG e Word na Due Diligence.
+- Próximo: bloco 3 (motor v2 para grade e cul-de-sac, desenho técnico com Satélite, área viária manual).
+
+## Tarefas atrasadas (pedido de 11/11 na Prospecta, paridade)
+- `web/src/lib/crm/agenda-registros.ts`: `tarefaAtrasada` e filtros "Tarefas atrasadas e do dia" e "Tarefas atrasadas"
+  na Agenda (o Santa Fé mostra as tarefas na Agenda, não numa tela de Tarefas e SLA como a Prospecta).
+- Testes: `agenda-registros.test.ts` (+2). Produção: pendente.

@@ -52,3 +52,22 @@ describe("lista unificada da agenda", () => {
     expect(registrosAgenda([], [{ id: "c", vencimentoCard: "2026-10-22T00:00:00.000Z" }], [], "data_selecionada", hoje, hoje)[0].dia).toBe(hoje);
   });
 });
+
+describe("filtro de tarefas atrasadas (paridade com a Prospecta, 11/11)", () => {
+  const agora = new Date(2026, 10, 11, 16, 0);
+  const hojeNov = "2026-11-11";
+  const tarefas = [
+    { id: "atrasada", status: "pendente", prazo: new Date(2026, 10, 10, 9) },
+    { id: "hoje-cedo", status: "em_andamento", prazo: new Date(2026, 10, 11, 9) },
+    { id: "hoje-tarde", status: "pendente", prazo: new Date(2026, 10, 11, 18) },
+    { id: "futura", status: "pendente", prazo: new Date(2026, 10, 25, 9) },
+    { id: "concluida", status: "concluida", prazo: new Date(2026, 10, 1, 9) },
+  ];
+  const ids = (f: "tarefas_atrasadas" | "tarefas_atrasadas_e_do_dia") => registrosAgenda([], [], tarefas, f, hojeNov, hojeNov, agora).map(r => r.item.id);
+  it("atrasadas: prazo vencido e tarefa aberta", () => {
+    expect(ids("tarefas_atrasadas")).toEqual(["atrasada", "hoje-cedo"]);
+  });
+  it("atrasadas e do dia: sem futuras nem concluídas", () => {
+    expect(ids("tarefas_atrasadas_e_do_dia")).toEqual(["atrasada", "hoje-cedo", "hoje-tarde"]);
+  });
+});
