@@ -91,3 +91,13 @@ alternar Desenho técnico/Satélite, testar área viária manual; ver Unidades e
 
 Próximo: bloco 4 (Mercado com dois motores, chaves no banco, Negociação — excluir proposta/permuta % VGV —
 e correções 09–12 da Viabilidade), item a item contra o ROADMAP da Prospecta.
+
+## Bloco 3 — merge/deploy e correção pós-revisão (11/11)
+- PR #256 mergeado (8c225a5) com autorização do dono; deploy de produção `dpl_ASTgaEGGgMa51tSMqpYHV4VpLb4w` READY em
+  gruposantafee.com.br; sem erros de runtime nos primeiros 15 min. Prospecta #210 (ROADMAP) mergeado (7048eac).
+- Achado do Codex na #256 (P2, confirmado): `formatoLote: "divisa"` salvo de uma Rua Simples dispensava a área mínima
+  em Grade/Cul-de-sac (lotes menores que a mínima, sem inviabilidade). Corrigido em `massa-parcelamento.ts`
+  (dispensa só na Rua Simples) + teste de regressão — commit 957ff13, PR #257. Mesma correção na Prospecta (PR #211).
+- Testes (a): suíte do web 166 arquivos / 1215 testes ✅; typecheck ✅ (foi preciso `npm install` local: o main trouxe
+  `maplibre-gl` de outro merge). Lint: só o `let brutos` antigo. Prospecta: 194 arquivos / 1623 testes ✅, tsc ✅.
+- Próximo: com autorização, mergear #257 e Prospecta #211 e conferir os deploys; depois bloco 4.
