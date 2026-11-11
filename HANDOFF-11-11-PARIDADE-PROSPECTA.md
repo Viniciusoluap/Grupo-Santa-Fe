@@ -52,3 +52,8 @@ técnico com Satélite, área viária manual — levantar item a item contra o R
   gruposantafee.com.br; sem erros de runtime nos primeiros minutos.
 - (c) Pendente em produção: testar Vias públicas e os 4 lados num estudo com KML; anexar foto, DWG e Word na Due Diligence.
 - Próximo: bloco 3 (motor v2 para grade e cul-de-sac, desenho técnico com Satélite, área viária manual).
+
+## Tarefas atrasadas (pedido de 11/11 na Prospecta, paridade)
+- `web/src/lib/crm/agenda-registros.ts`: `tarefaAtrasada` e filtros "Tarefas atrasadas e do dia" e "Tarefas atrasadas"
+  na Agenda (o Santa Fé mostra as tarefas na Agenda, não numa tela de Tarefas e SLA como a Prospecta).
+- Testes: `agenda-registros.test.ts` (+2). Produção: pendente.

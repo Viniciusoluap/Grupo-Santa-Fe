@@ -521,6 +521,7 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, vencimentos,
   const registros = registrosAgenda(visitas, vencimentos, tarefas, filtro, dia, chaveLocalAgenda(hoje));
   const tituloLista = filtro === "data_selecionada" ? `Registros de ${dia.split("-").reverse().join("/")}` : {
     leads_vencidos: "Leads vencidos", leads_do_dia: "Leads do dia", leads_a_vencer: "Leads a vencer", todas_tarefas: "Todas as tarefas",
+    tarefas_atrasadas_e_do_dia: "Tarefas atrasadas e do dia", tarefas_atrasadas: "Tarefas atrasadas",
   }[filtro];
 
   return (
@@ -553,6 +554,8 @@ export function AgendaClient({ visitas, corretores, imoveis, leads, vencimentos,
                 <option value="leads_vencidos">Leads vencidos</option>
                 <option value="leads_do_dia">Leads do dia</option>
                 <option value="leads_a_vencer">Leads a vencer</option>
+                <option value="tarefas_atrasadas_e_do_dia">Tarefas atrasadas e do dia</option>
+                <option value="tarefas_atrasadas">Tarefas atrasadas</option>
                 <option value="todas_tarefas">Todas as tarefas</option>
               </>}
             </select>
