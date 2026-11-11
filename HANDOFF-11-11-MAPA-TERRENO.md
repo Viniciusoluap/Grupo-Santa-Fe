@@ -23,7 +23,7 @@ gravar 0 por falha do Overpass e regravava a cada render). Viabilidade/Relatóri
 
 ## Testes
 **(a) Automáticos**
-- Prospecta: `pnpm check` OK; `pnpm vitest run server/geo-camadas-terreno.test.ts server/mapbox-token.test.ts server/imports-esm.test.ts server/integracoes.test.ts` → 44/44; suíte completa: ver resultado no commit final; `pnpm build` OK.
+- Prospecta: `pnpm check` OK; `pnpm vitest run server/geo-camadas-terreno.test.ts server/mapbox-token.test.ts server/imports-esm.test.ts server/integracoes.test.ts` → 44/44; suíte completa `pnpm vitest run` → 193 arquivos, 1619 testes OK; `pnpm build` OK.
 - Santa Fé: `npx prisma generate` OK; `npx tsc --noEmit` OK; `npx eslint` nos arquivos alterados OK (o único erro do diretório `src/lib/geo` é pré‑existente em `massa-parcelamento.ts:853`, fora do escopo); `npx vitest run src/lib/__tests__/camadas-terreno.test.ts src/lib/__tests__/mapbox-token.test.ts src/lib/__tests__/integracoes.test.ts` → 45/45; `npx next build`: **compilou e checou tipos com sucesso**, falhou só no *prerender* de `/` por falta de banco neste ambiente (`DatabaseNotReachable`) — não relacionado.
 - Testes não acessam rede: o fetch reproduz respostas reais gravadas em 11/11 (Imperatriz margem/leste, LTs da EPE, UC RPPN Arara Azul).
 
