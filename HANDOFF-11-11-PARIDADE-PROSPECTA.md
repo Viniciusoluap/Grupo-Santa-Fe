@@ -25,7 +25,22 @@ os módulos foram trazidos da Prospecta (mesma regra; só os caminhos de import 
 - (b) manuais: nenhum ainda neste repositório.
 - (c) produção: pendente — após merge/deploy, abrir um estudo com KML e testar Vias públicas e os 4 lados.
 
+## Bloco 2 — Due Diligence (mesmo PR #252, branch única da sessão)
+- `web/src/lib/incorporacao/due-diligence.ts`: `moverItem`; aba com setas ↑ ↓ em tarefas e documentos.
+- "Anexar" abre sempre o seletor; com alterações pendentes, salva antes de enviar ("Enviando..." no item).
+- Anexos de qualquer tipo (foto/HEIC, DWG, Word, Excel, ZIP...) até 50 MB, na Due Diligence e no Registro:
+  `web/src/lib/incorporacao/anexos.ts` (gêmeo do da Prospecta), `anexos-cliente.ts` (envio direto até 3 MB;
+  acima, partes de 2 MiB por `/api/envio`), ações `enviarParteDocumentoRegistro`/`finalizarDocumentoRegistro`,
+  rota `/api/incorporacao/documentos/[id]` com `?parte=N` (banco por `substring`, Drive por Range) e
+  download com o nome original para tipos que não abrem no navegador (HTML/SVG nunca abrem: CSP sandbox).
+  PDF/JPG/PNG/WebP sem assinatura válida ficam como arquivo genérico.
+- **Migração `web/prisma/migrations/20261111180000_anexos_em_partes`** (só cria `estudo_documento_partes`):
+  aplicar no banco de produção antes do deploy.
+- Testes: `web/src/lib/__tests__/anexos-qualquer-tipo.test.ts` (8: tipos, mover, DWG 5 MiB em 3 partes íntegro,
+  recusas, Word direto, migração idempotente em PGlite). Suíte: 161 arquivos passando (28 pulados).
+
 ## Próximo passo exato
-Bloco 2: Due Diligence (setas ↑↓ em tarefas/documentos, Anexar com alterações pendentes, anexos de qualquer tipo
-até 50 MB em partes) — comparar `web/src/lib/incorporacao/due-diligence.ts`, a aba de Due Diligence e as rotas de
-documentos do Santa Fé com a Prospecta (PRs #197 e #199 de lá).
+Com autorização do dono: aplicar a migração `20261111180000_anexos_em_partes` no banco do Santa Fé, mergear o
+PR #252 e conferir o deploy. Depois, bloco 3: motor de parcelamento e tipologias (grade e cul-de-sac do Santa Fé
+ainda usam o motor genético antigo em `web/src/lib/geo/massa.ts`; a Prospecta usa o motor v2 para todas), desenho
+técnico com Satélite, área viária manual — levantar item a item contra o ROADMAP da Prospecta.

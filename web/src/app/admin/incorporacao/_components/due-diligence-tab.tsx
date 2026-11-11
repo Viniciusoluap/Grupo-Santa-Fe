@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { salvarDueDiligence } from "@/lib/actions/due-diligence";
 import { desvincularDocumentoRegistro, listarDocumentosRegistro, type enviarDocumentoRegistro } from "@/lib/actions/documentos-registro";
-import { lerDueDiligence, progressoDueDiligence, type DueDiligence } from "@/lib/incorporacao/due-diligence";
-import { enviarComProgresso } from "@/lib/envio-progresso";
+import { lerDueDiligence, moverItem as mover, progressoDueDiligence, type DueDiligence } from "@/lib/incorporacao/due-diligence";
+import { abrirAnexoRegistro, enviarAnexoRegistro } from "@/lib/incorporacao/anexos-cliente";
 
 type Etapa = DueDiligence["etapas"][number];
 const novaEtapa = (): Etapa => ({ id: crypto.randomUUID(), nome: "Nova etapa", procedimentos: "", observacoes: "", tarefas: [], documentos: [] });
 const field = "w-full min-w-0 border border-gray-200 bg-white text-[var(--brand-dark)] px-2 py-1.5";
+const seta = "px-1.5 text-[var(--brand-dark)] disabled:opacity-30";
 
 export function DueDiligenceTab({ estudoId, json }: { estudoId: string; json: string | null }) {
   const [salvo, setSalvo] = useState(json);
@@ -26,24 +27,26 @@ export function DueDiligenceTab({ estudoId, json }: { estudoId: string; json: st
     change((current) => ({ ...current, etapas: current.etapas.map((e) => e.id === id ? fn(e) : e) }));
   }
   function move(index: number, offset: number) {
-    change((current) => { const etapas = [...current.etapas]; const [etapa] = etapas.splice(index, 1); etapas.splice(index + offset, 0, etapa); return { ...current, etapas }; });
+    change((current) => ({ ...current, etapas: mover(current.etapas, index, offset) }));
   }
-  async function save() {
+  async function save(): Promise<boolean> {
     setPendente(true); setErro("");
     try {
       const next = { ...dados, versao: dados.versao + 1 };
       const jsonAtual = exigirResultado(await salvarDueDiligence(estudoId, salvo, next));
       setSalvo(jsonAtual); setDados(next); setAlterado(false);
-    } catch (error) { setErro(error instanceof Error ? error.message : "Falha ao salvar."); }
+      return true;
+    } catch (error) { setErro(error instanceof Error ? error.message : "Falha ao salvar."); return false; }
     finally { setPendente(false); }
   }
   async function attach(itemId: string, file: File | undefined) {
     if (!file) return;
-    if (alterado) { setErro("Salve as etapas antes de anexar arquivos."); return; }
+    // o seletor de arquivo abre sempre; com alterações pendentes, salva antes de enviar (o item precisa existir no servidor)
+    if (alterado && !(await save())) return;
     if (arquivos.some((d) => d.itemId === itemId) && !window.confirm("Substituir o arquivo? O histórico permanece.")) return;
     setBusyItem(itemId); setErro("");
     try {
-      const result = exigirResultado(await enviarComProgresso<Awaited<ReturnType<typeof enviarDocumentoRegistro>>>("incorporacao.documento", { estudoId, itemId, arquivo: file }, { item: "documento" }));
+      const result = exigirResultado(await enviarAnexoRegistro<Awaited<ReturnType<typeof enviarDocumentoRegistro>>>(estudoId, itemId, file));
       setArquivos(result.documentos);
       if ("notaArmazenamento" in result && result.notaArmazenamento) setErro(`Documento salvo no sistema. Google Drive indisponível: ${result.notaArmazenamento}`);
     }
@@ -80,10 +83,10 @@ export function DueDiligenceTab({ estudoId, json }: { estudoId: string; json: st
           <label className="block text-sm">Observações<textarea value={etapa.observacoes} maxLength={12000} onChange={({ target: { value } }) => edit(etapa.id, (old) => ({ ...old, observacoes: value }))} className={`${field} block mt-1`} rows={2} /></label>
           <div className="grid gap-3 md:grid-cols-2">
             <div><div className="flex justify-between"><strong>Tarefas</strong><button type="button" onClick={() => edit(etapa.id, (old) => ({ ...old, tarefas: [...old.tarefas, { id: crypto.randomUUID(), titulo: "Nova tarefa", concluida: false }] }))}>+ Tarefa</button></div>
-              {etapa.tarefas.map((t) => <div key={t.id} className="flex gap-2 items-center mt-2"><input type="checkbox" checked={t.concluida} aria-label={`Concluir ${t.titulo}`} onChange={({ target: { checked } }) => edit(etapa.id, (old) => ({ ...old, tarefas: old.tarefas.map((v) => v.id === t.id ? { ...v, concluida: checked } : v) }))} /><input value={t.titulo} maxLength={300} aria-label="Tarefa" className={field} onChange={({ target: { value } }) => edit(etapa.id, (old) => ({ ...old, tarefas: old.tarefas.map((v) => v.id === t.id ? { ...v, titulo: value } : v) }))} /><button type="button" aria-label="Excluir tarefa" onClick={() => edit(etapa.id, (old) => ({ ...old, tarefas: old.tarefas.filter((v) => v.id !== t.id) }))}>×</button></div>)}</div>
+              {etapa.tarefas.map((t, ti) => <div key={t.id} className="flex gap-2 items-center mt-2"><input type="checkbox" checked={t.concluida} aria-label={`Concluir ${t.titulo}`} onChange={({ target: { checked } }) => edit(etapa.id, (old) => ({ ...old, tarefas: old.tarefas.map((v) => v.id === t.id ? { ...v, concluida: checked } : v) }))} /><input value={t.titulo} maxLength={300} aria-label="Tarefa" className={field} onChange={({ target: { value } }) => edit(etapa.id, (old) => ({ ...old, tarefas: old.tarefas.map((v) => v.id === t.id ? { ...v, titulo: value } : v) }))} /><button type="button" className={seta} disabled={ti === 0} aria-label={`Mover tarefa ${t.titulo} para cima`} onClick={() => edit(etapa.id, (old) => ({ ...old, tarefas: mover(old.tarefas, ti, -1) }))}>↑</button><button type="button" className={seta} disabled={ti === etapa.tarefas.length - 1} aria-label={`Mover tarefa ${t.titulo} para baixo`} onClick={() => edit(etapa.id, (old) => ({ ...old, tarefas: mover(old.tarefas, ti, 1) }))}>↓</button><button type="button" aria-label="Excluir tarefa" onClick={() => edit(etapa.id, (old) => ({ ...old, tarefas: old.tarefas.filter((v) => v.id !== t.id) }))}>×</button></div>)}</div>
             <div><div className="flex justify-between"><strong>Documentos exigidos</strong><button type="button" onClick={() => edit(etapa.id, (old) => ({ ...old, documentos: [...old.documentos, { id: crypto.randomUUID(), nome: "Novo documento", obtido: false }] }))}>+ Documento</button></div>
-              {etapa.documentos.map((doc) => { const itemId = `dd_${etapa.id}_${doc.id}`; const current = arquivos.find((a) => a.itemId === itemId); return <div key={doc.id} className="mt-2"><div className="flex gap-2 items-center"><input type="checkbox" checked={doc.obtido} aria-label={`Documento obtido: ${doc.nome}`} onChange={({ target: { checked } }) => edit(etapa.id, (old) => ({ ...old, documentos: old.documentos.map((v) => v.id === doc.id ? { ...v, obtido: checked } : v) }))} /><input value={doc.nome} maxLength={300} aria-label="Documento exigido" className={field} onChange={({ target: { value } }) => edit(etapa.id, (old) => ({ ...old, documentos: old.documentos.map((v) => v.id === doc.id ? { ...v, nome: value } : v) }))} /><button type="button" aria-label="Excluir documento" onClick={() => edit(etapa.id, (old) => ({ ...old, documentos: old.documentos.filter((v) => v.id !== doc.id) }))}>×</button></div>
-                <div className="flex flex-wrap gap-2 text-xs mt-1 pl-6">{current && <a href={`/api/incorporacao/documentos/${encodeURIComponent(current.id)}`} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">{current.nome} ↗</a>}{driveAtivo && <label className="cursor-pointer underline text-blue-700">{current ? "Substituir" : "Anexar"}<input type="file" className="sr-only" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={alterado || busyItem !== null} onChange={(e) => { void attach(itemId, e.target.files?.[0]); e.target.value = ""; }} /></label>}{current && <button type="button" disabled={busyItem !== null} onClick={() => void unlink(itemId, current.id)} className="text-red-700">Desvincular</button>}</div>
+              {etapa.documentos.map((doc, di) => { const itemId = `dd_${etapa.id}_${doc.id}`; const current = arquivos.find((a) => a.itemId === itemId); return <div key={doc.id} className="mt-2"><div className="flex gap-2 items-center"><input type="checkbox" checked={doc.obtido} aria-label={`Documento obtido: ${doc.nome}`} onChange={({ target: { checked } }) => edit(etapa.id, (old) => ({ ...old, documentos: old.documentos.map((v) => v.id === doc.id ? { ...v, obtido: checked } : v) }))} /><input value={doc.nome} maxLength={300} aria-label="Documento exigido" className={field} onChange={({ target: { value } }) => edit(etapa.id, (old) => ({ ...old, documentos: old.documentos.map((v) => v.id === doc.id ? { ...v, nome: value } : v) }))} /><button type="button" className={seta} disabled={di === 0} aria-label={`Mover documento ${doc.nome} para cima`} onClick={() => edit(etapa.id, (old) => ({ ...old, documentos: mover(old.documentos, di, -1) }))}>↑</button><button type="button" className={seta} disabled={di === etapa.documentos.length - 1} aria-label={`Mover documento ${doc.nome} para baixo`} onClick={() => edit(etapa.id, (old) => ({ ...old, documentos: mover(old.documentos, di, 1) }))}>↓</button><button type="button" aria-label="Excluir documento" onClick={() => edit(etapa.id, (old) => ({ ...old, documentos: old.documentos.filter((v) => v.id !== doc.id) }))}>×</button></div>
+                <div className="flex flex-wrap gap-2 text-xs mt-1 pl-6">{current && <button type="button" onClick={() => void abrirAnexoRegistro(current).catch((e) => setErro(e instanceof Error ? e.message : "Não foi possível abrir o documento."))} className="underline text-blue-700">{current.nome} ↗</button>}{driveAtivo && <label className={`underline text-blue-700 ${busyItem !== null || pendente ? "opacity-50" : "cursor-pointer"}`}>{busyItem === itemId ? "Enviando..." : current ? "Substituir" : "Anexar"}<input type="file" className="sr-only" disabled={busyItem !== null || pendente} onChange={(e) => { void attach(itemId, e.target.files?.[0]); e.target.value = ""; }} /></label>}{current && <button type="button" disabled={busyItem !== null} onClick={() => void unlink(itemId, current.id)} className="text-red-700">Desvincular</button>}</div>
               </div>; })}</div>
           </div>
         </article>

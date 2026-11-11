@@ -3,7 +3,19 @@ import { lerDueDiligence } from "./due-diligence";
 
 // O upload atravessa uma Vercel Function: manter a requisição abaixo do limite
 // de payload da plataforma (4,5 MB), inclusive metadados do Server Action.
+// Acima disso (até 50 MB) o arquivo vai em partes (`enviarParteDocumentoRegistro`).
 export const LIMITE_DOCUMENTO_REGISTRO = 3 * 1024 * 1024;
+
+const ASSINADOS = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+/**
+ * Qualquer tipo de arquivo (foto, DWG, Word...). Quem diz ser PDF/JPG/PNG/WebP precisa ter a
+ * assinatura do formato; se não tiver, fica como arquivo genérico (nunca é aberto como tal).
+ * Gêmeo de `mimeConferido` da Prospecta.
+ */
+export function mimeConferidoRegistro(mimeDeclarado: string, bytes: Buffer): string {
+  if (!ASSINADOS.includes(mimeDeclarado)) return mimeDeclarado;
+  return mimeDocumentoRegistro(bytes) === mimeDeclarado ? mimeDeclarado : "application/octet-stream";
+}
 
 export function mimeDocumentoRegistro(bytes: Buffer): string | null {
   if (bytes.subarray(0, 5).toString("ascii") === "%PDF-") return "application/pdf";

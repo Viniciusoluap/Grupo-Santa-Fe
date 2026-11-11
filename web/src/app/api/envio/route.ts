@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { enviarDocumentoRegistro } from "@/lib/actions/documentos-registro";
+import { enviarDocumentoRegistro, enviarParteDocumentoRegistro, finalizarDocumentoRegistro } from "@/lib/actions/documentos-registro";
 import { uploadKml, uploadLevantamento } from "@/lib/actions/incorporacao";
 import { uploadContratoAssinado } from "@/lib/actions/juridico";
 import { enviarContratoAssinadoPortal } from "@/lib/actions/portal";
@@ -24,6 +24,14 @@ const ACOES: Record<string, (dados: FormData) => Promise<unknown>> = {
     if (!(arquivo instanceof File)) throw new Error("Selecione um arquivo.");
     return enviarDocumentoRegistro(texto(d, "estudoId"), texto(d, "itemId"), arquivo);
   },
+  // anexos acima de 3 MB (até 50 MB): partes de 2 MiB e depois a finalização
+  "incorporacao.documento.parte": (d) => {
+    const pedaco = d.get("pedaco");
+    if (!(pedaco instanceof File)) throw new Error("Envio inválido.");
+    return enviarParteDocumentoRegistro(texto(d, "estudoId"), texto(d, "itemId"), texto(d, "uploadId"), Number(texto(d, "parte")), pedaco);
+  },
+  "incorporacao.documento.finalizar": (d) =>
+    finalizarDocumentoRegistro(texto(d, "estudoId"), texto(d, "itemId"), texto(d, "uploadId"), texto(d, "nome"), texto(d, "mime"), Number(texto(d, "tamanho"))),
   "incorporacao.kml": (d) => uploadKml(texto(d, "estudoId"), d),
   "incorporacao.levantamento": (d) => uploadLevantamento(texto(d, "estudoId"), d),
   "juridico.contratoAssinado": (d) => uploadContratoAssinado(texto(d, "contratoId"), d),
