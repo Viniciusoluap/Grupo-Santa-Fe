@@ -357,6 +357,24 @@ export async function lerDocumentoRegistro(fileId: string) {
   throw ultimoErro;
 }
 
+/** Lê só um trecho [inicio, fim) do arquivo (cabeçalho Range): anexos grandes são lidos em partes. */
+export async function lerTrechoDocumentoRegistro(fileId: string, inicio: number, fim: number) {
+  const lista = await fontes();
+  if (!lista.length) throw new Error("Google Drive do Grupo Santa Fé não configurado.");
+  let ultimoErro: unknown;
+  for (const fonte of lista) {
+    try {
+      await assertPrivate(fonte, fileId);
+      const result = await authorized(fonte, `${DRIVE}/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+        { headers: { Range: `bytes=${inicio}-${fim - 1}` } }, "leitura");
+      const data = Buffer.from(await result.arrayBuffer());
+      // servidor que ignora o Range devolve o arquivo inteiro (200): recorta aqui
+      return result.status === 206 ? data : data.subarray(inicio, fim);
+    } catch (erro) { ultimoErro = erro; }
+  }
+  throw ultimoErro;
+}
+
 /**
  * Tenta gravar no Google Drive. Se o Drive não estiver configurado ou recusar
  * (sem espaço, sem permissão, API desligada…), devolve `fileId: null` e o motivo

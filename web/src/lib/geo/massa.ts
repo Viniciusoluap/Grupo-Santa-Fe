@@ -26,18 +26,20 @@ import {
   validarParametrosMassa as validarParcelamento,
   type SistemaViarioCenario,
 } from "./massa-parcelamento";
+import type { LadoGleba } from "./lados-gleba";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 /** Rótulo fixo exibido na tela e em todas as saídas do estudo de massa. */
 export const ROTULO_ESTUDO_PRELIMINAR = "Estudo preliminar — não substitui projeto urbanístico";
 
-export type TipologiaMassa = "grid" | "cul_de_sac" | "rua_simples";
+export type TipologiaMassa = "grid" | "cul_de_sac" | "rua_simples" | "vias_publicas";
 
 export const TIPOLOGIAS_MASSA: { value: TipologiaMassa; label: string }[] = [
   { value: "grid", label: "Grade (grid)" },
   { value: "cul_de_sac", label: "Cul-de-sac (ruas sem saída com balão)" },
   { value: "rua_simples", label: "Rua simples (via única de mão dupla)" },
+  { value: "vias_publicas", label: "Vias públicas (divisas já voltadas para vias — 100% de aproveitamento)" },
 ];
 
 export interface ParametrosMassa {
@@ -53,6 +55,8 @@ export interface ParametrosMassa {
   tipologia?: TipologiaMassa;
   tracadoVia?: "reta" | "divisa";
   inverterLadoVia?: boolean;
+  /** Rua pela divisa: lados onde a via deve ficar (rua de cima/esquerda/direita/baixo). Vazio = automático. */
+  ladosVia?: LadoGleba[];
   modoSistemaViario?: "automatico" | "manual";
   areaSistemaViarioM2?: number;
   /** Áreas não parceláveis informadas em m² (quando não vierem do KML/mapa). */
@@ -87,6 +91,8 @@ export interface CenarioMassa {
   vias?: Position[][];
   ruas?: Position[][];
   viaLadoOposto?: boolean;
+  /** Lados escolhidos para a via (rua de cima/esquerda/direita/baixo). */
+  ladosVia?: LadoGleba[];
   sistemaViario?: SistemaViarioCenario;
   kpis: {
     lotesVendaveis: number;
@@ -340,7 +346,8 @@ export function areaPlanar(anel: Position[]): number {
  * travar a página.
  */
 export function validarParametrosMassa(p: ParametrosMassa): string | null {
-  if (p.tipologia === "rua_simples") return validarParcelamento(p);
+  // rua simples e vias públicas usam o motor de parcelamento v2 (lotes exatos, sem sorteio)
+  if (p.tipologia === "rua_simples" || p.tipologia === "vias_publicas") return validarParcelamento(p);
   if (!Number.isFinite(p.larguraViaM) || p.larguraViaM < 0) {
     return "Largura da via deve ser um número maior ou igual a 0.";
   }
@@ -369,7 +376,7 @@ export function validarParametrosMassa(p: ParametrosMassa): string | null {
     return "Preço do lote (R$/m²) deve ser um número maior que 0.";
   }
   if (p.tipologia !== undefined && !TIPOLOGIAS_MASSA.some((t) => t.value === p.tipologia)) {
-    return "Tipologia do cenário inválida (use grade, cul-de-sac ou rua simples).";
+    return "Tipologia do cenário inválida (use grade, cul-de-sac, rua simples ou vias públicas).";
   }
   const restricoes: [keyof ParametrosMassa, string][] = [
     ["appM2", "APP"], ["supressaoVegetalM2", "Supressão vegetal"], ["faixaTransmissaoM2", "Faixa de transmissão"],
@@ -438,7 +445,7 @@ export function gerarCenariosMassa(
   params: ParametrosMassa,
   opts: OpcoesGeracao = {}
 ): CenarioMassa[] {
-  if (params.tipologia === "rua_simples") return gerarParcelamento(anelGeo, centro, params, opts);
+  if (params.tipologia === "rua_simples" || params.tipologia === "vias_publicas") return gerarParcelamento(anelGeo, centro, params, opts);
   const pop = opts.populacao ?? 14;
   const gens = opts.geracoes ?? 12;
   const nCen = opts.nCenarios ?? 3;
