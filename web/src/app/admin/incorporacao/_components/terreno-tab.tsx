@@ -70,6 +70,8 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
               geojson={estudo.geojson!}
               center={estudo.centroLat && estudo.centroLng ? [estudo.centroLat, estudo.centroLng] : undefined}
               estudoId={estudo.id}
+              largurasJson={estudo.largurasFaixaJson}
+              carInformado={estudo.carRegistro}
             />
           </div>
         </>
