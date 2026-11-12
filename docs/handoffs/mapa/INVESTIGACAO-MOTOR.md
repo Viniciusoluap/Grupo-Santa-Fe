@@ -98,3 +98,27 @@ Esri World Imagery (uso conforme termos Esri, atribuição na tela), Mapbox (só
 `server.arcgisonline.com` (satélite, tilemap, rótulos), `www.snirh.gov.br`, `pamgia.ibama.gov.br`, `gisepeprd2.epe.gov.br`,
 `geoportal.sgb.gov.br`, `overpass-api.de` / `overpass.kumi.systems` (complemento), `api.mapbox.com` (só com token),
 `tile.openstreetmap.org` (botão “Ruas”, já usado antes). **Nenhum host extra é necessário.**
+
+## 6. Segunda etapa (11–12/11/2026) — o que tinha ficado de fora e como entrou
+
+| Item | Como entrou | Fonte (testada ao vivo) | Limite que continua valendo |
+|---|---|---|---|
+| **CAR/SICAR** | Camada `car`: `identify` com o polígono do terreno no serviço do IBAMA — uma requisição cobre as 27 camadas (uma por UF). Mostra os imóveis do CAR que sobrepõem o terreno (código, situação, % do terreno) e confere com o nº do CAR informado no cadastro do estudo. | `pamgia.ibama.gov.br/…/CAR_NACIONAL/Cadastro_Ambiental_Rural__Área_Imóvel_/MapServer/identify` (~2 s). Ponto A: 4 imóveis cobrindo 100% do terreno. | A base pública traz só o **perímetro do imóvel**. Reserva legal, APP e vegetação declaradas no CAR não são publicadas sem login no SICAR — a vegetação continua vindo do MapBiomas. |
+| **Mananciais** | Camada `mananciais`: captações de abastecimento público (superficiais e subterrâneas) e massas de água usadas para abastecimento, a até 5 km, com distância. | ANA, Atlas Águas: `AtlasAguas2020/captacoes/MapServer/0 e 1` e `Atlas2020/Massa_dagua_abastecimento/MapServer/0`. Perto de Imperatriz: captação superficial "Rio Tocantins" a ~2 km. | **Zona de proteção de manancial** é definida por lei estadual/municipal e não existe em base nacional (nem estadual para MA/TO/PA). O mapa mostra onde estão os mananciais; o limite legal da zona tem de ser confirmado na prefeitura/órgão estadual. APAs já aparecem na camada de UCs. |
+| **Ferrovias** | Camada `ferrovias` + faixa. | DNIT via IBAMA `BasesSincronizadas/line_ferrovias_federais_dnit_l/MapServer/0` (espelho: `21_SIGA_Geo/ferrovia`). Testado: Ferrovia Norte-Sul (FNS) em João Lisboa/MA. | Só ferrovias federais. |
+| **Dutos** | Camada `dutos` + faixa. Traçados "indicativos" (estudo da EPE) ficam de fora. | EPE `SMA/Webmap_EPE_Infraestrutura_de_Gas_Natural/MapServer/5, 6, 7` (transporte, distribuição, escoamento) + IBAMA `21_SIGA_Geo/duto` (oleodutos licenciados). Testado: GASBOL em Paulínia/SP. | O servidor da EPE é lento (~9 s por camada); prazo de 40 s só nesta camada. |
+| **Larguras legais** | Cada item de faixa diz o que é **lei** e o que é **referência**, e tem um campo para o dono informar a **largura confirmada** (concessionária, DNIT, escritura), salva no estudo. | Lei 6.766/79, art. 4º: III (rodovia, 15 m não edificáveis de cada lado, redutível a 5 m por lei municipal), III-A (ferrovia, 15 m) e § 3º (dutos: definida no licenciamento). | Faixa de domínio por trecho (DNIT) e servidão de LT por linha (ANEEL) não são publicadas em serviço acessível: `servicos.dnit.gov.br` e `sigel.aneel.gov.br` não responderam neste ambiente. Por isso a largura de domínio/servidão é referência até ser confirmada. |
+| **Estudo de Massa** | Passou para o mesmo motor MapLibre (`mapa-base-ml.ts`, compartilhado com o mapa do Terreno): satélite Mapbox quando há token, senão Esri no zoom nativo real. `camadas-base.ts` (Leaflet) foi removido. | — | O mapa operacional (Admin › Mapa) continua em Leaflet. |
+
+### Regras de faixa (substituem as da seção 3)
+
+| Elemento | Padrão usado | Base |
+|---|---|---|
+| Rodovia federal | 35 m de domínio + 15 m não edificáveis de cada lado (100 m no total) | 15 m: lei. 35 m: referência |
+| Ferrovia | 15 m de domínio + 15 m não edificáveis de cada lado (60 m no total) | 15 m não edificáveis: lei. Domínio: referência |
+| Duto | 20 m no total | referência (lei remete ao licenciamento) |
+| Linha de transmissão | tabela por tensão (seção 3) | referência |
+| Qualquer item | largura total informada pelo dono | confirmada |
+
+Persistência: Prospecta `incorporation_studies.terrain_widths_json` (migração 0102); Santa Fé `estudos_incorporacao.largurasFaixaJson`
+(migração `20261111210000_larguras_faixa_terreno`). Formato: `{"rod:BR-010": 80, "fer:Açailândia - Porto Nacional": 60}`.
