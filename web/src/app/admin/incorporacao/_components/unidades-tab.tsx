@@ -1,5 +1,7 @@
 "use client";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { codigoExibicao, compararCodigoUnidade, paginar } from "@/lib/incorporacao/unidades";
 import { exigirResultado, type ErroAcao } from "@/lib/acao-resultado";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import { listarUnidades, criarUnidade, conciliarVendaLegada, sincronizarUnidades, clientesUnidades, editarUnidade, excluirUnidade } from "@/lib/actions/unidades-incorporacao";
@@ -15,6 +17,9 @@ export function UnidadesTab({ estudoId }: { estudoId: string }) {
   const [pending, start] = useTransition(); const [code, setCode] = useState("");
   const [clientes, setClientes] = useState<Cliente[]>([]); const [busca, setBusca] = useState("");
   const [edit, setEdit] = useState<Unidade | null>(null);
+  // Ordenação numérica real (Q1/L2 < Q1/L10), 6 por página; filtro e página preservados entre atualizações (paridade com a Prospecta).
+  const [pagina, setPagina] = useState(1);
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "disponivel" | "reservada" | "vendida">("todos");
   const [form, setForm] = useState({ comprador: "", compradorLeadId: "", valor: 0, status: "disponivel" as "disponivel" | "reservada" | "vendida" });
   const refresh = useCallback(async () => { setData(exigirResultado(await listarUnidades(estudoId))); }, [estudoId]);
   useEffect(() => { let ativo = true; void (async () => { try { exigirResultado(await sincronizarUnidades(estudoId)); const r = exigirResultado(await listarUnidades(estudoId)); if (ativo) setData(r); } catch(e) { if (ativo) setError(e instanceof Error ? e.message : "Falha ao carregar unidades."); } })(); return () => { ativo = false; }; }, [estudoId]);
@@ -27,6 +32,11 @@ export function UnidadesTab({ estudoId }: { estudoId: string }) {
   }
   const counters = { disponivel: 0, reservada: 0, vendida: 0 };
   for (const u of data?.unidades ?? []) if (u.status in counters) counters[u.status as keyof typeof counters]++;
+  const ordenadas = useMemo(() => [...(data?.unidades ?? [])]
+    .filter((u) => filtroStatus === "todos" || u.status === filtroStatus)
+    .sort((a, b) => compararCodigoUnidade(a.codigo, b.codigo)), [data, filtroStatus]);
+  const pag = paginar(ordenadas, pagina);
+  // inclusão/exclusão pode mudar o total de páginas: paginar() limita a página ao intervalo válido
   const locked = !!data?.legacyInvalid || !!data?.legacyPending.length;
   return <section className="space-y-4" aria-label="Unidades à Venda">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold">Unidades à Venda</h2><p className="mt-1 text-sm text-gray-600">{data?.unidades.length ?? 0} unidades · {counters.disponivel} disponíveis · {counters.reservada} reservadas · {counters.vendida} vendidas</p></div><button className={action} disabled={pending} onClick={() => run(() => sincronizarUnidades(estudoId))}>Atualizar do cenário</button></div>
@@ -36,13 +46,20 @@ export function UnidadesTab({ estudoId }: { estudoId: string }) {
     {!!data?.legacyPending.length && <div className="space-y-2 rounded-lg border border-amber-500 p-3"><strong>Concilie {data.legacyPending.length} venda(s) histórica(s).</strong>{data.legacyPending.map((sale) => <div key={sale.id} className="flex flex-wrap items-center gap-2 text-sm"><span>{sale.unidade} · {sale.comprador} · {brl(sale.valorVenda)}</span><button className={action} disabled={pending} onClick={() => { if (confirm(`Conciliar venda de ${sale.unidade}?`)) run(() => conciliarVendaLegada(estudoId, sale.id, "lote")); }}>Conciliar</button></div>)}</div>}
     <div className="flex flex-wrap items-end gap-2"><label className="min-w-40 flex-1 text-sm">Unidade avulsa<input value={code} maxLength={120} onChange={(e) => setCode(e.target.value)} className={input} placeholder="Quadra / lote ou código da unidade" /></label><button className={action} disabled={pending || !code.trim()} onClick={() => run(async () => { const r = exigirResultado(await criarUnidade(estudoId, code, "lote")); setCode(""); return r; })}>Adicionar unidade</button></div>
     {!data && <p role="status">Carregando inventário…</p>}
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{data?.unidades.map((u) => <article key={u.id} className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2"><strong>{u.codigo}</strong><span className={`rounded-full px-2 py-1 text-xs ${u.status === "vendida" ? "bg-green-100 text-green-900" : u.status === "reservada" ? "bg-amber-100 text-amber-900" : "bg-gray-100 text-gray-700"}`}>{u.status === "vendida" ? "Vendido" : u.status === "reservada" ? "Reservado" : "Disponível"}</span></div>
+    {data && <div className="flex flex-wrap items-end gap-2"><label className="text-sm">Status<select value={filtroStatus} className={input} onChange={(e) => { setFiltroStatus(e.target.value as typeof filtroStatus); setPagina(1); }}><option value="todos">Todos</option><option value="disponivel">Disponíveis</option><option value="reservada">Reservados</option><option value="vendida">Vendidos</option></select></label><p className="text-xs text-gray-600 pb-2">{pag.total} unidade(s) · ordem por quadra e lote</p></div>}
+    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">{pag.itens.map((u) => <article key={u.id} className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2"><strong title={u.codigo}>{codigoExibicao(u.codigo)}</strong><span className={`rounded-full px-2 py-1 text-xs ${u.status === "vendida" ? "bg-green-100 text-green-900" : u.status === "reservada" ? "bg-amber-100 text-amber-900" : "bg-gray-100 text-gray-700"}`}>{u.status === "vendida" ? "Vendido" : u.status === "reservada" ? "Reservado" : "Disponível"}</span></div>
       <p className="break-words text-sm">{u.comprador || "Sem comprador"} · {brl(u.valorVenda)}</p><p className="text-xs text-gray-500">{u.cenarioId ? `Origem: ${u.cenarioId}` : "Cadastro avulso"}</p>
       <div className="flex flex-wrap gap-2"><button className={action} disabled={pending || locked} onClick={() => abrir(u)}>Editar</button><button className={`${action} text-red-700`} disabled={pending} onClick={() => { if (confirm(`Excluir ${u.codigo}? Ela não será recriada pelo cenário. Vínculos comerciais impedem a exclusão.`)) run(() => excluirUnidade(estudoId, u.id)); }}>Excluir</button></div>
     </article>)}</div>
-    {edit && <section aria-label={`Editar ${edit.codigo}`} className="space-y-3 rounded-xl border-2 border-gray-700 bg-white p-4">
-      <h3 className="font-bold">Editar {edit.codigo}</h3><fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
+    {data && pag.total > 0 && <nav aria-label="Paginação das unidades" className="flex items-center justify-center gap-3">
+      <button type="button" className={action} aria-label="Página anterior" disabled={!pag.temAnterior} onClick={() => setPagina(pag.pagina - 1)}><ChevronLeft size={16} /></button>
+      <span className="text-sm font-semibold" aria-live="polite">Página {pag.pagina} / {pag.totalPaginas}</span>
+      <button type="button" className={action} aria-label="Próxima página" disabled={!pag.temProxima} onClick={() => setPagina(pag.pagina + 1)}><ChevronRight size={16} /></button>
+    </nav>}
+    {data && pag.total === 0 && <p className="text-sm text-gray-600">Nenhuma unidade {filtroStatus === "todos" ? "cadastrada" : "com esse status"}.</p>}
+    {edit && <section aria-label={`Editar ${codigoExibicao(edit.codigo)}`} className="space-y-3 rounded-xl border-2 border-gray-700 bg-white p-4">
+      <h3 className="font-bold">Editar {codigoExibicao(edit.codigo)}</h3><fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
         <label className="min-w-0 text-sm">Buscar cliente no CRM<input value={busca} onChange={(e) => setBusca(e.target.value)} className={input} placeholder="Digite o nome" /></label>
         <label className="min-w-0 text-sm">Cliente<select value={form.compradorLeadId} className={input} onChange={(e) => { const c = clientes.find((c) => c.id === e.target.value); const preco = Number(c?.valorNegociado); const usarPreco = Number.isFinite(preco) && preco > 0 && (form.valor === 0 || form.valor === preco || confirm("Usar o valor negociado cadastrado no CRM? O valor atual desta edição será substituído.")); setForm({ ...form, compradorLeadId: c?.id ?? "", comprador: c?.nome ?? form.comprador, valor: usarPreco ? preco : form.valor }); }}><option value="">Nome avulso</option>{form.compradorLeadId && !clientes.some((c) => c.id === form.compradorLeadId) && <option value={form.compradorLeadId}>{form.comprador}</option>}{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome} · {c.telefone}</option>)}</select></label>
         <label className="min-w-0 text-sm">Nome do comprador<input value={form.comprador} disabled={!!form.compradorLeadId} maxLength={255} onChange={(e) => setForm({ ...form, comprador: e.target.value })} className={input} /></label>
