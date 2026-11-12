@@ -72,6 +72,8 @@ export interface EstudoData {
   centroLng: number | null;
   appAreaM2: number | null;
   appLarguraM: number | null;
+  /** Larguras de faixa confirmadas no mapa do terreno (JSON {chave: metros}). */
+  largurasFaixaJson?: string | null;
   appOrigem: string | null;
   elevacaoJson: string | null;
   levantamentoUrl: string | null;

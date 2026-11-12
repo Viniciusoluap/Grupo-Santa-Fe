@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
-import type { GeoJSONSource, Map as MapaMl, StyleSpecification } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import type { GeoJSONSource, Map as MapaMl } from "maplibre-gl";
 import { area as turfArea, bbox as turfBbox, featureCollection } from "@turf/turf";
 import {
-  ESRI_IMAGERY, IDS_CAMADAS, calcularApp, calcularServidao, calcularVegetacao, fmtKm, fmtPct, linhasOsmComplementares,
-  resumirFuros, zoomNativoEsri, type AppModo, type Contorno, type DadosCamadas, type DadosHidro, type EstadoCamada, type IdCamada,
+  IDS_CAMADAS, LARGURA_CONFIRMADA_MAX_M, calcularApp, calcularServidao, calcularVegetacao, carConfere, fmtKm, fmtPct, limparLargurasConfirmadas,
+  linhasOsmComplementares, resumirFuros, type AppModo, type Contorno, type DadosCamadas, type DadosHidro, type EstadoCamada, type IdCamada,
+  type ItemServidao, type LargurasConfirmadas,
 } from "@/lib/geo/camadas-terreno";
-import { ATRIBUICAO_MAPBOX, urlSateliteMapbox } from "@/lib/geo/mapbox-token";
-import { salvarApp } from "@/lib/actions/incorporacao";
+import { aplicarBase, criarMapaBase, type BaseMapa } from "./mapa-base-ml";
+import { salvarApp, salvarLargurasFaixa } from "@/lib/actions/incorporacao";
 import { formatArea } from "@/lib/utils";
 
 // Mapa do terreno — pedido do dono de 11/11 ("sem nitidez, não busca APP, supressão
@@ -31,15 +31,19 @@ interface Props {
   center?: [number, number]; // [lat, lng]
   height?: number;
   estudoId?: string; // quando informado, persiste a APP calculada automaticamente
+  /** Larguras de faixa confirmadas pelo dono e salvas no estudo (JSON {chave: metros}). */
+  largurasJson?: string | null;
+  /** Nº do CAR informado no cadastro do estudo — conferido contra os imóveis encontrados. */
+  carInformado?: string | null;
 }
 
 const CORES = {
   terreno: "#F5C400", agua: "#38bdf8", rio: "#0ea5e9", nascente: "#0284c7", app: "#22c55e", vegetacao: "#166534",
   servidao: "#ef4444", transmissao: "#dc2626", rodovia: "#f97316", via: "#fdba74", uc: "#a855f7", furo: "#6366f1",
+  ferrovia: "#78350f", duto: "#db2777", car: "#fde047", manancial: "#06b6d4",
 };
 
 const ROTA_CAMADAS = "/api/incorporacao/camadas-terreno";
-const ROTA_MAPA_BASE = "/api/incorporacao/mapa-base";
 
 type Estado<K extends IdCamada> = EstadoCamada<DadosCamadas[K]> | { estado: "carregando" };
 type Estados = { [K in IdCamada]: Estado<K> };
@@ -64,35 +68,16 @@ async function buscarCamada(id: IdCamada, contorno: Contorno, novamente: boolean
   }
 }
 
-function estiloBase(sat: { tiles: string[]; tileSize: number; maxzoom: number; attribution: string }, retina: boolean): StyleSpecification {
-  const ref = (servico: string) => ({
-    type: "raster" as const, tiles: [`${ESRI_IMAGERY.replace("World_Imagery", servico)}/tile/{z}/{y}/{x}`],
-    tileSize: retina ? 128 : 256, maxzoom: 18, attribution: "Ruas e rótulos © Esri",
-  });
-  return {
-    version: 8,
-    sources: {
-      satelite: { type: "raster", tiles: sat.tiles, tileSize: sat.tileSize, maxzoom: sat.maxzoom, attribution: sat.attribution },
-      ruasRef: ref("Reference/World_Transportation"),
-      rotulos: ref("Reference/World_Boundaries_and_Places"),
-      osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: retina ? 128 : 256, maxzoom: 19, attribution: "© OpenStreetMap" },
-    },
-    layers: [
-      { id: "satelite", type: "raster", source: "satelite" },
-      { id: "ruasRef", type: "raster", source: "ruasRef", paint: { "raster-opacity": 0.9 } },
-      { id: "rotulos", type: "raster", source: "rotulos" },
-      { id: "osm", type: "raster", source: "osm", layout: { visibility: "none" } },
-    ],
-  };
-}
-
 /** Fontes e camadas vetoriais (ordem de desenho de baixo para cima). */
-const FONTES_VETOR = ["ucs", "vegetacao", "servidao", "app", "agua", "rios", "vias", "rodovias", "transmissao", "terreno", "nascentes", "furos"] as const;
+const FONTES_VETOR = ["ucs", "car", "mananciais", "vegetacao", "servidao", "app", "agua", "rios", "vias", "rodovias", "ferrovias", "dutos", "transmissao", "terreno", "nascentes", "furos", "captacoes"] as const;
 
 function adicionarCamadasVetor(map: MapaMl) {
   for (const id of FONTES_VETOR) map.addSource(id, { type: "geojson", data: vazioFc() });
   map.addLayer({ id: "ucs-fill", type: "fill", source: "ucs", paint: { "fill-color": CORES.uc, "fill-opacity": 0.15 } });
   map.addLayer({ id: "ucs-line", type: "line", source: "ucs", paint: { "line-color": CORES.uc, "line-width": 1.5, "line-dasharray": [3, 2] } });
+  map.addLayer({ id: "car-line", type: "line", source: "car", paint: { "line-color": CORES.car, "line-width": 1.5, "line-dasharray": [1, 1.5] } });
+  map.addLayer({ id: "mananciais-fill", type: "fill", source: "mananciais", paint: { "fill-color": CORES.manancial, "fill-opacity": 0.18 } });
+  map.addLayer({ id: "mananciais-line", type: "line", source: "mananciais", paint: { "line-color": CORES.manancial, "line-width": 1.5 } });
   map.addLayer({ id: "vegetacao", type: "fill", source: "vegetacao", paint: { "fill-color": CORES.vegetacao, "fill-opacity": 0.45 } });
   map.addLayer({ id: "servidao", type: "fill", source: "servidao", paint: { "fill-color": CORES.servidao, "fill-opacity": 0.22 } });
   map.addLayer({ id: "app-fill", type: "fill", source: "app", paint: { "fill-color": CORES.app, "fill-opacity": 0.32 } });
@@ -101,18 +86,24 @@ function adicionarCamadasVetor(map: MapaMl) {
   map.addLayer({ id: "rios", type: "line", source: "rios", paint: { "line-color": CORES.rio, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1.5, 18, 3.5] } });
   map.addLayer({ id: "vias", type: "line", source: "vias", paint: { "line-color": CORES.via, "line-width": 1.5, "line-opacity": 0.8 } });
   map.addLayer({ id: "rodovias", type: "line", source: "rodovias", paint: { "line-color": CORES.rodovia, "line-width": 3 } });
+  map.addLayer({ id: "ferrovias", type: "line", source: "ferrovias", paint: { "line-color": CORES.ferrovia, "line-width": 3, "line-dasharray": [3, 1] } });
+  map.addLayer({ id: "dutos", type: "line", source: "dutos", paint: { "line-color": CORES.duto, "line-width": 2.5, "line-dasharray": [1, 1] } });
   map.addLayer({ id: "transmissao", type: "line", source: "transmissao", paint: { "line-color": CORES.transmissao, "line-width": 2.5, "line-dasharray": [2, 1.5] } });
   map.addLayer({ id: "terreno-fill", type: "fill", source: "terreno", paint: { "fill-color": CORES.terreno, "fill-opacity": 0.1 } });
   map.addLayer({ id: "terreno-line", type: "line", source: "terreno", paint: { "line-color": CORES.terreno, "line-width": 3 } });
   map.addLayer({ id: "nascentes", type: "circle", source: "nascentes", paint: { "circle-radius": 5, "circle-color": CORES.nascente, "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
   map.addLayer({ id: "furos", type: "circle", source: "furos", paint: { "circle-radius": 5, "circle-color": CORES.furo, "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
+  map.addLayer({ id: "captacoes", type: "circle", source: "captacoes", paint: { "circle-radius": 6, "circle-color": CORES.manancial, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
 }
 
-export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) {
+export function MapaTerreno({ geojson, center, height = 420, estudoId, largurasJson, carInformado }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapaMl | null>(null);
   const [mapaPronto, setMapaPronto] = useState(false);
-  const [base, setBase] = useState<"satelite" | "ruas">("satelite");
+  const [base, setBase] = useState<BaseMapa>("satelite");
+  // larguras de faixa confirmadas: começam com o que está salvo no estudo e mudam ao salvar na tela
+  const [larguras, setLarguras] = useState<LargurasConfirmadas>(() => { try { return limparLargurasConfirmadas(JSON.parse(largurasJson ?? "{}")); } catch { return {}; } });
+  const [erroLargura, setErroLargura] = useState<string | null>(null);
   const [infoBase, setInfoBase] = useState<string | null>(null);
   const [appModo, setAppModo] = useState<AppModo>("auto");
   // estados guardados junto do terreno a que pertencem: trocar o KML volta tudo a "consultando…"
@@ -133,32 +124,18 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
     let cancelado = false;
     let map: MapaMl | null = null;
     (async () => {
-      const [b0, b1, b2, b3] = turfBbox(contorno);
-      const lat = centroLat ?? (b1 + b3) / 2, lng = centroLng ?? (b0 + b2) / 2;
-      const retina = typeof window !== "undefined" && window.devicePixelRatio >= 1.5;
-      const [ml, token, zNativo] = await Promise.all([
-        import("maplibre-gl").then(m => m.default ?? m),
-        fetch(ROTA_MAPA_BASE, { credentials: "include", signal: AbortSignal.timeout(5000) }).then(r => (r.ok ? r.json() : null)).then(j => (j?.mapboxToken as string | null) ?? null).catch(() => null),
-        zoomNativoEsri(lat, lng),
-      ]);
-      if (cancelado || !ref.current) return;
-      const sat = token
-        ? { tiles: [urlSateliteMapbox(token)], tileSize: 512, maxzoom: 22, attribution: ATRIBUICAO_MAPBOX }
-        // retina: ladrilho de 128 px → a tela pede o nível seguinte (foto 2× mais densa) até o zoom nativo
-        : { tiles: [`${ESRI_IMAGERY}/tile/{z}/{y}/{x}`], tileSize: retina ? 128 : 256, maxzoom: zNativo, attribution: "Imagens © Esri, Maxar, Earthstar Geographics" };
-      setInfoBase(token ? "Satélite Mapbox (Maxar)" : `Satélite Esri · foto até o nível ${zNativo}`);
-      map = new ml.Map({
-        container: ref.current, style: estiloBase(sat, retina), bounds: [[b0, b1], [b2, b3]],
-        fitBoundsOptions: { padding: 32 }, maxZoom: token ? 21 : zNativo + 2, attributionControl: false,
+      const criado = await criarMapaBase(ref.current!, turfBbox(contorno) as [number, number, number, number], {
+        centro: centroLat != null && centroLng != null ? [centroLat, centroLng] : undefined,
+        atribuicao: "Camadas: ANA, IBAMA/CNUC/CAR, EPE, DNIT, SGB/CPRM, MapBiomas, © OpenStreetMap",
+        cancelado: () => cancelado || !ref.current,
       });
-      map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
-      map.addControl(new ml.ScaleControl({ unit: "metric" }), "bottom-left");
-      map.addControl(new ml.AttributionControl({ compact: true, customAttribution: "Camadas: ANA, IBAMA/CNUC, EPE, DNIT, SGB/CPRM, MapBiomas, © OpenStreetMap" }), "bottom-right");
+      if (!criado) return;
+      map = criado.map;
+      if (cancelado) { map.remove(); return; }
+      setInfoBase(criado.info);
       map.on("load", () => {
         if (cancelado || !map) return;
         adicionarCamadasVetor(map);
-        // atribuição começa recolhida (no celular ela cobria metade do mapa); o "i" abre
-        ref.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
         (map.getSource("terreno") as GeoJSONSource).setData(contorno);
         mapRef.current = map;
         setMapaPronto(true);
@@ -175,9 +152,7 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapaPronto) return;
-    const sat = base === "satelite" ? "visible" : "none";
-    for (const id of ["satelite", "ruasRef", "rotulos"]) map.setLayoutProperty(id, "visibility", sat);
-    map.setLayoutProperty("osm", "visibility", base === "ruas" ? "visible" : "none");
+    aplicarBase(map, base);
   }, [base, mapaPronto]);
 
   // ─── Camadas (servidor, uma por vez) ─────────────────────────────────────
@@ -211,7 +186,21 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
   const linhasOficiais = dados(estados.transmissao)?.linhas;
   const rodovias = dados(estados.rodovias)?.rodovias;
   const linhasTodas = useMemo(() => [...(linhasOficiais ?? []), ...linhasOsmComplementares(linhasOficiais ?? [], osm?.linhas ?? [])], [linhasOficiais, osm]);
-  const servidao = useMemo(() => (contorno ? calcularServidao(contorno, linhasTodas, rodovias ?? []) : null), [contorno, linhasTodas, rodovias]);
+  const ferrovias = dados(estados.ferrovias)?.ferrovias;
+  const dutos = dados(estados.dutos)?.dutos;
+  const servidao = useMemo(() => (contorno ? calcularServidao(contorno, linhasTodas, rodovias ?? [], { ferrovias, dutos, larguras }) : null), [contorno, linhasTodas, rodovias, ferrovias, dutos, larguras]);
+  const car = dados(estados.car);
+  const mananciais = dados(estados.mananciais);
+  const carOk = car ? carConfere(carInformado, car.imoveis) : null;
+  /** Confirma (ou limpa, com null) a largura total de um item e salva no estudo. */
+  const confirmarLargura = (chave: string, valor: number | null) => {
+    const novo = { ...larguras };
+    if (valor == null) delete novo[chave]; else novo[chave] = valor;
+    const limpo = limparLargurasConfirmadas(novo);
+    setLarguras(limpo);
+    setErroLargura(null);
+    if (estudoId) salvarLargurasFaixa(estudoId, limpo).catch(() => setErroLargura("Não foi possível salvar a largura no estudo. Tente de novo."));
+  };
   const furos = useMemo(() => { const d = dados(estados.furos); return d ? resumirFuros(d) : null; }, [estados.furos]);
   const areaTerreno = contorno ? turfArea(contorno) : 0;
 
@@ -238,12 +227,21 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
     set("servidao", fc([servidao?.faixa]));
     set("transmissao", fc(linhasTodas));
     set("rodovias", fc(rodovias ?? []));
+    set("ferrovias", fc(ferrovias ?? []));
+    set("dutos", fc(dutos ?? []));
+    set("car", fc(car?.geometrias ?? []));
+    set("mananciais", fc(mananciais?.geometrias ?? []));
+    set("captacoes", fc((mananciais?.captacoes ?? []).map(c => ({ type: "Feature", properties: { nome: c.nome }, geometry: { type: "Point", coordinates: c.coordenadas } }) as Feature<Geometry>)));
     set("vias", fc(osm?.vias ?? []));
     set("ucs", fc(dados(estados.ucs)?.geometrias ?? []));
     set("furos", fc((dados(estados.furos)?.pocos ?? []).map(p => ({ type: "Feature", properties: { nome: p.nome }, geometry: { type: "Point", coordinates: p.coordenadas } }) as Feature<Geometry>)));
-  }, [mapaPronto, hidro, osm, app, servidao, linhasTodas, rodovias, estados.vegetacao, estados.ucs, estados.furos]);
+  }, [mapaPronto, hidro, osm, app, servidao, linhasTodas, rodovias, ferrovias, dutos, car, mananciais, estados.vegetacao, estados.ucs, estados.furos]);
 
   if (!contorno) return <p className="text-xs text-red-500">Não foi possível ler o polígono do terreno.</p>;
+
+  const camadasFaixa = [estados.transmissao, estados.rodovias, estados.ferrovias, estados.dutos];
+  const servidaoPendente = camadasFaixa.some(e => e.estado === "carregando");
+  const servidaoRespondeu = camadasFaixa.some(respondeu);
 
   const ucs = dados(estados.ucs);
   const geo = dados(estados.geologia);
@@ -284,15 +282,34 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
         <LinhaCamada cor={CORES.vegetacao} titulo="Vegetação nativa (supressão)" e={estados.vegetacao} onRetry={() => carregar(["vegetacao"], true)}
           ok={() => veg ? `${fmtPct(veg.percentualNativa)} do terreno (${formatArea(veg.areaNativaM2)}) · florestal ${fmtPct(veg.percentualFlorestal)} · ${veg.amostras} amostras` : ""}
           vazio="sem amostra no terreno" />
-        <Linha cor={CORES.servidao} titulo="Faixa de servidão" estado={estados.transmissao.estado === "carregando" || estados.rodovias.estado === "carregando" ? "carregando" : respondeu(estados.transmissao) || respondeu(estados.rodovias) ? "ok" : "indisponivel"}
+        <Linha cor={CORES.servidao} titulo="Faixas de servidão e domínio" estado={servidaoPendente ? "carregando" : servidaoRespondeu ? "ok" : "indisponivel"}
           texto={servidao && servidao.itens.length
-            ? `${formatArea(servidao.areaM2)} (${fmtPct(servidao.percentual)}) · ${servidao.itens.map(i => `${i.nome} (${i.larguraTotalM} m)`).join(" · ")}`
-            : estados.transmissao.estado === "indisponivel" && estados.rodovias.estado === "indisponivel" ? "fontes indisponíveis" : "nenhuma linha de transmissão ou rodovia federal no entorno"} />
+            ? `${formatArea(servidao.areaM2)} dentro do terreno (${fmtPct(servidao.percentual)})`
+            : servidaoRespondeu ? "nenhuma linha de transmissão, rodovia federal, ferrovia ou duto no entorno" : "fontes indisponíveis"}
+          extra={servidao && servidao.itens.length > 0 && (
+            <ul className="mt-1 space-y-1.5" data-testid="itens-servidao">
+              {servidao.itens.map(i => <ItemFaixa key={i.chave} item={i} onConfirmar={v => confirmarLargura(i.chave, v)} />)}
+              {erroLargura && <li className="text-[11px] font-bold text-red-600">{erroLargura}</li>}
+            </ul>
+          )} />
         <LinhaCamada cor={CORES.transmissao} titulo="Linhas de transmissão" e={estados.transmissao} onRetry={() => carregar(["transmissao"], true)}
           ok={d => `${d.linhas.length} trecho(s) · ${Array.from(new Set(d.linhas.map(l => (l.properties.tensaoKv ? `${l.properties.tensaoKv} kV` : "tensão n/d")))).join(", ")}`}
           vazio="nenhuma a 250 m" />
         <LinhaCamada cor={CORES.rodovia} titulo="Rodovias federais (DNIT)" e={estados.rodovias} onRetry={() => carregar(["rodovias"], true)}
           ok={d => Array.from(new Set(d.rodovias.map(r => r.properties.nome))).join(", ")} vazio="nenhuma a 250 m" />
+        <LinhaCamada cor={CORES.ferrovia} titulo="Ferrovias (DNIT)" e={estados.ferrovias} onRetry={() => carregar(["ferrovias"], true)}
+          ok={d => Array.from(new Set(d.ferrovias.map(f => `${f.properties.nome ?? "Ferrovia"}${f.properties.concessionaria ? ` (${f.properties.concessionaria})` : ""}`))).join(", ")} vazio="nenhuma a 250 m" />
+        <LinhaCamada cor={CORES.duto} titulo="Dutos (EPE/IBAMA)" e={estados.dutos} onRetry={() => carregar(["dutos"], true)}
+          ok={d => Array.from(new Set(d.dutos.map(x => `${x.properties.nome ?? "Duto"} — ${x.properties.tipo}`))).slice(0, 4).join(" · ")} vazio="nenhum gasoduto ou duto licenciado a 250 m" />
+        <LinhaCamada cor={CORES.car} titulo="CAR — imóveis rurais cadastrados" e={estados.car} onRetry={() => carregar(["car"], true)}
+          ok={d => `${d.imoveis.length} imóvel(is) sobre o terreno · ${fmtPct(d.percentualCoberto)} da área coberta · ${d.imoveis.slice(0, 2).map(i => `${i.codigo}${i.status ? ` (${i.status})` : ""} ${fmtPct(i.percentualDoTerreno)}`).join(" · ")}${carOk === true ? " · confere com o CAR informado no estudo" : carOk === false ? " · ATENÇÃO: o CAR informado no estudo não está entre eles" : ""}`}
+          vazio={`nenhum imóvel do CAR sobre o terreno (área urbana ou sem cadastro)${carInformado ? " · ATENÇÃO: há um CAR informado no estudo" : ""}`} />
+        <LinhaCamada cor={CORES.manancial} titulo="Mananciais de abastecimento (ANA)" e={estados.mananciais} onRetry={() => carregar(["mananciais"], true)}
+          ok={d => [
+            ...d.captacoes.slice(0, 2).map(c => `captação ${c.tipo === "superficial" ? "superficial" : "subterrânea"} ${c.manancial ?? c.nome ?? ""}${c.municipio ? ` — ${c.municipio}` : ""} a ${fmtKm(c.distanciaM)}`),
+            ...d.massas.slice(0, 2).map(m => `${m.nome ?? "massa de água"} abastece ${m.sistemas ?? "sistema público"} (${m.distanciaM === 0 ? "encosta no terreno" : `a ${fmtKm(m.distanciaM)}`})`),
+          ].join(" · ")}
+          vazio="nenhuma captação ou manancial de abastecimento a 5 km" />
         <LinhaCamada cor={CORES.uc} titulo="Unidades de conservação" e={estados.ucs} onRetry={() => carregar(["ucs"], true)}
           ok={() => (ucs?.ucs ?? []).slice(0, 3).map(u => `${u.nome} (${u.sobrepoe ? "sobrepõe o terreno" : fmtKm(u.distanciaM)})`).join(" · ")}
           vazio="nenhuma a 3 km" />
@@ -310,9 +327,40 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId }: Props) 
         </p>
       )}
       <p className="text-[10px] text-gray-400">
-        APP pelo Código Florestal (Lei 12.651/2012, art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m (largura medida no polígono oficial do rio ou estimada pela ordem do trecho na BHO/ANA); nascentes → raio de 50 m. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Faixa de servidão de LT por tensão (referência: 138 kV → 30 m, 230 kV → 40 m, 500 kV → 70 m; vale a escritura/decreto da concessionária); rodovia federal: 35 m de domínio + 15 m não edificáveis de cada lado (confirmar no DNIT). Vegetação nativa por amostragem do MapBiomas 2023 (pixel de 30 m). Confirme sempre com o órgão ambiental competente.
+        APP pelo Código Florestal (Lei 12.651/2012, art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m (largura medida no polígono oficial do rio ou estimada pela ordem do trecho na BHO/ANA); nascentes → raio de 50 m. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Faixas: rodovias e ferrovias têm 15 m NÃO EDIFICÁVEIS de cada lado além da faixa de domínio (Lei 6.766/79, art. 4º, III e III-A; lei municipal pode reduzir a de rodovia até 5 m). A largura da faixa de domínio (DNIT/concessão), a servidão de linha de transmissão (escritura/declaração de utilidade pública) e a de dutos (licenciamento, art. 4º, § 3º) não têm valor único em lei: o mapa usa a referência indicada em cada item até você informar a largura confirmada. Mananciais: captações e massas de água de abastecimento do Atlas Águas (ANA); zona de proteção de manancial é definida por lei estadual/municipal, confirme na prefeitura. CAR: perímetro dos imóveis na base pública do SICAR. Vegetação nativa por amostragem do MapBiomas 2023 (pixel de 30 m). Confirme sempre com o órgão ambiental competente.
       </p>
     </div>
+  );
+}
+
+const ROTULO_BASE: Record<ItemServidao["base"], { texto: string; classe: string }> = {
+  confirmada: { texto: "confirmada", classe: "bg-green-100 text-green-800" },
+  "legal+referencia": { texto: "lei + referência", classe: "bg-amber-100 text-amber-800" },
+  referencia: { texto: "referência", classe: "bg-gray-100 text-gray-600" },
+};
+
+/** Um item de faixa: de onde vem a largura e campo para informar a largura confirmada (concessionária/DNIT/escritura). */
+function ItemFaixa({ item, onConfirmar }: { item: ItemServidao; onConfirmar: (largura: number | null) => void }) {
+  const [valor, setValor] = useState("");
+  const n = Number(valor.replace(",", "."));
+  const valido = valor.trim() !== "" && Number.isFinite(n) && n > 0 && n <= LARGURA_CONFIRMADA_MAX_M;
+  const r = ROTULO_BASE[item.base];
+  return (
+    <li className="border-l-2 border-gray-200 pl-2 text-[11px] text-gray-600">
+      <span className="font-bold text-gray-700">{item.nome}</span>{" "}
+      <span className={`px-1 py-0.5 text-[10px] font-bold ${r.classe}`}>{r.texto}</span>{" "}
+      {item.larguraTotalM} m no total · {formatArea(item.areaM2)} no terreno
+      <span className="block text-[10px] text-gray-400">{item.composicao}</span>
+      <span className="mt-0.5 flex flex-wrap items-center gap-1">
+        <input value={valor} onChange={e => setValor(e.target.value)} inputMode="decimal" placeholder="largura confirmada (m)" aria-label={`Largura total confirmada de ${item.nome}, em metros`}
+          className="w-36 border border-gray-200 px-1.5 py-0.5 text-[11px] focus:border-[var(--brand-yellow)] focus:outline-none" />
+        <button type="button" disabled={!valido} onClick={() => { onConfirmar(n); setValor(""); }}
+          className="border border-gray-300 px-1.5 py-0.5 text-[11px] font-bold text-gray-700 hover:border-[var(--brand-yellow)] disabled:opacity-40">Usar esta largura</button>
+        {item.base === "confirmada" && (
+          <button type="button" onClick={() => onConfirmar(null)} className="px-1 text-[11px] font-bold text-gray-500 underline">voltar à referência</button>
+        )}
+      </span>
+    </li>
   );
 }
 

@@ -6,7 +6,8 @@
 import type { Feature, FeatureCollection, LineString } from "geojson";
 import {
   FOLGA_M, FONTES, IDS_CAMADAS, bboxComFolga, chaveDoTerreno, consultaOverpass, derivarNascentesBho, exigirFeatureCollection,
-  gradeAmostragem, normalizarGeologia, normalizarLinhasEpe, normalizarLinhasIbama, normalizarMapbiomas, normalizarMassasDagua,
+  gradeAmostragem, normalizarCaptacoes, normalizarCar, normalizarDutosEpe, normalizarDutosIbama, normalizarFerroviasDnit,
+  normalizarFerroviasIbama, normalizarMassasAbastecimento, urlIdentifyCar, normalizarGeologia, normalizarLinhasEpe, normalizarLinhasIbama, normalizarMapbiomas, normalizarMassasDagua,
   normalizarOverpass, normalizarRiosDnit, normalizarRodoviasDnit, normalizarSiagas, normalizarTrechosBho, normalizarUcs,
   recortarLinhas, recortarPoligonos, urlConsultaArcgis, urlIdentifyGeologia, urlIdentifyMapbiomas,
   type Contorno, type DadosCamadas, type EstadoCamada, type IdCamada, type PropsLinha, type RespostaCamadasTerreno,
@@ -151,6 +152,57 @@ function tentativasDa(id: IdCamada, contorno: Contorno): { tentativas: Tentativa
         } }],
         vazio: ((d: DadosCamadas["geologia"]) => !d.unidades.length) as (d: never) => boolean,
       };
+    case "car":
+      return {
+        tentativas: [{ fonte: FONTES.car.nome, executar: async deps => {
+          const { url, corpo } = urlIdentifyCar(contorno);
+          return normalizarCar(await obterJson(url, { ...deps, timeoutMs: Math.max(deps.timeoutMs ?? TIMEOUT_PADRAO_MS, 20_000) }, corpo), contorno);
+        } }],
+        vazio: ((d: DadosCamadas["car"]) => !d.imoveis.length) as (d: never) => boolean,
+      };
+    case "mananciais": {
+      const b = bboxComFolga(contorno, FOLGA_M.mananciais);
+      return {
+        tentativas: [{ fonte: FONTES.captacoes.nome, executar: async deps => {
+          const [captacoes, massas] = await Promise.all([
+            Promise.all(FONTES.captacoes.urls.map(u => consultar(urlConsultaArcgis(u, b, FONTES.captacoes.campos), deps))).then(fcs => normalizarCaptacoes(fcs, contorno)),
+            // as massas d'água são complemento: se esse serviço cair, as captações continuam valendo
+            consultar(urlConsultaArcgis(FONTES.massasAbastecimento.url, b, FONTES.massasAbastecimento.campos, { maxAllowableOffset: 0.0002 }), deps)
+              .then(fc => normalizarMassasAbastecimento(fc, contorno)).catch(() => ({ massas: [], geometrias: [] })),
+          ]);
+          return { captacoes, ...massas, raioM: FOLGA_M.mananciais };
+        } }],
+        vazio: ((d: DadosCamadas["mananciais"]) => !d.captacoes.length && !d.massas.length) as (d: never) => boolean,
+      };
+    }
+    case "ferrovias": {
+      const b = bboxComFolga(contorno, FOLGA_M.ferrovias);
+      return {
+        tentativas: [
+          { fonte: FONTES.ferroviasDnit.nome, executar: async deps => ({ ferrovias: recortarLinhas(normalizarFerroviasDnit(await consultar(urlConsultaArcgis(FONTES.ferroviasDnit.url, b, FONTES.ferroviasDnit.campos), deps)), b) }) },
+          { fonte: FONTES.ferroviasIbama.nome, executar: async deps => ({ ferrovias: recortarLinhas(normalizarFerroviasIbama(await consultar(urlConsultaArcgis(FONTES.ferroviasIbama.url, b, FONTES.ferroviasIbama.campos), deps)), b) }) },
+        ],
+        vazio: ((d: DadosCamadas["ferrovias"]) => !d.ferrovias.length) as (d: never) => boolean,
+      };
+    }
+    case "dutos": {
+      const b = bboxComFolga(contorno, FOLGA_M.dutos);
+      return {
+        tentativas: [
+          { fonte: `${FONTES.dutosEpe.nome} + ${FONTES.dutosIbama.nome}`, executar: async deps => {
+            const [epe, ibama] = await Promise.all([
+              // o servidor da EPE enfileira pedidos paralelos (~9 s cada, medido em 11/11): prazo maior só aqui
+              Promise.all(FONTES.dutosEpe.camadas.map(c => consultar(urlConsultaArcgis(c.url, b, c.campos, { maxAllowableOffset: 0.00002 }), { ...deps, timeoutMs: Math.max(deps.timeoutMs ?? TIMEOUT_PADRAO_MS, 40_000) }).then(fc => normalizarDutosEpe(fc, c.tipo)))).then(l => l.flat()),
+              // os dutos licenciados no IBAMA são complemento (oleodutos, minerodutos): falha aqui não derruba a camada
+              consultar(urlConsultaArcgis(FONTES.dutosIbama.url, b, FONTES.dutosIbama.campos), deps).then(normalizarDutosIbama).catch(() => []),
+            ]);
+            return { dutos: recortarLinhas([...epe, ...ibama], b) };
+          } },
+          { fonte: FONTES.dutosIbama.nome, executar: async deps => ({ dutos: recortarLinhas(normalizarDutosIbama(await consultar(urlConsultaArcgis(FONTES.dutosIbama.url, b, FONTES.dutosIbama.campos), deps)), b) }) },
+        ],
+        vazio: ((d: DadosCamadas["dutos"]) => !d.dutos.length) as (d: never) => boolean,
+      };
+    }
     case "furos": {
       const b = bboxComFolga(contorno, FOLGA_M.furos);
       return {

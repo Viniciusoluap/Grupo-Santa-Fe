@@ -64,3 +64,33 @@ se o Overpass ficar indisponível na Vercel, nada muda nas fontes oficiais. Depo
   (chave `segredo.mapbox_token`), além do valor criptografado salvo pela tela. Teste novo cobre.
 - Próximo passo exato: após o deploy, gravar o token de cada sistema no banco correspondente
   (nunca copiar entre empresas), confirmar `GET /api/incorporacao/mapa-base` e os domínios oficiais.
+
+## Segunda etapa (11–12/11) — itens que tinham ficado de fora
+
+Pedido do dono: incluir CAR/SICAR, zona de manancial, ferrovias e dutos, larguras legais das faixas e levar o
+Estudo de Massa para o motor novo. Autorização dada para merge e deploy ao terminar.
+
+### Concluído
+- Camadas novas (servidor, com estado próprio): `car`, `mananciais`, `ferrovias`, `dutos`.
+- Faixas: `calcularServidao` agora inclui ferrovias e dutos, marca cada item como "lei + referência",
+  "referência" ou "confirmada" e aceita larguras confirmadas pelo dono (salvas no estudo).
+- Estudo de Massa em MapLibre (`mapa-massa.tsx` + `mapa-base-ml.ts`); `camadas-base.ts` removido.
+- Coluna nova aplicada em produção nos dois bancos (só `ADD COLUMN IF NOT EXISTS`).
+- Detalhes, fontes e limites: `docs/handoffs/mapa/INVESTIGACAO-MOTOR.md`, seção 6.
+
+### Testes
+- (a) Automáticos: ver o corpo do PR desta etapa (tipos, suíte completa, build).
+- (b) Manuais: consulta ao vivo nas fontes novas (Imperatriz, João Lisboa/Ferrovia Norte-Sul, Paulínia/GASBOL,
+  Cubatão); captura do componente real em harness local: terreno com ferrovia, largura confirmada 60 → 120 m
+  recalculando a área, e Estudo de Massa com lotes e via sobre o satélite.
+- (c) Pendente em produção: abrir um estudo logado e conferir as camadas novas, salvar uma largura confirmada
+  e reabrir o estudo, e abrir o Estudo de Massa.
+
+### Pendências conhecidas
+- CAR: só perímetro do imóvel (reserva legal/APP declaradas exigem login no SICAR).
+- Zona de proteção de manancial: sem base pública; confirmar na prefeitura.
+- Faixa de domínio (DNIT) e servidão de LT (ANEEL) por trecho: sem serviço acessível; usar a largura confirmada.
+- Mapa operacional (Admin › Mapa) continua em Leaflet.
+
+### Próximo passo exato
+Depois do merge: confirmar o deploy nos domínios oficiais e pedir ao dono a conferência do item (c).

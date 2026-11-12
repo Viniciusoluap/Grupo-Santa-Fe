@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   FONTES, bboxComFolga, calcularApp, calcularServidao, calcularVegetacao, consultaOverpass, larguraAppCodigoFlorestal,
   larguraFaixaLt, linhasOsmComplementares, normalizarOverpass, avaliarGeologia, resumirFuros, tensaoOsmKv, urlConsultaArcgis,
-  zoomNativoEsri, gradeAmostragem, type Contorno,
+  zoomNativoEsri, gradeAmostragem, carConfere, limparLargurasConfirmadas, normalizarCaptacoes, normalizarDutosEpe, poligonosEsri,
+  type Contorno,
 } from "@/lib/geo/camadas-terreno";
 import { buscarCamadasTerreno, idsValidos, limparCacheCamadas, validarContorno } from "@/lib/geo/camadas-terreno-busca";
 
@@ -231,5 +232,110 @@ describe("regras de cálculo", () => {
     expect(await zoomNativoEsri(-23.55, -46.63, fetchImpl)).toBe(19);
     const semRede = (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
     expect(await zoomNativoEsri(-5.47, -47.53, semRede)).toBe(17);
+  });
+});
+
+describe("camadas de 11/11 (2ª etapa): CAR, mananciais, ferrovias, dutos e larguras confirmadas", () => {
+  const g = cenario("joao-lisboa-ferrovia-norte-sul");
+  const terreno = quadrado(g.terreno);
+  const novas = ["car", "mananciais", "ferrovias", "dutos"] as const;
+
+  it("terreno cortado pela Ferrovia Norte-Sul: CAR e ferrovia respondem; sem manancial nem duto por perto", async () => {
+    const { fetchImpl } = reprodutor(g);
+    const { camadas } = await buscarCamadasTerreno(terreno, [...novas], { fetchImpl });
+    expect(camadas.car?.estado).toBe("ok");
+    expect(camadas.car?.dados?.imoveis.length).toBeGreaterThanOrEqual(2);
+    expect(camadas.car?.dados?.imoveis[0].codigo).toMatch(/^MA-\d{7}-[0-9A-F]{32}$/);
+    expect(camadas.car?.dados?.percentualCoberto).toBeGreaterThan(50);
+    expect(camadas.car?.dados?.percentualCoberto).toBeLessThanOrEqual(100);
+    expect(camadas.ferrovias?.estado).toBe("ok");
+    expect(camadas.ferrovias?.dados?.ferrovias[0].properties).toMatchObject({ concessionaria: "FNS", origem: "DNIT" });
+    expect(camadas.mananciais?.estado).toBe("vazio");
+    expect(camadas.dutos?.estado).toBe("vazio");
+  });
+
+  it("faixa da ferrovia: 15 m de domínio (referência) + 15 m não edificáveis (Lei 6.766, art. 4º, III-A) de cada lado; largura confirmada substitui", async () => {
+    const { fetchImpl } = reprodutor(g);
+    const { camadas } = await buscarCamadasTerreno(terreno, ["ferrovias"], { fetchImpl });
+    const ferrovias = camadas.ferrovias!.dados!.ferrovias;
+    const ref = calcularServidao(terreno, [], [], { ferrovias });
+    expect(ref.itens).toHaveLength(1);
+    expect(ref.itens[0]).toMatchObject({ tipo: "ferrovia", larguraTotalM: 60, base: "legal+referencia" });
+    expect(ref.itens[0].composicao).toContain("III-A");
+    expect(ref.percentual).toBeGreaterThan(5);
+    const conf = calcularServidao(terreno, [], [], { ferrovias, larguras: { [ref.itens[0].chave]: 120 } });
+    expect(conf.itens[0]).toMatchObject({ larguraTotalM: 120, base: "confirmada" });
+    expect(conf.areaM2).toBeGreaterThan(ref.areaM2 * 1.7);
+  });
+
+  it("CAR informado no estudo é conferido com os imóveis encontrados (ignora pontuação e caixa)", async () => {
+    const { fetchImpl } = reprodutor(g);
+    const { camadas } = await buscarCamadasTerreno(terreno, ["car"], { fetchImpl });
+    const imoveis = camadas.car!.dados!.imoveis;
+    expect(carConfere(imoveis[0].codigo.toLowerCase().replace(/-/g, "."), imoveis)).toBe(true);
+    expect(carConfere("MA-2105302-00000000000000000000000000000000", imoveis)).toBe(false);
+    expect(carConfere("", imoveis)).toBeNull();
+    expect(carConfere(null, imoveis)).toBeNull();
+  });
+
+  it("CAR fora do ar vira 'indisponível' sem derrubar a ferrovia", async () => {
+    const r = reprodutor(g);
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      if (String(url).includes("CAR_NACIONAL")) throw new TypeError("fetch failed");
+      return r.fetchImpl(url, init);
+    }) as unknown as typeof fetch;
+    const { camadas } = await buscarCamadasTerreno(terreno, ["car", "ferrovias"], { fetchImpl });
+    expect(camadas.car?.estado).toBe("indisponivel");
+    expect(camadas.ferrovias?.estado).toBe("ok");
+  });
+
+  it("anéis Esri: horário é contorno, anti-horário é furo do contorno anterior", () => {
+    const externo = [[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]];
+    const furo = [[2, 2], [8, 2], [8, 8], [2, 8], [2, 2]];
+    const outro = [[20, 0], [20, 5], [25, 5], [25, 0], [20, 0]];
+    const partes = poligonosEsri([externo, furo, outro]);
+    expect(partes).toHaveLength(2);
+    expect(partes[0]).toHaveLength(2);
+    expect(partes[1]).toHaveLength(1);
+  });
+
+  it("captações da ANA (multiponto): só as do raio, da mais próxima para a mais distante, sem repetir", () => {
+    const t = quadrado({ lat: -5.5, lng: -47.5, meiaLadoM: 300 });
+    const feicao = (coords: number[][], tp: string, nome: string) => ({ type: "Feature" as const, properties: { nm_captaca: nome, nm_fantasi: "Rio Tocantins", tp_captaca: tp, nm_municip: "Imperatriz (MA)" }, geometry: { type: "MultiPoint" as const, coordinates: coords } });
+    const perto = [-47.5, -5.52], dentro = [-47.5, -5.5], longe = [-47.5, -5.7];
+    const fcs = [{ type: "FeatureCollection" as const, features: [feicao([perto, perto, longe], "Superficial", "Captação A")] }, { type: "FeatureCollection" as const, features: [feicao([dentro], "Subterrânea", "Poço B")] }];
+    const r = normalizarCaptacoes(fcs, t, 5000);
+    expect(r.map(c => c.nome)).toEqual(["Poço B", "Captação A"]);
+    expect(r[0]).toMatchObject({ tipo: "subterranea", distanciaM: 0 });
+    expect(r[1].tipo).toBe("superficial");
+    expect(r[1].distanciaM).toBeGreaterThan(1500);
+    expect(r[1].distanciaM).toBeLessThan(2500);
+  });
+
+  it("gasodutos da EPE: traçado só 'indicativo' fica de fora; duto existente gera faixa de referência de 20 m", () => {
+    const t = quadrado({ lat: -22.72, lng: -47.133, meiaLadoM: 300 });
+    const linha = (categoria: string, nome: string) => ({ type: "Feature" as const, properties: { Nome_Dut_1: nome, Categoria: categoria, Transporta: "TBG" }, geometry: { type: "LineString" as const, coordinates: [[-47.14, -22.72], [-47.126, -22.72]] } });
+    const dutos = normalizarDutosEpe({ type: "FeatureCollection", features: [linha("Existente", "GASBOL"), linha("Indicativo", "Estudo EPE")] }, "gasoduto de transporte");
+    expect(dutos.map(d => d.properties.nome)).toEqual(["GASBOL"]);
+    const s = calcularServidao(t, [], [], { dutos });
+    expect(s.itens[0]).toMatchObject({ tipo: "duto", larguraTotalM: 20, base: "referencia" });
+    expect(s.itens[0].composicao).toContain("§ 3º");
+    // faixa de 20 m atravessando ~600 m de terreno ≈ 12.000 m²
+    expect(s.areaM2).toBeGreaterThan(11_000);
+    expect(s.areaM2).toBeLessThan(13_000);
+  });
+
+  it("rodovia federal: 35 m de domínio (referência) + 15 m não edificáveis (lei) de cada lado = 100 m; chave estável para confirmar", () => {
+    const t = quadrado({ lat: -5.5, lng: -47.5, meiaLadoM: 300 });
+    const rodovia = { type: "Feature" as const, properties: { nome: "BR-010", jurisdicao: null, situacao: null }, geometry: { type: "LineString" as const, coordinates: [[-47.51, -5.5], [-47.49, -5.5]] } };
+    const s = calcularServidao(t, [], [rodovia]);
+    expect(s.itens[0]).toMatchObject({ chave: "rod:BR-010", larguraTotalM: 100, base: "legal+referencia" });
+    expect(calcularServidao(t, [], [rodovia], { larguras: { "rod:BR-010": 70 } }).itens[0]).toMatchObject({ larguraTotalM: 70, base: "confirmada" });
+  });
+
+  it("larguras confirmadas: só valores plausíveis (0 < m ≤ 1000) são aceitos", () => {
+    expect(limparLargurasConfirmadas({ "rod:BR-010": 80, a: "45,5", b: 0, c: -3, d: 5000, e: "x", f: null })).toEqual({ "rod:BR-010": 80, a: 45.5 });
+    expect(limparLargurasConfirmadas(null)).toEqual({});
+    expect(limparLargurasConfirmadas("nada")).toEqual({});
   });
 });

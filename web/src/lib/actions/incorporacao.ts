@@ -7,6 +7,7 @@ import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { limparLargurasConfirmadas } from "@/lib/geo/camadas-terreno";
 import { parseKmlTerreno } from "@/lib/geo/kml";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
 import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
@@ -231,6 +232,16 @@ export async function salvarApp(
     },
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
+  return { ok: true };
+}
+
+/** 11/11: larguras de faixa (servidão/domínio) confirmadas pelo dono no mapa do terreno; objeto vazio limpa tudo. */
+export async function salvarLargurasFaixa(estudoId: string, larguras: Record<string, number>) {
+  await exigirModuloAcao("incorporacao");
+  await prisma.estudoIncorporacao.update({
+    where: { id: estudoId },
+    data: { largurasFaixaJson: JSON.stringify(limparLargurasConfirmadas(larguras)) },
+  });
   return { ok: true };
 }
 

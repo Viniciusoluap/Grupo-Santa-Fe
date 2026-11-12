@@ -19,8 +19,8 @@ export type Bbox = [number, number, number, number]; // [oeste, sul, leste, nort
 export type Contorno = Feature<Polygon | MultiPolygon>;
 export type Poligonal = Feature<Polygon | MultiPolygon>;
 
-export type IdCamada = "hidrografia" | "osm" | "vegetacao" | "ucs" | "transmissao" | "rodovias" | "geologia" | "furos";
-export const IDS_CAMADAS: readonly IdCamada[] = ["hidrografia", "osm", "vegetacao", "ucs", "transmissao", "rodovias", "geologia", "furos"];
+export type IdCamada = "hidrografia" | "osm" | "vegetacao" | "ucs" | "transmissao" | "rodovias" | "geologia" | "furos" | "car" | "mananciais" | "ferrovias" | "dutos";
+export const IDS_CAMADAS: readonly IdCamada[] = ["hidrografia", "osm", "vegetacao", "ucs", "transmissao", "rodovias", "geologia", "furos", "car", "mananciais", "ferrovias", "dutos"];
 
 /** Estado de cada camada na legenda: carregada, sem ocorrência ou indisponível (com a fonte). */
 export type EstadoCamada<T> = {
@@ -57,9 +57,22 @@ export type DadosGeologia = { unidades: UnidadeGeologica[]; avaliacao: Avaliacao
 export type Poco = { nome: string | null; natureza: string | null; profundidadeM: number | null; nivelEstaticoM: number | null; aquifero: string | null; distanciaM: number; coordenadas: [number, number] };
 export type DadosFuros = { pocos: Poco[]; raioM: number };
 
+/** Imóvel do CAR (SICAR, base pública) que sobrepõe o terreno. */
+export type ImovelCar = { codigo: string; status: string | null; tipo: string | null; municipio: string | null; areaHa: number | null; areaSobrepostaM2: number; percentualDoTerreno: number };
+export type DadosCar = { imoveis: ImovelCar[]; geometrias: Feature<Polygon | MultiPolygon, { codigo: string }>[]; percentualCoberto: number };
+/** Captação de abastecimento público (ANA, Atlas Águas) perto do terreno. */
+export type Captacao = { nome: string | null; manancial: string | null; tipo: "superficial" | "subterranea"; sistema: string | null; municipio: string | null; situacao: string | null; distanciaM: number; coordenadas: [number, number] };
+export type MassaAbastecimento = { nome: string | null; sistemas: string | null; distanciaM: number };
+export type DadosMananciais = { captacoes: Captacao[]; massas: MassaAbastecimento[]; geometrias: Feature<Polygon | MultiPolygon, { nome: string | null }>[]; raioM: number };
+export type PropsFerrovia = { nome: string | null; concessionaria: string | null; bitola: string | null; origem: "DNIT" | "IBAMA" | "OSM" };
+export type DadosFerrovias = { ferrovias: Feature<LineString, PropsFerrovia>[] };
+export type PropsDuto = { nome: string | null; tipo: "gasoduto de transporte" | "gasoduto de distribuição" | "duto de escoamento" | "duto"; operador: string | null; origem: "EPE" | "IBAMA" | "OSM" };
+export type DadosDutos = { dutos: Feature<LineString, PropsDuto>[] };
+
 export type DadosCamadas = {
   hidrografia: DadosHidro; osm: DadosOsm; vegetacao: DadosVegetacao; ucs: DadosUcs;
   transmissao: DadosTransmissao; rodovias: DadosRodovias; geologia: DadosGeologia; furos: DadosFuros;
+  car: DadosCar; mananciais: DadosMananciais; ferrovias: DadosFerrovias; dutos: DadosDutos;
 };
 export type RespostaCamadasTerreno = { camadas: { [K in IdCamada]?: EstadoCamada<DadosCamadas[K]> }; geradoEm: string };
 
@@ -83,11 +96,22 @@ export const FONTES = {
   geologia: { nome: "SGB/CPRM — Geodiversidade dos estados", url: `${SGB}/gestaoterritorial/geodiversidade_estados/MapServer` },
   siagas: { nome: "SGB/CPRM — SIAGAS (poços)", url: `${SGB}/hidrologia/SIAGAS_MODDAD/MapServer/0`, campos: "str_nome_ponto,str_natureza_ponto,num_profundidade,ne,str_aquifero" },
   mapbiomas: { nome: "MapBiomas Coleção 2023 via EPE", url: `${EPE}/MapBiomas_2023/MapServer` },
+  car: { nome: "CAR/SICAR (base pública) via IBAMA (Pamgia)", url: `${PAMGIA}/CAR_NACIONAL/Cadastro_Ambiental_Rural__%C3%81rea_Im%C3%B3vel_/MapServer` },
+  captacoes: { nome: "ANA — Atlas Águas (captações de abastecimento)", urls: [1, 0].map(n => `${SNIRH}/AtlasAguas2020/captacoes/MapServer/${n}`), campos: "nm_captaca,nm_fantasi,tp_captaca,sistema,nm_municip,status_man" },
+  massasAbastecimento: { nome: "ANA — Atlas Águas (massas d'água de abastecimento)", url: `${SNIRH}/Atlas2020/Massa_dagua_abastecimento/MapServer/0`, campos: "nome_massa,nome_siste" },
+  ferroviasDnit: { nome: "DNIT via IBAMA (Pamgia) — ferrovias federais", url: `${PAMGIA}/BasesSincronizadas/line_ferrovias_federais_dnit_l/MapServer/0`, campos: "linha,concessionaria,bitola" },
+  ferroviasIbama: { nome: "IBAMA (SIGA Geo) — ferrovias licenciadas", url: `${PAMGIA}/21_SIGA_Geo/ferrovia/MapServer/0`, campos: "nomeempreendimento" },
+  dutosEpe: { nome: "EPE — Webmap, infraestrutura de gás natural", camadas: [
+    { url: `${EPE}/SMA/Webmap_EPE_Infraestrutura_de_Gas_Natural/MapServer/5`, campos: "Nome_Dut_1,Categoria,Transporta", tipo: "gasoduto de transporte" },
+    { url: `${EPE}/SMA/Webmap_EPE_Infraestrutura_de_Gas_Natural/MapServer/6`, campos: "Distrib", tipo: "gasoduto de distribuição" },
+    { url: `${EPE}/SMA/Webmap_EPE_Infraestrutura_de_Gas_Natural/MapServer/7`, campos: "DUTO_ID,Categoria,FLUIDO", tipo: "duto de escoamento" },
+  ] },
+  dutosIbama: { nome: "IBAMA (SIGA Geo) — dutos licenciados", url: `${PAMGIA}/21_SIGA_Geo/duto/MapServer/0`, campos: "nomeempreendimento,tipologia" },
   overpass: { nome: "OpenStreetMap (Overpass)", urls: ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"] },
 } as const;
 
 /** Folga de busca em volta do terreno por camada (m). APP de 500 m exige rios a até 500 m. */
-export const FOLGA_M = { hidrografia: 600, osm: 600, transmissao: 250, rodovias: 250, ucs: 3000, furos: 5000 } as const;
+export const FOLGA_M = { hidrografia: 600, osm: 600, transmissao: 250, rodovias: 250, ucs: 3000, furos: 5000, mananciais: 5000, ferrovias: 250, dutos: 250 } as const;
 
 // ─── Geometria utilitária ───────────────────────────────────────────────────
 
@@ -131,6 +155,16 @@ export function urlIdentifyGeologia(contorno: Contorno): { url: string; corpo: s
     mapExtent: b.join(","), imageDisplay: "400,400,96", returnGeometry: "false", f: "json",
   });
   return { url: `${FONTES.geologia.url}/identify`, corpo: p.toString() };
+}
+
+/** `identify` do CAR com o polígono do terreno: uma requisição cobre as 27 camadas (uma por UF). */
+export function urlIdentifyCar(contorno: Contorno): { url: string; corpo: string } {
+  const b = bboxComFolga(contorno, 200);
+  const p = new URLSearchParams({
+    geometry: aneisEsri(contorno), geometryType: "esriGeometryPolygon", sr: "4326", layers: "all", tolerance: "0",
+    mapExtent: b.join(","), imageDisplay: "400,400,96", returnGeometry: "true", geometryPrecision: "6", f: "json",
+  });
+  return { url: `${FONTES.car.url}/identify`, corpo: p.toString() };
 }
 
 export function urlIdentifyMapbiomas(pontos: Position[], contorno: Contorno): { url: string; corpo: string } {
@@ -462,6 +496,154 @@ export function normalizarGeologia(json: unknown): DadosGeologia {
   return { unidades, avaliacao: avaliarGeologia(unidades) };
 }
 
+/** Anéis Esri JSON → polígonos GeoJSON: anel horário é contorno externo; anti-horário é furo do externo anterior. */
+export function poligonosEsri(rings: Position[][]): Position[][][] {
+  const partes: Position[][][] = [];
+  for (const anel of rings) {
+    if (!Array.isArray(anel) || anel.length < 4) continue;
+    let soma = 0;
+    for (let i = 0; i < anel.length - 1; i++) soma += (anel[i + 1][0] - anel[i][0]) * (anel[i + 1][1] + anel[i][1]);
+    if (soma >= 0 || !partes.length) partes.push([anel]);
+    else partes[partes.length - 1].push(anel);
+  }
+  return partes;
+}
+
+const STATUS_CAR: Record<string, string> = { AT: "ativo", PE: "pendente", SU: "suspenso", CA: "cancelado" };
+const TIPO_CAR: Record<string, string> = { IRU: "imóvel rural", AST: "assentamento", PCT: "território tradicional" };
+
+/** Resposta do `identify` do CAR (Esri JSON) → imóveis que sobrepõem o terreno, com a área em comum. */
+export function normalizarCar(json: unknown, contorno: Contorno): DadosCar {
+  const resultados = ehObjeto(json) && Array.isArray(json.results) ? json.results : null;
+  if (!resultados) throw new Error("resposta inesperada do CAR");
+  const total = turfArea(contorno);
+  const porCodigo = new Map<string, ImovelCar>();
+  const geometrias: DadosCar["geometrias"] = [];
+  const recortes: Poligonal[] = [];
+  for (const r of resultados) {
+    if (!ehObjeto(r) || !ehObjeto(r.attributes) || !ehObjeto(r.geometry) || !Array.isArray(r.geometry.rings)) continue;
+    const a = r.attributes;
+    const codigo = texto(a.cod_imovel);
+    if (!codigo || texto(a.flg_ativo) === "f") continue;
+    const partes = poligonosEsri(r.geometry.rings as Position[][]);
+    if (!partes.length) continue;
+    const imovel = (partes.length === 1 ? turfPolygon(partes[0]) : { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: partes } }) as Poligonal;
+    let sobreposta = 0;
+    try { const dentro = recortarAo(contorno, imovel); if (dentro) { sobreposta = turfArea(dentro); recortes.push(dentro); } } catch { /* geometria inválida */ }
+    const st = texto(a.ind_status_imovel), tp = texto(a.ind_tipo_imovel);
+    porCodigo.set(codigo, {
+      codigo, status: st ? STATUS_CAR[st] ?? st : null, tipo: tp ? TIPO_CAR[tp] ?? tp : null, municipio: texto(a.nom_municipio),
+      areaHa: numero(typeof a.num_area_imovel === "string" ? a.num_area_imovel.replace(",", ".") : a.num_area_imovel),
+      areaSobrepostaM2: sobreposta, percentualDoTerreno: total > 0 ? (sobreposta / total) * 100 : 0,
+    });
+    geometrias.push({ ...imovel, properties: { codigo } });
+  }
+  const uniao = unir(recortes);
+  const coberto = uniao ? turfArea(uniao) : 0;
+  return {
+    imoveis: Array.from(porCodigo.values()).sort((x, y) => y.areaSobrepostaM2 - x.areaSobrepostaM2), geometrias,
+    percentualCoberto: total > 0 ? Math.min(100, (coberto / total) * 100) : 0,
+  };
+}
+
+/** Compara o nº do CAR informado no estudo com os imóveis encontrados (ignora pontuação e caixa). */
+export function carConfere(informado: string | null | undefined, imoveis: ImovelCar[]): boolean | null {
+  const limpo = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const alvo = informado ? limpo(informado) : "";
+  if (alvo.length < 10) return null;
+  return imoveis.some(i => limpo(i.codigo) === alvo);
+}
+
+/** Menor distância (m) de um ponto ao terreno: 0 se está dentro. */
+function distanciaPontoAoTerreno(contorno: Contorno, p: Position): number {
+  if (booleanPointInPolygon(point(p), contorno)) return 0;
+  const bordas = flatten(polygonToLine(contorno) as Feature).features as Feature<LineString>[];
+  return Math.round(Math.min(...bordas.map(l => pointToLineDistance(point(p), l, { units: "meters" }))));
+}
+
+/** Captações da ANA (pontos/multipontos) dentro do raio, da mais próxima para a mais distante. */
+export function normalizarCaptacoes(fcs: FeatureCollection[], contorno: Contorno, raioM: number = FOLGA_M.mananciais): Captacao[] {
+  const vistas = new Map<string, Captacao>();
+  for (const fc of fcs) for (const f of fc.features) {
+    const g = f.geometry;
+    const pontos = g?.type === "Point" ? [g.coordinates] : g?.type === "MultiPoint" ? g.coordinates : [];
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const tipo = /superf/i.test(texto(p.tp_captaca) ?? "") ? "superficial" as const : "subterranea" as const;
+    for (const c of pontos) {
+      const d = distanciaPontoAoTerreno(contorno, c);
+      if (d > raioM) continue;
+      const chave = `${c[0].toFixed(5)},${c[1].toFixed(5)}|${tipo}`;
+      if (vistas.has(chave)) continue;
+      vistas.set(chave, {
+        nome: texto(p.nm_captaca), manancial: texto(p.nm_fantasi), tipo, sistema: texto(p.sistema), municipio: texto(p.nm_municip),
+        situacao: texto(p.status_man), distanciaM: d, coordenadas: [c[0], c[1]],
+      });
+    }
+  }
+  return Array.from(vistas.values()).sort((a, b) => a.distanciaM - b.distanciaM);
+}
+
+/** Massas d'água usadas para abastecimento (ANA) no entorno: nome, sistemas atendidos e distância. */
+export function normalizarMassasAbastecimento(fc: FeatureCollection, contorno: Contorno, raioM: number = FOLGA_M.mananciais): Pick<DadosMananciais, "massas" | "geometrias"> {
+  const area = bboxComFolga(contorno, raioM + 500);
+  const porNome = new Map<string, MassaAbastecimento>();
+  const geometrias: DadosMananciais["geometrias"] = [];
+  for (const f of fc.features) {
+    const polis = poligonosDe(f.geometry);
+    if (!polis.length) continue;
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const massa = (polis.length === 1 ? turfPolygon(polis[0]) : { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: polis } }) as Poligonal;
+    const recorte = bboxClip(massa, area) as Poligonal;
+    if (!poligonosDe(recorte.geometry).some(a => a[0]?.length >= 4)) continue;
+    const d = distanciaAteUc(contorno, recorte);
+    if (d > raioM) continue;
+    const nome = texto(p.nome_massa);
+    const chave = nome ?? `massa-${geometrias.length}`;
+    const atual = porNome.get(chave);
+    if (!atual || d < atual.distanciaM) porNome.set(chave, { nome, sistemas: texto(p.nome_siste), distanciaM: d });
+    geometrias.push({ ...recorte, properties: { nome } });
+  }
+  return { massas: Array.from(porNome.values()).sort((a, b) => a.distanciaM - b.distanciaM), geometrias };
+}
+
+export function normalizarFerroviasDnit(fc: FeatureCollection): Feature<LineString, PropsFerrovia>[] {
+  return fc.features.flatMap(f => {
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const props: PropsFerrovia = { nome: texto(p.linha) ?? texto(p.concessionaria), concessionaria: texto(p.concessionaria), bitola: texto(p.bitola), origem: "DNIT" };
+    return linhasDe(f.geometry).filter(c => c.length >= 2).map(c => lineString(c, props) as Feature<LineString, PropsFerrovia>);
+  });
+}
+
+export function normalizarFerroviasIbama(fc: FeatureCollection): Feature<LineString, PropsFerrovia>[] {
+  return fc.features.flatMap(f => {
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const props: PropsFerrovia = { nome: texto(p.nomeempreendimento), concessionaria: null, bitola: null, origem: "IBAMA" };
+    return linhasDe(f.geometry).filter(c => c.length >= 2).map(c => lineString(c, props) as Feature<LineString, PropsFerrovia>);
+  });
+}
+
+/** Gasodutos da EPE (uma coleção por camada). Traçados só "indicativos"/planejados ficam de fora: não geram faixa. */
+export function normalizarDutosEpe(fc: FeatureCollection, tipo: PropsDuto["tipo"]): Feature<LineString, PropsDuto>[] {
+  return fc.features.flatMap(f => {
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const categoria = texto(p.Categoria);
+    if (categoria && !/existente/i.test(categoria)) return [];
+    const props: PropsDuto = {
+      nome: texto(p.Nome_Dut_1) ?? texto(p.DUTO_ID) ?? (texto(p.Distrib) ? `Rede de gás ${texto(p.Distrib)}` : null), tipo,
+      operador: texto(p.Transporta) ?? texto(p.Distrib), origem: "EPE",
+    };
+    return linhasDe(f.geometry).filter(c => c.length >= 2).map(c => lineString(c, props) as Feature<LineString, PropsDuto>);
+  });
+}
+
+export function normalizarDutosIbama(fc: FeatureCollection): Feature<LineString, PropsDuto>[] {
+  return fc.features.flatMap(f => {
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const props: PropsDuto = { nome: texto(p.nomeempreendimento), tipo: "duto", operador: null, origem: "IBAMA" };
+    return linhasDe(f.geometry).filter(c => c.length >= 2).map(c => lineString(c, props) as Feature<LineString, PropsDuto>);
+  });
+}
+
 export function normalizarSiagas(fc: FeatureCollection, contorno: Contorno, raioM: number = FOLGA_M.furos): DadosFuros {
   const centro = turfCentroid(contorno);
   const pocos: Poco[] = [];
@@ -692,48 +874,95 @@ export function larguraFaixaLt(tensaoKv: number | null): number {
 }
 
 /**
- * Rodovia federal: faixa de domínio de referência de 35 m para cada lado do eixo
- * (o DNIT define por trecho — confirmar) + 15 m não edificáveis de cada lado
- * (Lei 6.766/79, art. 4º, III, red. Lei 13.913/2019).
+ * Faixas ao longo de rodovias, ferrovias e dutos — o que é LEI e o que é referência:
+ * • Rodovia: faixa NÃO EDIFICÁVEL de 15 m de cada lado, além da faixa de domínio
+ *   (Lei 6.766/79, art. 4º, III, red. Lei 13.913/2019 — lei municipal pode reduzir até 5 m).
+ *   A largura da faixa de domínio é definida pelo DNIT/DER por trecho: 35 m de cada lado é referência.
+ * • Ferrovia: faixa NÃO EDIFICÁVEL de 15 m de cada lado, além da faixa de domínio
+ *   (Lei 6.766/79, art. 4º, III-A). A faixa de domínio é da concessão: 15 m de cada lado é referência.
+ * • Duto: a lei não fixa largura — a faixa é exigida no licenciamento ambiental
+ *   (Lei 6.766/79, art. 4º, § 3º). 20 m no total é referência usual de servidão de gasoduto.
+ * • Linha de transmissão: sem largura em lei; vale a escritura/declaração de utilidade pública (ver TABELA_FAIXA_LT).
+ * O dono pode informar a largura CONFIRMADA (concessionária, DNIT, escritura) por item — ela substitui a referência.
  */
 export const RODOVIA_FEDERAL = { dominioCadaLadoM: 35, naoEdificavelM: 15 } as const;
+export const FERROVIA = { dominioCadaLadoM: 15, naoEdificavelM: 15 } as const;
+export const DUTO_FAIXA_TOTAL_M = 20;
+export const LARGURA_CONFIRMADA_MAX_M = 1000;
 
-export type ItemServidao = { tipo: "transmissao" | "rodovia"; nome: string; larguraTotalM: number; areaM2: number; tensaoKv?: number | null };
+export type TipoServidao = "transmissao" | "rodovia" | "ferrovia" | "duto";
+/** "confirmada" = informada pelo dono; "legal+referencia" = parte fixada em lei + parte de referência; "referencia" = só referência. */
+export type BaseServidao = "confirmada" | "legal+referencia" | "referencia";
+export type ItemServidao = { chave: string; tipo: TipoServidao; nome: string; larguraTotalM: number; areaM2: number; base: BaseServidao; composicao: string; tensaoKv?: number | null };
 export type ResultadoServidao = { areaM2: number; percentual: number; faixa: Poligonal | null; itens: ItemServidao[] };
+/** Larguras TOTAIS confirmadas pelo dono, por chave do item (ex.: "lt:LT 500 kV X", "rod:BR-010"). */
+export type LargurasConfirmadas = Record<string, number>;
+export type ExtrasServidao = { ferrovias?: Feature<LineString, PropsFerrovia>[]; dutos?: Feature<LineString, PropsDuto>[]; larguras?: LargurasConfirmadas };
 
-export function calcularServidao(contorno: Contorno, linhas: Feature<LineString, PropsLinha>[], rodovias: Feature<LineString, PropsRodovia>[]): ResultadoServidao {
+/** Aceita só larguras plausíveis (0 < m ≤ 1000); descarta o resto. */
+export function limparLargurasConfirmadas(entrada: unknown): LargurasConfirmadas {
+  const saida: LargurasConfirmadas = {};
+  if (!ehObjeto(entrada)) return saida;
+  for (const [k, v] of Object.entries(entrada).slice(0, 200)) {
+    const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(",", ".")) : NaN;
+    if (k.length <= 200 && Number.isFinite(n) && n > 0 && n <= LARGURA_CONFIRMADA_MAX_M) saida[k] = Math.round(n * 10) / 10;
+  }
+  return saida;
+}
+
+export function calcularServidao(contorno: Contorno, linhas: Feature<LineString, PropsLinha>[], rodovias: Feature<LineString, PropsRodovia>[], extras: ExtrasServidao = {}): ResultadoServidao {
   const faixas: Poligonal[] = [];
   const itens = new Map<string, ItemServidao>();
-  const somar = (chave: string, item: Omit<ItemServidao, "areaM2">, faixaItem: Poligonal) => {
-    const dentro = recortarAo(contorno, faixaItem);
-    const a = dentro ? turfArea(dentro) : 0;
-    const atual = itens.get(chave);
-    itens.set(chave, { ...item, areaM2: (atual?.areaM2 ?? 0) + a });
+  const larguras = extras.larguras ?? {};
+  const ferrovias = extras.ferrovias ?? [], dutos = extras.dutos ?? [];
+  const aplicar = (eixo: Feature<LineString>, padrao: Omit<ItemServidao, "areaM2">) => {
+    const confirmada = larguras[padrao.chave];
+    const item = confirmada ? { ...padrao, larguraTotalM: confirmada, base: "confirmada" as const, composicao: `${confirmada} m no total — largura confirmada por você` } : padrao;
+    try {
+      const b = turfBuffer(eixo, item.larguraTotalM / 2, { units: "meters" }) as Poligonal | undefined;
+      if (!b) return;
+      faixas.push(b);
+      const dentro = recortarAo(contorno, b);
+      const a = dentro ? turfArea(dentro) : 0;
+      itens.set(item.chave, { ...item, areaM2: (itens.get(item.chave)?.areaM2 ?? 0) + a });
+    } catch { /* geometria inválida: ignora */ }
   };
   for (const l of linhas) {
     const largura = larguraFaixaLt(l.properties.tensaoKv);
-    try {
-      const b = turfBuffer(l, largura / 2, { units: "meters" }) as Poligonal | undefined;
-      if (!b) continue;
-      faixas.push(b);
-      const nome = l.properties.nome ?? (l.properties.tensaoKv ? `LT ${l.properties.tensaoKv} kV` : "Linha de transmissão");
-      somar(`lt:${nome}`, { tipo: "transmissao", nome, larguraTotalM: largura, tensaoKv: l.properties.tensaoKv }, b);
-    } catch { /* ignora */ }
+    const nome = l.properties.nome ?? (l.properties.tensaoKv ? `LT ${l.properties.tensaoKv} kV` : "Linha de transmissão");
+    aplicar(l, {
+      chave: `lt:${nome}`, tipo: "transmissao", nome, larguraTotalM: largura, base: "referencia", tensaoKv: l.properties.tensaoKv,
+      composicao: `${largura} m no total — referência pela tensão${l.properties.tensaoKv ? ` (${l.properties.tensaoKv} kV)` : " (tensão não informada)"}; vale a escritura/declaração de utilidade pública`,
+    });
   }
-  const metade = RODOVIA_FEDERAL.dominioCadaLadoM + RODOVIA_FEDERAL.naoEdificavelM;
   for (const r of rodovias) {
-    try {
-      const b = turfBuffer(r, metade, { units: "meters" }) as Poligonal | undefined;
-      if (!b) continue;
-      faixas.push(b);
-      somar(`rod:${r.properties.nome}`, { tipo: "rodovia", nome: r.properties.nome, larguraTotalM: metade * 2 }, b);
-    } catch { /* ignora */ }
+    const cadaLado = RODOVIA_FEDERAL.dominioCadaLadoM + RODOVIA_FEDERAL.naoEdificavelM;
+    aplicar(r, {
+      chave: `rod:${r.properties.nome}`, tipo: "rodovia", nome: r.properties.nome, larguraTotalM: cadaLado * 2, base: "legal+referencia",
+      composicao: `de cada lado do eixo: ${RODOVIA_FEDERAL.dominioCadaLadoM} m de faixa de domínio (referência; o DNIT define por trecho) + ${RODOVIA_FEDERAL.naoEdificavelM} m não edificáveis (Lei 6.766/79, art. 4º, III)`,
+    });
+  }
+  for (const fv of ferrovias) {
+    const cadaLado = FERROVIA.dominioCadaLadoM + FERROVIA.naoEdificavelM;
+    const nome = fv.properties.nome ?? "Ferrovia";
+    aplicar(fv, {
+      chave: `fer:${nome}`, tipo: "ferrovia", nome, larguraTotalM: cadaLado * 2, base: "legal+referencia",
+      composicao: `de cada lado do eixo: ${FERROVIA.dominioCadaLadoM} m de faixa de domínio (referência; definida na concessão) + ${FERROVIA.naoEdificavelM} m não edificáveis (Lei 6.766/79, art. 4º, III-A)`,
+    });
+  }
+  for (const d of dutos) {
+    const nome = d.properties.nome ?? d.properties.tipo;
+    aplicar(d, {
+      chave: `duto:${nome}`, tipo: "duto", nome, larguraTotalM: DUTO_FAIXA_TOTAL_M, base: "referencia",
+      composicao: `${DUTO_FAIXA_TOTAL_M} m no total — referência; a lei remete a faixa ao licenciamento ambiental (Lei 6.766/79, art. 4º, § 3º)`,
+    });
   }
   const faixa = unir(faixas);
   const dentro = recortarAo(contorno, faixa);
   const areaM2 = dentro ? turfArea(dentro) : 0;
   const total = turfArea(contorno);
-  return { areaM2, percentual: total > 0 ? (areaM2 / total) * 100 : 0, faixa, itens: Array.from(itens.values()).filter(i => i.areaM2 > 0.5 || linhas.length + rodovias.length <= 3) };
+  const poucos = linhas.length + rodovias.length + ferrovias.length + dutos.length <= 3;
+  return { areaM2, percentual: total > 0 ? (areaM2 / total) * 100 : 0, faixa, itens: Array.from(itens.values()).filter(i => i.areaM2 > 0.5 || poucos) };
 }
 
 /** Linhas do OSM que não duplicam as oficiais (EPE/IBAMA): só as que ficam a > 30 m de todas. */
