@@ -242,7 +242,11 @@ export function validarParametrosMassa(p: ParametrosMassa): string | null {
   if (p.formatoLote !== undefined && p.formatoLote !== "retangular" && p.formatoLote !== "divisa") {
     return "Formato do lote inválido (use retangular ou acompanha a divisa).";
   }
-  if (p.formatoLote !== "divisa" && !(p.tipologia === "rua_simples" && p.tracadoVia === "divisa") && areaLote + 1e-9 < p.loteMinimoM2) {
+  // Lote com fundo variável (área ≥ mínima garantida pelo motor) só existe na Rua Simples; nas demais
+  // tipologias o lote é retangular e testada × profundidade precisa atingir a mínima, mesmo que o
+  // formato "divisa" tenha ficado salvo de uma Rua Simples anterior.
+  const fundoVariavel = p.tipologia === "rua_simples" && (p.formatoLote === "divisa" || p.tracadoVia === "divisa");
+  if (!fundoVariavel && areaLote + 1e-9 < p.loteMinimoM2) {
     const f = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
     return `Testada × profundidade (${f(p.testadaLoteM)} × ${f(p.profundidadeLoteM)} m = ${f(areaLote)} m²) é menor que a área mínima do lote (${f(p.loteMinimoM2)} m²). Ajuste as dimensões ou a área mínima — o motor não altera as dimensões informadas.`;
   }

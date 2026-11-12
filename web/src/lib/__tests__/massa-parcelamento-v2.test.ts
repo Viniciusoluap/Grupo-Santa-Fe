@@ -153,6 +153,11 @@ describe("Correção 01 — parâmetros respeitados exatamente", () => {
 
   it("testada × profundidade menor que a área mínima é recusada com explicação", () => {
     expect(validarParametrosMassa({ ...BASE, testadaLoteM: 10, profundidadeLoteM: 20, loteMinimoM2: 250 })).toMatch(/menor que a área mínima/);
+    // revisão Codex (11/11): o formato "divisa" que ficou salvo de uma Rua Simples não dispensa a área mínima em Grade/Cul-de-sac
+    for (const tipologia of ["grid", "cul_de_sac"] as TipologiaMassa[]) {
+      expect(validarParametrosMassa({ ...BASE, tipologia, formatoLote: "divisa", testadaLoteM: 10, profundidadeLoteM: 25, loteMinimoM2: 500 })).toMatch(/menor que a área mínima/);
+    }
+    expect(validarParametrosMassa({ ...BASE, tipologia: "rua_simples", formatoLote: "divisa", testadaLoteM: 10, profundidadeLoteM: 25, loteMinimoM2: 500 })).toBeNull();
     const r = gerarEstudoMassa(RETANGULO, CENTRO, { ...BASE, profundidadeLoteM: 20 });
     expect(r.cenarios).toEqual([]);
     expect(r.inviabilidade?.motivo).toMatch(/não altera as dimensões/);
