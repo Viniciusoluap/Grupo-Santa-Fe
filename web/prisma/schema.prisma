@@ -140,6 +140,14 @@ model Lead {
   clientesBpo          BpoCliente[]
   vinculosWhatsapp     WhatsappVinculoConversa[]
 
+  // ── Paridade pendências antigas (13/11) ──
+  // EPIC-017 (Prospecta): endereço do cliente no lead; migra para Avaliação,
+  // Obra e Regularização criadas pelo CRM.
+  endereco             String?
+  bairro               String?
+  cidade               String?
+  uf                   String?                   @db.VarChar(2)
+
   @@map("leads")
 }
 

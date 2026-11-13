@@ -66,3 +66,13 @@ export function calcularValorComissao(valorBase: number | null | undefined, perc
   if (!Number.isFinite(percentual) || percentual <= 0 || percentual > 100) return null;
   return Math.round(valorBase * percentual) / 100;
 }
+
+// ── Paridade pendências antigas (13/11) ──
+// EPIC-018 2.2 (Prospecta, `comissoes.formOptions`): o seletor de corretor da
+// comissão lista todos os cadastrados; os inativos aparecem marcados, para que
+// uma comissão de corretor desligado continue abrindo com o corretor certo.
+export const SEM_CORRETORES_CADASTRADOS = "Nenhum corretor cadastrado em Corretores";
+
+export function rotuloCorretorComissao(corretor: { nome: string; ativo?: boolean | null }): string {
+  return corretor.ativo === false ? `${corretor.nome} (inativo)` : corretor.nome;
+}

@@ -92,6 +92,45 @@ export function dadosClienteDoLead(lead: LeadDadosCliente) {
   };
 }
 
+// ── Paridade pendências antigas (13/11) ──
+// EPIC-017 (Prospecta, `shared/lead-snapshot.ts`): o endereço do cliente fica no
+// lead e migra para os registros operacionais criados pelo CRM.
+export interface LeadEndereco {
+  endereco?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+}
+
+const limpar = (v: string | null | undefined) => (v ?? "").trim();
+
+/** Endereço do lead normalizado (UF em maiúsculas, 2 letras). */
+export function enderecoDoLead(lead: LeadEndereco) {
+  return {
+    endereco: limpar(lead.endereco),
+    bairro: limpar(lead.bairro),
+    cidade: limpar(lead.cidade),
+    uf: limpar(lead.uf).toUpperCase().slice(0, 2),
+  };
+}
+
+/** Endereço em uma linha ("Rua, Bairro, Cidade/UF"), igual a `leadFullAddress` da Prospecta. */
+export function enderecoCompletoDoLead(lead: LeadEndereco): string {
+  const e = enderecoDoLead(lead);
+  const cidadeUf = [e.cidade, e.uf].filter(Boolean).join("/");
+  return [e.endereco, e.bairro, cidadeUf].filter(Boolean).join(", ");
+}
+
+/** Endereço vindo do formulário do lead (campos opcionais; vazio = null). */
+export function enderecoDoFormulario(formData: FormData) {
+  const campo = (nome: string, max: number) => String(formData.get(nome) ?? "").trim().slice(0, max) || null;
+  const uf = campo("uf", 2);
+  return { endereco: campo("endereco", 300), bairro: campo("bairro", 120), cidade: campo("cidade", 120), uf: uf ? uf.toUpperCase() : null };
+}
+
+/** Marcador usado nas avaliações criadas pelo CRM antes de existir endereço no lead. */
+export const ENDERECO_A_DEFINIR = "A definir";
+
 /** Número de protocolo da avaliação (mesmo formato usado em /admin/avaliacoes). */
 export function gerarNumeroAvaliacao(agora: Date = new Date(), aleatorio: number = Math.random()): string {
   const sufixo = Math.floor(1000 + aleatorio * 9000);

@@ -13,10 +13,12 @@ import {
   encontrarNegocio,
   normalizarTipoComissao,
   rotuloNegocio,
+  rotuloCorretorComissao,
+  SEM_CORRETORES_CADASTRADOS,
   type NegocioItem,
 } from "@/lib/comissoes/calculo";
 
-type Corretor = { id: string; nome: string };
+type Corretor = { id: string; nome: string; ativo?: boolean };
 
 type ComissaoData = {
   id: string;
@@ -182,11 +184,12 @@ export function ComissaoForm({ corretores, comissao, negociosPorTipo, onClose }:
                 <select name="corretorId" required={beneficiario === "corretor"}
                   defaultValue={comissao?.corretorId ?? ""}
                   className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50 appearance-none">
-                  <option value="">Selecione um corretor</option>
+                  <option value="">{corretores.length ? "Selecione o corretor" : SEM_CORRETORES_CADASTRADOS}</option>
                   {corretores.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
+                    <option key={c.id} value={c.id}>{rotuloCorretorComissao(c)}</option>
                   ))}
                 </select>
+                {corretores.length === 0 && <p className="mt-1 text-xs text-red-700">{SEM_CORRETORES_CADASTRADOS}.</p>}
               </div>
             )}
 
