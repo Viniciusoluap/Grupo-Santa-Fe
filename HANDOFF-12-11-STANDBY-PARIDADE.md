@@ -29,6 +29,8 @@ Decisão do dono em 12/11/2026: trabalhar exclusivamente na Prospecta. O Santa F
 
 ### Central de Vendas (12/11)
 - Módulo novo na Prospecta (branch `claude/central-de-vendas`, `HANDOFF-12-11-CENTRAL-DE-VENDAS.md` de lá).
+- 13/11: **portado** na branch `claude/paridade-central-vendas` deste repositório (sem merge, sem deploy, migração
+  não aplicada) — ver `HANDOFF-13-11-PARIDADE-CENTRAL-VENDAS.md`.
 
 ### Pendências antigas do ROADMAP da Prospecta (não conferidas item a item no Santa Fé)
 - EPIC-017 (vínculo lead ↔ serviços), EPIC-018 (corretores e comissões), EPIC-019 (layout da Central
