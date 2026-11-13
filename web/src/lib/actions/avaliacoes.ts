@@ -7,7 +7,7 @@ import { excluirServicoDefinitivo } from "@/lib/crm/excluir-servico";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { clienteParaRegistro } from "@/lib/crm/vinculo-lead";
+import { clienteParaRegistro, cpfParaRegistro } from "@/lib/crm/vinculo-lead";
 
 // Avaliações, assim como Financiamentos (Lote 3) e Obras/Projetos/
 // Regularização, só nascem vinculadas a um lead do CRM — ver
@@ -71,7 +71,7 @@ export async function editarAvaliacao(formData: FormData) {
       tipo: formData.get("tipo") as string,
       finalidade: formData.get("finalidade") as string,
       ...cliente,
-      clienteCpf: (formData.get("clienteCpf") as string) || null,
+      clienteCpf: await cpfParaRegistro(leadId, formData),
       endereco: formData.get("endereco") as string,
       bairro: formData.get("bairro") as string,
       cidade: (formData.get("cidade") as string) || "Canaã dos Carajás",

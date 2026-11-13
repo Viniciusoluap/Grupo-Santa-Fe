@@ -37,14 +37,39 @@ Central de Vendas → `sf-central-vendas`.
 
 | Item | Estado | Commit |
 |------|--------|--------|
-| 3+4 — endereço/bairro/cidade/UF no lead, migrados para Avaliação/Obra/Regularização; CPF na Avaliação | pendente | — |
+| 3+4 — endereço/bairro/cidade/UF no lead, migrados para Avaliação/Obra/Regularização; CPF na Avaliação | concluído | (ver git log: "feat(crm): endereço do cliente no lead…") |
 | 9 — corretores inativos marcados e aviso de lista vazia na Comissão | pendente | — |
 
+### Item 3+4 — detalhes
+- Schema: `Lead.endereco/bairro/cidade/uf` (bloco `// ── Paridade pendências antigas (13/11) ──` no model Lead).
+- **Migração `web/prisma/migrations/20261113400000_lead_endereco/migration.sql`** (4 `ADD COLUMN IF NOT EXISTS`,
+  aditiva e idempotente) — **aplicar no Supabase antes do deploy** (o Prisma passa a selecionar as colunas em `leads`).
+- `web/src/lib/crm/servicos-lead.ts`: `enderecoDoLead`, `enderecoCompletoDoLead` (= `leadFullAddress`),
+  `enderecoDoFormulario`, `ENDERECO_A_DEFINIR`.
+- `web/src/lib/crm/vinculo-lead.ts`: `criarRegistro` — Avaliação nasce com CPF, endereço, bairro, cidade e UF do lead
+  ("A definir" e cidade/UF padrão só quando o lead não tem); Obra e Regularização com o endereço completo.
+  `propagarDadosClienteDoLead` — CPF segue o lead na Avaliação; endereço do lead preenche **só** o que está pendente
+  (vazio/"A definir"), sem sobrescrever endereço já digitado no módulo. `cpfParaRegistro` usado em `editarAvaliacao`.
+- `web/src/lib/actions/leads.ts`: cadastro e edição gravam o endereço (edição só se o formulário enviar os campos).
+- Telas: `leads/_components/campos-endereco-lead.tsx` (novo), `novo-lead-form.tsx`, `editar-lead-form.tsx`,
+  `editar/page.tsx`, ficha do lead mostra "Endereço".
+- **Divergência registrada (decisão para o dono):** na Prospecta, a edição de uma Avaliação vinculada reescreve
+  endereço/bairro/cidade/UF com os do lead a cada salvamento (o modal não tem mais esses campos). No Santa Fé o
+  formulário de edição da Avaliação continua com o endereço do imóvel avaliado editável, porque as avaliações já
+  existentes têm o endereço digitado ali (o lead não tinha endereço até hoje) e reescrevê-lo apagaria dados.
+  Se o dono quiser a regra idêntica, basta remover os campos do formulário e usar o endereço do lead em `editarAvaliacao`.
+  Mesma ideia da Obra na Prospecta (AC-03 da 1.4: endereço da obra continua editável).
+
 ## Testes
-- (a) automáticos: ainda não executados (só auditoria).
-- (b) manuais: nenhum.
-- (c) produção: nada aplicado.
+- (a) automáticos (item 3+4): `web/src/lib/__tests__/lead-endereco-paridade.test.ts` — 7 testes ✅ (normalização,
+  formulário, criação dos registros com/sem endereço, propagação só do pendente, chamadores antigos, migração em
+  PGlite aditiva e idempotente). `npx tsc --noEmit -p .` ✅. `npx eslint` nos arquivos alterados: 0 erros
+  (1 aviso antigo `_formData` em `actions/avaliacoes.ts:19`, não mexido). `npx vitest run`: 167 arquivos /
+  1231 testes passando, 28 arquivos pulados (como antes).
+- (b) manuais: nenhum (telas exigem login e banco).
+- (c) produção: pendente — aplicar a migração; cadastrar lead com endereço e marcar Avaliação/Obra/Regularização;
+  conferir os registros criados; editar o endereço de um lead antigo e ver as avaliações "A definir" preenchidas.
 
 ## Próximo passo exato
-Implementar o item 3+4 (schema `Lead.endereco/bairro/cidade/uf` no bloco "Paridade pendências antigas (13/11)",
-migração `20261113400000_lead_endereco`, formulários de cadastro/edição do lead, `criarRegistro`), com testes.
+Item 9: em `web/src/app/admin/comissoes/page.tsx` listar também corretores inativos (marcados "(inativo)" no
+`comissao-form.tsx`) e mostrar "Nenhum corretor cadastrado em Corretores" quando a lista estiver vazia.

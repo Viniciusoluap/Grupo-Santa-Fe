@@ -22,7 +22,7 @@ import {
   bloquearLead,
   adicionarOperacaoDoLead,
 } from "@/lib/crm/vinculo-lead";
-import { SERVICOS_LEAD, moduloDoServico, parseServicosLead } from "@/lib/crm/servicos-lead";
+import { SERVICOS_LEAD, enderecoDoFormulario, moduloDoServico, parseServicosLead } from "@/lib/crm/servicos-lead";
 import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import { temperaturaDoFormulario, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import { sincronizarVgvDoLead } from "@/lib/financeiro/vgv-lead";
@@ -136,6 +136,7 @@ export async function criarLead(formData: FormData) {
       telefone,
       email: (formData.get("email") as string) || undefined,
       cpf: String(formData.get("cpf") ?? "").replace(/\D/g, "").slice(0,11) || null,
+      ...enderecoDoFormulario(formData),
       servico: JSON.stringify(servicos),
       etapaOperacional: etapaInicial,
       temperatura: temperaturaDoFormulario(formData.get("temperatura")),
@@ -230,6 +231,8 @@ export async function editarLead(formData: FormData) {
       telefone: texto(formData, "telefone", 40),
       email: (formData.get("email") as string) || null,
       ...(formData.has("cpf") ? {cpf: String(formData.get("cpf") ?? "").replace(/\D/g, "").slice(0,11) || null} : {}),
+      // Paridade 13/11 (EPIC-017): endereço do cliente; formulários antigos sem os campos preservam o valor.
+      ...(formData.has("endereco") ? enderecoDoFormulario(formData) : {}),
       servico: JSON.stringify(servicos),
       temperatura: temperaturaDoFormulario(formData.get("temperatura"), atual.temperatura as LeadTemperatura),
       origem: (formData.get("origem") as string) || "site",
@@ -243,7 +246,7 @@ export async function editarLead(formData: FormData) {
       // de registros antigos) é preservado enquanto não for trocado.
       responsavelId: await responsavelDoFormulario(String(formData.get("responsavelId") ?? "").trim(), atual.responsavelId),
     },
-    select: { id: true, nome: true, telefone: true, email: true, cpf: true, orcamento: true, valorAprovado: true },
+    select: { id: true, nome: true, telefone: true, email: true, cpf: true, endereco: true, bairro: true, cidade: true, uf: true, orcamento: true, valorAprovado: true },
     });
 
   // Lead é a fonte única dos dados do cliente: reflete a edição nos registros

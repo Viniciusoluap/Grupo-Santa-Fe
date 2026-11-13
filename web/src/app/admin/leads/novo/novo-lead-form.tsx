@@ -9,6 +9,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { LEAD_TEMPERATURAS, leadTemperaturaRotulo } from "@/lib/crm/temperatura-lead";
 import { LEAD_STAGES } from "@/lib/types/crm";
 import { rotulo } from "@/lib/rotulos";
+import { CamposEnderecoLead } from "../_components/campos-endereco-lead";
 
 const SERVICOS = SERVICOS_LEAD;
 
@@ -82,6 +83,7 @@ export function NovoLeadForm({ corretores, responsaveis, responsavelPadrao }: Pr
           />
         </div>
         <div><label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">CPF</label><input name="cpf" inputMode="numeric" maxLength={14} className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50" /></div>
+        <CamposEnderecoLead />
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Senha de Acesso</label>
           <input

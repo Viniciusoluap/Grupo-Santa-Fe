@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import type { Prisma, Financiamento } from "@/generated/prisma/client";
 import { randomUUID } from "node:crypto";
-import { dadosClienteDoLead, moduloDoServico, parseServicosLead, servicoDoModulo, type ModuloServico, type ServicoOperacional } from "./servicos-lead";
+import { dadosClienteDoLead, enderecoCompletoDoLead, enderecoDoLead, ENDERECO_A_DEFINIR, moduloDoServico, parseServicosLead, servicoDoModulo, type ModuloServico, type ServicoOperacional } from "./servicos-lead";
 import { PAPEIS_RESPONSAVEL, podeSerResponsavel } from "./responsavel";
 
 // Helpers internos: nenhuma função deste arquivo é uma server action pública.
@@ -59,24 +59,29 @@ export async function garantirChecklistDosFinanciamentos(leadId: string, tx?: Tr
   return semChecklist.length;
 }
 
-type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null; orcamento?: number | null; valorAprovado?: Prisma.Decimal | null; responsavelId?: string | null };
+type ClienteLead = { id: string; nome: string; telefone: string; email: string | null; cpf?: string | null; endereco?: string | null; bairro?: string | null; cidade?: string | null; uf?: string | null; orcamento?: number | null; valorAprovado?: Prisma.Decimal | null; responsavelId?: string | null };
 async function criarRegistro(tx: TransacaoCRM, lead: ClienteLead, op: ServicoOperacional, servicoLeadId: string) {
   const cliente = dadosClienteDoLead(lead);
   const vinculo = { leadId: lead.id, servicoLeadId };
+  // Paridade 13/11 (EPIC-017): endereço do lead migra; vazio continua pendente.
+  const end = enderecoDoLead(lead);
+  const enderecoCompleto = enderecoCompletoDoLead(lead) || null;
   switch (op.modulo) {
     case "financiamento":
       return criarFinanciamentoComChecklist({ ...cliente, clienteCpf: lead.cpf ?? null, ...vinculo,
         valorImovel: lead.orcamento ?? null, valorFinanciado: lead.valorAprovado == null ? null : Number(lead.valorAprovado),
         tipo: op.tipoFinanciamento!, status: "aguardando_configuracao" }, tx);
     case "obra":
-      return tx.obra.create({ data: { ...vinculo, nome: `Obra — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
+      return tx.obra.create({ data: { ...vinculo, nome: `Obra — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, endereco: enderecoCompleto, status: "aguardando_configuracao" } });
     case "projeto":
       return tx.projeto.create({ data: { ...vinculo, nome: `Projeto — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
     case "regularizacao":
-      return tx.regularizacao.create({ data: { ...vinculo, nome: `Regularização — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, status: "aguardando_configuracao" } });
+      return tx.regularizacao.create({ data: { ...vinculo, nome: `Regularização — ${cliente.clienteNome}`, clienteNome: cliente.clienteNome, clienteTel: cliente.clienteTel, endereco: enderecoCompleto, status: "aguardando_configuracao" } });
     case "avaliacao":
       // Identificador longo evita colisões e não exige recuperar uma transação abortada.
-      return tx.avaliacao.create({ data: { ...cliente, ...vinculo, numero: `AVL-${randomUUID()}`, tipo: "mercado", finalidade: "compra_venda", endereco: "A definir", bairro: "A definir", avaliador: "A definir" } });
+      return tx.avaliacao.create({ data: { ...cliente, ...vinculo, numero: `AVL-${randomUUID()}`, tipo: "mercado", finalidade: "compra_venda",
+        clienteCpf: lead.cpf ?? null, endereco: end.endereco || ENDERECO_A_DEFINIR, bairro: end.bairro || ENDERECO_A_DEFINIR,
+        ...(end.cidade ? { cidade: end.cidade } : {}), ...(end.uf ? { estado: end.uf } : {}), avaliador: "A definir" } });
     case "tarefa":
       return tx.tarefaCrm.create({ data: { ...vinculo, titulo: `Atender ${lead.nome}`,
         responsavelId: lead.responsavelId ?? null } });
@@ -151,10 +156,30 @@ export async function propagarDadosClienteDoLead(lead: ClienteLead, tx?: Transac
   const c = dadosClienteDoLead(lead);
   const base = { clienteNome: c.clienteNome, clienteTel: c.clienteTel };
   await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail, clienteCpf: lead.cpf ?? null } });
-  await tx.avaliacao.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail } });
+  await tx.avaliacao.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail, clienteCpf: lead.cpf ?? null } });
   await tx.obra.updateMany({ where: { leadId: lead.id }, data: base });
   await tx.projeto.updateMany({ where: { leadId: lead.id }, data: base });
   await tx.regularizacao.updateMany({ where: { leadId: lead.id }, data: base });
+  await preencherEnderecoPendente(tx, lead);
+}
+
+/**
+ * Paridade 13/11 (EPIC-017): o endereço do lead preenche só o que ainda está
+ * pendente nos registros vinculados (vazio ou "A definir"). Endereço já
+ * digitado no módulo não é sobrescrito: o lote da obra ou o imóvel avaliado
+ * pode ser diferente do endereço do cliente.
+ */
+async function preencherEnderecoPendente(tx: TransacaoCRM, lead: ClienteLead) {
+  if (!("endereco" in lead || "bairro" in lead || "cidade" in lead || "uf" in lead)) return;
+  const end = enderecoDoLead(lead);
+  const completo = enderecoCompletoDoLead(lead);
+  if (completo) {
+    const vazio = { leadId: lead.id, OR: [{ endereco: null }, { endereco: "" }] };
+    await tx.obra.updateMany({ where: vazio, data: { endereco: completo } });
+    await tx.regularizacao.updateMany({ where: vazio, data: { endereco: completo } });
+  }
+  if (end.endereco) await tx.avaliacao.updateMany({ where: { leadId: lead.id, endereco: { in: ["", ENDERECO_A_DEFINIR] } }, data: { endereco: end.endereco, ...(end.cidade ? { cidade: end.cidade } : {}), ...(end.uf ? { estado: end.uf } : {}) } });
+  if (end.bairro) await tx.avaliacao.updateMany({ where: { leadId: lead.id, bairro: { in: ["", ENDERECO_A_DEFINIR] } }, data: { bairro: end.bairro } });
 }
 
 /** Usuários reais (ativos, internos) que podem ser responsáveis por um lead. */
@@ -197,6 +222,16 @@ export async function clienteParaRegistro(leadId: string | null | undefined, for
   };
 }
 
+
+/** Paridade 13/11 (EPIC-017): com lead vinculado, o CPF do cliente vem sempre do lead. */
+export async function cpfParaRegistro(leadId: string | null | undefined, formData: FormData, tx?: TransacaoCRM): Promise<string | null> {
+  if (leadId) {
+    const lead = await (tx ?? prisma).lead.findUnique({ where: { id: leadId }, select: { cpf: true } });
+    if (!lead) throw new Error("Lead vinculado não encontrado.");
+    return lead.cpf ?? null;
+  }
+  return (formData.get("clienteCpf") as string) || null;
+}
 
 export async function carregarLeadParaVinculo(leadId: string | null | undefined) {
   if (!leadId) throw new Error("Selecione um lead do CRM.");

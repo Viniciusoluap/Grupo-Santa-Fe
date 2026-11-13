@@ -3,14 +3,14 @@ import { exigirModuloPagina } from "@/lib/auth/modulos";
 import { notFound } from "next/navigation";
 import { LEAD_TEMPERATURA_CONFIG, leadTemperaturaRotulo, type LeadTemperatura } from "@/lib/crm/temperatura-lead";
 import Link from "next/link";
-import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, ExternalLink, AlertTriangle } from "lucide-react";
+import { Phone, MessageSquare, Mail, Calendar, User, UserCheck, Clock, ExternalLink, AlertTriangle, MapPin } from "lucide-react";
 import { obterAtorCrm, autorizarLeadDoAtor } from "@/lib/crm/acesso-lead";
 import { etapaDoLead, parseServicosLead, leadNoPipelineAtivo } from "@/lib/crm/pipeline";
 import { BackButton } from "@/components/ui/back-button";
 import { prisma } from "@/lib/db";
 import { LEAD_STAGE_CONFIG, LEAD_STAGES, INTERACTION_CONFIG, InteractionType } from "@/lib/types/crm";
 import { formatCurrency, formatTelefone } from "@/lib/utils";
-import { MODULO_CONFIG, PARAM_FALHA_SERVICOS, parseFalhasServicos, type ModuloServico } from "@/lib/crm/servicos-lead";
+import { MODULO_CONFIG, PARAM_FALHA_SERVICOS, enderecoCompletoDoLead, parseFalhasServicos, type ModuloServico } from "@/lib/crm/servicos-lead";
 import { rotuloResponsavel } from "@/lib/crm/responsavel";
 import { AddInteractionForm } from "./add-interaction-form";
 import { LeadStatusPicker } from "./lead-status-picker";
@@ -208,6 +208,13 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                 <div>
                   <p className="text-xs text-gray-600">E-mail</p>
                   <p className="text-sm font-medium">{lead.email ?? "—"}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin size={14} className="text-[var(--brand-yellow)] mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-600">Endereço</p>
+                  <p className="text-sm font-medium">{enderecoCompletoDoLead(lead) || "—"}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
