@@ -36,6 +36,12 @@ describe.skipIf(!url)("LOTE C — extrato alimentando o BPO (banco real)", () =>
 
   const criarConta = (extra: Record<string, unknown> = {}) =>
     prisma.contaBancaria.create({ data: { banco: `${MARCA} Cora`, conta: "123", provedor: "manual", ...extra } });
+  // Paridade BPO (13/11): movimentação nova sem correspondência segura fica "A classificar"; o lançamento nasce
+  // quando o usuário classifica (aqui: aceitando a categoria sugerida, como no botão "Criar lançamento").
+  const classificarSugeridas = async (contaId: string) => {
+    const { criarLancamentosDasMovimentacoes } = await import("@/lib/bpo-a-classificar");
+    for (const t of await prisma.transacaoBancaria.findMany({ where: { contaId, aClassificar: true } })) await criarLancamentosDasMovimentacoes([t.id], { categoria: t.categoria! });
+  };
   const lancamentosDa = (contaId: string) =>
     prisma.bpoLancamento.findMany({ where: { transacao: { contaId } }, include: { transacao: true }, orderBy: { valor: "asc" } });
 
@@ -53,7 +59,11 @@ describe.skipIf(!url)("LOTE C — extrato alimentando o BPO (banco real)", () =>
     expect(previa.saldo).toEqual({ valor: 160, data: "2026-10-04" });
     const r = await bancos.confirmarImportacao(conta.id, previa.linhas, previa.saldo);
     expect(r.novos).toBe(4);
-    expect(r.lancamentosCriados).toBe(4);
+    // Paridade BPO (13/11, expectativa mudada): antes 4 lançamentos na hora; agora só a transferência interna
+    // (fora de listas/DRE) e as outras 3 esperam em "A classificar".
+    expect(r.lancamentosCriados).toBe(1);
+    expect(r.aClassificar).toBe(3);
+    await classificarSugeridas(conta.id);
 
     const ls = await lancamentosDa(conta.id);
     expect(ls).toHaveLength(4);
@@ -79,6 +89,7 @@ describe.skipIf(!url)("LOTE C — extrato alimentando o BPO (banco real)", () =>
     const conta = await criarConta();
     const previa = await bancos.previaImportacao(conta.id, "cora.csv", CSV);
     await bancos.confirmarImportacao(conta.id, previa.linhas, previa.saldo);
+    await classificarSugeridas(conta.id); // Paridade BPO (13/11): o DRE só conta depois de classificar.
     const ls = (await lancamentosDa(conta.id)).map((l) => ({ tipo: l.tipo, valor: l.valor, competencia: l.competencia, pago: l.pago, categoria: l.categoria }));
     expect(resultado.montarDre(ls)).toEqual([{ competencia: "2026-10", receitas: 1500, despesas: 340, resultado: 1160 }]);
     expect(resultado.resumoContabil(ls, "2026-01", "2026-12")).toMatchObject({ receitaRealizada: 1500, despesasPagas: 340 });
@@ -109,7 +120,10 @@ describe.skipIf(!url)("LOTE C — extrato alimentando o BPO (banco real)", () =>
       { externalId: `${conta.id}-a1`, data: "2026-10-02", descricao: "Cobrança recebida", valor: 500, tipo: "credito", categoria: "PAYMENT_RECEIVED" },
       { externalId: `${conta.id}-a2`, data: "2026-10-03", descricao: "Taxa do boleto", valor: 2.99, tipo: "debito", categoria: "PAYMENT_FEE" },
     ], "asaas");
-    expect(r.lancamentosCriados).toBe(2);
+    // Paridade BPO (13/11, expectativa mudada): sem cobrança conhecida nem regra, as duas ficam "A classificar".
+    expect(r.lancamentosCriados).toBe(0);
+    expect(r.aClassificar).toBe(2);
+    await classificarSugeridas(conta.id);
     const ls = await lancamentosDa(conta.id);
     // Categoria do provedor fora da lista padrão é trocada pela sugestão.
     expect(ls.map((l) => l.categoria)).toEqual(["Tarifas bancárias", "Recebimento de cliente"]);

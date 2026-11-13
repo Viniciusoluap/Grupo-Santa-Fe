@@ -3,6 +3,7 @@ import { useState } from "react";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
 import type { LinhaOrcamentoExcel, PremissasOrcamentoParametrizado } from "@/lib/orcamento/parametrizado";
 import { matrizOrcamentoAtualizado, lerLinhasOrcamento, type MapeamentoOrcamento } from "@/lib/incorporacao/orcamento-importacao";
+import { grupoDaLinha } from "@/lib/incorporacao/composicao-custos";
 
 type Planilha = { nome: string; base64: string; abas: string[]; matrizPorAba: Record<string, unknown[][]>; formulasPorAba: Record<string, Record<string, string>> };
 const cls = "w-full min-w-0 rounded border border-gray-300 bg-white px-2 py-2 text-sm";
@@ -97,11 +98,12 @@ export function OrcamentoImportacao({ dados, onChange, areaReferencia }: { dados
     {metodo !== "construcao" && <>
       <button type="button" disabled={!linhas.length} className="rounded border px-3 py-2 text-sm disabled:opacity-50" onClick={() => void baixarAtualizado()}>Baixar orçamento atualizado (Excel)</button>
       <label className="block text-sm">Área de referência vendável (m²) — apenas para distribuir o custo na Viabilidade<NumeroBRField value={dados.areaReferenciaM2 ?? areaReferencia} onValueChange={(v) => onChange({ ...dados, areaReferenciaM2: Math.max(0, v) })} className={cls} /></label>
-      <p className="text-xs text-gray-600">A área vendável distribui o custo de infraestrutura; não representa área construída. Quantidades e preços podem ser ajustados. Somente o método ativo entra no total.</p>
+      <p className="text-xs text-gray-600">Cada item pertence a um grupo: Infraestrutura ou Obras residenciais — a Viabilidade usa os dois totais separados, sem duplicar. A área vendável distribui o custo de infraestrutura; não representa área construída. Quantidades e preços podem ser ajustados. Somente o método ativo entra no total.</p>
       <div className="space-y-3">{linhas.map((l, i) => <div key={i} className="grid gap-2 rounded border p-3 sm:grid-cols-2 xl:grid-cols-6">
         <label className="min-w-0 text-xs sm:col-span-2 xl:col-span-2">Descrição<input className={cls} value={l.descricao} onChange={(e) => editar(i, "descricao", e.target.value)} /></label>
         <label className="min-w-0 text-xs">Unidade<input className={cls} value={l.unidade} onChange={(e) => editar(i, "unidade", e.target.value)} /></label>
         {(["quantidade", "unitario", "total"] as const).map((k) => <label className="min-w-0 text-xs" key={k}>{rotulos[k]}<NumeroBRField className={cls} value={l[k]} onValueChange={(v) => editar(i, k, Math.max(0, v))} /></label>)}
+        <label className="min-w-0 text-xs sm:col-span-2">Grupo na Viabilidade<select className={cls} value={grupoDaLinha(l)} onChange={(e) => editar(i, "grupo", e.target.value)}><option value="infraestrutura">Infraestrutura</option><option value="obra_residencial">Obras residenciais (casas)</option></select></label>
         {l.formula && <p className="text-xs text-gray-500 sm:col-span-2 xl:col-span-5">Fórmula no original: {l.formula}</p>}
         <button type="button" className="text-left text-xs text-red-700" onClick={() => { if (confirm("Excluir este item do orçamento?")) aplicarLinhas(linhas.filter((_, j) => i !== j)); }}>Excluir item {i + 1}</button>
       </div>)}</div>

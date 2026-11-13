@@ -97,12 +97,13 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
     dataIsoDaConta(conta.dataInicial),
   );
   let novos = 0;
+  const idsNovos: string[] = [];
   for (let i = 0; i < mantidas.length; i += 200) {
     const lote = mantidas.slice(i, i + 200);
     const existentes = new Set((await prisma.transacaoBancaria.findMany({
       where: { externalId: { in: lote.map((m) => m.externalId) } }, select: { externalId: true },
     })).map((m) => m.externalId));
-    await prisma.$transaction(lote.map((m) => prisma.transacaoBancaria.upsert({
+    const gravadas = await prisma.$transaction(lote.map((m) => prisma.transacaoBancaria.upsert({
       where: { externalId: m.externalId },
       create: {
         contaId: conta.id,
@@ -126,10 +127,14 @@ export async function gravarMovimentos(conta: ContaComData, movimentos: Moviment
       },
     })));
     novos += lote.filter((m) => !existentes.has(m.externalId)).length;
+    idsNovos.push(...gravadas.filter((t) => t.externalId && !existentes.has(t.externalId)).map((t) => t.id));
   }
-  // LOTE C: cada movimentação vira um lançamento pago no BPO (1:1, idempotente).
-  const bpo = await vincularTransacoesAoBpo({ contaId: conta.id });
-  return { novos, recebidos: movimentos.length, antesDaDataInicial, lancamentosCriados: bpo.criados };
+  // Paridade BPO (13/11): movimentação nova só vira lançamento com correspondência segura (Asaas, Conta Azul pago,
+  // regra do titular); o resto fica "A classificar". Depois, a rede de segurança de antes para as demais da conta
+  // (nunca toca as "A classificar").
+  const nova = idsNovos.length ? await vincularTransacoesAoBpo({ ids: idsNovos }, "nova") : { criados: 0, aClassificar: 0 };
+  const resto = await vincularTransacoesAoBpo({ contaId: conta.id }, "reprocessar");
+  return { novos, recebidos: movimentos.length, antesDaDataInicial, lancamentosCriados: nova.criados + resto.criados, aClassificar: nova.aClassificar };
 }
 
 export type ResultadoSync = { ok: boolean; mensagem: string; novos?: number; saldo?: number | null };

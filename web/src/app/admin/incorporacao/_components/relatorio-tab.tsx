@@ -360,9 +360,13 @@ function secaoCustosVgv(doc: jsPDF, y: number, secao: Secao<DadoCustosReceitasVg
         ["VGV bruto", "VGV líquido", "Custo infra", "Custo total (hoje)", "Custo total nominal (c/ INCC)"],
         [[formatCurrency(d.vgvGross), formatCurrency(d.vgvNet), formatCurrency(d.custoInfra), formatCurrency(d.custoTotal), formatCurrency(d.custoTotalNominal)]]
       );
-      return tabela(doc, y,
+      y = tabela(doc, y,
         ["Custos pré-venda", "Custos durante venda", "Taxa adm. obra", "Manutenção", "Taxa incorporação"],
         [[formatCurrency(d.custosPreVenda), formatCurrency(d.custosDuranteVenda), formatCurrency(d.custosDetalhados.taxaAdministracaoObra), formatCurrency(d.custosDetalhados.manutencao), formatCurrency(d.custosDetalhados.taxaIncorporacao)]]
+      );
+      return tabela(doc, y,
+        ["Obras residenciais", "Terreno", "Custo financeiro (captação)", "Custo total do projeto", "Lucro líquido"],
+        [[formatCurrency(d.custoObrasResidenciais), formatCurrency(d.custoTerreno), formatCurrency(d.custoFinanceiroCaptacao), formatCurrency(d.custoTotalProjeto), formatCurrency(d.lucroLiquido)]]
       );
     }
     y = paragrafo(doc, y, "Estudo no formato legado (EVE) — detalhamento equivalente ao do motor atual não disponível.");
@@ -382,10 +386,10 @@ function secaoIndicadores(doc: jsPDF, y: number, secao: Secao<DadoIndicadoresFin
         ["VPL", "TIR (a.a.)", "ROI", "Margem líquida", "Payback", "Exposição máx."],
         [[
           formatCurrency(d.vpl),
-          d.tirAnual != null ? pctStr(d.tirAnual, 2) : "—",
+          d.tirAnual != null ? pctStr(d.tirAnual, 2) : "não se aplica",
           pctStr(d.roi),
           pctStr(d.margemLiquida),
-          d.paybackMes != null ? `${d.paybackMes} meses` : "não recupera",
+          d.paybackStatus === "sem_exposicao" ? "sem exposição de caixa" : d.paybackMes != null ? `mês ${d.paybackMes}` : "não recupera",
           formatCurrency(d.exposicaoMaxima),
         ]]
       );

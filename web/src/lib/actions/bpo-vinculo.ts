@@ -23,7 +23,7 @@ async function carregarCandidatos(): Promise<CandidatoCliente[]> {
 
 function lancamentosLivres(ids?: string[]) {
   return prisma.bpoLancamento.findMany({
-    where: { clienteId: null, combinadaEmId: null, exclusaoLoteBackupId: null, ...(ids ? { id: { in: ids } } : {}) },
+    where: { clienteId: null, combinadaEmId: null, exclusaoLoteBackupId: null, aClassificar: false, ...(ids ? { id: { in: ids } } : {}) },
     select: { id: true, version: true, clienteNomeLivre: true, descricao: true, tipo: true, categoriaOperacional: true, vinculoOperacionalId: true, transacao: { select: { titular: true, bpoClienteId: true } } },
   });
 }

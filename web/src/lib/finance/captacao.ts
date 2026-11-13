@@ -12,6 +12,8 @@ export interface FonteCaptacao {
   remuneracaoPct: number; // % ao período definido abaixo
   periodoRemuneracao: PeriodoRemuneracao;
   prazoResgateMeses: number;
+  /** Correção 09.6: mês do aporte no fluxo da Viabilidade (M1 = 1º mês). Ausente = M1. Resgate = aporte + prazo. */
+  mesAporte?: number;
 }
 
 export interface ResultadoFonteCaptacao extends FonteCaptacao {

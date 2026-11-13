@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { enviarAvisosVencimentoCards } from "@/lib/crm/avisos-vencimento-card";
 import { sincronizarTodasContas } from "@/lib/bancos";
 import { sincronizarDrive } from "@/lib/drive-organizacao";
+import { executarRotinaCentralVendas } from "@/lib/central-vendas/rotina";
 
 // Pedido de 29/10: o "Organizar Drive" roda no fim deste cron diário (sem cron novo
 // na Vercel, mesmo padrão dos bancos), com prazo para caber no limite da função.
@@ -21,6 +22,12 @@ export async function GET(req: NextRequest) {
       console.error("[cron/bancos]", e instanceof Error ? e.message : e);
       return { erro: true };
     });
+    // Central de Vendas (paridade com a Prospecta, 13/11): lembretes, sequências, SLA e fila no mesmo cron
+    // diário (sem cron novo). Desligada, devolve { ativo: false } sem fazer nada.
+    const centralVendas = await executarRotinaCentralVendas({ limiteMs: 10_000 }).catch((e) => {
+      console.error("[cron/central-vendas]", e instanceof Error ? e.message : "falha");
+      return { erro: true };
+    });
     const restante = LIMITE_FUNCAO_MS - (Date.now() - inicio);
     const drive = restante < 10_000 ? { adiado: true } : await sincronizarDrive({ prazoMs: Math.min(45_000, restante - 5_000) })
       .then((r) => ({ enviados: r.enviados, movidos: r.movidos, pastasOrfas: r.pastasOrfas, pastasMantidasEmUso: r.pastasMantidasEmUso, falhas: r.falhas, cicloConcluido: r.cicloConcluido }))
@@ -28,7 +35,7 @@ export async function GET(req: NextRequest) {
         console.error("[cron/drive]", e instanceof Error ? e.message : "falha");
         return { erro: true };
       });
-    return NextResponse.json({ ok: true, ...avisos, bancos, drive });
+    return NextResponse.json({ ok: true, ...avisos, bancos, drive, centralVendas });
   }
   catch (error) { console.error("[cron/lead-card-due]", error); return NextResponse.json({ error: "Falha ao processar avisos" }, { status: 500 }); }
 }

@@ -294,8 +294,10 @@ export async function salvarTransacoes(
   }[]
 ) {
   await exigirModuloAcao("bpo");
+  const novas: string[] = [];
   for (const t of transacoes) {
-    await prisma.transacaoBancaria.upsert({
+    const ja = t.externalId ? await prisma.transacaoBancaria.findUnique({ where: { externalId: t.externalId }, select: { id: true } }) : null;
+    const gravada = await prisma.transacaoBancaria.upsert({
       where: { externalId: t.externalId ?? `manual-${contaId}-${Date.now()}-${Math.random()}` },
       create: {
         contaId,
@@ -308,13 +310,15 @@ export async function salvarTransacoes(
       },
       update: {},
     });
+    if (!ja) novas.push(gravada.id);
   }
   await prisma.contaBancaria.update({
     where: { id: contaId },
     data: { ultimaSincronizacao: new Date() },
   });
-  // LOTE C: toda movimentação gera o lançamento pago no BPO.
-  await vincularTransacoesAoBpo({ contaId });
+  // Paridade BPO (13/11): a movimentação nova sem correspondência segura fica "A classificar".
+  if (novas.length) await vincularTransacoesAoBpo({ ids: novas }, "nova");
+  await vincularTransacoesAoBpo({ contaId }, "reprocessar");
   revalidatePath(BPO);
 }
 

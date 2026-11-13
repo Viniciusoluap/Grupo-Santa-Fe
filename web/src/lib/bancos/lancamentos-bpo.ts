@@ -2,18 +2,33 @@
 // um lançamento PAGO em bpo_lancamentos, vínculo 1:1 (transacaoId único) e sem duplicar:
 // crédito → receita (Cobranças), débito → despesa (Despesas); data/competência = data do banco.
 // Também classifica (categoria + cliente BPO) e mantém o saldo das contas por importação.
+// Paridade BPO (13/11, gêmeo de Prospecta/server/bpo-extrato.ts): movimentação NOVA só vira lançamento quando o
+// sistema sabe ligar com segurança (cobrança Asaas conhecida, lançamento do Conta Azul já pago, regra do titular
+// com categoria). O resto fica "A classificar" (transacoes_bancarias."aClassificar") até o dono classificar ou
+// dar baixa. Movimentação que deu baixa por divisão de pagamento (bpo_baixas."transacaoId") nunca gera lançamento.
 import { prisma } from "@/lib/db";
-import { categoriaValida, descricaoComTitular, normalizarTitular, sugerirCategoria, tipoLancamentoDaTransacao } from "@/lib/bpo-categorias";
+import { TRANSFERENCIA_INTERNA, categoriaValida, descricaoComTitular, normalizarTitular, sugerirCategoria, tipoLancamentoDaTransacao } from "@/lib/bpo-categorias";
+import { conciliarMovimentosComContaAzul } from "@/lib/bpo-conta-azul";
 import type { SaldoExtrato } from "@/lib/extrato-import";
 
 const LOTE = 500;
 
 /**
+ * Como a movimentação chegou (mesma regra da Prospecta):
+ * - "nova": acabou de ser gravada (extrato, Pluggy, Asaas, Inter) — sem correspondência segura fica A classificar;
+ * - "classificada": o usuário classificou (painel Bancos, regra por titular, aba A classificar) — cria o lançamento;
+ * - "reprocessar": backfill/rede de segurança — cria como antes, mas nunca para as que estão A classificar.
+ */
+export type ModoGeracao = "nova" | "classificada" | "reprocessar";
+
+/**
  * Cria os lançamentos que faltam (idempotente). Sem filtro: todas as movimentações (backfill).
  * Categoria vazia ou fora da lista padrão (ex.: categoria da Pluggy/Asaas) recebe a sugestão.
+ * Movimentação "A classificar" nunca é tocada aqui (quem classifica limpa a marca antes de chamar).
  */
-export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: string[] } = {}) {
-  let criados = 0, categorizadas = 0;
+export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: string[] } = {}, modo: ModoGeracao = "reprocessar") {
+  let criados = 0, categorizadas = 0, aClassificar = 0, conciliadasContaAzul = 0;
+  if (modo === "nova" && !filtro.ids) throw new Error("Movimentações novas precisam ser informadas pelo id.");
   for (;;) {
     const tombstones = await prisma.bpoLancamento.findMany({ where: { exclusaoLoteBackupId: { not: null } }, select: { asaasPaymentId: true, origemTransacaoKey: true } });
     const pagamentosArquivados = tombstones.flatMap((l) => l.asaasPaymentId ? [l.asaasPaymentId] : []);
@@ -21,6 +36,8 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     const lote = await prisma.transacaoBancaria.findMany({
       where: {
         lancamento: { is: null },
+        aClassificar: false,
+        baixas: { none: {} },
         AND: [
           ...(pagamentosArquivados.length ? [{ OR: [{ tipo: { not: "credito" } }, { asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] }] : []),
           ...(origensArquivadas.length ? [{ OR: [{ externalId: null }, { externalId: { notIn: origensArquivadas } }] }] : []),
@@ -51,7 +68,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
           data: {
             transacaoId: t.id,
             version: { increment: 1 },
-            ...(pagamento && existente.asaasPaymentId === pagamento ? { pago: true, pagoEm: t.data, valor: t.valor } : {}),
+            ...(pagamento && existente.asaasPaymentId === pagamento ? { pago: true, pagoEm: t.data, valor: t.valor, aClassificar: false } : {}),
           },
         });
         vinculosRestaurados += r.count;
@@ -71,10 +88,14 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       const chave = normalizarTitular(t.titular);
       const regra = chave ? porTitular.get(chave) : null;
       const candidatos = chave ? [...new Set(clientePorNome.get(chave) ?? [])] : [];
+      const temRegra = categoriaValida(regra?.categoria);
+      // Classificação explícita: a escolha do usuário (gravada na movimentação) vence a regra antiga do titular.
+      const explicita = modo === "classificada" && categoriaValida(t.categoria);
       return {
         ...t,
-        categoriaFinal: categoriaValida(regra?.categoria) ? regra.categoria : categoriaValida(t.categoria) ? t.categoria : sugerirCategoria(t.descricao, t.tipo, t.categoria),
-        clienteFinal: regra?.bpoClienteId ?? t.bpoClienteId ?? (candidatos.length === 1 ? candidatos[0] : null),
+        temRegra,
+        categoriaFinal: explicita ? t.categoria! : temRegra ? regra!.categoria! : categoriaValida(t.categoria) ? t.categoria : sugerirCategoria(t.descricao, t.tipo, t.categoria),
+        clienteFinal: (modo === "classificada" ? t.bpoClienteId ?? regra?.bpoClienteId : regra?.bpoClienteId ?? t.bpoClienteId) ?? (candidatos.length === 1 ? candidatos[0] : null),
       };
     });
     const porCategoria = new Map<string, string[]>();
@@ -87,8 +108,30 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       categorizadas += r.count;
     }
 
+    // O que já veio PAGO do backup do Conta Azul (mesmo tipo/valor, até 3 dias da quitação) é só ligado.
+    const doContaAzul = await conciliarMovimentosComContaAzul(comCategoria
+      .filter((t) => t.categoriaFinal !== TRANSFERENCIA_INTERNA)
+      .map((t) => ({ id: t.id, tipo: t.tipo === "credito" ? "receita" as const : "despesa" as const, valor: t.valor, data: t.data })));
+    conciliadasContaAzul += doContaAzul.size;
+    let paraCriar = comCategoria.filter((t) => !doContaAzul.has(t.id));
+    let marcadas = 0;
+    if (modo === "nova") {
+      // Só a regra que o usuário ensinou (titular com categoria) cria o lançamento; transferência interna segue
+      // como antes (lançamento fora de listas/DRE). O resto vai para A classificar, com o cliente sugerido.
+      const esperar = paraCriar.filter((t) => !t.temRegra && t.categoriaFinal !== TRANSFERENCIA_INTERNA);
+      paraCriar = paraCriar.filter((t) => t.temRegra || t.categoriaFinal === TRANSFERENCIA_INTERNA);
+      if (esperar.length) {
+        const r = await prisma.transacaoBancaria.updateMany({ where: { id: { in: esperar.map((t) => t.id) }, aClassificar: false }, data: { aClassificar: true } });
+        marcadas = r.count;
+        aClassificar += r.count;
+        const porCliente = new Map<string, string[]>();
+        for (const t of esperar) if (t.clienteFinal && !t.bpoClienteId) porCliente.set(t.clienteFinal, [...(porCliente.get(t.clienteFinal) ?? []), t.id]);
+        for (const [bpoClienteId, ids] of porCliente) await prisma.transacaoBancaria.updateMany({ where: { id: { in: ids }, bpoClienteId: null }, data: { bpoClienteId } });
+      }
+    }
+
     const r = await prisma.bpoLancamento.createMany({
-      data: comCategoria.map((t) => ({
+      data: paraCriar.map((t) => ({
         transacaoId: t.id,
         origemEfetiva: "extrato",
         origemTransacaoKey: t.externalId,
@@ -106,9 +149,9 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     });
     criados += r.count;
     // Concorrência: se outro processo vinculou este lote, não há o que fazer aqui.
-    if (r.count + vinculosRestaurados === 0 || lote.length < LOTE) break;
+    if (r.count + vinculosRestaurados + doContaAzul.size + marcadas === 0 || lote.length < LOTE) break;
   }
-  return { criados, categorizadas };
+  return { criados, categorizadas, aClassificar, conciliadasContaAzul };
 }
 
 /**
@@ -177,11 +220,13 @@ export async function classificarTransacao(id: string, input: { categoria?: stri
     const c = await prisma.bpoCliente.findUnique({ where: { id: clienteId }, select: { id: true } });
     if (!c) throw new Error("Cliente BPO não encontrado.");
   }
+  // Classificação explícita do usuário: sai de "A classificar" e ganha o lançamento.
   await prisma.transacaoBancaria.update({ where: { id }, data: {
     ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
     ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
+    aClassificar: false,
   } });
-  await vincularTransacoesAoBpo({ ids: [id] });
+  await vincularTransacoesAoBpo({ ids: [id] }, "classificada");
   await prisma.bpoLancamento.updateMany({
     where: { transacaoId: id, exclusaoLoteBackupId: null },
     data: {
@@ -202,10 +247,13 @@ export async function classificarTransacao(id: string, input: { categoria?: stri
     const iguais = (await prisma.transacaoBancaria.findMany({ where: { titular: { not: null } }, select: { id: true, titular: true } }))
       .filter((mov) => normalizarTitular(mov.titular) === titularNormalizado).map((mov) => mov.id);
     if (iguais.length) {
+      // Com categoria é classificação explícita (as do mesmo titular A classificar ganham o lançamento); só com
+      // cliente, a movimentação A classificar recebe o cliente e continua esperando o usuário.
       await prisma.transacaoBancaria.updateMany({ where: { id: { in: iguais } }, data: {
-        ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
+        ...(input.categoria !== undefined ? { categoria: input.categoria, aClassificar: false } : {}),
         ...(clienteId !== undefined ? { bpoClienteId: clienteId } : {}),
       } });
+      if (input.categoria !== undefined) await vincularTransacoesAoBpo({ ids: iguais }, "classificada");
       await prisma.bpoLancamento.updateMany({ where: { transacaoId: { in: iguais }, exclusaoLoteBackupId: null }, data: {
         ...(input.categoria !== undefined ? { categoria: input.categoria } : {}),
         ...(clienteId !== undefined ? { clienteId } : {}),

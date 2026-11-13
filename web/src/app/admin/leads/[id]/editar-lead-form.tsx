@@ -10,6 +10,7 @@ import { etapaDoLead, parseServicosLead } from "@/lib/crm/pipeline";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { NumeroInput } from "@/components/ui/numero-input";
+import { CamposEnderecoLead } from "../_components/campos-endereco-lead";
 
 const SERVICOS = SERVICOS_LEAD;
 
@@ -25,6 +26,10 @@ interface Props {
     telefone: string;
     email: string | null;
     cpf?: string | null;
+    endereco?: string | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
     servico: string;
     origem: string;
     temperatura: string;
@@ -93,6 +98,7 @@ export function EditarLeadForm({ lead, corretores, responsaveis }: Props) {
             className="w-full border border-gray-200 px-3 py-2.5 text-sm placeholder:text-gray-600 placeholder:opacity-100 focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
         </div>
         <div><label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">CPF</label><input name="cpf" inputMode="numeric" maxLength={14} defaultValue={lead.cpf ?? ""} className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-gray-50" /></div>
+        <CamposEnderecoLead valores={lead} />
         <div>
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Valor negociado para venda (R$)</label>
           <CurrencyInput name="valorNegociado" defaultValue={lead.valorNegociado ?? null} className="w-full pr-3 py-2.5 border border-gray-200 text-sm bg-gray-50" />

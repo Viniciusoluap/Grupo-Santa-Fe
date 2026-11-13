@@ -21,6 +21,8 @@ export default async function AdminLayout({
   const rotasPermitidas = usuario.perfil === "corretor"
     ? ["/corretor", "/admin/agenda", "/admin/whatsapp"]
     : MODULOS_PAINEL.filter((m) => podeAcessarModulo(usuario, m.id)).map((m) => m.rota as string);
+  // Central de Vendas (paridade com a Prospecta, 13/11): faz parte do módulo CRM; corretor não entra.
+  if (usuario.perfil !== "corretor" && podeAcessarModulo(usuario, "leads")) rotasPermitidas.push("/admin/central-vendas");
   if (podeAdministrarSeguranca(usuario)) rotasPermitidas.push("/admin/configuracoes", "/admin/integracoes");
 
   return <AdminShell rotasPermitidas={rotasPermitidas}>{children}</AdminShell>;

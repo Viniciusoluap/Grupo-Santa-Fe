@@ -363,6 +363,11 @@ export type DadoCustosReceitasVgv =
       custoTotal: number;
       custoTotalNominal: number;
       custosDetalhados: { taxaAdministracaoObra: number; manutencao: number; taxaIncorporacao: number };
+      custoObrasResidenciais: number;
+      custoTerreno: number;
+      custoFinanceiroCaptacao: number;
+      custoTotalProjeto: number;
+      lucroLiquido: number;
     }
   | {
       modo: "legado";
@@ -387,6 +392,11 @@ function montarCustosReceitasVgv(
       custoTotal: r.custoTotal,
       custoTotalNominal: r.custoTotalNominal,
       custosDetalhados: r.custosDetalhados,
+      custoObrasResidenciais: r.custoObrasResidenciais,
+      custoTerreno: r.custoTerreno,
+      custoFinanceiroCaptacao: r.custoFinanceiroCaptacao,
+      custoTotalProjeto: r.custoTotalProjeto,
+      lucroLiquido: r.lucroLiquido,
     });
   }
   if (legado?.resultado) {
@@ -421,6 +431,8 @@ export type DadoIndicadoresFinanceiros =
       roi: number;
       margemLiquida: number;
       paybackMes: number | null;
+      paybackStatus: "recuperado" | "sem_exposicao" | "nao_recupera";
+      tirMotivo: string | null;
       exposicaoMaxima: number;
       fluxo: FluxoCaixaLinha[];
     }
@@ -438,7 +450,7 @@ function fluxoAtualParaLinhas(fluxo: FluxoMesLote[]): FluxoCaixaLinha[] {
   return fluxo.map((f) => ({
     mes: f.mes,
     receitaBruta: f.receitaBruta,
-    custoTotalMes: f.custoPreVenda + f.custoDuranteVenda,
+    custoTotalMes: f.custoPreVenda + f.custoDuranteVenda + (f.custoTerreno ?? 0) + (f.resgateRemuneracao ?? 0),
     saldoMes: f.saldoMes,
     saldoAcumulado: f.saldoAcumulado,
   }));
@@ -456,6 +468,8 @@ function montarIndicadoresFinanceiros(
       roi: r.roi,
       margemLiquida: r.margemLiquida,
       paybackMes: r.paybackMes,
+      paybackStatus: r.paybackStatus,
+      tirMotivo: r.tirMotivo,
       exposicaoMaxima: r.exposicaoMaxima,
       fluxo: fluxoAtualParaLinhas(r.fluxo),
     });

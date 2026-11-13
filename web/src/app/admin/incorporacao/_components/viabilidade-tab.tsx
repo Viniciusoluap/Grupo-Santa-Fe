@@ -1,5 +1,4 @@
 "use client";
-
 import { useMemo, useState, useTransition } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -17,15 +16,20 @@ import {
   urbanismoDoCenario,
   appDaViabilidade,
   defaultsMix,
-  paraMotor,
-  montarPremissasLoteamento,
+  montarViabilidade,
   type PremissasForm,
 } from "@/lib/incorporacao/premissas-loteamento";
+import { composicaoFinanceira, type ModoFonte } from "@/lib/incorporacao/composicao-custos";
+import { vgvItemMix } from "@/lib/finance/loteamento";
 import {
   recebimentosPorAno,
   custosPorAno,
+  vendasPorAno,
+  fluxoPorAno,
+  textoPayback,
 } from "@/lib/pdf/loteamento";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
+import { exigirResultado } from "@/lib/acao-resultado";
 import { formatCurrency, formatArea } from "@/lib/utils";
 import { NumeroInput } from "@/components/ui/numero-input";
 import { NumeroBRField } from "@/components/ui/numero-br-field";
@@ -98,6 +102,8 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   });
   const form = sincronizarUrbanismo(estudo, formBase);
   const origemUrbanismo = urbanismoDoCenario(estudo);
+  const lotesOrigem = origemUrbanismo?.lotes ?? [];
+  const areaMediaLote = lotesOrigem.length > 0 ? Math.round((lotesOrigem.reduce((s, l) => s + (l.areaM2 || 0), 0) / lotesOrigem.length) * 100) / 100 : 0;
   const [mixBase, setMix] = useState<ItemMixProduto[]>(() => {
     if (salvo?.itensMix && Array.isArray(salvo.itensMix) && salvo.itensMix.length > 0) {
       return salvo.itensMix as ItemMixProduto[];
@@ -110,10 +116,12 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const [cenarioAtivo, setCenarioAtivo] = useState<CenarioId>("ideal");
   const [pending, startTransition] = useTransition();
   const [salvoOk, setSalvoOk] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   const set = <K extends keyof PremissasForm>(k: K) => (v: PremissasForm[K]) => {
     const campoUrbanistico = ["areaBrutaM2", "pctAreaPublica", "pctAreaVerde", "pctSistemaViario", "pctFaixaServidao"].includes(k);
-    setForm({ ...form, [k]: v, urbanismoModo: campoUrbanistico ? "manual" : form.urbanismoModo, custoInfraModo: k === "custoInfraM2Lote" ? "manual" : form.custoInfraModo, marketingFonte: k === "marketing" ? "manual" : form.marketingFonte });
+    // Correção 09: editar um valor NÃO troca a fonte; a fonte só muda pelo seletor "Valor manual / Valor do sistema"
+    setForm({ ...form, [k]: v, urbanismoModo: campoUrbanistico ? "manual" : form.urbanismoModo });
     setSalvoOk(false);
   };
 
@@ -122,11 +130,14 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
     setMix([...mix, { nome: "Novo produto", quantidade: 0, areaUnidadeM2: 0, precoM2: 0 }]);
     setSalvoOk(false);
   }
-  function updProduto(i: number, campo: keyof ItemMixProduto, valor: string | number) {
+  function updProduto(i: number, campo: keyof ItemMixProduto, valor: string | number | boolean) {
     setForm({ ...form, mixModo: "manual" });
     setMix(() => {
       const novo = [...mix];
-      novo[i] = { ...novo[i], [campo]: campo === "nome" ? valor : (typeof valor === "number" ? valor : parseFloat(valor) || 0) };
+      // alternar "Casa pronta" só muda a forma de cálculo: área, R$/m² e valor por unidade ficam preservados
+      novo[i] = { ...novo[i], [campo]: campo === "nome" || campo === "casaPronta" ? valor : (typeof valor === "number" ? valor : parseFloat(String(valor)) || 0) };
+      // Casa Pronta sem área: sugere a área média dos lotes do cenário/lotes avulsos (editável)
+      if (campo === "casaPronta" && valor === true && !(novo[i].areaUnidadeM2 > 0) && areaMediaLote > 0) novo[i] = { ...novo[i], areaUnidadeM2: areaMediaLote };
       return novo;
     });
     setSalvoOk(false);
@@ -142,11 +153,17 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const appAreaM2 = appDaViabilidade(estudo, form);
   const pctAPP = form.areaBrutaM2 > 0 ? appAreaM2 / form.areaBrutaM2 : 0;
 
-  const cenarios = useMemo(
-    () => calcularCenarios(paraMotor(form, mix, pctAPP)),
-    [form, mix, pctAPP]
-  );
+  const viab = useMemo(() => montarViabilidade(estudo, form, mix, pctAPP), [estudo, form, mix, pctAPP]);
+  const fontes = viab.fontes;
+  const cfg = fontes.config;
+  const cenarios = useMemo(() => calcularCenarios(viab.premissas), [viab]);
   const r: ResultadoLoteamento = cenarios[cenarioAtivo];
+  const composicao = useMemo(() => composicaoFinanceira(viab.premissas, r, fontes), [viab, r, fontes]);
+  const unidadesDisponiveis = origemUrbanismo?.lotes.length ?? 0;
+  const unidadesMix = mix.reduce((s, p) => s + (Number.isFinite(p.quantidade) ? p.quantidade : 0), 0);
+  const temCasaPronta = mix.some((p) => p.casaPronta);
+  const temLoteSeparado = mix.some((p) => !p.casaPronta && /lote/i.test(p.nome));
+  const setFonte = (campo: "custoInfraFonte" | "marketingFonte" | "terrenoFonte") => (v: ModoFonte) => { setForm({ ...form, [campo]: v }); setSalvoOk(false); };
   const urb = r.urbanistico;
 
   const dadosGrafico = useMemo(
@@ -156,13 +173,19 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
 
   const anosReceita = useMemo(() => recebimentosPorAno(r), [r]);
   const anosCusto = useMemo(() => custosPorAno(r), [r]);
-
-
+  const anosVenda = useMemo(() => vendasPorAno(r), [r]);
+  const anosFluxo = useMemo(() => fluxoPorAno(r), [r]);
 
   function salvar() {
     startTransition(async () => {
-      await salvarViabilidade(estudo.id, JSON.stringify({ ...form, itensMix: mix }));
-      setSalvoOk(true);
+      setErroSalvar(null);
+      try {
+        // grava também as fontes efetivas (manual/sistema), para o Relatório e as demais abas lerem o mesmo
+        exigirResultado(await salvarViabilidade(estudo.id, JSON.stringify({ ...form, custoInfraFonte: cfg.custoInfraFonte, marketingFonte: cfg.marketingFonte, terrenoFonte: cfg.terrenoFonte, considerarCaptacao: cfg.considerarCaptacao, itensMix: mix })));
+        setSalvoOk(true);
+      } catch (e) {
+        setErroSalvar(e instanceof Error ? e.message : "Não foi possível salvar as premissas.");
+      }
     });
   }
 
@@ -188,26 +211,45 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           {pending ? "Salvando..." : salvoOk ? "Premissas salvas" : "Salvar premissas"}
         </button>
       </div>
-
-      <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700">
-        <p>{form.custoInfraModo === "orcamento" ? "Custo de infraestrutura vinculado ao orçamento salvo, distribuído pela área de referência." : "Custo de infraestrutura ajustado manualmente; alterações do orçamento não sobrescrevem este valor."}</p>
-        <button type="button" className="mt-1 font-bold underline" onClick={() => { if (confirm("Usar o custo do orçamento salvo no lugar do ajuste manual?")) { setForm({ ...form, custoInfraModo: "orcamento" }); setSalvoOk(false); } }}>Vincular custo ao orçamento</button>
-      </div>
+      {erroSalvar && <p className="text-xs font-bold text-red-600">{erroSalvar}</p>}
+      {fontes.avisos.length > 0 && (
+        <div className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+          {fontes.avisos.map((a) => <p key={a}>{a}</p>)}
+        </div>
+      )}
       {/* ── Mix de produtos ── */}
       <div className="bg-white border border-gray-100 p-4">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Mix de produtos</p>
         <p className="text-[11px] text-gray-600 mb-3">
-          Aqui você define o que vai ser vendido: só lotes, lotes + casas, área de prédio para apartamentos, comercial — qualquer combinação. Cada linha é um produto do mix (VGV = quantidade × área × preço/m²).
+          Aqui você define o que vai ser vendido: só lotes, lotes + casas, área de prédio para apartamentos, comercial — qualquer combinação. Cada linha é um produto do mix (VGV = quantidade × área × preço/m²). Marque <b>Casa pronta</b> quando a casa (com o lote) é vendida por unidade: VGV = quantidade × valor de venda por unidade.
         </p>
-        <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-600 uppercase tracking-wide px-0.5">
+        {mix.some((p) => !p.casaPronta) && <div className="grid grid-cols-12 gap-2 mb-1 text-[10px] font-bold text-gray-600 uppercase tracking-wide px-0.5">
           <span className="col-span-5">Produto</span>
           <span className="col-span-2">Quantidade</span>
           <span className="col-span-2">Área/unid. (m²)</span>
           <span className="col-span-2">R$/m²</span>
-        </div>
+        </div>}
         <div className="space-y-3">
           {mix.map((p, i) => (
             <div key={i} className="border border-gray-100 p-2.5 space-y-1.5">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wide">
+                <input type="checkbox" checked={!!p.casaPronta} onChange={(e) => updProduto(i, "casaPronta", e.target.checked)} />
+                Casa pronta
+              </label>
+              {p.casaPronta ? (
+              <div className="grid grid-cols-12 gap-2 items-center">
+                <label className="col-span-4 text-[10px] font-bold text-gray-600 uppercase">Produto
+                  <input value={p.nome} onChange={(e) => updProduto(i, "nome", e.target.value)} className="w-full text-sm border border-gray-200 px-2 py-1.5 normal-case font-normal text-gray-800" placeholder="Ex.: Casa 2 quartos" /></label>
+                <label className="col-span-2 text-[10px] font-bold text-gray-600 uppercase">Quantidade
+                  <input type="number" value={p.quantidade || ""} onChange={(e) => updProduto(i, "quantidade", e.target.value)} className="w-full text-sm border border-gray-200 px-2 py-1.5 font-normal text-gray-800" placeholder="Qtd" /></label>
+                <label className="col-span-2 text-[10px] font-bold text-gray-600 uppercase" title="Área do LOTE de cada casa (não a área construída): base do custo de infraestrutura por m².">Área do lote (m²)
+                  <NumeroBRField value={p.areaUnidadeM2} onValueChange={(v) => updProduto(i, "areaUnidadeM2", v)} className={`w-full text-sm border px-2 py-1.5 font-normal text-gray-800 ${p.areaUnidadeM2 > 0 ? "border-gray-200" : "border-red-400"}`} placeholder="m² do lote" /></label>
+                <label className="col-span-3 text-[10px] font-bold text-gray-600 uppercase">Valor de venda por unidade (R$)
+                  <NumeroBRField value={p.precoUnidade ?? 0} onValueChange={(v) => updProduto(i, "precoUnidade", v)} className="w-full text-sm border border-gray-200 px-2 py-1.5 font-normal text-gray-800" placeholder="R$ por unidade" /></label>
+                <button type="button" onClick={() => removerProduto(i)}
+                  className="col-span-1 text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
+              </div>
+              ) : (
               <div className="grid grid-cols-12 gap-2 items-center">
                 <input value={p.nome} onChange={(e) => updProduto(i, "nome", e.target.value)}
                   className="col-span-5 text-sm border border-gray-200 px-2 py-1.5" placeholder="Ex.: Lotes, Casas, Apartamentos" />
@@ -220,8 +262,11 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
                 <button type="button" onClick={() => removerProduto(i)}
                   className="col-span-1 text-gray-500 hover:text-red-500 flex justify-center"><Trash2 size={14} /></button>
               </div>
+              )}
               <p className="text-xs text-right text-gray-500">
-                VGV do produto: <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(p.quantidade * p.areaUnidadeM2 * p.precoM2)}</span>
+                {p.casaPronta && !(p.areaUnidadeM2 > 0) ? <span className="block text-left font-bold text-red-600">Informe a área do lote: sem ela, o custo de infraestrutura por m² desta linha fica zerado.</span> : null}
+                {p.casaPronta ? `${(p.quantidade || 0).toLocaleString("pt-BR")} × ${formatCurrency(p.precoUnidade ?? 0)} = ` : null}
+                VGV do produto: <span className="font-bold text-[var(--brand-dark)]">{formatCurrency(vgvItemMix(p))}</span>
               </p>
             </div>
           ))}
@@ -233,6 +278,15 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           Capacidade estimada do terreno com o tamanho médio atual do mix: <b>{urb.capacidadeEstimadaUnidades.toLocaleString("pt-BR")} unidades</b>
           {" "}({fmtM2(urb.areaVendavelM2)} vendável ÷ {formatArea(r.mix.totalUnidades > 0 ? r.mix.areaVendidaM2 / r.mix.totalUnidades : 0)} médios por unidade).
         </p>
+        {unidadesDisponiveis > 0 && (
+          <p className={`text-[11px] mt-1 ${unidadesMix > unidadesDisponiveis ? "font-bold text-red-600" : "text-gray-500"}`}>
+            Unidades do mix: {unidadesMix.toLocaleString("pt-BR")} · lotes disponíveis no {origemUrbanismo?.origem === "lotes_avulsos" ? "cadastro de lotes avulsos" : "cenário"}: {unidadesDisponiveis.toLocaleString("pt-BR")}
+            {unidadesMix > unidadesDisponiveis ? " — o mix tem mais unidades do que lotes disponíveis." : ""}
+          </p>
+        )}
+        {temCasaPronta && temLoteSeparado && (
+          <p className="text-[11px] mt-1 font-bold text-amber-700">Atenção: há uma Casa Pronta e também um produto de lote. A Casa Pronta já inclui o lote no valor por unidade — não cadastre o mesmo lote duas vezes, para não duplicar o VGV.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -286,15 +340,57 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           <Num label="Início da obra" sufixo="mês" value={form.inicioObraMes} onChange={set("inicioObraMes")} />
           <Num label="Duração da obra" sufixo="meses" value={form.duracaoObraMeses} onChange={set("duracaoObraMeses")} />
           <Num label="Início das vendas" sufixo="mês" value={form.inicioVendasMes} onChange={set("inicioVendasMes")} />
-          <Num label="Permuta ao terreneiro" sufixo="% VGV" value={form.permutaPctVgv} onChange={set("permutaPctVgv")} step={0.5} />
           <Num label="Taxa de desconto (VPL/TMA)" sufixo="% a.a." value={form.taxaDescontoAnual} onChange={set("taxaDescontoAnual")} step={0.5} />
+          <FonteSelect label="Custo do terreno" valor={cfg.terrenoFonte} onChange={setFonte("terrenoFonte")} />
+          <Num label="1º pagamento do terreno" sufixo="mês" value={cfg.terrenoMesInicio} onChange={set("terrenoMesInicio")} />
+          {cfg.terrenoFonte === "sistema" ? (
+            <div className="col-span-full text-xs text-gray-700 border border-gray-200 bg-gray-50 p-2.5">
+              {fontes.terreno.disponivel ? <>
+                <p><b>Negociação do Terreno — {fontes.terreno.modalidade}</b>{fontes.terreno.proposta ? ` (proposta de ${fontes.terreno.proposta.data}, ${fontes.terreno.proposta.status})` : ""}</p>
+                {fontes.terreno.valorAquisicao > 0 && <p>Aquisição: {formatCurrency(fontes.terreno.valorAquisicao)} em {fontes.terreno.desembolsos.length}× ({fontes.terreno.desembolsos.length > 0 ? `M${fontes.terreno.desembolsos[0].mes}–M${fontes.terreno.desembolsos[fontes.terreno.desembolsos.length - 1].mes}` : "—"})</p>}
+                {fontes.terreno.permutaFinanceiraPct > 0 && <p>Permuta financeira: {fontes.terreno.permutaFinanceiraPct.toLocaleString("pt-BR")}% dos recebimentos ao terreneiro</p>}
+                {fontes.terreno.permutaFisicaUnidades > 0 && <p>Permuta física: {fontes.terreno.permutaFisicaUnidades} unidade(s) ao proprietário (não vendáveis)</p>}
+              </> : <p>{fontes.terreno.motivo}</p>}
+            </div>
+          ) : (<>
+            <Num label="Valor do terreno (compra)" sufixo="R$" value={form.custoTerrenoManual ?? 0} onChange={set("custoTerrenoManual")} step={1000} />
+            <Num label="Parcelas do terreno" sufixo="meses" value={cfg.terrenoParcelasManual} onChange={set("terrenoParcelasManual")} />
+            <Num label="Permuta financeira" sufixo="% recebimentos" value={form.permutaPctVgv} onChange={set("permutaPctVgv")} step={0.5} />
+            <Num label="Permuta física" sufixo="unidades" value={cfg.permutaFisicaUnidadesManual} onChange={set("permutaFisicaUnidadesManual")} />
+          </>)}
+          <div className="col-span-full flex items-center gap-2 text-xs text-gray-700">
+            <input id="considerar-captacao" type="checkbox" checked={cfg.considerarCaptacao} onChange={(e) => { setForm({ ...form, considerarCaptacao: e.target.checked }); setSalvoOk(false); }} />
+            <label htmlFor="considerar-captacao">
+              Considerar a captação do Business Plan no fluxo
+              {fontes.captacao.disponivel ? ` — ${formatCurrency(fontes.captacao.capitalTotal)} captados; custo da captação ${formatCurrency(fontes.captacao.custoTotal)}` : " (nenhuma fonte cadastrada)"}
+            </label>
+          </div>
         </Secao>
 
         <Secao titulo="Custos">
-          <Num label="Infra por m² vendido" sufixo="R$/m²" value={form.custoInfraM2Lote} onChange={set("custoInfraM2Lote")} />
+          <FonteSelect label="Infra por m² vendido — fonte" valor={cfg.custoInfraFonte} onChange={setFonte("custoInfraFonte")} />
+          {cfg.custoInfraFonte === "manual"
+            ? <Num label="Infra por m² vendido" sufixo="R$/m²" value={form.custoInfraM2Lote} onChange={set("custoInfraM2Lote")} />
+            : <ValorSistema label="Infra por m² vendido" valor={`${fontes.infraM2Usado.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} R$/m²`} sub={fontes.infra.disponivel ? fontes.infraOrigem : fontes.infra.motivo ?? undefined} />}
+          {cfg.custoInfraFonte === "sistema" && fontes.infra.disponivel && fontes.infra.custoM2Construcao == null && (
+            <div className="col-span-full text-[11px] text-gray-600 border border-gray-100 bg-gray-50 p-2">
+              <p><b>CUSTO/M² REAL (P/ VIABILIDADE)</b> do Orçamento Parametrizado, separado por grupo (sem duplicar):</p>
+              <p>Infraestrutura: {formatCurrency(fontes.infra.infraestruturaTotal)} · Obras residenciais: {formatCurrency(fontes.infra.obrasResidenciaisTotal)}</p>
+              <p className="text-gray-600">{fontes.infra.linhas.map((l) => `${l.descricao} (${l.grupo === "obra_residencial" ? "obra residencial" : "infra"}): ${formatCurrency(l.total)}`).join(" · ")}</p>
+              <p className="text-gray-600">Valor manual preservado para retorno: {form.custoInfraM2Lote.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} R$/m² (no modo manual, as obras residenciais estão dentro desse valor).</p>
+            </div>
+          )}
           <Num label="Projetos e licenças" sufixo="R$" value={form.projetosLicencas} onChange={set("projetosLicencas")} step={1000} />
-          <div className="col-span-full min-w-0"><label className="block text-xs font-bold">Fonte do custo de lançamento<select className={inputCls} value={form.marketingFonte ?? "manual"} onChange={(e) => { setForm({ ...form, marketingFonte: e.target.value as PremissasForm["marketingFonte"] }); setSalvoOk(false); }}><option value="manual">Valor manual</option><option value="fornecedores">Valor total orçado dos fornecedores</option><option value="publicidade">Valor total orçado do material publicitário</option></select></label><p className="mt-1 text-xs text-gray-500">Uma fonte por vez. Se esta despesa já estiver no orçamento de obra importado, mantenha aqui somente o valor adicional para evitar duplicidade.</p></div>
-          <Num label="Marketing" sufixo="R$" value={form.marketing} onChange={set("marketing")} step={1000} />
+          <FonteSelect label="Marketing — fonte" valor={cfg.marketingFonte} onChange={setFonte("marketingFonte")} />
+          {cfg.marketingFonte === "manual"
+            ? <Num label="Marketing" sufixo="R$" value={form.marketing} onChange={set("marketing")} step={1000} />
+            : <ValorSistema label="Marketing" valor={formatCurrency(fontes.marketingUsado)} sub={`${fontes.marketing.itens.length} item(ns) elegível(is); manual preservado: ${formatCurrency(form.marketing)}`} />}
+          {cfg.marketingFonte === "sistema" && (fontes.marketing.itens.length > 0 || fontes.marketing.desconsiderados.length > 0) && (
+            <div className="col-span-full text-[11px] text-gray-600 border border-gray-100 bg-gray-50 p-2">
+              {fontes.marketing.itens.map((i) => <p key={`${i.origem}-${i.nome}`}>{i.nome} — {i.origem} ({i.categoria}, {i.status}): {formatCurrency(i.valor)}</p>)}
+              {fontes.marketing.desconsiderados.map((d) => <p key={`x-${d.nome}-${d.motivo}`} className="text-gray-600">Fora: {d.nome} — {d.motivo}</p>)}
+            </div>
+          )}
           <Num label="Registro por unidade" sufixo="R$" value={form.registroPorUnidade} onChange={set("registroPorUnidade")} />
           <Num label="Contingência" sufixo="% infra" value={form.contingenciaPctInfra} onChange={set("contingenciaPctInfra")} step={0.5} />
           <Num label="BDI" sufixo="% infra" value={form.bdiPct} onChange={set("bdiPct")} step={0.5} />
@@ -363,11 +459,17 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
       {/* ── Indicadores do cenário ativo ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <Kpi label="VPL" valor={formatCurrency(r.vpl)} negativo={r.vpl < 0} destaque />
-        <Kpi label="TIR" valor={r.tirAnual != null ? `${(r.tirAnual * 100).toFixed(2)}% a.a.` : "—"} />
-        <Kpi label="ROI" valor={fmtPct(r.roi, 1)} negativo={r.roi < 0} />
-        <Kpi label="Margem líquida" valor={fmtPct(r.margemLiquida, 1)} negativo={r.margemLiquida < 0} />
-        <Kpi label="Payback" valor={r.paybackMes != null ? `${r.paybackMes} meses` : "não recupera"} />
-        <Kpi label="Exposição máx." valor={formatCurrency(r.exposicaoMaxima)} sub={`pico no mês ${r.mesPico}`} negativo />
+        <Kpi label="TIR" valor={r.tirAnual != null ? `${(r.tirAnual * 100).toFixed(2)}% a.a.` : "Não se aplica"} sub={r.tirMotivo ?? undefined} />
+        <Kpi label="ROI" valor={fmtPct(r.roi, 1)} negativo={r.roi < 0} sub="lucro ÷ custo total do projeto" />
+        <Kpi label="Margem líquida" valor={fmtPct(r.margemLiquida, 1)} negativo={r.margemLiquida < 0} sub="lucro ÷ VGV" />
+        <Kpi label="Payback" valor={r.paybackStatus === "sem_exposicao" ? "Sem exposição" : r.paybackMes != null ? `mês ${r.paybackMes}` : "Não recupera"} sub={r.paybackStatus === "sem_exposicao" ? "o caixa acumulado nunca fica negativo" : undefined} />
+        <Kpi label="Exposição máx." valor={formatCurrency(r.exposicaoMaxima)} sub={r.exposicaoMaxima > 0 ? `pico no mês ${r.mesPico}` : "caixa acumulado sempre ≥ 0"} negativo />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Lucro líquido" valor={formatCurrency(r.lucroLiquido)} negativo={r.lucroLiquido < 0} />
+        <Kpi label="Custo total do projeto" valor={formatCurrency(r.custoTotalProjeto)} sub="operacional nominal + terreno + financeiro" />
+        <Kpi label="Fluxo do projeto (sem captação)" valor={`VPL ${formatCurrency(r.projeto.vpl)}`} sub={`exposição ${formatCurrency(r.projeto.exposicaoMaxima)} · TIR ${r.projeto.tirAnual != null ? `${(r.projeto.tirAnual * 100).toFixed(1)}% a.a.` : "não se aplica"}`} />
+        <Kpi label="Break-even" valor={`${r.breakEven.unidadesNecessarias.toLocaleString("pt-BR")} unidades`} sub={`de ${r.mix.totalUnidades.toLocaleString("pt-BR")} vendáveis`} />
       </div>
 
       {/* ── VGV, custos e recebíveis ── */}
@@ -380,30 +482,30 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         <div className="bg-white border border-gray-100 p-4">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Custos</p>
           <Linha label="Infraestrutura (c/ BDI)" valor={formatCurrency(r.custoInfra)} />
-          <Linha label="Pré-venda (capital próprio, hoje)" valor={formatCurrency(r.custosPreVenda)} />
+          {r.custoObrasResidenciais > 0 && <Linha label="Obras residenciais" valor={formatCurrency(r.custoObrasResidenciais)} sub="Orçamento Parametrizado" />}
+          <Linha label="Pré-venda (hoje)" valor={formatCurrency(r.custosPreVenda)} />
           <Linha label="Durante vendas (com receita)" valor={formatCurrency(r.custosDuranteVenda)} />
-          <Linha label="Total geral (hoje)" valor={formatCurrency(r.custoTotal)} forte />
-          <Linha label="Total nominal (futuro, c/ INCC)" valor={formatCurrency(r.custoTotalNominal)} sub="estimativa de custos totais futuros" />
+          <Linha label="Operacionais (hoje)" valor={formatCurrency(r.custoTotal)} />
+          <Linha label="Operacionais nominais (c/ INCC)" valor={formatCurrency(r.custoTotalNominal)} />
+          <Linha label="Aquisição do terreno" valor={formatCurrency(r.custoTerreno)} />
+          <Linha label="Custo financeiro da captação" valor={formatCurrency(r.custoFinanceiroCaptacao)} sub="remuneração dos investidores (o principal não é custo)" />
+          <Linha label="Custo total do projeto" valor={formatCurrency(r.custoTotalProjeto)} forte />
         </div>
         <div className="bg-white border border-gray-100 p-4">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Distribuição de recebíveis</p>
-          <Linha label={`Você recebe (${(100 - form.permutaPctVgv).toFixed(0)}%)`} valor={formatCurrency(r.recebiveis.voce)} forte />
-          <Linha label={`Terreneiro (${form.permutaPctVgv.toFixed(0)}%)`} valor={formatCurrency(r.recebiveis.terreneiro)} />
-          <Linha label="Total a receber" valor={formatCurrency(r.recebiveis.total)} />
-          <div className="mt-2 pt-2 border-t border-gray-50">
-            <Linha
-              label="Break-even"
-              valor={`${r.breakEven.unidadesNecessarias.toLocaleString("pt-BR")} unidades`}
-              sub={urb.capacidadeEstimadaUnidades > 0 ? `${((r.breakEven.unidadesNecessarias / urb.capacidadeEstimadaUnidades) * 100).toFixed(1)}% da capacidade` : undefined}
-            />
-          </div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Receitas, terreno e proprietário</p>
+          <Linha label="Total recebido das vendas" valor={formatCurrency(r.recebiveis.total)} />
+          <Linha label={`Incorporador (${((1 - viab.premissas.permutaPctVgv) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% dos recebimentos)`} valor={formatCurrency(r.recebiveis.voce)} forte />
+          <Linha label={`Participação do terreneiro — permuta financeira (${(viab.premissas.permutaPctVgv * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%)`} valor={formatCurrency(r.recebiveis.terreneiro)} />
+          <Linha label="Aquisição do terreno (custo do projeto, não é participação)" valor={formatCurrency(r.custoTerreno)} />
+          <Linha label={`Permuta física — ${r.permutaFisica.unidades} unidade(s) ao proprietário`} valor={formatCurrency(r.permutaFisica.vgvEquivalente)} sub="VGV que não é vendido (unidades construídas e entregues)" />
+
         </div>
       </div>
 
       {/* ── Fluxo de caixa acumulado ── */}
       <div className="bg-white border border-gray-100 p-4">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-          Fluxo de caixa acumulado — incorporador ({CENARIO_META.find((c) => c.id === cenarioAtivo)?.label})
+          Fluxo de caixa acumulado — incorporador, com captação ({CENARIO_META.find((c) => c.id === cenarioAtivo)?.label})
         </p>
         <div style={{ width: "100%", height: 260 }}>
           <ResponsiveContainer>
@@ -430,7 +532,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           </ResponsiveContainer>
         </div>
         <p className="text-[10px] text-gray-600 mt-2">
-          Valores calculados por fórmulas determinísticas (VPL a {form.taxaDescontoAnual}% a.a., parcelas indexadas, inadimplência, correção INCC da obra e permuta considerados). Estudo preliminar — não substitui projeto executivo nem análise contratual. Financiamento bancário/fundo de investidores ainda não modelado nesta versão.
+          Valores calculados por fórmulas determinísticas (VPL a {form.taxaDescontoAnual}% a.a., parcelas indexadas, inadimplência, correção INCC da obra, terreno, permuta e captação considerados). Convenção: M0 = data-base; M1–M12 = Ano 1. Estudo preliminar — não substitui projeto executivo nem análise contratual.
         </p>
       </div>
 
@@ -449,13 +551,16 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
             {([
               ["VGV bruto", (x: ResultadoLoteamento) => formatCurrency(x.vgvGross), false],
               ["VPL", (x: ResultadoLoteamento) => formatCurrency(x.vpl), true],
-              ["TIR (a.a.)", (x: ResultadoLoteamento) => (x.tirAnual != null ? `${(x.tirAnual * 100).toFixed(2)}%` : "—"), false],
+              ["TIR (a.a.)", (x: ResultadoLoteamento) => (x.tirAnual != null ? `${(x.tirAnual * 100).toFixed(2)}%` : "não se aplica"), false],
               ["ROI", (x: ResultadoLoteamento) => fmtPct(x.roi), false],
               ["Margem líquida", (x: ResultadoLoteamento) => fmtPct(x.margemLiquida), false],
-              ["Payback", (x: ResultadoLoteamento) => (x.paybackMes != null ? `${x.paybackMes} meses` : "não recupera"), false],
+              ["Payback", (x: ResultadoLoteamento) => textoPayback(x), false],
               ["Exposição máxima", (x: ResultadoLoteamento) => formatCurrency(x.exposicaoMaxima), false],
-              ["Custo total (hoje)", (x: ResultadoLoteamento) => formatCurrency(x.custoTotal), false],
-              ["Custo total nominal (futuro)", (x: ResultadoLoteamento) => formatCurrency(x.custoTotalNominal), false],
+              ["Custos operacionais nominais", (x: ResultadoLoteamento) => formatCurrency(x.custoTotalNominal), false],
+              ["Terreno", (x: ResultadoLoteamento) => formatCurrency(x.custoTerreno), false],
+              ["Custo financeiro (captação)", (x: ResultadoLoteamento) => formatCurrency(x.custoFinanceiroCaptacao), false],
+              ["Custo total do projeto", (x: ResultadoLoteamento) => formatCurrency(x.custoTotalProjeto), false],
+              ["Lucro líquido", (x: ResultadoLoteamento) => formatCurrency(x.lucroLiquido), false],
               ["Recebível (você)", (x: ResultadoLoteamento) => formatCurrency(x.recebiveis.voce), false],
             ] as [string, (x: ResultadoLoteamento) => string, boolean][]).map(([label, f, colorir]) => (
               <tr key={label}>
@@ -479,11 +584,11 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Recebimentos por ano</p>
-          <p className="text-[10px] text-gray-600 mb-3">Valores brutos projetados e a divisão entre incorporador e terreneiro (cenário {CENARIO_META.find((c) => c.id === cenarioAtivo)?.label}).</p>
+          <p className="text-[10px] text-gray-600 mb-3">Cronograma de RECEBIMENTO: caixa que entra pelos vencimentos (entrada, parcelas), dividido entre incorporador e terreneiro (cenário {CENARIO_META.find((c) => c.id === cenarioAtivo)?.label}).</p>
           <table className="w-full text-xs min-w-[420px]">
             <thead>
               <tr className="bg-[var(--brand-dark)]">
-                {["Ano", "Total (bruto)", `Você (${(100 - form.permutaPctVgv).toFixed(0)}%)`, "Terreneiro"].map((h) => (
+                {["Ano", "Total (bruto)", "Incorporador", "Terreneiro"].map((h) => (
                   <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>
                 ))}
               </tr>
@@ -508,12 +613,12 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
         </div>
 
         <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Custos futuros por ano</p>
-          <p className="text-[10px] text-gray-600 mb-3">Estimativa de custos totais futuros — valores nominais (obra já com correção INCC mês a mês).</p>
-          <table className="w-full text-xs min-w-[420px]">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Custos por ano</p>
+          <p className="text-[10px] text-gray-600 mb-3">Cronograma de DESEMBOLSO — valores nominais (obra com correção INCC), terreno e remuneração de investidores.</p>
+          <table className="w-full text-xs min-w-[520px]">
             <thead>
               <tr className="bg-[var(--brand-dark)]">
-                {["Ano", "Pré-venda", "Durante vendas", "Total do ano"].map((h) => (
+                {["Ano", "Obra e fixos", "Venda", "Terreno", "Financeiro", "Total do ano"].map((h) => (
                   <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>
                 ))}
               </tr>
@@ -524,17 +629,86 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
                   <td className="px-3 py-2 text-gray-500 font-medium">Ano {a.ano}</td>
                   <td className="px-3 py-2 font-bold text-[var(--brand-dark)]">{formatCurrency(a.preVenda)}</td>
                   <td className="px-3 py-2 text-gray-600">{formatCurrency(a.duranteVenda)}</td>
+                  <td className="px-3 py-2 text-gray-600">{formatCurrency(a.terreno)}</td>
+                  <td className="px-3 py-2 text-gray-600">{formatCurrency(a.financeiro)}</td>
                   <td className="px-3 py-2 font-bold text-red-500">{formatCurrency(a.total)}</td>
                 </tr>
               ))}
               <tr className="bg-gray-50">
-                <td className="px-3 py-2 font-black text-[var(--brand-dark)]">Total nominal</td>
-                <td colSpan={2} />
-                <td className="px-3 py-2 font-black text-red-600">{formatCurrency(r.custoTotalNominal)}</td>
+                <td className="px-3 py-2 font-black text-[var(--brand-dark)]">Total</td>
+                <td colSpan={4} />
+                <td className="px-3 py-2 font-black text-red-600">{formatCurrency(r.custoTotalProjeto)}</td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* ── Vendas e fluxo de caixa por ano ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Vendas por ano</p>
+          <p className="text-[10px] text-gray-600 mb-3">Cronograma de COMERCIALIZAÇÃO: contratos assinados (não é caixa).</p>
+          <table className="w-full text-xs min-w-[320px]">
+            <thead><tr className="bg-[var(--brand-dark)]">{["Ano", "Unidades", "VGV contratado"].map((h) => <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>)}</tr></thead>
+            <tbody className="divide-y divide-gray-50">
+              {anosVenda.map((a) => (
+                <tr key={a.ano}>
+                  <td className="px-3 py-2 text-gray-500 font-medium">Ano {a.ano}</td>
+                  <td className="px-3 py-2 font-bold text-[var(--brand-dark)]">{a.unidades.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</td>
+                  <td className="px-3 py-2 font-bold text-[var(--brand-dark)]">{formatCurrency(a.vgv)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Fluxo de caixa por ano</p>
+          <p className="text-[10px] text-gray-600 mb-3">Projeto = recebimentos − custos (sem captação). Incorporador = projeto + aportes − devolução do principal − remuneração dos investidores.</p>
+          <table className="w-full text-xs min-w-[640px]">
+            <thead><tr className="bg-[var(--brand-dark)]">{["Ano", "Projeto", "Aportes", "Devolução principal", "Remuneração", "Incorporador", "Acumulado"].map((h) => <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>)}</tr></thead>
+            <tbody className="divide-y divide-gray-50">
+              {anosFluxo.map((a) => (
+                <tr key={a.ano}>
+                  <td className="px-3 py-2 text-gray-500 font-medium">Ano {a.ano}</td>
+                  <td className={`px-3 py-2 font-bold ${a.saldoProjeto < 0 ? "text-red-500" : "text-[var(--brand-dark)]"}`}>{formatCurrency(a.saldoProjeto)}</td>
+                  <td className="px-3 py-2 text-gray-600">{formatCurrency(a.aportes)}</td>
+                  <td className="px-3 py-2 text-gray-600">{formatCurrency(a.resgatesPrincipal)}</td>
+                  <td className="px-3 py-2 text-gray-600">{formatCurrency(a.remuneracaoInvestidores)}</td>
+                  <td className={`px-3 py-2 font-bold ${a.saldo < 0 ? "text-red-500" : "text-green-700"}`}>{formatCurrency(a.saldo)}</td>
+                  <td className={`px-3 py-2 font-bold ${a.acumulado < 0 ? "text-red-500" : "text-[var(--brand-dark)]"}`}>{formatCurrency(a.acumulado)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Demonstrativo auditável (Correção 13) ── */}
+      <div className="bg-white border border-gray-100 p-4 overflow-x-auto">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Composição financeira — demonstrativo auditável</p>
+        <p className="text-[10px] text-gray-600 mb-3">Cada rubrica com o módulo de origem, competência e classificação. Movimentações de capital mudam o caixa, mas não o lucro. A soma das rubricas do resultado é o lucro líquido.</p>
+        <table className="w-full text-xs min-w-[860px]">
+          <thead><tr className="bg-[var(--brand-dark)]">{["Rubrica", "Módulo de origem", "Valor", "Competência", "Classificação", "Modo", "No resultado"].map((h) => <th key={h} className="text-left text-[10px] font-bold text-[var(--brand-yellow)] uppercase tracking-wider px-3 py-2">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-gray-50">
+            {composicao.map((l) => (
+              <tr key={l.rubrica} title={l.observacao}>
+                <td className="px-3 py-2 text-gray-700 font-medium">{l.rubrica}{l.observacao && <span className="block text-[10px] text-gray-600 font-normal">{l.observacao}</span>}</td>
+                <td className="px-3 py-2 text-gray-500">{l.moduloOrigem}</td>
+                <td className={`px-3 py-2 font-bold whitespace-nowrap ${l.valor < 0 ? "text-red-500" : "text-[var(--brand-dark)]"}`}>{formatCurrency(l.valor)}</td>
+                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{l.competencia}</td>
+                <td className="px-3 py-2 text-gray-500">{l.classificacao}</td>
+                <td className="px-3 py-2 text-gray-500">{l.modo}</td>
+                <td className="px-3 py-2 text-gray-500">{l.entraNoResultado ? "sim" : "não"}</td>
+              </tr>
+            ))}
+            <tr className="bg-gray-50">
+              <td className="px-3 py-2 font-black text-[var(--brand-dark)]" colSpan={2}>Lucro líquido (soma das rubricas do resultado)</td>
+              <td className="px-3 py-2 font-black text-[var(--brand-dark)] whitespace-nowrap">{formatCurrency(composicao.filter((l) => l.entraNoResultado).reduce((s, l) => s + l.valor, 0))}</td>
+              <td colSpan={4} />
+            </tr>
+          </tbody>
+        </table>
       </div>
 
 
@@ -554,6 +728,28 @@ function Kpi({ label, valor, sub, destaque, negativo }: {
         {valor}
       </p>
       {sub && <p className={`text-[10px] mt-0.5 ${destaque ? "text-gray-400" : "text-gray-600"}`}>{sub}</p>}
+    </div>
+  );
+}
+
+function FonteSelect({ label, valor, onChange }: { label: string; valor: ModoFonte; onChange: (v: ModoFonte) => void }) {
+  return (
+    <div>
+      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{label}</label>
+      <select aria-label={label} value={valor} onChange={(e) => onChange(e.target.value as ModoFonte)} className={inputCls}>
+        <option value="manual">Valor manual</option>
+        <option value="sistema">Valor do sistema</option>
+      </select>
+    </div>
+  );
+}
+
+function ValorSistema({ label, valor, sub }: { label: string; valor: string; sub?: string }) {
+  return (
+    <div>
+      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{label} <span className="text-gray-500 normal-case font-normal">(sistema)</span></label>
+      <div className="w-full border border-blue-200 bg-blue-50 px-2.5 py-2 text-sm text-blue-900 font-bold">{valor}</div>
+      {sub && <p className="text-[10px] text-gray-600 mt-0.5">{sub}</p>}
     </div>
   );
 }

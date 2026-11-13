@@ -88,7 +88,11 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
   const abaInicial = um(sp.aba) === "conversas" ? "conversas" : "conexao";
   const numeroInicial = um(sp.numero)?.replace(/\D/g, "").slice(0, 20) || null;
   const templates = await prisma.whatsappTemplate.findMany({ where: { ativo: true }, orderBy: [{ finalidade: "asc" }, { nome: "asc" }] })
-    .then((rows) => rows.length ? rows.map((t) => ({ id: t.id, name: t.nome, category: t.finalidade, body: t.conteudo })) : TEMPLATES_WHATSAPP_PADRAO)
+    // Central de Vendas (13/11, igual à Prospecta): os textos automáticos (slug cv-*) não escondem os templates padrão.
+    .then((rows) => {
+      const doBanco = rows.map((t) => ({ id: t.id, name: t.nome, category: t.finalidade, body: t.conteudo }));
+      return rows.some((t) => !t.slug.startsWith("cv-")) ? doBanco : [...TEMPLATES_WHATSAPP_PADRAO, ...doBanco];
+    })
     .catch(() => TEMPLATES_WHATSAPP_PADRAO);
 
   return (

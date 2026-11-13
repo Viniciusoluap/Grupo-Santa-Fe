@@ -25,10 +25,10 @@ export default async function ComissoesPage() {
       orderBy: { vencimento: "desc" },
       include: { corretor: true, contrato: true },
     }),
+    // Paridade 13/11 (EPIC-018 2.2): inativos também, marcados "(inativo)" no formulário.
     prisma.corretor.findMany({
-      where: { ativo: true },
       orderBy: { nome: "asc" },
-      select: { id: true, nome: true },
+      select: { id: true, nome: true, ativo: true },
     }),
     prisma.imovel.findMany({ select: { id: true, titulo: true, status: true, preco: true }, orderBy: { titulo: "asc" } }),
     prisma.financiamento.findMany({ select: { id: true, clienteNome: true, imovel: true, valorImovel: true }, orderBy: { clienteNome: "asc" } }),

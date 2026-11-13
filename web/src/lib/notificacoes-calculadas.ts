@@ -25,7 +25,7 @@ export async function alertasCalculados(): Promise<AlertaCalculado[]> {
   try {
     // BPO cobranças vencendo em 3 dias
     const cobrancas = await prisma.bpoLancamento.findMany({
-      where: { pago: false, combinadaEmId: null, exclusaoLoteBackupId: null, vencimento: { lte: em3dias, gte: hoje } },
+      where: { pago: false, combinadaEmId: null, exclusaoLoteBackupId: null, aClassificar: false, vencimento: { lte: em3dias, gte: hoje } },
       include: { cliente: { select: { razaoSocial: true } } },
       take: 5,
     });
