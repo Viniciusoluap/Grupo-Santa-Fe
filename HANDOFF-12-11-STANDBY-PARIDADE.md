@@ -25,10 +25,11 @@ Decisão do dono em 12/11/2026: trabalhar exclusivamente na Prospecta. O Santa F
 - Importar backup ZIP do Conta Azul (Prospecta #213): `shared/financeiro/conta-azul.ts`,
   `server/bpo-conta-azul.ts`, `ImportarContaAzul.tsx`. O layout do Novo Lançamento do Santa Fé não tinha o defeito.
 - Conciliação com o extrato/Asaas sem duplicar, aba "A classificar", divisão de pagamentos (split), cadastro
-  de centros de custo e filtros do BPO — em andamento na Prospecta (ver `HANDOFF-12-11-BPO-CONTA-AZUL.md` de lá).
+  de centros de custo e filtros do BPO — publicados na Prospecta em 12/11 (PR #214, migrações 0103/0104) (ver `HANDOFF-12-11-BPO-CONTA-AZUL.md` de lá).
 
 ### Central de Vendas (12/11)
-- Módulo novo na Prospecta (branch `claude/central-de-vendas`, `HANDOFF-12-11-CENTRAL-DE-VENDAS.md` de lá).
+- Módulo novo na Prospecta, publicado em 12/11 (PR #215, migração 0110; entra desligado). Especificação em
+  `docs/prompts/central-de-vendas.md` e detalhes em `HANDOFF-12-11-CENTRAL-DE-VENDAS.md` de lá.
 
 ### Pendências antigas do ROADMAP da Prospecta (não conferidas item a item no Santa Fé)
 - EPIC-017 (vínculo lead ↔ serviços), EPIC-018 (corretores e comissões), EPIC-019 (layout da Central
