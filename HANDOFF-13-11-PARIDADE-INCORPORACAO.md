@@ -61,6 +61,32 @@ ATENÇÃO (regra nova, igual à Prospecta): estudo com proposta ACEITA passa a d
 e com Business Plan passa a considerar a captação → lucro/ROI/margem/payback mudam ao reabrir.
 Sem migração (tudo em JSON já existente).
 
+## Itens 1 e 2 — Inteligência de Mercado (dois motores) + chaves no banco — CONCLUÍDOS
+Origem na Prospecta: 010eb89 (dois motores), 0f94054 (IBGE pelo navegador + Google gratuito), 2c09276 (revisão Codex),
+0a70279 (Tavily sem IA + extração determinística).
+Arquivos (novos, salvo indicação):
+- `web/src/lib/incorporacao/dados-publicos.ts`, `analise-anuncios.ts`, `extracao-anuncios.ts` — cópia das regras puras da Prospecta.
+- `web/src/lib/incorporacao/mercado-config.ts` — equivalente aos campos de `server/_core/env.ts` da Prospecta
+  (TAVILY_API_KEY, GEMINI_API_KEY/GOOGLE_API_KEY, ANTHROPIC_API_KEY, INCORPORACAO_IA_ATIVA, INCORPORACAO_IA_MODELO,
+  INCORPORACAO_GEMINI_MODELO).
+- `web/src/lib/incorporacao/mercado-anuncios.ts` — provedores Tavily (padrão, sem IA) › Gemini + Busca Google › Anthropic, cache 12 h.
+- `web/src/lib/incorporacao/segredos-mercado.ts` — chaves no cofre que já existia: tabela `configuracoes`
+  (`segredo.tavily_api_key`, `segredo.gemini_api_key`, grupo "integracoes"), AES-256-GCM de `@/lib/segredo`; variável de
+  ambiente tem prioridade; valor "plain:<chave>" é recriptografado no primeiro uso. A tela Configurações só envia ao navegador
+  as chaves da própria tela, então `segredo.*` não vaza.
+- `web/src/lib/incorporacao/validar-dados-publicos.ts` — mesmos limites do schema zod da Prospecta (o Santa Fé não usa zod).
+- `web/src/lib/actions/mercado-incorporacao.ts` — `pesquisarDadosPublicos` (reserva pelo servidor), `salvarDadosPublicos`
+  (resultado vindo do navegador), `pesquisarMercadoImobiliario` (não altera o preço do lote), `aplicarPrecoReferenciaMercado`
+  (com confirmação, registra origem/anterior/quem/quando).
+- `web/src/app/admin/incorporacao/_components/mercado-tab.tsx` (alterado) — dois painéis independentes; o IBGE é consultado
+  pelo NAVEGADOR e o servidor só grava; pesquisa antiga por IA continua exibida como "legado" (não é sobrescrita).
+  A rota antiga `/api/incorporacao/mercado` ficou no código (a Prospecta também mantém a procedure), mas a aba não a usa mais.
+Dados salvos: `pesquisaCidadeJson.dadosPublicos` e `estudoMercadoJson.analiseAnuncios` em chaves próprias; nada antigo é apagado.
+Sem migração (tabela `configuracoes` e colunas JSON já existem).
+Chave a preencher (opcional — sem ela o motor 2 explica a falta e o motor 1/IBGE funciona): `TAVILY_API_KEY` no Vercel OU,
+sem painel, gravar em `configuracoes` a linha `chave='segredo.tavily_api_key', valor='plain:<chave>', grupo='integracoes'`
+(o sistema recriptografa sozinho). Gemini é alternativa (`segredo.gemini_api_key`).
+
 ## Testes (acumulado)
 (a) automáticos: `npx vitest run` 1258 passados / 156 pulados (os pulados são os de banco que já eram pulados);
 novo `viabilidade-correcoes-09-12.test.ts` (dados reais do estudo 2 da Prospecta, fixture `__tests__/fixtures/estudo-2-daniel-mota.ts`);
@@ -69,12 +95,15 @@ novo `viabilidade-correcoes-09-12.test.ts` (dados reais do estudo 2 da Prospecta
 aprovado sem duplicar = 630, e o manual nunca é sobrescrito). `npx tsc --noEmit -p .` sem erros.
 eslint: `viabilidade-tab.tsx` tem 1 erro `react-hooks/preserve-manual-memoization` (antes desta mudança havia 2 do mesmo
 tipo no mesmo arquivo); 1 aviso `_r` não usado em `composicao-custos.ts` (igual ao original da Prospecta).
+Mercado: `mercado-motores.test.ts` 36/36 (IBGE, Tavily e Google simulados — nenhuma chamada real) e
+`validar-dados-publicos.test.ts` 2/2. Execução completa após o item 1: 1295 passados, 1 falha intermitente
+`anexos-qualquer-tipo.test.ts` (PGlite estourou 5 s sob carga; isolado passa 8/8 — não relacionado).
 (b) manuais: nenhum (sem banco com dados reais aqui).
-(c) produção: abrir estudos já salvos (com e sem proposta aceita/Business Plan) e conferir Viabilidade, Business Plan,
+(c) produção: IBGE pelo navegador no Brasil; Tavily com chave real; abrir estudos já salvos (com e sem proposta aceita/Business Plan) e conferir Viabilidade, Business Plan,
 Relatório e PDFs.
 
 ## Migrações a aplicar
 Nenhuma até aqui.
 
 ## Próximo passo
-Item 2 — chaves de integração do Mercado no cofre existente (`web/src/lib/integracoes.ts`), depois item 1.
+Rodar `npx next build` e registrar; depois revisão/merge pelo dono. Validar em produção os itens (c).
