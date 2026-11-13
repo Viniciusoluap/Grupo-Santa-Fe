@@ -24,6 +24,7 @@ import {
   ClipboardList,
   Mountain,
   Plug,
+  Headset,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,12 @@ const navItems = [
     label: "Leads",
     href: "/admin/leads",
     icon: Users,
+  },
+  // Central de Vendas (paridade com a Prospecta, 13/11): parte do módulo CRM.
+  {
+    label: "Central de Vendas",
+    href: "/admin/central-vendas",
+    icon: Headset,
   },
   {
     label: "Agenda",
