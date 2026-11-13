@@ -37,8 +37,8 @@ Central de Vendas → `sf-central-vendas`.
 
 | Item | Estado | Commit |
 |------|--------|--------|
-| 3+4 — endereço/bairro/cidade/UF no lead, migrados para Avaliação/Obra/Regularização; CPF na Avaliação | concluído | (ver git log: "feat(crm): endereço do cliente no lead…") |
-| 9 — corretores inativos marcados e aviso de lista vazia na Comissão | pendente | — |
+| 3+4 — endereço/bairro/cidade/UF no lead, migrados para Avaliação/Obra/Regularização; CPF na Avaliação | concluído | 09e79c5 |
+| 9 — corretores inativos marcados e aviso de lista vazia na Comissão | concluído | (commit "feat(comissoes): corretores inativos…", ver git log) |
 
 ### Item 3+4 — detalhes
 - Schema: `Lead.endereco/bairro/cidade/uf` (bloco `// ── Paridade pendências antigas (13/11) ──` no model Lead).
@@ -70,6 +70,29 @@ Central de Vendas → `sf-central-vendas`.
 - (c) produção: pendente — aplicar a migração; cadastrar lead com endereço e marcar Avaliação/Obra/Regularização;
   conferir os registros criados; editar o endereço de um lead antigo e ver as avaliações "A definir" preenchidas.
 
+### Item 9 — detalhes
+- `web/src/app/admin/comissoes/page.tsx`: carrega todos os corretores (com `ativo`), não só os ativos.
+- `web/src/lib/comissoes/calculo.ts`: `rotuloCorretorComissao` ("Nome (inativo)") e `SEM_CORRETORES_CADASTRADOS`.
+- `comissao-form.tsx`: opção vazia "Selecione o corretor"; inativos marcados; aviso "Nenhum corretor cadastrado em
+  Corretores" quando a lista está vazia. Uma comissão de corretor desligado agora abre com ele selecionado
+  (antes o campo vinha vazio e o formulário não salvava sem trocar o corretor).
+- Teste: `web/src/lib/__tests__/comissao-corretor-inativo.test.tsx` (3 ✅, inclui renderização no servidor).
+
+### Testes finais da branch (item 9 incluso)
+- (a) `npx tsc --noEmit -p .` ✅; `npx eslint` nos arquivos alterados: 0 erros; `npx vitest run`: 168 arquivos /
+  1234 testes passando, 28 arquivos pulados. Numa das três rodadas completas, o teste antigo
+  `anexos-qualquer-tipo.test.ts > Migração das partes` estourou o tempo padrão de 5 s (PGlite iniciando com a suíte
+  em paralelo); sozinho passa (8/8) e passou nas outras rodadas — instabilidade de tempo, não regressão; não foi
+  alterado. O teste PGlite novo desta frente já tem tempo de 30 s.
+  `npx next build`: compilou e passou na checagem de tipos; parou na geração estática de `/` por falta de banco
+  (`P1001 Can't reach database server at 127.0.0.1:5432`), como nos blocos anteriores.
+- (b) manuais: nenhum.
+- (c) produção: pendente — migração `20261113400000_lead_endereco` a aplicar no Supabase; depois do deploy, abrir uma
+  comissão de corretor inativo e conferir a marcação.
+
 ## Próximo passo exato
-Item 9: em `web/src/app/admin/comissoes/page.tsx` listar também corretores inativos (marcados "(inativo)" no
-`comissao-form.tsx`) e mostrar "Nenhum corretor cadastrado em Corretores" quando a lista estiver vazia.
+Nada mais a portar desta frente (itens 1, 2, 5–8, 10–14 já iguais ou exceção documentada). Para o dono:
+(1) aplicar `web/prisma/migrations/20261113400000_lead_endereco/migration.sql` no Supabase; (2) decidir a divergência
+registrada no item 3+4 (endereço da Avaliação editável no SF × reescrito pelo lead na Prospecta); (3) revisar,
+mergear e publicar a branch `claude/paridade-legado` (sem PR aberto por esta sessão); (4) marcar no ROADMAP da
+Prospecta as pendências EPIC-017/018/019/Documentos como resolvidas (esta sessão não altera a Prospecta).

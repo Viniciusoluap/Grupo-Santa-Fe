@@ -12,7 +12,7 @@ import { ComissoesDeObras } from "./comissoes-de-obras";
 import type { ComissaoDeObra } from "@/lib/comissoes/obras";
 import type { NegocioItem } from "@/lib/comissoes/calculo";
 
-type Corretor = { id: string; nome: string };
+type Corretor = { id: string; nome: string; ativo?: boolean };
 
 type DbComissao = {
   id: string;

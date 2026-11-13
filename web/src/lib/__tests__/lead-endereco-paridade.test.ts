@@ -125,5 +125,5 @@ describe("migração 20261113400000_lead_endereco", () => {
     await pg.exec(sql); await pg.exec(sql);
     expect((await pg.query("SELECT id, nome, cpf, endereco, bairro, cidade, uf FROM leads")).rows).toEqual([{ id: "L1", nome: "Ana", cpf: "123", endereco: null, bairro: null, cidade: null, uf: null }]);
     await expect(pg.exec(`UPDATE leads SET uf = 'PAR'`)).rejects.toThrow();
-  });
+  }, 30000); // PGlite demora a iniciar com a suíte inteira em paralelo
 });
