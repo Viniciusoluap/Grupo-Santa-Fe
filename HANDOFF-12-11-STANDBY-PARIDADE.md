@@ -1,3 +1,5 @@
+> **13/11/2026 — ENCERRADO.** Todos os itens abaixo foram portados e publicados: ver `HANDOFF-13-11-PARIDADE-TOTAL.md`.
+
 # Handoff — Grupo Santa Fé em stand-by (paridade suspensa em 12/11/2026)
 
 Decisão do dono em 12/11/2026: trabalhar exclusivamente na Prospecta. O Santa Fé fica parado até a ordem de

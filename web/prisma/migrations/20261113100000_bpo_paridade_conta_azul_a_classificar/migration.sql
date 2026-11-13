@@ -46,3 +46,14 @@ SELECT 'cc_' || md5(nome), nome FROM (
   ORDER BY lower(translate(nome, 'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇçÑñ', 'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCcNn')), nome
 ) unicos
 ON CONFLICT DO NOTHING;
+
+-- Dados internos servidos só pelo aplicativo (nunca pela API pública do Supabase), como as demais tabelas.
+ALTER TABLE "bpo_centros_custo" ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE "bpo_centros_custo" FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE "bpo_centros_custo" FROM authenticated;
+  END IF;
+END $$;
