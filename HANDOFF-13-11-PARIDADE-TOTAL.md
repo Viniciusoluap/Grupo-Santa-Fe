@@ -37,5 +37,10 @@ Conferência: contagem de colunas/restrições/índices em produção = mesma ex
 - Chave do Tavily (opcional, motor de anúncios): `TAVILY_API_KEY` ou linha `segredo.tavily_api_key` em `configuracoes`.
 - Central de Vendas: operadores, números de teste, checklists, produtos, sequências; depois ligar o interruptor geral.
 
+## Publicação (13/11)
+- PR #261 mesclado (merge `df8b9b4`); deploy de produção `dpl_9ZqAVCuasraYFsgLK95BLeZBoFRK` READY em gruposantafee.com.br (build com geração estática usando o banco real, sem erro).
+- Verificado em produção: `/admin/bpo` e `/admin/central-vendas` respondem (redirecionam ao login sem sessão); `POST`-only `/api/central-vendas/entrada/site` responde 405 a GET; Vercel `get_runtime_errors` na última hora: nenhum erro.
+- Prospecta: ROADMAP marcado como portado (PR #217).
+
 ## Próximo passo exato
-Depois do merge: verificar o deploy de produção na Vercel e `get_runtime_errors`; abrir as páginas /admin/bpo, /admin/central-vendas e um estudo de incorporação.
+Só validação do dono logado em produção (seção (c) acima). Nenhum código pendente de paridade.
