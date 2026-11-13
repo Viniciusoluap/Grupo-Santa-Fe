@@ -79,9 +79,40 @@ idempotente (IF NOT EXISTS / ON CONFLICT DO NOTHING; nenhum UPDATE/DELETE de dad
 - (b) manuais: nenhum ainda (a tela vem no bloco 2).
 - (c) produção: pendente — aplicar a migração, publicar, importar um backup e conferir.
 
-## Pendências
-- Bloco 2: telas (botão Importar backup Conta Azul, aba A classificar com Dar baixa/dividir, Centros de custo,
-  campo Centro de custo no + Lançamento/edição/Criar lançamento, filtros e painel de valores, DRE por centro).
+## Bloco 2 — telas (concluído)
+Arquivos: `web/src/app/admin/bpo/page.tsx`, `_components/bpo-client.tsx` e novos `_components/importar-conta-azul.tsx`,
+`a-classificar.tsx`, `centros-custo.tsx`, `filtros-bpo.tsx` (gêmeos de ImportarContaAzul/AClassificar/CentrosCusto/FiltrosBpo da Prospecta).
+- Topo do BPO: "Importar backup Conta Azul" (administrador; abre o ZIP no navegador com fflate, só .csv, até 30 MB;
+  prévia → confirmar) e "Centros de custo" (criar, renomear, ativar/desativar, uso).
+- Aba "A classificar (N)": movimentações (Criar lançamento individual/lote com categoria, cliente e centro de custo;
+  Dar baixa / dividir com sugestões, busca, valor por lançamento, "faltam/passou", só confirma quando fecha;
+  Transferência interna / ignorar) e lançamentos em aberto (Confirmar, Registrar recebimento/pagamento pela baixa
+  auditada de sempre, Marcar pago, Cancelar = arquivamento reversível com EXCLUIR).
+- Cobranças, Despesas e A classificar: busca (cliente/titular/descrição), mês e ano, valor mínimo/máximo (iguais =
+  exato), status (abas; Despesas ganhou "Parciais"), centro de custo, cliente, "Limpar filtros". O painel de valores
+  (lançamentos, total, recebido/pago, em aberto, vencido) passou a acompanhar o filtro (antes somava tudo). A lista
+  usa a mesma função do servidor (`filtrarLancamentosLote`), então "Excluir tudo"/seleção só alcançam o visível.
+- Aba "Clientes" nova (o Santa Fé não tinha lista de clientes BPO na página): busca por nome/lead/CPF-CNPJ e situação,
+  com link para o detalhe.
+- DRE: filtro de centro de custo nas duas visões ("A / B" entra nos dois).
+- Campo "Centro de custo" (centros ativos; valor gravado fora da lista continua como opção) no + Lançamento
+  (cobrança e despesa), na edição e no Criar lançamento da aba A classificar; aparece na linha das listas.
+- Layout do Novo Lançamento no celular: o Santa Fé não tinha o defeito da Prospecta (`col-span-2` sem prefixo em
+  grade de 1 coluna) — conferido no código e medido (0 campos sobrepostos, 390 px). Nada a corrigir.
+
+## Testes (todos os blocos)
+- (a) automáticos: os do bloco 1 + suíte sem banco 162 arquivos / 1.227 ✅; com banco 35 arquivos, 151 ✅ / 9 ❌ —
+  exatamente as mesmas 9 falhas da `main` neste ambiente (comparado com um checkout limpo da `main` no mesmo Postgres).
+  `npx tsc --noEmit -p .` ✅; ESLint nos arquivos alterados: 0 erros (1 aviso antigo). `npx next build`: compilou
+  (✓ Compiled, TypeScript ok) e parou na geração estática de "/" por falta de banco (DatabaseNotReachable) — esperado.
+- (b) manuais por mim: `next dev` com Postgres local (dados sintéticos) + Playwright no Chrome em viewport iPhone 14:
+  Cobranças com filtros (valor mínimo e centro de custo) e painel; aba A classificar; Dar baixa / dividir 500 → 300 +
+  200 ("Aplicado R$ 500,00 de R$ 500,00", 2 quitados); Criar lançamento com centro de custo (0 campos sobrepostos);
+  Novo Lançamento › Despesa (7 campos, 0 sobrepostos); Clientes (busca por CPF); DRE por centro; importação do ZIP
+  sintético (4 lançamentos); Centros de custo com uso. Largura da página 390 px em todas; 0 erros de página.
+- (c) produção: pendente — aplicar a migração no Supabase, publicar e: importar um backup real; ligar/sincronizar uma
+  conta e conferir que as movimentações caem em A classificar, que os pagos do Conta Azul só são ligados e que o DRE
+  não muda até classificar.
 
 ## Diferenças que restam entre os dois sistemas (documentadas)
 - Transferência interna: no Santa Fé a movimentação gera um lançamento com a categoria "Transferência interna"
@@ -92,5 +123,16 @@ idempotente (IF NOT EXISTS / ON CONFLICT DO NOTHING; nenhum UPDATE/DELETE de dad
 - Lançamento do Conta Azul de cliente já cadastrado com nome diferente (achado pelo CPF): igual à Prospecta, o
   cliente não é recriado e o lançamento fica com o nome livre do negociador.
 
+## Riscos para publicar
+- Ordem: aplicar a migração ANTES do deploy (sem as colunas, a página do BPO quebra).
+- Comportamento novo para o dono: movimentação nova do banco deixa de entrar sozinha em Cobranças/Despesas/DRE
+  (só Asaas conhecido, Conta Azul pago e regra do titular). Até classificar, o DRE do período fica menor.
+- Valor igual e data próxima por coincidência pode ligar a movimentação ao lançamento do Conta Azul errado (raro;
+  mesma limitação da Prospecta). Excluir a conta bancária zera `bpo_baixas."transacaoId"` (o valor recebido fica).
+- Centros que só existem em lançamentos importados depois da migração não entram sozinhos no cadastro (igual à
+  Prospecta: a semente roda só na migração); o dono pode criá-los em "Centros de custo".
+
 ## Próximo passo exato
-Bloco 2 (telas) em `web/src/app/admin/bpo/_components/` e `page.tsx`.
+Revisão do dono → abrir PR de `claude/paridade-bpo` → autorizar aplicar a migração 20261113100000 no Supabase →
+merge/deploy → validar os itens (c). Remover a seção "PARIDADE SUSPENSA" do `CLAUDE.md` se a ordem do dono for
+mesmo retomar a paridade, e atualizar `HANDOFF-12-11-STANDBY-PARIDADE.md` (item BPO portado).

@@ -28,6 +28,13 @@ import { CamposOperacionais } from "./campos-operacionais";
 import { SugerirVinculosModal, VinculoClienteLancamento } from "./vinculo-cliente";
 import { BarraLote } from "./barra-lote";
 import { ROTULOS_OPERACIONAIS, type CatalogoBpo } from "@/lib/bpo-operacional";
+// Paridade BPO (13/11): Conta Azul, A classificar, centros de custo e filtros (gêmeos da Prospecta).
+import { filtrarLancamentosLote } from "@/lib/bpo-lote";
+import { FILTROS_VAZIOS, filtrarClientes, filtrarMovimentacoes, filtrosDoLote, resumoDosLancamentos, type FiltrosTela, type StatusFiltro } from "@/lib/financeiro/bpo-filtros";
+import { ImportarContaAzul } from "./importar-conta-azul";
+import { AClassificarPanel, type LancamentoAClassificar, type MovimentacaoAClassificar } from "./a-classificar";
+import { CampoCentroCusto, CentrosCustoModal, type CentroCustoOpcao } from "./centros-custo";
+import { FiltrosBpo, PainelValores } from "./filtros-bpo";
 
 export interface LancamentoComCliente {
   id: string;
@@ -53,6 +60,8 @@ export interface LancamentoComCliente {
   etapa?: string | null;
   version: number;
   doExtrato: boolean;
+  /** Paridade BPO (13/11): titular da movimentação de origem (a busca também acha por ele). */
+  titular?: string | null;
 }
 
 export interface TransacaoBancariaData {
@@ -109,11 +118,14 @@ interface Props {
   /** Lote 3, item 15: base competência × categoria do DRE (filtrada por Mês/Ano na tela). */
   dreCelulas: CelulaDre[];
   contabilidade: ResumoContabil & { ano: string };
-  clientes: { id: string; razaoSocial: string; leadId: string | null }[];
+  clientes: { id: string; razaoSocial: string; leadId: string | null; cpf?: string | null; cnpj?: string | null; status?: string; nomeLead?: string | null }[];
   leads: { id: string; nome: string; telefone: string; email: string | null }[];
   contas: ContaBancariaData[];
   pluggy: { configured: boolean; active: boolean };
-  abaInicial?: "bancos";
+  abaInicial?: "bancos" | "a_classificar";
+  /** Paridade BPO (13/11): centros de custo (com uso) e itens "A classificar". */
+  centrosCusto?: CentroCustoOpcao[];
+  aClassificar?: { movimentacoes: MovimentacaoAClassificar[]; lancamentos: LancamentoAClassificar[] };
   relatorios: RelatoriosData;
   /** Lote 4: admin vê "Exclusões em lote" (restaurar a partir do backup). */
   podeRestaurar?: boolean;
@@ -121,17 +133,14 @@ interface Props {
   interApi?: boolean;
 }
 
-type Aba = "cobracas" | "despesas" | "dre" | "bancos" | "relatorios" | "contabilidade";
-type StatusFilter = "todas" | "pendentes" | "pagas" | "vencidas" | "parciais";
+type Aba = "cobracas" | "despesas" | "a_classificar" | "clientes" | "dre" | "bancos" | "relatorios" | "contabilidade";
+type StatusFilter = StatusFiltro;
 type TipoFilter = "todos" | "honorario" | "reembolso" | "outros";
 
 const nowDate = () => new Date();
 
 function isVencido(l: LancamentoComCliente) {
   return !l.pago && new Date(l.vencimento) < nowDate();
-}
-function isPendente(l: LancamentoComCliente) {
-  return !l.pago && new Date(l.vencimento) >= nowDate();
 }
 
 function fmt(v: number) {
@@ -407,15 +416,20 @@ function BpoRelatorios({ relatorios }: { relatorios: RelatoriosData }) {
   );
 }
 
-export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dreCelulas, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios, podeRestaurar = false, interApi = false }: Props) {
+export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos, dreCelulas, contabilidade, clientes, leads, contas, pluggy, abaInicial, relatorios, podeRestaurar = false, interApi = false, centrosCusto = [], aClassificar = { movimentacoes: [], lancamentos: [] } }: Props) {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>(abaInicial ?? "cobracas");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todas");
+  // Paridade BPO (13/11): mesmos filtros da Prospecta (busca, mês/ano, valor, status, centro de custo), aplicados
+  // pela mesma regra do servidor (filtrarLancamentosLote) para o painel e o lote nunca alcançarem o que está oculto.
+  const [filtros, setFiltros] = useState<FiltrosTela>(FILTROS_VAZIOS);
+  const statusFilter = filtros.status;
+  const setStatusFilter = (status: StatusFilter) => setFiltros({ ...filtros, status });
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
-  const [search, setSearch] = useState("");
   const [clienteFilter, setClienteFilter] = useState("");
-  const [mesFilter, setMesFilter] = useState("");
-  const [anoFilter, setAnoFilter] = useState("");
+  const [abrirCentros, setAbrirCentros] = useState(false);
+  const [dreCentro, setDreCentro] = useState("");
+  const [clientesBusca, setClientesBusca] = useState("");
+  const [clientesStatus, setClientesStatus] = useState("todos");
   const [showModal, setShowModal] = useState(false);
   const [modalTipo, setModalTipo] = useState<"cobranca" | "despesa" | null>(null);
   const [leadSearch, setLeadSearch] = useState("");
@@ -454,7 +468,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
     startTransition(async () => {
       try {
         const campo = (nome: string) => String(form.get(nome) ?? "") || null;
-        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoriaOperacional: campo("categoriaOperacional"), vinculoOperacionalId: campo("vinculoOperacionalId"), tipoDespesaObra: campo("tipoDespesaObra"), etapa: campo("etapa"), clienteId: campo("clienteId"), clienteNomeLivre: campo("clienteNomeLivre") });
+        await editarLancamentoBpo({ id: String(form.get("id")), version: Number(form.get("version")), motivo: String(form.get("motivo")), descricao: String(form.get("descricao")), valor: Number(form.get("valor")), competencia: String(form.get("competencia")), vencimento: String(form.get("vencimento")), categoriaOperacional: campo("categoriaOperacional"), vinculoOperacionalId: campo("vinculoOperacionalId"), tipoDespesaObra: campo("tipoDespesaObra"), etapa: campo("etapa"), clienteId: campo("clienteId"), clienteNomeLivre: campo("clienteNomeLivre"), centroCustos: campo("centroCustos") });
         setModalFeedback("Lançamento atualizado e auditado.");
         setLancamentoEditando(null);
         router.refresh();
@@ -462,59 +476,30 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
     });
   }
 
-  // KPIs cobranças
-  const cobracasAll = lancamentos.filter((l) => !ehDespesa(l.tipo));
-  const totalEsperado = cobracasAll.reduce((s, l) => s + l.valor, 0);
-  const recebido = cobracasAll.reduce((s, l) => s + valorRealizado(l), 0);
-  const pendente = cobracasAll.filter(isPendente).reduce((s, l) => s + saldoLancamento(l), 0);
-  const vencido = cobracasAll.filter(isVencido).reduce((s, l) => s + saldoLancamento(l), 0);
+  const allCompetencias = [...new Set([...lancamentos, ...aClassificar.lancamentos].map((l) => l.competencia))].sort().reverse();
+  const allAnos = [...new Set([...allCompetencias.map((c) => c.split("-")[0]), ...aClassificar.movimentacoes.map((m) => m.data.slice(0, 4))])].sort().reverse();
 
-  const allCompetencias = [...new Set(lancamentos.map((l) => l.competencia))].sort().reverse();
-  const allMeses = [...new Set(allCompetencias.map((c) => c.split("-")[1]))].sort();
-  const allAnos = [...new Set(allCompetencias.map((c) => c.split("-")[0]))].sort().reverse();
-
-  function filterByCommon(items: LancamentoComCliente[]) {
-    return items.filter((l) => {
-      if (filtroOperacional && (l.categoriaOperacional !== filtroOperacional.categoria || l.vinculoOperacionalId !== filtroOperacional.id)) return false;
-      if (search && !l.clienteNome.toLowerCase().includes(search.toLowerCase()) && !l.descricao.toLowerCase().includes(search.toLowerCase())) return false;
-      if (clienteFilter && l.clienteId !== clienteFilter) return false;
-      if (mesFilter && !l.competencia.endsWith(`-${mesFilter}`)) return false;
-      if (anoFilter && !l.competencia.startsWith(`${anoFilter}-`)) return false;
-      return true;
-    });
-  }
-
+  // Filtros da tela = filtros do lote no servidor (mesma função): o que está oculto nunca entra no painel nem no lote.
+  const filtrosLote = {
+    ...filtrosDoLote(filtros), clienteId: clienteFilter || null,
+    categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null,
+  };
+  const filtrosCobrancas = { ...filtrosLote, tipo: tipoFilter };
   const cobracasBase = lancamentos.filter((l) => !ehDespesa(l.tipo));
-  const cobracasFiltered = filterByCommon(cobracasBase).filter((l) => {
-    if (statusFilter === "pendentes") return isPendente(l);
-    if (statusFilter === "pagas") return l.pago;
-    if (statusFilter === "vencidas") return isVencido(l);
-    if (statusFilter === "parciais") return !l.pago && valorRealizado(l) > 0;
-    return true;
-  }).filter((l) => {
-    if (tipoFilter === "todos") return true;
-    if (tipoFilter === "honorario") return l.tipo === "honorario";
-    if (tipoFilter === "reembolso") return l.tipo === "reembolso";
-    if (tipoFilter === "outros") return l.tipo !== "honorario" && l.tipo !== "reembolso" && !ehDespesa(l.tipo);
-    return true;
-  });
-
+  const cobracasFiltered = filtrarLancamentosLote(cobracasBase, filtrosCobrancas);
   const despesasBase = lancamentos.filter((l) => ehDespesa(l.tipo));
-  const despesasFiltered = filterByCommon(despesasBase).filter((l) => {
-    if (statusFilter === "pendentes") return isPendente(l);
-    if (statusFilter === "pagas") return l.pago;
-    if (statusFilter === "vencidas") return isVencido(l);
-    return true;
-  });
-
-  const despesaTotal = despesasBase.reduce((s, l) => s + l.valor, 0);
-  const despesaPaga = despesasBase.reduce((s, l) => s + valorRealizado(l), 0);
-  const despesaPendente = despesasBase.filter(isPendente).reduce((s, l) => s + saldoLancamento(l), 0);
-  const despesaVencida = despesasBase.filter(isVencido).reduce((s, l) => s + l.valor, 0);
+  const despesasFiltered = filtrarLancamentosLote(despesasBase, filtrosLote);
+  const vencidoDe = (xs: LancamentoComCliente[]) => Math.round(xs.filter(isVencido).reduce((s, l) => s + Math.round(saldoLancamento(l) * 100), 0)) / 100;
+  // A classificar: mesmos filtros (movimentação pela data do banco; sem cliente/tipo/vínculo operacional).
+  const filtrosAClassificar = filtrosDoLote(filtros);
+  const movsAClassificar = filtrarMovimentacoes(aClassificar.movimentacoes, filtrosAClassificar);
+  const lancsAClassificar = filtrarLancamentosLote(aClassificar.lancamentos.map((l) => ({ ...l, clienteNome: l.clienteNome ?? null })), filtrosAClassificar);
+  const totalAClassificar = aClassificar.movimentacoes.length + aClassificar.lancamentos.length;
+  const clientesFiltrados = filtrarClientes(clientes.map((c) => ({ ...c, status: c.status ?? "ativo" })), { busca: clientesBusca, status: clientesStatus });
 
   // LOTE C: DRE sobre todos os lançamentos (sem transferências internas). Lote 3, item 15: filtros
   // Mês/Ano por competência, aplicados às visões por competência e por categoria.
-  const dreAtual = dreFiltrado(dreCelulas, { mes: dreMes || null, ano: dreAno || null });
+  const dreAtual = dreFiltrado(dreCelulas, { mes: dreMes || null, ano: dreAno || null, centroCusto: dreCentro || null });
   const dreAnos = [...new Set(dreCelulas.map((c) => c.competencia.slice(0, 4)))].sort().reverse();
   const dreRows = dreAtual.porCompetencia.map((l) => [l.competencia, { cobracas: l.receitas, despesas: l.despesas }] as const);
   const dreTotalCobracas = Math.round(dreRows.reduce((s, [, v]) => s + Math.round(v.cobracas * 100), 0)) / 100;
@@ -575,6 +560,25 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
     return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-yellow-100 text-yellow-700 uppercase"><Clock size={10} /> Pendente</span>;
   }
 
+  const seletorCliente = (
+    <label className="block text-xs font-bold text-gray-500 uppercase">Cliente
+      <select aria-label="Cliente" value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
+        className="mt-1 w-full min-w-0 border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 normal-case focus:outline-none focus:border-[var(--brand-yellow)]">
+        <option value="">Todos os clientes</option>
+        {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
+      </select>
+    </label>
+  );
+
+  /** "Registrar recebimento" na aba A classificar usa a mesma baixa auditada de Cobranças/Despesas. */
+  function receberAClassificar(l: LancamentoAClassificar) {
+    setBaixa({ requestKey: crypto.randomUUID(), lancamento: {
+      id: l.id, clienteId: l.clienteId, clienteNome: l.clienteNome ?? "—", clienteNomeLivre: null, tipo: l.tipo, descricao: l.descricao,
+      valor: l.valor, valorRecebido: l.valorRecebido, vencimento: l.vencimento, pago: l.pago, pagoEm: null, competencia: l.competencia,
+      centroCustos: l.centroCustos, categoria: l.categoria, categoriaContabil: l.categoria, categoriaOperacional: null, version: l.version, doExtrato: Boolean(l.transacaoId),
+    } });
+  }
+
   function renderLancamentoTable(items: LancamentoComCliente[]) {
     return (
       <div className="bg-white border border-gray-100 overflow-hidden">
@@ -604,6 +608,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                     {(l.categoriaContabil || l.categoriaOperacional || l.doExtrato) && (
                       <p className="text-[10px] text-gray-700 mt-0.5">{l.categoriaContabil ?? l.categoria ?? ""}{l.categoriaOperacional ? ` · ${ROTULOS_OPERACIONAIS[l.categoriaOperacional] ?? l.categoriaOperacional}` : ""}{l.doExtrato ? " · extrato bancário" : ""}</p>
                     )}
+                    {l.centroCustos && <p className="text-[10px] text-gray-600">Centro de custo: {l.centroCustos}</p>}
                     {l.vinculoOperacionalId && l.categoriaOperacional && (() => { const chave = ehDespesa(l.tipo) && l.categoriaOperacional === "comissoes" ? "imoveis" : l.categoriaOperacional; const registro = catalogoOperacional[chave]?.find((r) => r.id === l.vinculoOperacionalId); return registro ? <Link className="text-xs text-blue-700 underline" href={registro.href}>{l.vinculoOperacionalRotulo ?? registro.rotulo}</Link> : <span className="text-xs text-gray-500">{l.vinculoOperacionalRotulo}</span>; })()}
                   </td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500 hidden sm:table-cell">{l.competencia}</td>
@@ -669,7 +674,14 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
         <button onClick={importarClientesCrm} disabled={isPending} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors disabled:opacity-50">
           <Users size={13} /> Importar Clientes CRM
         </button>
+        {/* Paridade BPO (13/11): backup do Conta Azul (administrador) e cadastro de centros de custo. */}
+        {podeRestaurar && <ImportarContaAzul onMensagem={setModalFeedback} />}
+        <button type="button" onClick={() => setAbrirCentros(true)}
+          className="flex items-center gap-1.5 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider px-4 py-2 hover:bg-gray-50 transition-colors">
+          Centros de custo
+        </button>
       </div>
+      {abrirCentros && <CentrosCustoModal centros={centrosCusto} onFechar={() => setAbrirCentros(false)} onMensagem={setModalFeedback} />}
 
       {/* Feedback toast */}
       {modalFeedback && (
@@ -683,6 +695,13 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
       <div className="border-b border-gray-200 flex gap-0 overflow-x-auto">
         <button className={abaClass("cobracas")} onClick={() => setAba("cobracas")}>Cobranças</button>
         <button className={abaClass("despesas")} onClick={() => setAba("despesas")}>Despesas</button>
+        <button className={abaClass("a_classificar")} onClick={() => setAba("a_classificar")}>
+          <span className="flex items-center gap-1.5">
+            A classificar
+            {totalAClassificar > 0 && <span className="bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm">{totalAClassificar}</span>}
+          </span>
+        </button>
+        <button className={abaClass("clientes")} onClick={() => setAba("clientes")}>Clientes</button>
         <button className={abaClass("dre")} onClick={() => setAba("dre")}>DRE Consolidado</button>
         <button className={abaClass("bancos")} onClick={() => setAba("bancos")}>
           <span className="flex items-center gap-1.5">
@@ -698,46 +717,9 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
         </button>
       </div>
 
-      {/* KPI Cards — not shown in DRE, Bancos or Relatórios */}
-      {aba !== "dre" && aba !== "bancos" && aba !== "relatorios" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {aba === "cobracas" ? (<>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Total Esperado</p>
-              <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(totalEsperado)}</p>
-            </div>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Recebido</p>
-              <p className="font-black text-green-600 text-lg leading-none">{formatCurrency(recebido)}</p>
-            </div>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Pendente</p>
-              <p className="font-black text-yellow-600 text-lg leading-none">{formatCurrency(pendente)}</p>
-            </div>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Vencido</p>
-              <p className="font-black text-red-600 text-lg leading-none">{formatCurrency(vencido)}</p>
-            </div>
-          </>) : (<>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Total</p>
-              <p className="font-black text-[var(--brand-dark)] text-lg leading-none">{formatCurrency(despesaTotal)}</p>
-            </div>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Pagas</p>
-              <p className="font-black text-green-600 text-lg leading-none">{formatCurrency(despesaPaga)}</p>
-            </div>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Pendentes</p>
-              <p className="font-black text-yellow-600 text-lg leading-none">{formatCurrency(despesaPendente)}</p>
-            </div>
-            <div className="bg-white border border-gray-100 p-4">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Vencidas</p>
-              <p className="font-black text-red-600 text-lg leading-none">{formatCurrency(despesaVencida)}</p>
-            </div>
-          </>)}
-        </div>
-      )}
+      {/* Paridade BPO (13/11): painel de valores do que está visível (acompanha os filtros). */}
+      {aba === "cobracas" && <PainelValores resumo={resumoDosLancamentos(cobracasFiltered)} vencido={vencidoDe(cobracasFiltered)} />}
+      {aba === "despesas" && <PainelValores despesa resumo={resumoDosLancamentos(despesasFiltered)} vencido={vencidoDe(despesasFiltered)} />}
 
       {/* ─── COBRANÇAS ─── */}
       {aba === "cobracas" && (
@@ -756,31 +738,9 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
-              <input type="text" placeholder="Buscar cliente ou descrição..." value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
-            </div>
-            <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
-              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
-              <option value="">Todos os clientes</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
-            </select>
-            <select value={mesFilter} onChange={(e) => setMesFilter(e.target.value)}
-              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
-              <option value="">Todos os meses</option>
-              {allMeses.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <select value={anoFilter} onChange={(e) => setAnoFilter(e.target.value)}
-              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
-              <option value="">Todos os anos</option>
-              {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
+          <FiltrosBpo valor={filtros} onChange={setFiltros} anos={allAnos} centros={centrosCusto} semStatus extra={seletorCliente} />
           <BarraLote aba="cobrancas" visiveis={cobracasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
-            filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter, tipo: tipoFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
+            filtros={filtrosCobrancas}
             onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} podeRestaurar={podeRestaurar} />
           {renderLancamentoTable(cobracasFiltered)}
         </div>
@@ -790,39 +750,57 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
       {aba === "despesas" && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-1">
-            {(["todas", "pendentes", "pagas", "vencidas"] as StatusFilter[]).map((s) => (
+            {(["todas", "pendentes", "pagas", "vencidas", "parciais"] as StatusFilter[]).map((s) => (
               <button key={s} className={statusTabClass(s)} onClick={() => setStatusFilter(s)}>
-                {s === "todas" ? "Todas" : s === "pendentes" ? "Pendentes" : s === "pagas" ? "Pagas" : "Vencidas"}
+                {s === "todas" ? "Todas" : s === "pendentes" ? "Pendentes" : s === "pagas" ? "Pagas" : s === "vencidas" ? "Vencidas" : "Parciais"}
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
-              <input type="text" placeholder="Buscar cliente ou descrição..." value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-gray-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white" />
-            </div>
-            <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
-              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
-              <option value="">Todos os clientes</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
-            </select>
-            <select value={mesFilter} onChange={(e) => setMesFilter(e.target.value)}
-              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
-              <option value="">Todos os meses</option>
-              {allMeses.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <select value={anoFilter} onChange={(e) => setAnoFilter(e.target.value)}
-              className="min-w-[140px] max-w-full flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
-              <option value="">Todos os anos</option>
-              {allAnos.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
+          <FiltrosBpo valor={filtros} onChange={setFiltros} anos={allAnos} centros={centrosCusto} semStatus extra={seletorCliente} />
           <BarraLote aba="despesas" visiveis={despesasFiltered.map((l) => l.id)} selecionados={selecionados} setSelecionados={setSelecionados}
-            filtros={{ busca: search, clienteId: clienteFilter || null, mes: mesFilter || null, ano: anoFilter || null, status: statusFilter === "parciais" ? "todas" : statusFilter, categoriaOperacional: filtroOperacional?.categoria ?? null, vinculoOperacionalId: filtroOperacional?.id ?? null }}
+            filtros={filtrosLote}
             onSugerirVinculos={() => setSugerirVinculos(true)} onMensagem={setModalFeedback} podeRestaurar={podeRestaurar} />
           {renderLancamentoTable(despesasFiltered)}
+        </div>
+      )}
+
+      {/* ─── A CLASSIFICAR (paridade BPO 13/11) ─── */}
+      {aba === "a_classificar" && (
+        <div className="space-y-4">
+          <FiltrosBpo valor={filtros} onChange={setFiltros} anos={allAnos} centros={centrosCusto} />
+          <AClassificarPanel movimentacoes={movsAClassificar} lancamentos={lancsAClassificar} totalMovs={aClassificar.movimentacoes.length} totalLancs={aClassificar.lancamentos.length}
+            clientes={clientes} centros={centrosCusto} onReceber={receberAClassificar} onMarcarPago={handlePagar} onMensagem={setModalFeedback} />
+        </div>
+      )}
+
+      {/* ─── CLIENTES (paridade BPO 13/11: busca por nome/documento e situação) ─── */}
+      {aba === "clientes" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 border border-gray-100 bg-white p-3 sm:grid-cols-3">
+            <label className="col-span-full block text-xs font-bold text-gray-500 uppercase sm:col-span-2">Busca
+              <input aria-label="Buscar cliente" value={clientesBusca} onChange={(e) => setClientesBusca(e.target.value)} placeholder="nome, lead ou CPF/CNPJ"
+                className="mt-1 w-full border border-gray-200 bg-white px-3 py-2 text-sm normal-case" />
+            </label>
+            <label className="block text-xs font-bold text-gray-500 uppercase">Situação
+              <select aria-label="Situação do cliente" value={clientesStatus} onChange={(e) => setClientesStatus(e.target.value)} className="mt-1 w-full border border-gray-200 bg-white px-3 py-2 text-sm normal-case">
+                <option value="todos">Todos</option><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="encerrado">Encerrado</option>
+              </select>
+            </label>
+          </div>
+          <div className="border border-gray-100 bg-white">
+            {clientesFiltrados.length === 0 ? <p className="px-4 py-10 text-center text-sm text-gray-600">Nenhum cliente encontrado.</p> : (
+              <ul className="divide-y divide-gray-50">
+                {clientesFiltrados.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
+                    <Link href={`/admin/bpo/${c.id}`} className="min-w-0 flex-1 basis-48 break-words font-medium text-[var(--brand-dark)] hover:underline">{c.razaoSocial}</Link>
+                    {c.nomeLead && c.nomeLead !== c.razaoSocial && <span className="text-xs text-gray-500">Lead: {c.nomeLead}</span>}
+                    {(c.cnpj || c.cpf) && <span className="text-xs text-gray-500">{c.cnpj || c.cpf}</span>}
+                    <span className="text-[10px] font-bold uppercase text-gray-600">{c.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
@@ -840,6 +818,11 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               <option value="">Todos os anos</option>
               {dreAnos.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
+            <select aria-label="Centro de custo do DRE" value={dreCentro} onChange={(e) => setDreCentro(e.target.value)}
+              className="min-w-[150px] flex-1 sm:flex-none border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-white">
+              <option value="">Todos os centros de custo</option>
+              {centrosCusto.map((c) => <option key={c.id} value={c.nome}>{c.nome}{c.ativo ? "" : " (inativo)"}</option>)}
+            </select>
             <div className="flex gap-1">
               {(["competencia", "categoria"] as const).map((v) => (
                 <button key={v} type="button" onClick={() => setDreVisao(v)}
@@ -848,7 +831,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                 </button>
               ))}
             </div>
-            <p className="w-full text-xs text-gray-500">Filtra pela competência do lançamento.</p>
+            <p className="w-full text-xs text-gray-500">Filtra pela competência do lançamento; o centro de custo inclui os lançamentos com dois centros (&quot;A / B&quot;).</p>
           </div>
           {dreVisao === "categoria" ? (
             <div className="bg-white border border-gray-100 overflow-x-auto">
@@ -966,6 +949,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
               <label className="block text-xs font-bold text-gray-500 uppercase">Vencimento<input name="vencimento" type="date" required defaultValue={lancamentoEditando.vencimento.slice(0, 10)} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             </div>
             <CamposOperacionais key={lancamentoEditando.id} tipo={lancamentoEditando.tipo} catalogo={catalogoOperacional} inicial={lancamentoEditando} obrigatorio={false}/>
+            <CampoCentroCusto centros={centrosCusto} defaultValue={lancamentoEditando.centroCustos} />
             {!lancamentoEditando.clienteId && <VinculoClienteLancamento lancamento={lancamentoEditando} onVinculado={(r) => { setLancamentoEditando({ ...lancamentoEditando, clienteId: r.clienteId, clienteNomeLivre: null, version: r.version }); router.refresh(); }} />}
             <label className="block text-xs font-bold text-gray-500 uppercase">Motivo da alteração<textarea name="motivo" required minLength={3} maxLength={500} className="mt-1 w-full border px-3 py-2 text-sm normal-case" /></label>
             <div className="flex justify-end gap-2"><button type="button" onClick={() => setLancamentoEditando(null)} className="border px-4 py-2 text-xs font-bold uppercase">Cancelar</button><button disabled={isPending} className="bg-[var(--brand-yellow)] px-4 py-2 text-xs font-bold uppercase disabled:opacity-50">Salvar edição</button></div>
@@ -1069,6 +1053,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                   <input name="vencimento" type="date" required
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
+                <CampoCentroCusto centros={centrosCusto} />
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setModalTipo(null)}
                     className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>
@@ -1144,6 +1129,7 @@ export function BpoClient({ filtroOperacional, catalogoOperacional, lancamentos,
                   <input name="vencimento" type="date" required
                     className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50" />
                 </div>
+                <CampoCentroCusto centros={centrosCusto} />
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setModalTipo(null)}
                     className="flex-1 border border-gray-200 text-gray-600 font-bold text-xs uppercase tracking-wider py-2.5 hover:bg-gray-50 transition-colors">Voltar</button>

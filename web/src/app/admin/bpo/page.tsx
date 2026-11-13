@@ -10,6 +10,8 @@ import { celulasDre, dreUltimos12Meses, resumoContabil } from "@/lib/financeiro/
 import { BpoClient } from "./_components/bpo-client";
 import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
 import { carregarIndicadoresRelatorios, periodoDosParametros } from "@/lib/financeiro/relatorios-bpo-dados";
+import { lancamentosAClassificar, movimentacoesAClassificar } from "@/lib/bpo-a-classificar";
+import { listarCentrosCusto } from "@/lib/bpo-centros-custo";
 
 export default async function BpoPage({ searchParams }: { searchParams: Promise<{ aba?: string; categoriaOperacional?: string; vinculoOperacionalId?: string; relDe?: string; relAte?: string }> }) {
   const usuario = await exigirModuloPagina("bpo");
@@ -30,6 +32,9 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     totalFinanciamentos,
     pluggy,
     indicadoresRelatorios,
+    centrosCusto,
+    movsAClassificar,
+    lancsAClassificar,
   ] = await Promise.all([
     // LOTE C: o extrato gera lançamentos; transferência interna não aparece em Cobranças/Despesas.
     prisma.bpoLancamento.findMany({
@@ -37,12 +42,13 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
       where: { combinadaEmId: null, exclusaoLoteBackupId: null, aClassificar: false, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
       orderBy: { vencimento: "desc" },
       take: 2000,
-      include: { cliente: { select: { razaoSocial: true } } },
+      include: { cliente: { select: { razaoSocial: true } }, transacao: { select: { titular: true } } },
     }),
     // DRE, Contabilidade e Relatórios somam todos os lançamentos (sem o limite da lista).
     prisma.bpoLancamento.findMany({ where: { combinadaEmId: null, exclusaoLoteBackupId: null, aClassificar: false }, select: { tipo: true, valor: true, valorRecebido: true, competencia: true, pago: true, categoria: true, centroCustos: true } }),
     prisma.bpoCliente.findMany({
-      select: { id: true, razaoSocial: true, leadId: true },
+      // Paridade BPO (13/11): documento, situação e nome do lead para a busca da aba Clientes.
+      select: { id: true, razaoSocial: true, leadId: true, cpf: true, cnpj: true, status: true, lead: { select: { nome: true } } },
       orderBy: { razaoSocial: "asc" },
     }),
     prisma.lead.findMany({
@@ -61,6 +67,10 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     statusPluggy(),
     // Lote 03 (14 e 18): VGV de Obras, Números de Obra, Funil, Ranking e Unidades.
     carregarIndicadoresRelatorios(periodoDosParametros(relDe, relAte)),
+    // Paridade BPO (13/11): centros de custo e a aba "A classificar".
+    listarCentrosCusto(),
+    movimentacoesAClassificar(),
+    lancamentosAClassificar(),
   ]);
   // Pedido de 25/10: a notificação de movimentações novas abre direto a aba de bancos.
   const { aba, categoriaOperacional, vinculoOperacionalId } = await searchParams;
@@ -127,7 +137,16 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     etapa: l.etapa,
     version: l.version,
     doExtrato: Boolean(l.transacaoId),
+    titular: l.transacao?.titular ?? null,
   }));
+  const aClassificar = {
+    movimentacoes: movsAClassificar.map((m) => ({ id: m.id, data: m.data.toISOString(), descricao: m.descricao, valor: m.valor, tipo: m.tipo, categoria: m.categoria, titular: m.titular, bpoClienteId: m.bpoClienteId, conta: m.conta })),
+    lancamentos: lancsAClassificar.map((l) => ({
+      id: l.id, tipo: l.tipo, descricao: l.descricao, valor: l.valor, valorRecebido: l.valorRecebido, vencimento: l.vencimento.toISOString(), competencia: l.competencia,
+      pago: l.pago, categoria: l.categoria, centroCustos: l.centroCustos, clienteNome: l.clienteNome, clienteId: l.clienteId, asaasPaymentId: l.asaasPaymentId,
+      transacaoId: l.transacaoId, version: l.version,
+    })),
+  };
 
   const contas = contasRaw.map((c) => ({
     id: c.id,
@@ -164,5 +183,5 @@ export default async function BpoPage({ searchParams }: { searchParams: Promise<
     saldoExtratoData: dataIsoDaConta(c.saldoExtratoData),
   }));
 
-  return <BpoClient filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : undefined} relatorios={relatoriosData} podeRestaurar={podeRestaurar} interApi={interHabilitado()} />;
+  return <BpoClient centrosCusto={centrosCusto} aClassificar={aClassificar} filtroOperacional={filtroOperacional} catalogoOperacional={catalogoOperacional} lancamentos={mapped} dreCelulas={dreCelulas} contabilidade={contabilidade} clientes={clientes.map(({ lead, ...c }) => ({ ...c, nomeLead: lead?.nome ?? null }))} leads={leads} contas={contas} pluggy={pluggy} abaInicial={aba === "bancos" ? "bancos" : aba === "a_classificar" ? "a_classificar" : undefined} relatorios={relatoriosData} podeRestaurar={podeRestaurar} interApi={interHabilitado()} />;
 }
