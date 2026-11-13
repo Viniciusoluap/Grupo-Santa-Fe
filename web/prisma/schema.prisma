@@ -805,6 +805,9 @@ model BpoLancamento {
   /// Lote 3, item 16: cobrança combinada em outra (a nova cobrança soma as originais; nada é apagado).
   combinadaEmId             String?
   criadoEm                  DateTime                   @default(now())
+  // ── Paridade BPO (13/11) ── "A classificar" (fora de listas/DRE/totais) e rastro do Conta Azul.
+  aClassificar              Boolean                    @default(false)
+  observacoes               String?
 
   @@index([combinadaEmId])
   @@map("bpo_lancamentos")
@@ -820,8 +823,12 @@ model BpoBaixa {
   motivo       String
   usuarioId    String
   criadoEm     DateTime      @default(now())
+  // ── Paridade BPO (13/11) ── baixa feita com uma movimentação do banco (dividir pagamentos).
+  transacaoId  String?
+  transacao    TransacaoBancaria? @relation("BaixaDaTransacao", fields: [transacaoId], references: [id], onDelete: SetNull)
 
   @@index([lancamentoId, data])
+  @@index([transacaoId])
   @@map("bpo_baixas")
 }
 
@@ -1020,6 +1027,9 @@ model TransacaoBancaria {
   /// LOTE C (25/10): lançamento pago gerado no BPO (Cobranças/Despesas/DRE), 1:1.
   lancamento            BpoLancamento?
   criadoEm              DateTime       @default(now())
+  // ── Paridade BPO (13/11) ── movimentação nova sem correspondência segura e baixas que ela deu.
+  aClassificar          Boolean        @default(false)
+  baixas                BpoBaixa[]     @relation("BaixaDaTransacao")
 
   @@index([titular])
   @@index([identificadorBancario])
@@ -1037,6 +1047,17 @@ model BpoRegraTitular {
   atualizadoEm       DateTime    @updatedAt
 
   @@map("bpo_regras_titular")
+}
+
+// ── Paridade BPO (13/11) ── cadastro de centros de custo (o lançamento guarda o nome em texto).
+/// Nome único sem diferenciar maiúsculas/acentos: índice por expressão na migração 20261113100000.
+model BpoCentroCusto {
+  id       String   @id @default(cuid())
+  nome     String
+  ativo    Boolean  @default(true)
+  criadoEm DateTime @default(now())
+
+  @@map("bpo_centros_custo")
 }
 
 /// Pedido de 25/10: credenciais da Pluggy (Meu Pluggy) gravadas pela tela do BPO › Bancos.

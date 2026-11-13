@@ -1,6 +1,7 @@
 // Lote 3 (29/10/2026), itens 13B e 16: confirmação forte, proteção de registros financeiros,
 // filtros da aba aplicados no servidor e "Combinar pagamentos". Regras puras (sem banco/rede).
 // Gêmeo no Santa Fé: web/src/lib/bpo-lote.ts.
+import { lancamentoNoCentro } from "@/lib/financeiro/centros-custo";
 
 /** Texto exigido para confirmar exclusões (case-sensitive, sem acento). */
 export const CONFIRMACAO_EXCLUSAO = "EXCLUIR";
@@ -67,13 +68,27 @@ export type FiltrosLote = {
   tipo?: "todos" | "honorario" | "reembolso" | "outros" | null;
   categoriaOperacional?: string | null;
   vinculoOperacionalId?: string | null;
+  // Paridade BPO (13/11): valor (mínimo/máximo; iguais = valor exato) e centro de custo ("A / B" vale para os dois).
+  valorMin?: number | null;
+  valorMax?: number | null;
+  centroCusto?: string | null;
 };
 
 export type LancamentoFiltravel = {
   tipo: string; clienteId: string | number | null; clienteNome?: string | null; descricao: string; competencia: string;
   vencimento: Date | string; pago: boolean; valorRecebido?: string | number | null;
   categoriaOperacional?: string | null; vinculoOperacionalId?: string | null;
+  valor?: string | number; centroCustos?: string | null; titular?: string | null;
 };
+
+/** Valor dentro de [mínimo, máximo] em centavos (vazio = sem limite). */
+export function valorNoFiltro(valor: string | number | null | undefined, f: { valorMin?: number | null; valorMax?: number | null }): boolean {
+  if (f.valorMin == null && f.valorMax == null) return true;
+  const v = Math.round(Number(valor ?? 0) * 100);
+  if (f.valorMin != null && Number.isFinite(f.valorMin) && v < Math.round(f.valorMin * 100)) return false;
+  if (f.valorMax != null && Number.isFinite(f.valorMax) && v > Math.round(f.valorMax * 100)) return false;
+  return true;
+}
 
 export const ehSaida = (tipo: string) => tipo === "despesa" || tipo.startsWith("despesa_");
 
@@ -83,7 +98,10 @@ export function filtrarLancamentosLote<T extends LancamentoFiltravel>(itens: T[]
   return itens.filter(l => {
     if (f.categoriaOperacional && l.categoriaOperacional !== f.categoriaOperacional) return false;
     if (f.vinculoOperacionalId && l.vinculoOperacionalId !== f.vinculoOperacionalId) return false;
-    if (busca && !String(l.clienteNome ?? "").toLowerCase().includes(busca) && !l.descricao.toLowerCase().includes(busca)) return false;
+    if (busca && !String(l.clienteNome ?? "").toLowerCase().includes(busca) && !l.descricao.toLowerCase().includes(busca)
+      && !String(l.titular ?? "").toLowerCase().includes(busca)) return false;
+    if (!valorNoFiltro(l.valor, f)) return false;
+    if (f.centroCusto && !lancamentoNoCentro(l.centroCustos, f.centroCusto)) return false;
     if (f.clienteId != null && f.clienteId !== "" && String(l.clienteId) !== String(f.clienteId)) return false;
     if (f.mes && !l.competencia.endsWith(`-${f.mes}`)) return false;
     if (f.ano && !l.competencia.startsWith(`${f.ano}-`)) return false;

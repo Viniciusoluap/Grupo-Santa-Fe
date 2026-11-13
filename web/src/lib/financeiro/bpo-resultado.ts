@@ -3,6 +3,7 @@
 // Transferência interna não é receita nem despesa; despesa = "despesa" e "despesa_*".
 import { CATEGORIAS_BPO, contaNoResultado, ehDespesa } from "@/lib/bpo-categorias";
 import { valorRealizado } from "@/lib/bpo-parciais";
+import { lancamentoNoCentro } from "./centros-custo";
 
 export type LancamentoResultado = {
   tipo: string;
@@ -11,6 +12,8 @@ export type LancamentoResultado = {
   pago: boolean;
   valorRecebido?: number;
   categoria?: string | null;
+  /** Paridade BPO (13/11): centro de custo ("A / B" = dois centros), para o filtro do DRE. */
+  centroCustos?: string | null;
 };
 
 export type LinhaDre = { competencia: string; receitas: number; despesas: number; resultado: number };
@@ -18,7 +21,7 @@ export type LinhaDre = { competencia: string; receitas: number; despesas: number
 const centavos = (n: number) => Math.round(n * 100) / 100;
 
 // Lote 3, item 15 (29/10, paridade Prospecta): filtros Mês/Ano do DRE pela competência (AAAA-MM).
-export type FiltroCompetencia = { mes?: string | null; ano?: string | null };
+export type FiltroCompetencia = { mes?: string | null; ano?: string | null; centroCusto?: string | null };
 export const MESES_DRE = [
   ["01", "Janeiro"], ["02", "Fevereiro"], ["03", "Março"], ["04", "Abril"], ["05", "Maio"], ["06", "Junho"],
   ["07", "Julho"], ["08", "Agosto"], ["09", "Setembro"], ["10", "Outubro"], ["11", "Novembro"], ["12", "Dezembro"],
@@ -105,7 +108,7 @@ export function dreUltimos12Meses(lancamentos: LancamentoResultado[], hoje = new
   return out;
 }
 
-export type CelulaDre = { competencia: string; categoria: string; receitas: number; despesas: number };
+export type CelulaDre = { competencia: string; categoria: string; receitas: number; despesas: number; centroCustos?: string | null };
 export type LinhaDreCategoria = { categoria: string; receitas: number; despesas: number; resultado: number };
 
 /** Base compacta (competência × categoria) para a tela filtrar Mês/Ano sem receber todos os lançamentos. */
@@ -114,8 +117,9 @@ export function celulasDre(lancamentos: LancamentoResultado[]): CelulaDre[] {
   for (const l of lancamentos) {
     if (!contaNoResultado(l)) continue;
     const categoria = l.categoria?.trim() || "Sem categoria";
-    const chave = `${l.competencia}|${categoria}`;
-    const e = mapa.get(chave) ?? { competencia: l.competencia, categoria, receitas: 0, despesas: 0 };
+    const centroCustos = l.centroCustos?.trim() || null;
+    const chave = `${l.competencia}|${categoria}|${centroCustos ?? ""}`;
+    const e = mapa.get(chave) ?? { competencia: l.competencia, categoria, receitas: 0, despesas: 0, ...(centroCustos ? { centroCustos } : {}) };
     if (ehDespesa(l.tipo)) e.despesas += Math.round(l.valor * 100); else e.receitas += Math.round(l.valor * 100);
     mapa.set(chave, e);
   }
@@ -128,6 +132,7 @@ export function dreFiltrado(celulas: CelulaDre[], filtro?: FiltroCompetencia | n
   const cat = new Map<string, { r: number; d: number }>();
   for (const c of celulas) {
     if (!competenciaNoFiltro(c.competencia, filtro)) continue;
+    if (filtro?.centroCusto && !lancamentoNoCentro(c.centroCustos, filtro.centroCusto)) continue;
     const r = Math.round(c.receitas * 100), d = Math.round(c.despesas * 100);
     const a = comp.get(c.competencia) ?? { r: 0, d: 0 }; a.r += r; a.d += d; comp.set(c.competencia, a);
     const b = cat.get(c.categoria) ?? { r: 0, d: 0 }; b.r += r; b.d += d; cat.set(c.categoria, b);
