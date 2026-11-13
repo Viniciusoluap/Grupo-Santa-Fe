@@ -139,6 +139,7 @@ model Lead {
   duplicadoPor         Usuario?                  @relation("LeadDuplicadoPor", fields: [duplicadoPorId], references: [id], onDelete: SetNull)
   clientesBpo          BpoCliente[]
   vinculosWhatsapp     WhatsappVinculoConversa[]
+  centralVendas        CentralVendasLead?
 
   @@map("leads")
 }
@@ -1863,4 +1864,218 @@ model DriveLixeiraPendente {
 
   @@unique([tipo, alvo])
   @@map("drive_lixeira_pendente")
+}
+
+// ── Paridade Central de Vendas (13/11) ──
+// Gêmeo de Prospecta/drizzle/schema-central-vendas.ts (migração 0110). Tabelas novas, só aditivas
+// (prisma/migrations/20261113200000_central_vendas). Ids de usuário/lead/mensagem são texto (cuid);
+// sem FK para usuarios (o Santa Fé desativa em vez de excluir) e só uma relação com leads (cascade).
+
+model CentralVendasConfig {
+  id            Int      @id @default(1)
+  dados         String   @default("{}")
+  atualizadoPor String?
+  atualizadoEm  DateTime @default(now())
+
+  @@map("central_vendas_config")
+}
+
+model CentralVendasChecklist {
+  id           Int                    @id @default(autoincrement())
+  slug         String                 @unique @db.VarChar(60)
+  nome         String                 @db.VarChar(120)
+  documentos   String                 @default("[]")
+  ativo        Boolean                @default(true)
+  criadoEm     DateTime               @default(now())
+  atualizadoEm DateTime               @default(now())
+  produtos     CentralVendasProduto[]
+  leads        CentralVendasLead[]
+
+  @@map("central_vendas_checklists")
+}
+
+model CentralVendasProduto {
+  id           Int                     @id @default(autoincrement())
+  slug         String                  @unique @db.VarChar(80)
+  nome         String                  @db.VarChar(160)
+  tipo         String                  @default("empreendimento") @db.VarChar(20)
+  descricao    String                  @default("")
+  cidade       String?                 @db.VarChar(100)
+  precoMin     Decimal?                @db.Decimal(15, 2)
+  precoMax     Decimal?                @db.Decimal(15, 2)
+  requisitos   String                  @default("")
+  condicoes    String                  @default("")
+  checklistId  Int?
+  checklist    CentralVendasChecklist? @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  ativo        Boolean                 @default(true)
+  criadoEm     DateTime                @default(now())
+  atualizadoEm DateTime                @default(now())
+  campanhas    CentralVendasCampanha[]
+  leads        CentralVendasLead[]
+
+  @@map("central_vendas_produtos")
+}
+
+model CentralVendasCampanha {
+  id        Int                   @id @default(autoincrement())
+  codigo    String                @unique @db.VarChar(80)
+  canal     String                @db.VarChar(60)
+  nome      String                @db.VarChar(160)
+  produtoId Int?
+  produto   CentralVendasProduto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  ativo     Boolean               @default(true)
+  criadoEm  DateTime              @default(now())
+
+  @@map("central_vendas_campanhas")
+}
+
+/// Reivindicação do telefone (DDD + 8 últimos dígitos): avisos simultâneos nunca criam dois leads.
+model CentralVendasContato {
+  chaveTelefone String   @id @db.VarChar(20)
+  leadId        String?
+  criadoEm      DateTime @default(now())
+
+  @@map("central_vendas_contatos")
+}
+
+/// Status separados (atendimento, documental, análise), 1:1 com o lead. Valores válidos e
+/// "decisão só com humano" garantidos por CHECK na migração.
+model CentralVendasLead {
+  leadId                   String                  @id
+  lead                     Lead                    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  statusAtendimento        String                  @default("novo") @db.VarChar(30)
+  statusDocumental         String                  @default("nao_iniciado") @db.VarChar(30)
+  statusAnalise            String                  @default("nao_enviado") @db.VarChar(20)
+  origem                   String                  @default("whatsapp") @db.VarChar(20)
+  idExterno                String?                 @db.VarChar(160)
+  campanha                 String?                 @db.VarChar(80)
+  produtoId                Int?
+  produto                  CentralVendasProduto?   @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  checklistId              Int?
+  checklist                CentralVendasChecklist? @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  conexaoId                String?
+  /// Qualificação (o Lead do Santa Fé não tem estes campos; ficam aqui, gravados só após o consentimento LGPD).
+  cidade                   String?                 @db.VarChar(100)
+  renda                    Decimal?                @db.Decimal(15, 2)
+  tipoRenda                String?                 @db.VarChar(20)
+  fgts                     Decimal?                @db.Decimal(15, 2)
+  estadoCivil              String?                 @db.VarChar(40)
+  composicaoRenda          Boolean?
+  lgpdConsentimento        Boolean                 @default(false)
+  lgpdConsentimentoEm      DateTime?
+  qualificacao             String                  @default("{}")
+  operadorId               String?
+  atribuidoEm              DateTime?
+  aguardandoHumanoDesde    DateTime?
+  primeiraMensagemEm       DateTime?
+  primeiraRespostaEm       DateTime?
+  primeiraRespostaHumanaEm DateTime?
+  ultimaMensagemClienteEm  DateTime?
+  ultimaMensagemEnviadaEm  DateTime?
+  qualificadoEm            DateTime?
+  docsSolicitadosEm        DateTime?
+  docsCompletosEm          DateTime?
+  enviadoAnaliseEm         DateTime?
+  decisaoEm                DateTime?
+  decisaoPor               String?
+  pendenciasAnalise        String?
+  /// Motivo interno da reprovação: só para a equipe; nunca vai ao cliente pela automação.
+  motivoReprovacao         String?
+  motivoTransferencia      String?                 @db.VarChar(60)
+  resumoTransferencia      String?
+  semProgresso             Int                     @default(0)
+  mensagensIa              Int                     @default(0)
+  tokensConsumidos         Int                     @default(0)
+  optOut                   Boolean                 @default(false)
+  optOutEm                 DateTime?
+  criadoEm                 DateTime                @default(now())
+  atualizadoEm             DateTime                @default(now())
+
+  @@index([operadorId])
+  @@map("central_vendas_leads")
+}
+
+model CentralVendasDocumento {
+  id                 Int      @id @default(autoincrement())
+  leadId             String
+  documentoClienteId String
+  arquivoId          String   @unique
+  mensagemId         String?  @unique
+  chave              String?  @db.VarChar(60)
+  confianca          Decimal? @db.Decimal(4, 3)
+  aConferir          Boolean  @default(false)
+  criadoEm           DateTime @default(now())
+
+  @@index([leadId])
+  @@map("central_vendas_documentos")
+}
+
+model CentralVendasEvento {
+  id        Int      @id @default(autoincrement())
+  tipo      String   @db.VarChar(60)
+  leadId    String?
+  origem    String   @default("sistema") @db.VarChar(30)
+  /// Resumo sem dados sensíveis (sem telefone, CPF, renda ou texto da conversa).
+  payload   String?
+  resultado String   @default("ok") @db.VarChar(30)
+  erro      String?
+  chave     String?  @unique @db.VarChar(200)
+  criadoEm  DateTime @default(now())
+
+  @@index([leadId])
+  @@index([criadoEm])
+  @@map("central_vendas_eventos")
+}
+
+model CentralVendasFila {
+  id                 Int       @id @default(autoincrement())
+  chave              String    @unique @db.VarChar(200)
+  tipo               String    @default("mensagem") @db.VarChar(30)
+  leadId             String?
+  numero             String?   @db.VarChar(30)
+  proativa           Boolean   @default(false)
+  payload            String    @default("{}")
+  status             String    @default("pendente") @db.VarChar(20)
+  tentativas         Int       @default(0)
+  proximaTentativaEm DateTime  @default(now())
+  ultimoErro         String?
+  mensagemId         String?
+  concluidoEm        DateTime?
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @default(now())
+
+  @@index([status, proximaTentativaEm])
+  @@index([leadId])
+  @@map("central_vendas_fila")
+}
+
+model CentralVendasSequencia {
+  id           Int      @id @default(autoincrement())
+  tipo         String   @db.VarChar(30)
+  nome         String   @db.VarChar(120)
+  passos       String   @default("[]")
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @default(now())
+
+  @@map("central_vendas_sequencias")
+}
+
+/// Limitação de taxa dos endpoints de entrada e da rodada curta (janela de 1 minuto).
+model CentralVendasLimite {
+  chave  String   @db.VarChar(120)
+  janela DateTime
+  total  Int      @default(0)
+
+  @@id([chave, janela])
+  @@map("central_vendas_limites")
+}
+
+/// Consumo mensal de tokens da IA (limite configurável).
+model CentralVendasTokensMes {
+  mes          String   @id @db.VarChar(7)
+  tokens       Int      @default(0)
+  atualizadoEm DateTime @default(now())
+
+  @@map("central_vendas_tokens_mes")
 }
