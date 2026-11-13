@@ -1,5 +1,3 @@
-import { resumoFornecedoresLancamento } from "./fornecedores-lancamento";
-import { resumoMaterialPublicitario } from "./material-publicitario";
 import { cenarioPrincipalDe } from "@/lib/incorporacao/estudos-massa";
 // Conversão "formulário salvo (loteamentoJson) → premissas completas do motor
 // de viabilidade" — extraída da aba Viabilidade para ser reaproveitada também
@@ -24,12 +22,29 @@ import {
   type PremissasOrcamentoParametrizado,
 } from "@/lib/orcamento/parametrizado";
 import type { EstudoData } from "@/app/admin/incorporacao/_components/incorporacao-detail";
+import { calcularMix } from "@/lib/finance/loteamento";
+import {
+  aplicarFontes, infraDoOrcamento, marketingDoSistema, resolverFontes, terrenoDaNegociacao,
+  type ConfigFontes, type FontesResolvidas, type ModoFonte,
+} from "./composicao-custos";
 
 // Percentuais são representados em % (ex.: 10) neste formulário e convertidos
 // para fração (0..1) só na conversão para o motor (paraMotor).
 export interface PremissasForm {
-  marketingFonte?: "manual" | "fornecedores" | "publicidade";
+  /** Correção 09: só "manual" ou "sistema". "fornecedores"/"publicidade" são valores legados (= sistema). */
+  marketingFonte?: ModoFonte | "fornecedores" | "publicidade";
+  /** Legado (antes da Correção 09). Hoje vale `custoInfraFonte`. */
   custoInfraModo?: "orcamento" | "manual";
+  custoInfraFonte?: ModoFonte;
+  /** Correção 10: custo do terreno pela Negociação ("sistema") ou digitado ("manual"). */
+  terrenoFonte?: ModoFonte;
+  custoTerrenoManual?: number;
+  terrenoParcelasManual?: number;
+  terrenoMesInicio?: number;
+  permutaFisicaUnidadesManual?: number;
+  /** Considera aportes/resgates do Business Plan no fluxo (padrão: sim). */
+  considerarCaptacao?: boolean;
+  mesAporteCaptacao?: number;
   mixModo?: "cenario" | "manual";
   urbanismoModo?: "cenario" | "manual";
   urbanismoFonte?: string | null;
@@ -90,24 +105,38 @@ export function urbanismoDoCenario(estudo: EstudoData) {
     areaBrutaM2: estudo.areaM2, semKml: estudo.semKml ?? false, lotesAvulsosJson: estudo.lotesAvulsosJson ?? null });
 }
 
-/** Ajustes manuais e viabilidades legadas salvas nunca são sobrescritos. */
-/** Uma única fonte de custo de lançamento por vez, sem somar orçamento e contrato. */
-export function marketingDoLancamento(estudo: EstudoData, fonte: PremissasForm["marketingFonte"]): number | null {
-  if (!fonte || fonte === "manual") return null;
-  try {
-    if (fonte === "fornecedores") { const d = JSON.parse(estudo.fornecedoresLancamentoJson ?? "{}"); return resumoFornecedoresLancamento(Array.isArray(d.fornecedores) ? d.fornecedores : []).valorTotalOrcado; }
-    const d = JSON.parse(estudo.materialPublicitarioJson ?? "{}"); return resumoMaterialPublicitario(Array.isArray(d.pecas) ? d.pecas : []).valorTotalOrcado;
-  } catch { return 0; }
+/**
+ * Configuração das fontes de custo (Correção 09/10), com migração dos dados antigos:
+ * modo explícito > modo legado > "sistema" quando o módulo de origem tem dado > "manual".
+ * Os valores MANUAIS (`custoInfraM2Lote`, `marketing`, `custoTerrenoManual`) nunca são sobrescritos.
+ */
+export function configFontes(estudo: EstudoData, form: PremissasForm): ConfigFontes {
+  const custoInfraFonte: ModoFonte = form.custoInfraFonte
+    ?? (form.custoInfraModo === "orcamento" || infraDoOrcamento(estudo).disponivel ? "sistema" : "manual");
+  const mf = form.marketingFonte;
+  const marketingFonte: ModoFonte = mf === "sistema" || mf === "fornecedores" || mf === "publicidade" ? "sistema"
+    : mf === "manual" ? "manual" : marketingDoSistema(estudo).disponivel ? "sistema" : "manual";
+  const terrenoMesInicio = Number.isFinite(form.terrenoMesInicio) && (form.terrenoMesInicio as number) >= 0 ? Math.round(form.terrenoMesInicio as number) : 1;
+  const terrenoFonte: ModoFonte = form.terrenoFonte ?? (terrenoDaNegociacao(estudo, terrenoMesInicio).disponivel ? "sistema" : "manual");
+  return {
+    custoInfraFonte, marketingFonte, terrenoFonte,
+    considerarCaptacao: form.considerarCaptacao !== false,
+    terrenoMesInicio,
+    custoTerrenoManual: Number.isFinite(form.custoTerrenoManual) ? Math.max(0, form.custoTerrenoManual as number) : 0,
+    terrenoParcelasManual: Number.isFinite(form.terrenoParcelasManual) ? Math.max(1, Math.round(form.terrenoParcelasManual as number)) : 1,
+    permutaFisicaUnidadesManual: Number.isFinite(form.permutaFisicaUnidadesManual) ? Math.max(0, Math.floor(form.permutaFisicaUnidadesManual as number)) : 0,
+    mesAporteCaptacao: Number.isFinite(form.mesAporteCaptacao) && (form.mesAporteCaptacao as number) >= 0 ? Math.round(form.mesAporteCaptacao as number) : 1,
+  };
+}
+
+/** Premissas do motor já integradas às fontes do sistema + as fontes usadas (para o demonstrativo). */
+export function montarViabilidade(estudo: EstudoData, form: PremissasForm, itensMix: ItemMixProduto[], pctAPP: number): { premissas: PremissasLoteamento; fontes: FontesResolvidas } {
+  const base = paraMotor(form, itensMix, pctAPP);
+  const fontes = resolverFontes(estudo, configFontes(estudo, form), { custoInfraM2Lote: form.custoInfraM2Lote, marketing: form.marketing }, calcularMix(itensMix).areaVendidaM2);
+  return { premissas: aplicarFontes(base, fontes), fontes };
 }
 
 export function sincronizarUrbanismo(estudo: EstudoData, form: PremissasForm): PremissasForm {
-  const marketing = marketingDoLancamento(estudo, form.marketingFonte);
-  if (marketing !== null) form = { ...form, marketing };
-
-  if (form.custoInfraModo === "orcamento") {
-    const custo = custoInfraDoOrcamentoParametrizado(estudo);
-    if (custo > 0) form = { ...form, custoInfraM2Lote: custo };
-  }
   if (form.urbanismoModo !== "cenario") return form;
   const origem = urbanismoDoCenario(estudo);
   const q = origem?.quadroAreas;
@@ -240,6 +269,11 @@ export function paraMotor(f: PremissasForm, itensMix: ItemMixProduto[], pctAPP: 
  * Retorna null se o estudo ainda não tem premissas de viabilidade salvas.
  */
 export function montarPremissasLoteamento(estudo: EstudoData): PremissasLoteamento | null {
+  return montarViabilidadeDoEstudo(estudo)?.premissas ?? null;
+}
+
+/** Igual a `montarPremissasLoteamento`, devolvendo também o formulário e as fontes resolvidas. */
+export function montarViabilidadeDoEstudo(estudo: EstudoData): { premissas: PremissasLoteamento; fontes: FontesResolvidas; form: PremissasForm; itensMix: ItemMixProduto[] } | null {
   if (!estudo.loteamentoJson) return null;
   let salvo: (Partial<PremissasForm> & { itensMix?: ItemMixProduto[] }) | null = null;
   try {
@@ -253,5 +287,5 @@ export function montarPremissasLoteamento(estudo: EstudoData): PremissasLoteamen
   const itensMix = form.mixModo === "cenario" ? defaultsMix(estudo) : salvo.itensMix && salvo.itensMix.length > 0 ? salvo.itensMix : defaultsMix(estudo);
   const appAreaM2 = appDaViabilidade(estudo, form);
   const pctAPP = form.areaBrutaM2 > 0 ? appAreaM2 / form.areaBrutaM2 : 0;
-  return paraMotor(form, itensMix, pctAPP);
+  return { ...montarViabilidade(estudo, form, itensMix, pctAPP), form, itensMix };
 }

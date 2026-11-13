@@ -80,34 +80,13 @@ function m2Str(v: number) {
   return formatArea(v);
 }
 
-/** Agrega o fluxo mensal em recebimentos por ano (bruto, incorporador, terreneiro). */
-export function recebimentosPorAno(r: ResultadoLoteamento) {
-  const anos: { ano: number; bruto: number; voce: number; terreneiro: number }[] = [];
-  for (const f of r.fluxo) {
-    const ano = Math.floor(f.mes / 12);
-    if (!anos[ano]) anos[ano] = { ano: ano + 1, bruto: 0, voce: 0, terreneiro: 0 };
-    anos[ano].bruto += f.receitaBruta;
-    anos[ano].voce += f.receitaVoce;
-    anos[ano].terreneiro += f.receitaTerreneiro;
-  }
-  return anos.filter((a) => a && (a.bruto > 0.005));
-}
+// Agregações anuais: fonte única em shared/incorporacao/fluxo-anual (convenção M1–M12 = Ano 1).
+export { recebimentosPorAno, custosPorAno, vendasPorAno, fluxoPorAno } from "@/lib/incorporacao/fluxo-anual";
+import { recebimentosPorAno, custosPorAno, vendasPorAno, fluxoPorAno } from "@/lib/incorporacao/fluxo-anual";
 
-/**
- * Agrega o fluxo mensal em CUSTOS futuros por ano (pré-venda + durante venda),
- * já em valores nominais (o custo de obra embute a correção INCC mês a mês).
- * Responde à "estimativa de custos totais futuros" do estudo.
- */
-export function custosPorAno(r: ResultadoLoteamento) {
-  const anos: { ano: number; preVenda: number; duranteVenda: number; total: number }[] = [];
-  for (const f of r.fluxo) {
-    const ano = Math.floor(f.mes / 12);
-    if (!anos[ano]) anos[ano] = { ano: ano + 1, preVenda: 0, duranteVenda: 0, total: 0 };
-    anos[ano].preVenda += f.custoPreVenda;
-    anos[ano].duranteVenda += f.custoDuranteVenda;
-    anos[ano].total += f.custoPreVenda + f.custoDuranteVenda;
-  }
-  return anos.filter((a) => a && a.total > 0.005);
+export function textoPayback(r: ResultadoLoteamento): string {
+  if (r.paybackStatus === "sem_exposicao") return "sem exposição de caixa";
+  return r.paybackMes != null ? `mês ${r.paybackMes}` : "não recupera";
 }
 
 function linhasComparativas(c: CenariosLoteamento): (string | number)[][] {
@@ -118,13 +97,16 @@ function linhasComparativas(c: CenariosLoteamento): (string | number)[][] {
   return [
     linha("VGV bruto", (r) => formatCurrency(r.vgvGross)),
     linha("VPL", (r) => formatCurrency(r.vpl)),
-    linha("TIR (a.a.)", (r) => (r.tirAnual != null ? pctStr(r.tirAnual, 2) : "—")),
+    linha("TIR (a.a.)", (r) => (r.tirAnual != null ? pctStr(r.tirAnual, 2) : "não se aplica")),
     linha("ROI", (r) => pctStr(r.roi)),
     linha("Margem líquida", (r) => pctStr(r.margemLiquida)),
-    linha("Payback", (r) => (r.paybackMes != null ? `${r.paybackMes} meses` : "não recupera")),
+    linha("Payback", textoPayback),
     linha("Exposição máxima", (r) => formatCurrency(r.exposicaoMaxima)),
     linha("Mês do pico", (r) => `mês ${r.mesPico}`),
-    linha("Custo total", (r) => formatCurrency(r.custoTotal)),
+    linha("Custos operacionais", (r) => formatCurrency(r.custoTotal)),
+    linha("Terreno", (r) => formatCurrency(r.custoTerreno)),
+    linha("Custo financeiro (captação)", (r) => formatCurrency(r.custoFinanceiroCaptacao)),
+    linha("Lucro líquido", (r) => formatCurrency(r.lucroLiquido)),
     linha("Recebível (incorporador)", (r) => formatCurrency(r.recebiveis.voce)),
   ];
 }
@@ -154,8 +136,8 @@ export function gerarRelatorioExecutivo(meta: MetaRelatorio, c: CenariosLoteamen
 
   y = titulo(doc, "2. MIX DE PRODUTOS", y);
   y = tabela(doc, y,
-    ["Produto", "Quantidade", "Área/unidade", "Preço/m²", "VGV do produto"],
-    r.mix.itens.map((i) => [i.nome, i.quantidade.toLocaleString("pt-BR"), m2Str(i.areaUnidadeM2), formatCurrency(i.precoM2), formatCurrency(i.vgv)])
+    ["Produto", "Quantidade", "Área do lote/unid.", "Preço", "VGV do produto"],
+    r.mix.itens.map((i) => [i.casaPronta ? `${i.nome} (casa pronta)` : i.nome, i.quantidade.toLocaleString("pt-BR"), m2Str(i.areaUnidadeM2), i.casaPronta ? `${formatCurrency(i.precoUnidade ?? 0)}/unid.` : `${formatCurrency(i.precoM2)}/m²`, formatCurrency(i.vgv)])
   );
 
   y = titulo(doc, "3. COMPARAÇÃO DE CENÁRIOS", y);
@@ -166,24 +148,33 @@ export function gerarRelatorioExecutivo(meta: MetaRelatorio, c: CenariosLoteamen
     ["Indicador", "Valor", "Indicador", "Valor"],
     [
       ["VGV bruto", formatCurrency(r.vgvGross), "VPL", formatCurrency(r.vpl)],
-      ["VGV líquido", formatCurrency(r.vgvNet), "TIR", r.tirAnual != null ? `${pctStr(r.tirAnual, 2)} a.a.` : "—"],
-      ["Custo total (hoje)", formatCurrency(r.custoTotal), "ROI", pctStr(r.roi)],
+      ["VGV líquido", formatCurrency(r.vgvNet), "TIR", r.tirAnual != null ? `${pctStr(r.tirAnual, 2)} a.a.` : "não se aplica"],
+      ["Custos operacionais (hoje)", formatCurrency(r.custoTotal), "ROI", pctStr(r.roi)],
+      ["Terreno", formatCurrency(r.custoTerreno), "Custo financeiro da captação", formatCurrency(r.custoFinanceiroCaptacao)],
+      ["Custo total do projeto", formatCurrency(r.custoTotalProjeto), "Lucro líquido", formatCurrency(r.lucroLiquido)],
       ["Custo total nominal (futuro, c/ INCC)", formatCurrency(r.custoTotalNominal), "Margem líquida", pctStr(r.margemLiquida)],
-      ["Exposição máx. de caixa", formatCurrency(r.exposicaoMaxima), "Payback", r.paybackMes != null ? `${r.paybackMes} meses` : "não recupera"],
+      ["Exposição máx. de caixa", formatCurrency(r.exposicaoMaxima), "Payback", textoPayback(r)],
       ["Mês do pico", `mês ${r.mesPico}`, "Taxa de desconto", `${meta.taxaDescontoAnual}% a.a.`],
       ["Break-even", `${r.breakEven.unidadesNecessarias.toLocaleString("pt-BR")} unidades`, "", ""],
     ]
   );
 
-  y = titulo(doc, "5. DISTRIBUIÇÃO DE RECEBÍVEIS (PERMUTA)", y);
+  y = titulo(doc, "5. RECEITAS, TERRENO E PARTICIPAÇÃO DO PROPRIETÁRIO", y);
   y = tabela(doc, y,
-    ["Parte", "Percentual", "Valor"],
+    ["Item", "Referência", "Valor"],
     [
-      ["Incorporador", `${(100 - meta.permutaPct).toFixed(0)}%`, formatCurrency(r.recebiveis.voce)],
-      ["Terreneiro", `${meta.permutaPct.toFixed(0)}%`, formatCurrency(r.recebiveis.terreneiro)],
-      ["Total a receber", "100%", formatCurrency(r.recebiveis.total)],
+      ["Recebimentos do incorporador", `${(100 - meta.permutaPct).toFixed(1)}% dos recebimentos`, formatCurrency(r.recebiveis.voce)],
+      ["Participação do terreneiro (permuta financeira)", `${meta.permutaPct.toFixed(1)}% dos recebimentos`, formatCurrency(r.recebiveis.terreneiro)],
+      ["Total recebido das vendas", "100%", formatCurrency(r.recebiveis.total)],
+      ["Aquisição do terreno (compra)", "custo do projeto", formatCurrency(r.custoTerreno)],
+      ["Permuta física (unidades ao proprietário)", `${r.permutaFisica.unidades} unidade(s) — não vendáveis`, formatCurrency(r.permutaFisica.vgvEquivalente)],
     ]
   );
+
+  y = titulo(doc, "6. VENDAS, RECEBIMENTOS E FLUXO POR ANO", y);
+  y = tabela(doc, y, ["Ano", "Unidades vendidas", "VGV contratado"], vendasPorAno(r).map((a) => [`Ano ${a.ano}`, a.unidades.toLocaleString("pt-BR", { maximumFractionDigits: 1 }), formatCurrency(a.vgv)]));
+  y = tabela(doc, y, ["Ano", "Recebimentos (incorp.)", "Desembolsos", "Aportes", "Devolução principal", "Saldo do ano", "Acumulado"],
+    fluxoPorAno(r).map((a) => [`Ano ${a.ano}`, formatCurrency(a.recebimentos), formatCurrency(a.custos), formatCurrency(a.aportes), formatCurrency(a.resgatesPrincipal), formatCurrency(a.saldo), formatCurrency(a.acumulado)]));
 
   ressalva(doc, y);
   doc.save(`relatorio-executivo-${meta.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`);
@@ -199,7 +190,8 @@ export function gerarRelatorioCustos(
   const r = c.ideal;
   let y = cabecalho(doc, "Relatório de Custos", meta);
 
-  const registroTotal = extras.registroPorUnidade * r.mix.totalUnidades;
+  const unidadesTotais = r.mix.totalUnidades + r.permutaFisica.unidades;
+  const registroTotal = extras.registroPorUnidade * unidadesTotais;
   const infraSemBdi = r.custoInfra / (1 + extras.bdiPct / 100);
   const bdi = r.custoInfra - infraSemBdi;
   const contingencia = infraSemBdi * (extras.contingenciaPct / 100);
@@ -216,7 +208,8 @@ export function gerarRelatorioCustos(
       [`Contingência (${extras.contingenciaPct}% da infra)`, formatCurrency(contingencia)],
       ["Projetos e licenças", formatCurrency(extras.projetosLicencas)],
       ["Marketing e lançamento", formatCurrency(extras.marketing)],
-      [`Registro (${r.mix.totalUnidades.toLocaleString("pt-BR")} unidades × ${formatCurrency(extras.registroPorUnidade)})`, formatCurrency(registroTotal)],
+      ...(r.custoObrasResidenciais > 0 ? [["Obras residenciais (Orçamento Parametrizado)", formatCurrency(r.custoObrasResidenciais)]] : []),
+      [`Registro (${unidadesTotais.toLocaleString("pt-BR")} unidades × ${formatCurrency(extras.registroPorUnidade)})`, formatCurrency(registroTotal)],
       ["Taxa de administração da obra", formatCurrency(r.custosDetalhados.taxaAdministracaoObra)],
       ["Manutenção pós-obra", formatCurrency(r.custosDetalhados.manutencao)],
       ["Taxa de incorporação", formatCurrency(r.custosDetalhados.taxaIncorporacao)],
@@ -236,17 +229,27 @@ export function gerarRelatorioCustos(
     ]
   );
 
-  y = titulo(doc, "3. CUSTOS FUTUROS POR ANO (NOMINAL, C/ CORREÇÃO INCC)", y);
-  const anosCusto = custosPorAno(r);
+  y = titulo(doc, "3. TERRENO E CUSTO FINANCEIRO", y);
   y = tabela(doc, y,
-    ["Ano", "Pré-venda", "Durante vendas", "Total do ano"],
-    anosCusto.map((a) => [`Ano ${a.ano}`, formatCurrency(a.preVenda), formatCurrency(a.duranteVenda), formatCurrency(a.total)])
+    ["Item", "Valor"],
+    [
+      ["Aquisição do terreno", formatCurrency(r.custoTerreno)],
+      [`Capital captado (entrada de caixa — não é receita)`, formatCurrency(r.capitalCaptado)],
+      ["Custo financeiro da captação (remuneração dos investidores)", formatCurrency(r.custoFinanceiroCaptacao)],
+    ]
   );
 
-  y = titulo(doc, "4. TOTAL GERAL", y);
+  y = titulo(doc, "4. DESEMBOLSOS POR ANO (NOMINAL, C/ CORREÇÃO INCC)", y);
+  const anosCusto = custosPorAno(r);
   y = tabela(doc, y,
-    ["Total geral (hoje)", "Total nominal (futuro)", "Capital necessário (exposição máx.)", "Mês do pico"],
-    [[formatCurrency(r.custoTotal), formatCurrency(r.custoTotalNominal), formatCurrency(r.exposicaoMaxima), `mês ${r.mesPico}`]]
+    ["Ano", "Obra e custos fixos", "Custos de venda", "Terreno", "Financeiro", "Total do ano"],
+    anosCusto.map((a) => [`Ano ${a.ano}`, formatCurrency(a.preVenda), formatCurrency(a.duranteVenda), formatCurrency(a.terreno), formatCurrency(a.financeiro), formatCurrency(a.total)])
+  );
+
+  y = titulo(doc, "5. TOTAL GERAL", y);
+  y = tabela(doc, y,
+    ["Custo total do projeto (hoje)", "Custos operacionais nominais", "Capital necessário (exposição máx.)", "Mês do pico"],
+    [[formatCurrency(r.custoTotalProjeto), formatCurrency(r.custoTotalNominal), formatCurrency(r.exposicaoMaxima), `mês ${r.mesPico}`]]
   );
 
   ressalva(doc, y);

@@ -14,6 +14,7 @@ import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 import { tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
 import { salvarAprovacaoProjetoSincronizado, vinculosDoEstudo } from "@/lib/projeto-incorporacao-sync";
 import { listarEngenheiros } from "@/lib/engenheiros";
+import { excluirProposta, mesclarNegociacaoParaGravar, parseNegociacao } from "@/lib/incorporacao/negociacao";
 
 // Lê os campos de localização do formulário. Aceita um link do Google Maps (ou
 // um par "lat,lng" colado) e extrai as coordenadas exatas quando possível.
@@ -202,13 +203,16 @@ export async function uploadLevantamento(estudoId: string, formData: FormData) {
 
 /** Salva as premissas do estudo de viabilidade determinístico (motor de fórmulas). */
 export async function salvarViabilidade(estudoId: string, premissasJson: string) {
-  await exigirModuloAcao("incorporacao");
-  await prisma.estudoIncorporacao.update({
-    where: { id: estudoId },
-    data: { loteamentoJson: premissasJson },
+  // Paridade Prospecta (correções 09–12): a tela verifica o resultado da gravação.
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("incorporacao");
+    await prisma.estudoIncorporacao.update({
+      where: { id: estudoId },
+      data: { loteamentoJson: premissasJson },
+    });
+    revalidatePath(`/admin/incorporacao/${estudoId}`);
+    return { ok: true as const };
   });
-  revalidatePath(`/admin/incorporacao/${estudoId}`);
-  return { ok: true };
 }
 
 /**
@@ -498,15 +502,42 @@ export async function salvarBusinessPlan(estudoId: string, dadosJson: string) {
   return { ok: true };
 }
 
-/** Salva a negociação do terreno (proprietário/terreneiro) — etapa 2.7. */
+/**
+ * Salva a negociação do terreno (proprietário/terreneiro) — etapa 2.7.
+ * Paridade Prospecta (correção 08): o salvamento nunca apaga a auditoria de
+ * exclusões nem ressuscita proposta excluída (tela desatualizada).
+ */
 export async function salvarNegociacaoTerreno(estudoId: string, dadosJson: string) {
-  await exigirModuloAcao("incorporacao");
-  await prisma.estudoIncorporacao.update({
-    where: { id: estudoId },
-    data: { negociacaoTerrenoJson: dadosJson },
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("incorporacao");
+    const recebido = parseNegociacao(dadosJson);
+    if (!recebido) throw new Error("Dados da negociação inválidos.");
+    const atual = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { negociacaoTerrenoJson: true } });
+    if (!atual) throw new Error("Estudo não encontrado.");
+    const mesclado = mesclarNegociacaoParaGravar(parseNegociacao(atual.negociacaoTerrenoJson), recebido);
+    await prisma.estudoIncorporacao.update({
+      where: { id: estudoId },
+      data: { negociacaoTerrenoJson: JSON.stringify(mesclado) },
+    });
+    revalidatePath(`/admin/incorporacao/${estudoId}`);
+    return { ok: true as const };
   });
-  revalidatePath(`/admin/incorporacao/${estudoId}`);
-  return { ok: true };
+}
+
+/** Exclui UMA proposta da negociação com auditoria (quem/quando/snapshot). Aceita exige confirmação reforçada. */
+export async function excluirPropostaNegociacao(estudoId: string, propostaId: string, confirmacaoReforcada = false) {
+  return capturarErroAcao(async () => {
+    const u = await exigirModuloAcao("incorporacao");
+    const atual = await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { negociacaoTerrenoJson: true } });
+    if (!atual) throw new Error("Estudo não encontrado.");
+    const dados = parseNegociacao(atual.negociacaoTerrenoJson);
+    if (!dados) throw new Error("Proposta não encontrada — salve a negociação antes de excluir.");
+    const r = excluirProposta(dados, propostaId, { id: u.id ?? null, nome: u.nome ?? null }, new Date().toISOString(), confirmacaoReforcada);
+    if (!r.ok) throw new Error(r.erro);
+    await prisma.estudoIncorporacao.update({ where: { id: estudoId }, data: { negociacaoTerrenoJson: JSON.stringify(r.dados) } });
+    revalidatePath(`/admin/incorporacao/${estudoId}`);
+    return { ok: true as const, exclusao: r.exclusao, historicoExclusoes: r.dados.historicoExclusoes ?? [] };
+  });
 }
 
 /** Salva os cenários de massa, o escolhido e (opcional) o mix derivado para o EVE. */
