@@ -14,24 +14,28 @@ import { catalogoOperacionalBpo } from "@/lib/bpo-catalogo";
 import { CONFIRMACAO_RESTAURACAO, confirmacaoRestauracaoValida, lerSnapshot, planejarRestauracao, type PlanoRestauracao } from "@/lib/bpo-restauracao";
 import { CONFIRMACAO_EXCLUSAO, confirmacaoExclusaoValida, filtrarLancamentosLote, resumirExclusao, validarCombinacao, type FiltrosLote, type ResumoExclusao } from "@/lib/bpo-lote";
 
-export type AbaLote = "cobrancas" | "despesas";
+// Paridade BPO (13/11): "a_classificar" = lançamentos em aberto aguardando o dono (Cancelar = arquivar, reversível).
+export type AbaLote = "cobrancas" | "despesas" | "a_classificar";
 export type EntradaLote = { aba: AbaLote; modo: "selecionados" | "tudo"; ids?: string[]; filtros?: FiltrosLote; limpezaAjustes?: boolean; previaToken?: string };
 type Tx = Prisma.TransactionClient | typeof prisma;
 
 async function lancamentosDaAba(db: Tx, aba: AbaLote, ids?: string[]) {
   const linhas = await db.bpoLancamento.findMany({
-    where: { exclusaoLoteBackupId: null, combinadaEmId: null, OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }], ...(ids ? { id: { in: ids } } : {}) },
+    where: { exclusaoLoteBackupId: null, combinadaEmId: null, aClassificar: aba === "a_classificar", OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }], ...(ids ? { id: { in: ids } } : {}) },
     include: {
       cliente: { select: { razaoSocial: true } },
+      // A busca da tela também acha pelo titular da movimentação.
+      transacao: { select: { titular: true } },
       _count: { select: { baixas: true, movimentosObra: true, recebimentosRegularizacao: true } },
     },
   });
-  const daAba = linhas.filter((l) => (aba === "despesas") === ehDespesa(l.tipo));
+  const daAba = aba === "a_classificar" ? linhas : linhas.filter((l) => (aba === "despesas") === ehDespesa(l.tipo));
   const combinadas = daAba.length ? await db.bpoLancamento.groupBy({ by: ["combinadaEmId"], where: { combinadaEmId: { in: daAba.map((l) => l.id) } }, _count: { _all: true } }) : [];
   const filhos = new Map(combinadas.map((c) => [c.combinadaEmId!, c._count._all]));
-  return daAba.map(({ _count, cliente, ...l }) => ({
+  return daAba.map(({ _count, cliente, transacao, ...l }) => ({
     ...l,
     clienteNome: cliente?.razaoSocial ?? l.clienteNomeLivre ?? "—",
+    titular: transacao?.titular ?? null,
     transacaoBancaria: l.transacaoId,
     baixas: _count.baixas, movimentosObra: _count.movimentosObra, recebimentosRegularizacao: _count.recebimentosRegularizacao,
     combinadas: filhos.get(l.id) ?? 0,

@@ -200,7 +200,7 @@ export async function gerarValoresPadraoRegularizacao(regularizacaoId: string, c
 async function bpoDisponiveisImpl() {
   await exigirAdmin();
   const lancamentos = await prisma.bpoLancamento.findMany({
-    where: { exclusaoLoteBackupId: null, pago: true, tipo: { not: "despesa" } },
+    where: { exclusaoLoteBackupId: null, aClassificar: false, pago: true, tipo: { not: "despesa" } },
     orderBy: { vencimento: "asc" },
     select: {
       id: true,
