@@ -17,6 +17,8 @@ export interface ItemOrcamentoParametrizado {
 
 export interface LinhaOrcamentoExcel {
   descricao: string; unidade: string; quantidade: number; unitario: number; total: number; formula?: string;
+  /** Correção 09.3: grupo na Viabilidade. Ausente = deduzido pela descrição (dados antigos). */
+  grupo?: "infraestrutura" | "obra_residencial";
 }
 export interface ImportacaoOrcamentoExcel {
   nome: string; originalBase64: string; aba: string; importadoEm: string;

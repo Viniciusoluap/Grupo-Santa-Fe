@@ -203,13 +203,16 @@ export async function uploadLevantamento(estudoId: string, formData: FormData) {
 
 /** Salva as premissas do estudo de viabilidade determinístico (motor de fórmulas). */
 export async function salvarViabilidade(estudoId: string, premissasJson: string) {
-  await exigirModuloAcao("incorporacao");
-  await prisma.estudoIncorporacao.update({
-    where: { id: estudoId },
-    data: { loteamentoJson: premissasJson },
+  // Paridade Prospecta (correções 09–12): a tela verifica o resultado da gravação.
+  return capturarErroAcao(async () => {
+    await exigirModuloAcao("incorporacao");
+    await prisma.estudoIncorporacao.update({
+      where: { id: estudoId },
+      data: { loteamentoJson: premissasJson },
+    });
+    revalidatePath(`/admin/incorporacao/${estudoId}`);
+    return { ok: true as const };
   });
-  revalidatePath(`/admin/incorporacao/${estudoId}`);
-  return { ok: true };
 }
 
 /**
