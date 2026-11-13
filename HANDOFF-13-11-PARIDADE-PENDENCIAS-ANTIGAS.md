@@ -38,7 +38,7 @@ Central de Vendas → `sf-central-vendas`.
 | Item | Estado | Commit |
 |------|--------|--------|
 | 3+4 — endereço/bairro/cidade/UF no lead, migrados para Avaliação/Obra/Regularização; CPF na Avaliação | concluído | 09e79c5 |
-| 9 — corretores inativos marcados e aviso de lista vazia na Comissão | concluído | (commit "feat(comissoes): corretores inativos…", ver git log) |
+| 9 — corretores inativos marcados e aviso de lista vazia na Comissão | concluído | 0f6b42a |
 
 ### Item 3+4 — detalhes
 - Schema: `Lead.endereco/bairro/cidade/uf` (bloco `// ── Paridade pendências antigas (13/11) ──` no model Lead).
