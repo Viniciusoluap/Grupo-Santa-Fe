@@ -33,11 +33,19 @@ de portar). Merge, deploy e migração em produção: **só com autorização do
   + modelos no fim de `web/prisma/schema.prisma` (bloco `// ── Paridade Central de Vendas (13/11) ──`; única linha
   em modelo existente: `Lead.centralVendas`, relação inversa exigida pelo Prisma).
 
+- Etapas 3–6 (serviços + testes): `web/src/lib/central-vendas/` — `config.ts`, `regras.ts`, `indicadores.ts`,
+  `templates.ts` (puros, copiados da Prospecta com ids texto e etapas do Santa Fé), `base.ts`, `entrada.ts`,
+  `distribuicao.ts`, `ia.ts`, `documentos.ts`, `analise.ts`, `envio.ts`, `sequencias.ts`, `rotina.ts`, `logyca.ts`,
+  `rotas.ts`; rotas POST `/api/central-vendas/entrada/site` e `/entrada/logyca`; gancho no webhook da Evolution
+  (`src/lib/whatsapp/webhook-evolution.ts`), rotina no cron diário (`api/cron/lead-card-due`), templates `cv-*` não
+  escondem os padrões em `admin/whatsapp/page.tsx`. Testes PGlite + Prisma real: `central-vendas-{migracao,entrada,
+  distribuicao,ia,documentos}.db.test.ts` (fixture `__tests__/fixtures/central-vendas.ts`).
+
 ## Migração a aplicar (NÃO aplicada em banco real)
 `web/prisma/migrations/20261113200000_central_vendas/migration.sql` — 12 tabelas `central_vendas_*` (CREATE ... IF NOT
 EXISTS), restrições guardadas por `DO $$ IF NOT EXISTS`, RLS ligado + REVOKE de anon/authenticated (padrão do repo).
 Reversão: `DROP TABLE` das `central_vendas_*`.
 
 ## Próximo passo exato
-Etapa 3+: regras puras em `web/src/lib/central-vendas/` e serviços (entrada, distribuição, IA, documentos, análise,
-envio/sequências/rotina, Logyca), depois actions/tela e testes PGlite.
+Testes de análise/envio/Logyca; server actions (`src/lib/actions/central-vendas.ts`), tela `/admin/central-vendas`,
+painel/e2e; tsc/eslint/vitest/build.

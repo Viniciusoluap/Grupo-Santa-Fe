@@ -115,6 +115,12 @@ export async function processarEventoEvolution(ev: EventoEvolution): Promise<str
       });
       if (midia && id && conn.instancia && !(midia.tamanho && midia.tamanho > LIMITE_MIDIA))
         await baixarEGuardarMidia(gravada.id, conn.instancia, id, midia.tamanho);
+      // Central de Vendas (paridade com a Prospecta, 13/11): mensagem recebida entra no serviço de entrada
+      // (desligado por padrão; nunca lança).
+      if (!deMim) {
+        const { aoReceberMensagemWhatsapp } = await import("@/lib/central-vendas/entrada");
+        await aoReceberMensagemWhatsapp({ conexaoId: conn.id, mensagemId: gravada.id, numero, nome: d?.pushName ?? null, texto, temMidia: Boolean(midia), leadIdDaMensagem: lead?.id ?? null });
+      }
       if (!deMim) {
         novas++;
         await prisma.notificacao.create({
@@ -127,6 +133,8 @@ export async function processarEventoEvolution(ev: EventoEvolution): Promise<str
         });
       }
     }
+    // Central de Vendas: rodada curta (SLA e fila), no máximo uma vez por minuto.
+    await import("@/lib/central-vendas/rotina").then(m => m.rotinaSeNecessario()).catch(() => undefined);
     return `mensagens:${novas}`;
   }
   return "ignorado";
