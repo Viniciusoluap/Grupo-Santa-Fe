@@ -105,5 +105,13 @@ Relatório e PDFs.
 ## Migrações a aplicar
 Nenhuma até aqui.
 
+`npx next build` (13/11, após o item 1): compilação OK, TypeScript OK; falha só na geração estática de "/" por falta de
+banco (`DatabaseNotReachable`) — esperado neste ambiente.
+
+## Pendências / fora do escopo
+- Autosalvamento das abas da Incorporação (Prospecta 93edc7c) não foi portado: é outra frente (não fazia parte do bloco 4).
+- Tela para cadastrar a chave do Tavily/Gemini: a Prospecta também não tem; chave via variável de ambiente ou linha `segredo.*`.
+
 ## Próximo passo
-Rodar `npx next build` e registrar; depois revisão/merge pelo dono. Validar em produção os itens (c).
+Revisão e merge pelo dono; depois validar em produção os itens (c) acima. Atualizar o ROADMAP da Prospecta marcando os itens
+do bloco 4 como portados (não alterado aqui: a Prospecta é só leitura nesta tarefa).
