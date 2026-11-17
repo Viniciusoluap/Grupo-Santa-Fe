@@ -241,6 +241,8 @@ model Corretor {
   ativo          Boolean                @default(true)
   especialidades String                 @default("[]")
   senhaAcesso    String?
+  // ── Paridade 17/11 bloco 1 ── observações do corretor (EPIC-023 S-A da Prospecta: broker_profiles.notes)
+  observacoes    String                 @default("")
   regraComissao  RegraComissaoCorretor?
   imoveis        Imovel[]
   leads          Lead[]

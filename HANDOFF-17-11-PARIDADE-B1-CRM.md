@@ -8,8 +8,8 @@ Autorização: dono, 17/11. Fonte da verdade (Prospecta, só leitura): EPIC-023 
 
 | # | Item | Situação | Commit |
 |---|------|----------|--------|
-| 1 | CRM no iPad (altura do viewport, só cartões rolam, arrasto lateral sobre o cartão) | Concluído | ver `git log` |
-| 2 | Corretores em "Usuários e acesso" + remoção da tela + colaborador sem acesso | Pendente | — |
+| 1 | CRM no iPad (altura do viewport, só cartões rolam, arrasto lateral sobre o cartão) | Concluído | `79b9433` |
+| 2 | Corretores em "Usuários e acesso" + remoção da tela + colaborador sem acesso | Concluído | ver `git log` |
 | 3 | Filtro por perfil em "Usuários e acesso" | Pendente | — |
 | 4 | Mapa operacional no MapLibre | Pendente | — |
 
@@ -24,14 +24,44 @@ Autorização: dono, 17/11. Fonte da verdade (Prospecta, só leitura): EPIC-023 
   `max-h-[40%]` com rolagem própria, para não empurrar o quadro para fora da tela.
 - Teste novo: `web/src/lib/__tests__/crm-ipad-layout.test.ts` (3 cenários, render estático).
 
+### Item 2 — Corretores em "Usuários e acesso" (só admin)
+- `web/src/app/admin/configuracoes/_components/usuarios-client.tsx`: busca (nome, e-mail, CRECI, telefone, cliente
+  do CRM) e filtro "Situação" (Todos/Ativos/Inativos), combinados com as abas de perfil; no "Novo usuário" com perfil
+  Corretor: comissão padrão (%), observações e a caixa "Enviar agora o e-mail para o corretor definir a senha"
+  (marcada por padrão). Cada corretor ganha o botão "Corretor" (nome, e-mail, telefone, CRECI, cadastro ativo,
+  comissão padrão, observações). Todo usuário ganha o botão de e-mail "Enviar link de acesso" (novo link de 7 dias).
+  Corretores antigos **sem conta de acesso** passam a aparecer na lista (marcados "Sem conta de acesso") com
+  "Vincular conta", "Corretor" e excluir — antes só existiam na tela "Corretores".
+- `web/src/lib/actions/usuarios.ts`: `criarUsuario` grava comissão/observações e aceita `enviarConvite=nao` só para
+  corretor (sem token, sem e-mail; retorna `convidado: false`); novas `salvarDadosCorretor` e `enviarLinkAcesso`
+  (só admin). `web/src/lib/actions/corretores.ts`: fica só `excluirCorretor`, agora só admin; `criarCorretor` e
+  `editarCorretor` saíram (substituídas pelas de cima).
+- `web/src/lib/usuarios/filtro.ts` e `corretor-cadastro.ts`: regras puras (busca/situação; observações até 5000;
+  convite).
+- Tela "Corretores" removida (`web/src/app/admin/corretores/**`); `[[...rota]]/page.tsx` redireciona qualquer rota
+  antiga para `/admin/configuracoes?perfil=corretor`. Link do menu lateral removido.
+- `web/src/lib/auth/modulos-lista.ts`: "Corretores" deixou de ser módulo; `web/src/lib/auth/modulos.ts`: permissão
+  gravada com módulo que não existe mais (ex.: `corretores`) é ignorada na leitura.
+- Comissões e vínculos: nada mudou em comissões, contratos, leads, imóveis, financiamentos e agenda; a comissão
+  padrão continua em `regras_comissao_corretor`.
+- Expectativa antiga que mudou: `colaborador-modulos.test.ts` esperava 15 módulos com "Corretores"; agora 14, sem ele
+  (mesma mudança feita na Prospecta em `admin-permissions.test.ts`).
+- Sem equivalente aqui: a página de perfil do corretor (`/admin/corretores/[id]`, com leads/imóveis/comissões dele) e
+  o resumo "Últimas comissões" saíram junto com a tela, como na Prospecta; os números continuam em Comissões.
+  `criarCorretor` avisava os admins ("novo_corretor"); como só o admin cadastra agora, o aviso não foi levado.
+  `web/src/lib/corretores/validacao.ts` ficou sem uso em produção (o teste dele foi mantido, sem apagar).
+
 ## Testes
-- (a) Automáticos: `crm-ipad-layout.test.ts` 3/3; `crm-pipeline.test.ts` passou; `tsc --noEmit` sem erros; eslint
+- (a) Automáticos: `corretores-usuarios-acesso.test.ts` (14 cenários, inclui a migração em PGlite);
+  `colaborador-modulos`, `perfis-acesso`, `api-acesso-modulos`, `modulos-removidos` passando; `crm-ipad-layout.test.ts` 3/3; `crm-pipeline.test.ts` passou; `tsc --noEmit` sem erros; eslint
   sem achados nos 3 arquivos.
 - (b) Manuais: nenhum (sem navegador/iPad neste ambiente).
 - (c) Pendente em produção: uso real no iPad (retrato e paisagem), como na Prospecta.
 
 ## Migração
-Nenhuma até aqui.
+`web/prisma/migrations/20261117100000_corretor_observacoes/migration.sql` — `ALTER TABLE "corretores" ADD COLUMN IF
+NOT EXISTS "observacoes" TEXT NOT NULL DEFAULT ''`. Aditiva e idempotente (testada 2x em PGlite). **Não aplicada em
+banco real** — aplicar no Supabase antes de publicar (sem ela, a tela de Configurações quebra ao ler `observacoes`).
 
 ## Próximo passo
-Item 2 (corretores em "Usuários e acesso").
+Item 3 (filtro por perfil: as abas já existem; falta `?perfil=` na URL e o teste).

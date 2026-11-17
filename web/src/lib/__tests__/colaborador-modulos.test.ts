@@ -19,9 +19,11 @@ import { podeAcessarModulo, podeAdministrarSeguranca } from "@/lib/perfis-acesso
 beforeEach(() => vi.clearAllMocks());
 
 describe("colaborador — mesmos poderes do admin nos módulos liberados", () => {
-  it("são as 15 opções do painel, na ordem da Prospecta (sem o sorteio, exclusivo dela)", () => {
+  // Expectativa antiga (15 opções, com "Corretores") mudou em 17/11: paridade com o EPIC-023 da Prospecta, o
+  // cadastro de corretores foi para "Usuários e acesso" (só admin) e deixou de ser módulo.
+  it("são as opções do painel, na ordem da Prospecta (sem o sorteio, exclusivo dela) e sem Corretores (EPIC-023)", () => {
     expect(MODULOS_PAINEL.map((m) => m.label)).toEqual([
-      "CRM / Pipeline", "Obras", "Tarefas e Agenda", "Corretores", "Regularizações", "Comissões", "Projetos",
+      "CRM / Pipeline", "Obras", "Tarefas e Agenda", "Regularizações", "Comissões", "Projetos",
       "Mapa operacional", "Avaliações", "Imóveis", "Incorporação", "WhatsApp", "BPO Financeiro", "Financiamentos", "Jurídico",
     ]);
   });

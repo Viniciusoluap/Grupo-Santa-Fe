@@ -47,18 +47,26 @@ export default async function ConfiguracoesPage() {
   const userName = sessionUser?.name ?? "Usuário";
 
   // Item 05: os cinco perfis aparecem aqui; clientes do CRM sem conta para vincular.
-  const [configs, usuarios, leadsSemConta] = await Promise.all([
+  // Paridade 17/11 (EPIC-023 S-A da Prospecta): dados do cadastro de corretor (antiga tela "Corretores") e
+  // corretores antigos ainda sem conta de acesso também aparecem aqui.
+  const dadosCorretor = { id: true, nome: true, email: true, telefone: true, creci: true, ativo: true, observacoes: true, regraComissao: { select: { percentual: true } } } as const;
+  const [configs, usuarios, leadsSemConta, corretoresSemConta] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
       orderBy: { criadoEm: "asc" },
-      include: { leadCliente: { select: { nome: true, telefone: true } }, perfilEngenheiro: { select: { ativo: true } } },
+      include: { leadCliente: { select: { nome: true, telefone: true } }, perfilEngenheiro: { select: { ativo: true } }, corretor: { select: dadosCorretor } },
     }),
     prisma.lead.findMany({
       where: { excluidoEm: null, contaCliente: null },
       select: { id: true, nome: true, email: true, telefone: true },
       orderBy: { nome: "asc" },
     }),
+    prisma.corretor.findMany({ where: { usuarioId: null }, select: dadosCorretor, orderBy: { nome: "asc" } }),
   ]);
+  const corretorDaTela = (c: { id: string; nome: string; email: string; telefone: string; creci: string; ativo: boolean; observacoes: string; regraComissao: { percentual: { toString(): string } } | null }) => ({
+    id: c.id, nome: c.nome, email: c.email, telefone: c.telefone, creci: c.creci, ativo: c.ativo, observacoes: c.observacoes,
+    percentualComissao: c.regraComissao ? c.regraComissao.percentual.toString() : null,
+  });
   // LOTE B (25/10): só os campos desta tela vão ao navegador — segredos de integração
   // (asaas.*, whatsapp.evolution.*), mesmo criptografados, ficam no servidor.
   const chavesDaTela = new Set(SECTIONS.flatMap((s) => s.fields.map((f) => f.chave)));
@@ -94,7 +102,8 @@ export default async function ConfiguracoesPage() {
         leadTelefone: u.leadCliente?.telefone ?? null,
         // Lote 2, correção 04: "Engenheiro" = colaborador com perfil de engenheiro ativo.
         engenheiro: u.papel === "colaborador" && u.perfilEngenheiro?.ativo === true,
-      }))} leadsSemConta={leadsSemConta} />
+        corretor: u.corretor ? corretorDaTela(u.corretor) : null,
+      }))} leadsSemConta={leadsSemConta} corretoresSemConta={corretoresSemConta.map(corretorDaTela)} />
     </div>
   );
 }

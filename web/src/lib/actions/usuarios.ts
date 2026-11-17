@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { validarPerfilEngenheiro } from "@/lib/engenheiro";
 import { definirPerfilEngenheiroAtivo } from "@/lib/engenheiros";
+import { lerPercentualComissao } from "@/lib/comissoes/percentual-comissao";
+import { lerConvite, lerObservacoesCorretor } from "@/lib/usuarios/corretor-cadastro";
 
 const TOKEN_PRIMEIRO_ACESSO_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
@@ -51,12 +53,23 @@ export async function criarUsuario(formData: FormData) {
   if (senha && senha.length < 8) return { error: "A senha precisa ter ao menos 8 caracteres (ou deixe em branco para enviar o link de primeiro acesso)." };
   if (papel === "corretor" && (!creci || !telefone)) return { error: "Corretor exige CRECI e telefone." };
   if (papel === "cliente" && !leadId) return { error: "Escolha o cliente do CRM a que esta conta pertence." };
+  // Paridade 17/11 (EPIC-023 S-A da Prospecta): comissão padrão, observações e cadastro sem convite vieram da
+  // antiga tela "Corretores". Só o corretor pode nascer sem o e-mail de senha (o link sai depois, pelo botão "Link").
+  let percentualComissao: string | null = null;
+  let observacoes = "";
+  if (papel === "corretor") {
+    try {
+      percentualComissao = lerPercentualComissao(formData.get("percentualComissaoPadrao"));
+      observacoes = lerObservacoesCorretor(formData.get("observacoes"));
+    } catch (e) { return { error: (e as Error).message }; }
+  }
+  const convidar = papel !== "corretor" || lerConvite(formData.get("enviarConvite"));
 
   const existe = await prisma.usuario.findUnique({ where: { email } });
   if (existe) return { error: "E-mail já cadastrado." };
 
   const permissoes = normalizarPermissoes(papel, formData.getAll("permissoes"), IDS_MODULOS_PAINEL);
-  const token = senha ? null : crypto.randomBytes(32).toString("hex");
+  const token = senha || !convidar ? null : crypto.randomBytes(32).toString("hex");
   const hash = await bcrypt.hash(senha || crypto.randomBytes(32).toString("hex"), 10);
 
   try {
@@ -84,8 +97,14 @@ export async function criarUsuario(formData: FormData) {
         // Não duplica: liga um cadastro de corretor já existente (mesmo e-mail) sem conta.
         const corretor = await tx.corretor.findUnique({ where: { email }, select: { id: true, usuarioId: true } });
         if (corretor?.usuarioId) throw new Error("Já existe um corretor com este e-mail ligado a outra conta.");
-        if (corretor) await tx.corretor.update({ where: { id: corretor.id }, data: { usuarioId: usuario.id, creci: creci!, telefone: telefone! } });
-        else await tx.corretor.create({ data: { nome, email, telefone: telefone!, creci: creci!, usuarioId: usuario.id } });
+        const dadosCorretor = {
+          ...(observacoes ? { observacoes } : {}),
+          ...(percentualComissao ? { regraComissao: corretor
+            ? { upsert: { create: { percentual: percentualComissao }, update: { percentual: percentualComissao } } }
+            : { create: { percentual: percentualComissao } } } : {}),
+        };
+        if (corretor) await tx.corretor.update({ where: { id: corretor.id }, data: { usuarioId: usuario.id, creci: creci!, telefone: telefone!, ...dadosCorretor } });
+        else await tx.corretor.create({ data: { nome, email, telefone: telefone!, creci: creci!, usuarioId: usuario.id, ...dadosCorretor } });
       }
       if (perfilEngenheiro?.ok) {
         const d = perfilEngenheiro.dados;
@@ -97,7 +116,7 @@ export async function criarUsuario(formData: FormData) {
   }
 
   revalidatePath("/admin/configuracoes");
-  revalidatePath("/admin/corretores");
+  if (!convidar && !senha) return { success: true, convidado: false };
   if (!token) return { success: true };
   const link = linkPrimeiroAcesso(token);
   const emailEnviado = await enviarLinkPrimeiroAcesso(nome, email, link);
@@ -122,7 +141,7 @@ export async function alterarPerfilUsuario(id: string, papelEscolhido: string, l
     const bloqueado = await bloquearSeUltimoAdminAtivo(id);
     if (bloqueado) return bloqueado;
   }
-  if (papel === "corretor" && !alvo.corretor) return { error: "Para virar corretor, cadastre em Corretores (CRECI) ou crie a conta como corretor." };
+  if (papel === "corretor" && !alvo.corretor) return { error: "Para virar corretor, crie a conta como Corretor (com CRECI) em Usuários e acesso." };
   let dadosDoLead: { nome: string; telefone: string } | null = null;
   if (papel === "cliente") {
     if (!leadId) return { error: "Escolha o cliente do CRM a que esta conta pertence." };
@@ -231,7 +250,7 @@ export async function vincularUsuarioCorretor(corretorId: string) {
 
   await prisma.corretor.update({ where: { id: corretorId }, data: { usuarioId: usuario.id } });
 
-  revalidatePath("/admin/corretores");
+  revalidatePath("/admin/configuracoes");
   return { success: true, token };
 }
 
@@ -245,4 +264,64 @@ export async function salvarPermissoes(id: string, permissoes: string[]) {
     data: { permissoes: JSON.stringify(normalizarPermissoes(alvo.papel, permissoes, IDS_MODULOS_PAINEL)) },
   });
   revalidatePath("/admin/configuracoes");
+}
+
+/**
+ * Paridade 17/11 (EPIC-023 S-A da Prospecta): o que a antiga tela "Corretores" editava passa para "Usuários e
+ * acesso", só para o admin — nome, e-mail, telefone, CRECI, situação do cadastro, comissão padrão (vazio = sem
+ * regra) e observações. Vale também para corretor ainda sem conta de acesso. Com conta, nome/e-mail/telefone/CRECI
+ * acompanham o login (são a mesma pessoa).
+ */
+export async function salvarDadosCorretor(formData: FormData) {
+  await exigirAdminAtivo();
+  const id = String(formData.get("id") ?? "");
+  const nome = String(formData.get("nome") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const telefone = String(formData.get("telefone") ?? "").trim();
+  const creci = String(formData.get("creci") ?? "").trim();
+  if (!id) return { error: "Corretor não encontrado." };
+  if (!nome || !email || !creci || !telefone) return { error: "Nome, CRECI, telefone e e-mail são obrigatórios." };
+  let percentual: string | null;
+  let observacoes: string;
+  try {
+    percentual = lerPercentualComissao(formData.get("percentualComissaoPadrao"));
+    observacoes = lerObservacoesCorretor(formData.get("observacoes"));
+  } catch (e) { return { error: (e as Error).message }; }
+  const ativo = formData.get("ativo") === "true";
+
+  const corretor = await prisma.corretor.findUnique({ where: { id }, select: { id: true, usuarioId: true } });
+  if (!corretor) return { error: "Corretor não encontrado." };
+  const [outroCorretor, outroUsuario] = await Promise.all([
+    prisma.corretor.findFirst({ where: { email, id: { not: id } }, select: { id: true } }),
+    prisma.usuario.findFirst({ where: { email, ...(corretor.usuarioId ? { id: { not: corretor.usuarioId } } : {}) }, select: { id: true } }),
+  ]);
+  if (outroCorretor || outroUsuario) return { error: "E-mail já cadastrado." };
+
+  await prisma.$transaction([
+    prisma.corretor.update({ where: { id }, data: { nome, email, telefone, creci, ativo, observacoes } }),
+    percentual === null
+      ? prisma.regraComissaoCorretor.deleteMany({ where: { corretorId: id } })
+      : prisma.regraComissaoCorretor.upsert({ where: { corretorId: id }, create: { corretorId: id, percentual }, update: { percentual } }),
+    ...(corretor.usuarioId ? [prisma.usuario.update({ where: { id: corretor.usuarioId }, data: { nome, email, telefone, creci } })] : []),
+  ]);
+  revalidatePath("/admin/configuracoes");
+  return { success: true };
+}
+
+/**
+ * Paridade 17/11 (EPIC-023 S-A da Prospecta, "Enviar link" em Gerenciar acesso): gera um novo link de definição
+ * de senha (7 dias) e tenta enviá-lo por e-mail; sem SMTP, o admin recebe o link para repassar. Usado sobretudo
+ * para o corretor cadastrado sem convite.
+ */
+export async function enviarLinkAcesso(id: string) {
+  await exigirAdminAtivo();
+  const alvo = await prisma.usuario.findUnique({ where: { id }, select: { id: true, nome: true, email: true, ativo: true } });
+  if (!alvo) return { error: "Usuário não encontrado." };
+  if (!alvo.ativo) return { error: "Ative o usuário antes de enviar o link de acesso." };
+  const token = crypto.randomBytes(32).toString("hex");
+  await prisma.usuario.update({ where: { id }, data: { tokenPrimeiroAcesso: token, tokenPrimeiroAcessoExpira: new Date(Date.now() + TOKEN_PRIMEIRO_ACESSO_VALIDADE_MS) } });
+  const link = linkPrimeiroAcesso(token);
+  const emailEnviado = await enviarLinkPrimeiroAcesso(alvo.nome, alvo.email, link);
+  revalidatePath("/admin/configuracoes");
+  return { success: true, link, emailEnviado };
 }
