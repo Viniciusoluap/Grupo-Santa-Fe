@@ -13,7 +13,7 @@ Sem merge, sem PR, sem deploy. Migrações NÃO aplicadas em banco real (quem ap
 | 3 | Camadas do mapa do terreno resilientes | concluído | (ver git log) |
 | 4 | EPIC-024: 07 filtros e 08 KML/KMZ | concluído | (ver git log) |
 | 4b | EPIC-024: 02 logotipo e 06 proposta do terreno | concluído (com diferenças, ver abaixo) | (ver git log) |
-| 5 | Salvamento automático da Viabilidade (93edc7c) | pendente | — |
+| 5 | Salvamento automático da Viabilidade (93edc7c) | concluído (só a Viabilidade) | (ver git log) |
 
 ## Itens 1 e 2 — Estudo de Massa (motor 3.0.0) e áreas restritas nas doações
 Origem Prospecta: c446efe, 16ba6b6, 6ef6ecc, 318bdd9 (parte da massa/APP), 8aacdcd (só massa), 8e608f2; e o pré-requisito
@@ -119,11 +119,48 @@ Origem Prospecta: e13991c (S-02, S-06 e achados F1–F3 do portão de QA).
 Testes: `incorporacao-logotipo.test.ts` (porte sem os casos de IA; migração com PGlite; rotas Next chamadas direto) e
 `incorporacao-proposta-terreno.test.ts` (porte; PDF real com jsPDF; e-mail sempre falso/injetado; migração com PGlite).
 
+## Item 5 — Salvamento automático da Viabilidade
+Origem Prospecta: 93edc7c (fila + `useSalvamento`).
+- `web/src/lib/incorporacao/fila-salvamento.ts` (cópia da fila: a edição seguinte espera a resposta anterior; falha
+  conserva o rascunho), `web/src/app/admin/incorporacao/_components/salvamento.ts` (`useSalvamento`: grava 700 ms após a
+  última alteração, avisa ao sair com alteração pendente e grava na hora se desmontar), `premissasParaGravar` em
+  `premissas-loteamento.ts` (o MESMO JSON do botão antigo: premissas + fontes efetivas + itensMix).
+- `viabilidade-tab.tsx`: grava sozinha; o botão continua ("Salvar premissas"/"Premissas salvas") para gravar na hora;
+  falha mostra "Há alterações não salvas… Tentar novamente". `incorporacao-detail.tsx`: o aviso genérico de saída do
+  estudo ignora a aba que grava sozinha (`data-autosalvamento`).
+- Abrir um estudo NÃO grava nada (só grava depois de uma edição). Estudos salvos abrem iguais (teste).
+- DIFERENÇA que ficou: na Prospecta o 93edc7c ligou o salvamento automático em TODAS as abas da Incorporação (Dados
+  Gerais, Negociação, Orçamentos, Lançamento etc.) com um provedor comum; aqui foi portado só para a Viabilidade, que
+  era o item pedido. As outras abas continuam com o botão Salvar — porte futuro (as peças `fila-salvamento.ts` e
+  `useSalvamento` já servem para elas).
+Testes: `incorporacao-autosalvamento.test.ts` (porte da fila + formato gravado/reabertura com o estudo 2 da Prospecta).
+
 ## Migrações criadas (NÃO aplicadas)
 - `web/prisma/migrations/20261117210000_camadas_terreno_cache/migration.sql` — `CREATE TABLE IF NOT EXISTS "camadas_terreno_cache"` + RLS.
 - `web/prisma/migrations/20261117220000_logotipo_empreendimento/migration.sql` — tabela `estudos_incorporacao_logos` (FK cascata para o estudo) + índices + RLS.
 - `web/prisma/migrations/20261117230000_proposta_terreno_envios/migration.sql` — tabela `estudos_incorporacao_propostas_envios` (FK cascata) + índice + RLS.
 - `web/prisma/migrations/20261117200000_contorno_app_estudo/migration.sql` — `ADD COLUMN IF NOT EXISTS "appContornoJson" TEXT`.
 
+## Resultado final (17/11, branch com os 5 itens)
+(a) automáticos: `npx vitest run --maxWorkers=3` → 195 arquivos passados / 29 pulados; 1561 testes passados / 176 pulados
+(os pulados são os de banco que já eram pulados; nenhum teste novo é pulado), 0 falhas.
+`npx tsc --noEmit -p .` limpo. eslint nos arquivos alterados: 1 erro antigo (`viabilidade-tab.tsx`,
+`react-hooks/preserve-manual-memoization`, já registrado em 13/11) e avisos antigos/copiados da Prospecta.
+`npx next build`: compilação e TypeScript OK; falha só na geração estática de "/" por falta de banco
+(`DatabaseNotReachable`) — esperado aqui.
+(b) manuais: nenhum (sem navegador nem banco com dados reais neste ambiente).
+(c) pendente em produção: aplicar as 4 migrações; gerar cenários (várias áreas, vias do entorno, APP com contorno);
+mapa do Terreno com fonte fora do ar (dado salvo com data); KMZ grande; logotipo (PNG/JPG/SVG) nos cartões; proposta
+em PDF e por e-mail (SMTP real); Viabilidade gravando sozinha e reabrindo; abrir estudos antigos.
+
+## Diferenças que restaram (resumo)
+1. Logotipo: sem PDF (falta `pdfjs-dist` no navegador) e sem geração por IA (o Santa Fé não tem gerador de imagem).
+2. Salvamento automático só na Viabilidade (na Prospecta: todas as abas).
+3. Filtros da listagem aplicam ao clicar em "Filtrar" (página do servidor); o Santa Fé mantém "pendente" e "residencial".
+4. Proposta: sem `email_logs` no Santa Fé (o registro fica na tabela de envios); identidade "Grupo Santa Fé".
+5. Testes da Maquete 3D não portados (decisão do dono); testes de router/tRPC viraram testes de actions com prisma simulado.
+
 ## Próximo passo
-Item 5 (salvamento automático das abas da Incorporação, Prospecta 93edc7c).
+Revisão pelo dono → a sessão principal aplica as 4 migrações no Supabase (ordem: 20261117200000, 210000, 220000, 230000)
+→ merge e validação em produção dos itens (c). Registrar no ROADMAP da Prospecta que o bloco 2 foi portado (a
+Prospecta é só leitura nesta tarefa).

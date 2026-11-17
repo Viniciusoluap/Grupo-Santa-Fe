@@ -336,7 +336,9 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
   // Marca "há alterações" depois do evento de digitação: atualizar o estado do
   // pai durante a fase de captura fazia a primeira tecla de cada campo se perder.
   const alteradoRef = useRef(false);
-  const marcarAlterado = () => {
+  const marcarAlterado = (e?: { target: EventTarget | null }) => {
+    // Paridade 17/11: abas com salvamento automático (Viabilidade) cuidam do próprio aviso ao sair.
+    if (e?.target instanceof Element && e.target.closest("[data-autosalvamento]")) return;
     if (alteradoRef.current) return;
     alteradoRef.current = true;
     setTimeout(() => setAlterado(true), 0);
