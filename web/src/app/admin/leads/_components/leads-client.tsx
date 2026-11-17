@@ -78,7 +78,10 @@ export function LeadsClient({ leads }: { leads: LeadListItem[] }) {
     emLoteExecutar((lead) => excluirLead(lead.id), "excluído(s) da operação");
   };
 
-  return <div className="space-y-5 min-w-0">
+  // Paridade 17/11 (EPIC-023 S-A da Prospecta): no quadro, a tela tem a altura do viewport (descontados a barra
+  // do topo, h-14, e o respiro do <main>, p-4/md:p-6); a página não rola e só os cartões rolam dentro das colunas.
+  // `relative`: textos sr-only dos cartões não esticam a página (rodada de validação de 16/11).
+  return <div className={kanban ? "relative flex h-[calc(100dvh-5.5rem)] min-w-0 flex-col space-y-5 overflow-x-hidden overflow-y-auto overscroll-none md:h-[calc(100dvh-6.5rem)]" : "space-y-5 min-w-0"}>
     <div className="flex items-center justify-between gap-4 flex-wrap">
       <div><h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">CRM Santa Fé</h1><p className="text-gray-600 text-sm mt-1">{leads.filter(leadNoPipelineAtivo).length} ativos · {leads.length} registros preservados</p></div>
       <div className="flex items-center gap-2">

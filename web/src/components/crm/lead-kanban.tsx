@@ -92,21 +92,26 @@ export function LeadKanban({ leads }: { leads: KanbanLead[] }) {
   const ativos = leads.filter(leadNoPipelineAtivo);
   const porVencimento = (a: KanbanLead, b: KanbanLead) => chaveDoCard(a.vencimentoCard).localeCompare(chaveDoCard(b.vencimentoCard)) || a.id.localeCompare(b.id);
   const semEtapa = ativos.filter((lead) => !etapaDoLead(lead)).sort(porVencimento);
-  return <div className="space-y-5">
-    {semEtapa.length > 0 && <section className="border border-amber-200 bg-amber-50 rounded-lg p-4">
+  // Paridade 17/11 (EPIC-023 S-A da Prospecta, commits 204ac53, 2cf71ba e 8aacdcd): o quadro ocupa o resto da tela;
+  // o trilho rola só de lado e cada coluna rola só os próprios cartões (sem altura fixa).
+  return <div className="flex min-h-[340px] flex-1 flex-col gap-3">
+    {semEtapa.length > 0 && <section className="relative max-h-[40%] shrink-0 overflow-y-auto overscroll-contain border border-amber-200 bg-amber-50 rounded-lg p-4">
       <h2 className="text-sm font-bold text-amber-900">A CLASSIFICAR · {semEtapa.length}</h2>
       <p className="text-xs text-amber-800 mt-1 mb-3">Leads com status comercial original preservado. Selecione a etapa operacional após revisão.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">{semEtapa.map((lead) => <LeadCard key={lead.id} lead={lead} />)}</div>
     </section>}
-    <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-4" aria-label="Pipeline de sete etapas">
-      {LEAD_STAGES.map((stage) => {
-        const cfg = LEAD_STAGE_CONFIG[stage];
-        const col = ativos.filter((lead) => etapaDoLead(lead) === stage).sort(porVencimento);
-        return <section key={stage} className="shrink-0 w-64 rounded-lg bg-gray-50 border border-gray-100 p-2">
-          <div className="flex items-center justify-between gap-2 mb-3 min-h-9"><h2 className={`text-[10px] font-black p-2 rounded ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</h2><span className="text-xs font-bold text-gray-600">{col.length}</span></div>
-          <div className="space-y-2 min-h-20">{col.map((lead) => <LeadCard key={lead.id} lead={lead} />)}{col.length === 0 && <p className="border border-dashed border-gray-200 rounded p-5 text-center text-gray-600 text-xs">Nenhum lead</p>}</div>
-        </section>;
-      })}
+    <div className="relative min-h-0 flex-1 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-contain" aria-label="Pipeline de sete etapas">
+      <div className="flex h-full min-w-max gap-3">
+        {LEAD_STAGES.map((stage) => {
+          const cfg = LEAD_STAGE_CONFIG[stage];
+          const col = ativos.filter((lead) => etapaDoLead(lead) === stage).sort(porVencimento);
+          return <section key={stage} className="flex h-full w-64 shrink-0 flex-col rounded-lg bg-gray-50 border border-gray-100 p-2">
+            <div className="flex items-center justify-between gap-2 mb-3 min-h-9"><h2 className={`text-[10px] font-black p-2 rounded ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</h2><span className="text-xs font-bold text-gray-600">{col.length}</span></div>
+            {/* Sem touch-action aqui: o arrasto de lado que começa em cima de um cartão precisa chegar ao trilho (Prospecta 2cf71ba). */}
+            <div className="relative min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 pr-1">{col.map((lead) => <LeadCard key={lead.id} lead={lead} />)}{col.length === 0 && <p className="border border-dashed border-gray-200 rounded p-5 text-center text-gray-600 text-xs">Nenhum lead</p>}</div>
+          </section>;
+        })}
+      </div>
     </div>
   </div>;
 }
