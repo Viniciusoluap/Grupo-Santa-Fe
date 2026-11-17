@@ -1253,6 +1253,10 @@ model EstudoIncorporacao {
   // ── Paridade 17/11 bloco 2 ── contorno da APP no terreno (MultiPolygon GeoJSON, lng/lat), gravado pelo mapa do
   // Terreno para o Estudo de Massa tirar a APP da área loteável pela posição real (Prospecta EPIC-023 S-I, migração 0117).
   appContornoJson String?
+  /// Paridade 17/11 bloco 2 (Prospecta EPIC-024 S-02): logotipos do empreendimento (tabela própria, nunca nesta linha).
+  logotipos       EstudoLogotipo[]
+  /// Paridade 17/11 bloco 2 (Prospecta EPIC-024 S-06): envios da proposta formal do terreno.
+  propostasEnvios EstudoPropostaEnvio[]
   /// 11/11: larguras de faixa (servidão/domínio) confirmadas pelo dono no mapa do terreno ({"rod:BR-010": 80, …}).
   largurasFaixaJson String?
 
@@ -2126,4 +2130,54 @@ model CamadaTerrenoCache {
 
   @@id([chaveTerreno, camada])
   @@map("camadas_terreno_cache")
+}
+
+// ── Paridade 17/11 bloco 2 ──
+// Logotipo de cada empreendimento da Incorporação (Prospecta EPIC-024 S-02, migração 0119 de lá). Tabela separada: a
+// listagem lê o estudo inteiro e as versões do estudo copiam a linha — os bytes do logotipo não podem ir junto. Guarda o
+// original e o PNG de exibição gerado no navegador (o único servido aos cartões). Um ativo por estudo (`excluidoEm`
+// nulo); trocar ou excluir só marca `excluidoEm` no anterior. `enviadoPorId` sem chave estrangeira (só registro).
+model EstudoLogotipo {
+  id             String             @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  mime           String             @db.VarChar(40)
+  nome           String             @db.VarChar(255)
+  origem         String             @default("envio") @db.VarChar(10) // "envio" | "ia"
+  sha256         String             @db.VarChar(64)
+  tamanho        Int
+  original       Bytes
+  exibicaoPng    Bytes
+  /// ETag da imagem servida aos cartões.
+  exibicaoSha256 String             @db.VarChar(64)
+  largura        Int?
+  altura         Int?
+  enviadoPorId   String?
+  criadoEm       DateTime           @default(now())
+  excluidoEm     DateTime?
+
+  @@index([estudoId])
+  @@map("estudos_incorporacao_logos")
+}
+
+// ── Paridade 17/11 bloco 2 ──
+// Envios da proposta formal de aquisição do terreno por e-mail (Prospecta EPIC-024 S-06, migração 0120 de lá): data,
+// destinatário, situação, motivo da falha e hash do PDF. Fora do JSON da negociação, que a aba reescreve ao salvar.
+model EstudoPropostaEnvio {
+  id             String             @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  /// id da proposta dentro de negociacaoTerrenoJson
+  propostaId     String             @db.VarChar(80)
+  destinatario   String             @db.VarChar(254)
+  status         String             @db.VarChar(10) // "enviado" | "falhou"
+  motivo         String?            @db.VarChar(400)
+  dataEmissao    String             @db.VarChar(10) // AAAA-MM-DD
+  pdfSha256      String             @db.VarChar(64)
+  enviadoPorId   String?
+  enviadoPorNome String?            @db.VarChar(255)
+  criadoEm       DateTime           @default(now())
+
+  @@index([estudoId, propostaId])
+  @@map("estudos_incorporacao_propostas_envios")
 }

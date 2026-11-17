@@ -12,7 +12,7 @@ Sem merge, sem PR, sem deploy. Migrações NÃO aplicadas em banco real (quem ap
 | 2 | Áreas restritas nas doações (`aproveitarRestricoes`, `DESTINOS_PADRAO`) | concluído (vem junto com o motor) | idem |
 | 3 | Camadas do mapa do terreno resilientes | concluído | (ver git log) |
 | 4 | EPIC-024: 07 filtros e 08 KML/KMZ | concluído | (ver git log) |
-| 4b | EPIC-024: 02 logotipo e 06 proposta do terreno | pendente | — |
+| 4b | EPIC-024: 02 logotipo e 06 proposta do terreno | concluído (com diferenças, ver abaixo) | (ver git log) |
 | 5 | Salvamento automático da Viabilidade (93edc7c) | pendente | — |
 
 ## Itens 1 e 2 — Estudo de Massa (motor 3.0.0) e áreas restritas nas doações
@@ -94,9 +94,36 @@ Origem Prospecta: e13991c (S-07, S-08) + 2c54900.
 Testes: `incorporacao-kml-kmz.test.ts` (porte; partes e prisma simulados), `incorporacao-filtros-listagem.test.ts` (porte
 com os campos do Santa Fé). Sem migração.
 
+## Item 4 (parte 2) — EPIC-024 S-02 (logotipo) e S-06 (proposta formal do terreno)
+Origem Prospecta: e13991c (S-02, S-06 e achados F1–F3 do portão de QA).
+- S-02: tabela própria `estudos_incorporacao_logos` (modelo `EstudoLogotipo`), nunca na linha do estudo; original + PNG
+  de exibição (conferido pelo cabeçalho IHDR, ≤ 1,5 MB e 512 px); um ativo por estudo, troca em transação com trava;
+  `web/src/lib/incorporacao/logotipo.ts` (cópia de `shared/incorporacao/logotipo.ts`), `logotipo-db.ts`,
+  `web/src/lib/actions/logotipo-incorporacao.ts`, rotas `/api/incorporacao/logo/[id]` (PNG com ETag) e `/[id]/original`
+  (download, `sandbox`); envio do original em partes (`/api/envio` "incorporacao.logo.parte", tipo "inc-logo");
+  componente `logotipo-empreendimento.tsx` na página "Editar estudo" (Dados Gerais) e logotipo nos cartões da listagem
+  (sem a tabela, a listagem e a edição abrem sem logotipo).
+  DIFERENÇAS que ficaram (sem como portar agora): (1) PDF não é aceito como logotipo — o Santa Fé não tem o leitor de PDF
+  no navegador (`pdfjs-dist`) para gerar a imagem de exibição; a tela pede PNG/JPG/SVG. (2) Sem "Gerar logotipo com IA":
+  o Santa Fé não tem gerador de imagem (a Prospecta usa o "Manus Forge" com chave própria). Contratar/configurar um
+  gerador é decisão do dono.
+- S-06: `web/src/lib/incorporacao/proposta-terreno-pdf.ts` (gerador único, mesmos bytes para a mesma data de emissão;
+  só o que está registrado; campo vazio omitido; logotipo do empreendimento no cabeçalho), `proposta-terreno.ts`
+  (emissão hoje ou até 2 dias atrás, nunca no futuro; só proposta do Grupo Santa Fé; e-mail pelo `sendEmail`/SMTP que
+  o Santa Fé já usa, com o PDF anexo; registro de cada envio em `estudos_incorporacao_propostas_envios`, fora do JSON da
+  negociação; enviar NÃO muda a situação da proposta), `web/src/lib/actions/proposta-terreno.ts`,
+  `proposta-terreno-envio.tsx` (baixar, prévia, destinatário, histórico, reenviar) e campo "E-mail do
+  proprietário/terreneiro" na aba Negociação (`proprietarioEmail` opcional no JSON — negociações antigas abrem iguais).
+  Diferenças de identidade (não de regra): cabeçalho "GRUPO SANTA FÉ", autor "grupo_santa_fe"; o Santa Fé não tem
+  `email_logs`, então o enum novo da Prospecta não se aplica.
+Testes: `incorporacao-logotipo.test.ts` (porte sem os casos de IA; migração com PGlite; rotas Next chamadas direto) e
+`incorporacao-proposta-terreno.test.ts` (porte; PDF real com jsPDF; e-mail sempre falso/injetado; migração com PGlite).
+
 ## Migrações criadas (NÃO aplicadas)
 - `web/prisma/migrations/20261117210000_camadas_terreno_cache/migration.sql` — `CREATE TABLE IF NOT EXISTS "camadas_terreno_cache"` + RLS.
+- `web/prisma/migrations/20261117220000_logotipo_empreendimento/migration.sql` — tabela `estudos_incorporacao_logos` (FK cascata para o estudo) + índices + RLS.
+- `web/prisma/migrations/20261117230000_proposta_terreno_envios/migration.sql` — tabela `estudos_incorporacao_propostas_envios` (FK cascata) + índice + RLS.
 - `web/prisma/migrations/20261117200000_contorno_app_estudo/migration.sql` — `ADD COLUMN IF NOT EXISTS "appContornoJson" TEXT`.
 
 ## Próximo passo
-Item 4b (EPIC-024: 02 logotipo, 06 proposta do terreno em PDF/e-mail).
+Item 5 (salvamento automático das abas da Incorporação, Prospecta 93edc7c).

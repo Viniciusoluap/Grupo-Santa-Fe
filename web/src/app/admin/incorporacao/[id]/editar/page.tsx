@@ -8,6 +8,8 @@ import { SeletorResponsavel } from "../../_components/seletor-responsavel";
 import { listarResponsaveisEstudo } from "@/lib/incorporacao/responsaveis";
 import { SITUACOES_ESTUDO, situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 import { TIPOS_INCORPORACAO, tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
+import { LogotipoEmpreendimento } from "../../_components/logotipo-empreendimento";
+import { logoAtivo } from "@/lib/incorporacao/logotipo-db";
 
 export default async function EditarEstudoPage({
   params,
@@ -20,6 +22,8 @@ export default async function EditarEstudoPage({
   const estudo = await prisma.estudoIncorporacao.findUnique({ where: { id } });
   if (!estudo) notFound();
   const responsaveis = await listarResponsaveisEstudo(estudo.responsavelId);
+  // Paridade 17/11 (S-02): logotipo do empreendimento; sem a tabela (migração não aplicada) a página abre sem ele.
+  const logo = await logoAtivo(estudo.id).catch(() => null);
 
   return (
     <div className="space-y-5 max-w-xl">
@@ -28,6 +32,8 @@ export default async function EditarEstudoPage({
         <h1 className="font-black text-[var(--brand-dark)] text-2xl uppercase tracking-wide">Editar estudo</h1>
         <p className="text-gray-600 text-sm mt-0.5">Atualize a identificação e a localização do empreendimento.</p>
       </div>
+
+      <LogotipoEmpreendimento estudoId={estudo.id} inicial={logo} />
 
       <form action={editarEstudo} className="bg-white border border-gray-100 p-5 space-y-4">
         <input type="hidden" name="id" value={estudo.id} />

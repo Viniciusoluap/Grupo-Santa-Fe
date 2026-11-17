@@ -7,6 +7,7 @@ import { EstudoAcoes } from "./_components/estudo-acoes";
 import { SITUACOES_ESTUDO } from "@/lib/incorporacao/status-estudo";
 import { TIPOS_INCORPORACAO } from "@/lib/incorporacao/tipo-estudo";
 import { FILTROS_INCORPORACAO_VAZIOS, filtrarEstudosIncorporacao, filtrosIncorporacaoAtivos } from "@/lib/incorporacao/filtro-listagem";
+import { versoesDosLogos } from "@/lib/incorporacao/logotipo-db";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   em_estudo: { label: "Em estudo", cls: "bg-blue-50 text-blue-700" },
@@ -33,6 +34,8 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
   const todos = await prisma.estudoIncorporacao.findMany({ orderBy: { atualizadoEm: "desc" } });
   const estudos = filtrarEstudosIncorporacao(todos, filtros);
   const ativos = filtrosIncorporacaoAtivos(filtros);
+  // Paridade 17/11 (S-02): só a versão (hash) do logotipo de cada estudo; a imagem vem da rota própria, com cache.
+  const logoPorEstudo = new Map((await versoesDosLogos()).map((l) => [l.estudoId, l.versao]));
 
   return (
     <div className="space-y-5">
@@ -108,6 +111,12 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
                 <Link href={`/admin/incorporacao/${e.id}`} className="block">
                   {/* Item 6 (18/10): no celular o nome quebra linha e o selo fica dentro do quadro. */}
                   <div className="flex min-w-0 items-start justify-between gap-2 mb-2">
+                    {logoPorEstudo.has(e.id) && (
+                      <div className="flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden bg-white p-1 sm:h-12 sm:w-16">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- logotipo do banco servido por rota autenticada */}
+                        <img src={`/api/incorporacao/logo/${e.id}?v=${logoPorEstudo.get(e.id)!.slice(0, 16)}`} alt="" loading="lazy" decoding="async" className="max-h-full max-w-full object-contain" />
+                      </div>
+                    )}
                     <p className="min-w-0 flex-1 break-words font-bold text-[var(--brand-dark)]">{e.nome}</p>
                     <span className={`max-w-[8.5rem] text-center leading-tight text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide shrink-0 ${badge.cls}`}>
                       {badge.label}

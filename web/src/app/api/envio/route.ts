@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enviarDocumentoRegistro, enviarParteDocumentoRegistro, finalizarDocumentoRegistro } from "@/lib/actions/documentos-registro";
 import { enviarParteTerreno, uploadKml, uploadLevantamento } from "@/lib/actions/incorporacao";
+import { enviarParteLogotipo } from "@/lib/actions/logotipo-incorporacao";
 import { uploadContratoAssinado } from "@/lib/actions/juridico";
 import { enviarContratoAssinadoPortal } from "@/lib/actions/portal";
 import { salvarArquivosProjeto } from "@/lib/actions/projetos";
@@ -33,6 +34,12 @@ const ACOES: Record<string, (dados: FormData) => Promise<unknown>> = {
   "incorporacao.documento.finalizar": (d) =>
     finalizarDocumentoRegistro(texto(d, "estudoId"), texto(d, "itemId"), texto(d, "uploadId"), texto(d, "nome"), texto(d, "mime"), Number(texto(d, "tamanho"))),
   "incorporacao.kml": (d) => uploadKml(texto(d, "estudoId"), d),
+  // Paridade 17/11 (S-02): original do logotipo do empreendimento (até 10 MB) em partes de 1 MiB
+  "incorporacao.logo.parte": (d) => {
+    const pedaco = d.get("pedaco");
+    if (!(pedaco instanceof Blob)) throw new Error("Envio inválido.");
+    return enviarParteLogotipo(texto(d, "estudoId"), texto(d, "uploadId"), Number(texto(d, "parte")), Number(texto(d, "total")), texto(d, "nome"), pedaco);
+  },
   // Paridade 17/11 (S-08): terreno KML/KMZ até 20 MB em partes de 1 MiB; depois "incorporacao.kml" com uploadId + fileName
   "incorporacao.terreno.parte": (d) => {
     const pedaco = d.get("pedaco");
