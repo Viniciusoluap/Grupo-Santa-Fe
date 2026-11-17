@@ -2108,3 +2108,27 @@ model CentralVendasTokensMes {
 
   @@map("central_vendas_tokens_mes")
 }
+
+// ── Paridade 17/11 bloco 4 ──
+// Termo de consentimento (gêmeo de Prospecta/drizzle/schema-consentimentos.ts; migração 20261117400000_consentimentos).
+/// Só inclusão (gatilho no banco): aceite do termo ou retirada (tipo "revogacao"). "usuarioId" sem chave estrangeira
+/// de propósito: excluir a conta continua possível e a prova do aceite permanece. Sem IP nem user-agent.
+model Consentimento {
+  id            Int      @id @default(autoincrement())
+  usuarioId     String
+  versaoTermo   String   @db.VarChar(40)
+  /// Instante do registro (aceite ou retirada).
+  registradoEm  DateTime @default(now()) @db.Timestamptz(6)
+  /// definir_senha | login (aceite) · admin | conta (retirada)
+  canal         String   @db.VarChar(20)
+  aparelho      String   @default("desconhecido") @db.VarChar(12)
+  comSenha      Boolean  @default(false)
+  /// aceite | revogacao
+  tipo          String   @default("aceite") @db.VarChar(12)
+  /// Quem registrou a retirada (admin ou o próprio titular).
+  registradoPor String?
+
+  @@index([usuarioId, registradoEm])
+  @@index([versaoTermo])
+  @@map("consentimentos")
+}

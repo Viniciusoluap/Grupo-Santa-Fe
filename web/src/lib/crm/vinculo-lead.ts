@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { exigirModuloDoServico } from "@/lib/crm/modulo-do-servico";
 import type { Prisma, Financiamento } from "@/generated/prisma/client";
 import { randomUUID } from "node:crypto";
-import { dadosClienteDoLead, enderecoCompletoDoLead, enderecoDoLead, ENDERECO_A_DEFINIR, moduloDoServico, parseServicosLead, servicoDoModulo, type ModuloServico, type ServicoOperacional } from "./servicos-lead";
+import { dadosClienteDoLead, enderecoCompletoDoLead, enderecoDaAvaliacaoAposLead, enderecoDoLead, ENDERECO_A_DEFINIR, type LeadEndereco, moduloDoServico, parseServicosLead, servicoDoModulo, type ModuloServico, type ServicoOperacional } from "./servicos-lead";
 import { PAPEIS_RESPONSAVEL, podeSerResponsavel } from "./responsavel";
 
 // Helpers internos: nenhuma função deste arquivo é uma server action pública.
@@ -151,8 +151,12 @@ export async function adicionarOperacaoDoLead(tx: TransacaoCRM, leadId: string, 
   return demanda[op.modulo] ?? criarRegistro(tx, lead, op, demanda.id);
 }
 
-export async function propagarDadosClienteDoLead(lead: ClienteLead, tx?: TransacaoCRM): Promise<void> {
-  if (!tx) return transacaoCRM(async (t) => { await bloquearLead(t, lead.id); return propagarDadosClienteDoLead(lead, t); });
+/**
+ * `enderecoAnterior` (regra de 17/11): o endereço do lead ANTES da edição. Com ele, a avaliação que ainda tem o endereço
+ * antigo do lead acompanha a mudança; sem ele (chamadores antigos), só o que está pendente é preenchido.
+ */
+export async function propagarDadosClienteDoLead(lead: ClienteLead, tx?: TransacaoCRM, enderecoAnterior?: LeadEndereco): Promise<void> {
+  if (!tx) return transacaoCRM(async (t) => { await bloquearLead(t, lead.id); return propagarDadosClienteDoLead(lead, t, enderecoAnterior); });
   const c = dadosClienteDoLead(lead);
   const base = { clienteNome: c.clienteNome, clienteTel: c.clienteTel };
   await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: { ...base, clienteEmail: c.clienteEmail, clienteCpf: lead.cpf ?? null } });
@@ -160,26 +164,28 @@ export async function propagarDadosClienteDoLead(lead: ClienteLead, tx?: Transac
   await tx.obra.updateMany({ where: { leadId: lead.id }, data: base });
   await tx.projeto.updateMany({ where: { leadId: lead.id }, data: base });
   await tx.regularizacao.updateMany({ where: { leadId: lead.id }, data: base });
-  await preencherEnderecoPendente(tx, lead);
+  await preencherEnderecoPendente(tx, lead, enderecoAnterior ?? {});
 }
 
 /**
- * Paridade 13/11 (EPIC-017): o endereço do lead preenche só o que ainda está
- * pendente nos registros vinculados (vazio ou "A definir"). Endereço já
- * digitado no módulo não é sobrescrito: o lote da obra ou o imóvel avaliado
- * pode ser diferente do endereço do cliente.
+ * Paridade 13/11 (EPIC-017): o endereço do lead preenche só o que ainda está pendente em Obra e Regularização (vazio).
+ * Avaliação (regra de 17/11, enderecoDaAvaliacaoAposLead): campo a campo, só onde ainda segue o lead — igual ao
+ * endereço anterior do lead, vazio ou "A definir". Endereço digitado no módulo não é sobrescrito: o lote da obra ou o
+ * imóvel avaliado pode ser diferente do endereço do cliente.
  */
-async function preencherEnderecoPendente(tx: TransacaoCRM, lead: ClienteLead) {
+async function preencherEnderecoPendente(tx: TransacaoCRM, lead: ClienteLead, anterior: LeadEndereco) {
   if (!("endereco" in lead || "bairro" in lead || "cidade" in lead || "uf" in lead)) return;
-  const end = enderecoDoLead(lead);
   const completo = enderecoCompletoDoLead(lead);
   if (completo) {
     const vazio = { leadId: lead.id, OR: [{ endereco: null }, { endereco: "" }] };
     await tx.obra.updateMany({ where: vazio, data: { endereco: completo } });
     await tx.regularizacao.updateMany({ where: vazio, data: { endereco: completo } });
   }
-  if (end.endereco) await tx.avaliacao.updateMany({ where: { leadId: lead.id, endereco: { in: ["", ENDERECO_A_DEFINIR] } }, data: { endereco: end.endereco, ...(end.cidade ? { cidade: end.cidade } : {}), ...(end.uf ? { estado: end.uf } : {}) } });
-  if (end.bairro) await tx.avaliacao.updateMany({ where: { leadId: lead.id, bairro: { in: ["", ENDERECO_A_DEFINIR] } }, data: { bairro: end.bairro } });
+  const avaliacoes = await tx.avaliacao.findMany({ where: { leadId: lead.id }, select: { id: true, endereco: true, bairro: true, cidade: true, estado: true } });
+  for (const a of avaliacoes) {
+    const patch = enderecoDaAvaliacaoAposLead(a, anterior, lead);
+    if (Object.keys(patch).length) await tx.avaliacao.updateMany({ where: { id: a.id }, data: patch });
+  }
 }
 
 /** Usuários reais (ativos, internos) que podem ser responsáveis por um lead. */

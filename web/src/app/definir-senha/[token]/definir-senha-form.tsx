@@ -4,12 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
 import { definirSenhaPrimeiroAcesso } from "@/lib/actions/primeiro-acesso";
+import { CaixaDoTermo } from "@/components/consentimento/caixa-do-termo";
+import { AVISO_SEM_ACEITE, VERSAO_DO_TERMO } from "@/lib/termo-consentimento";
 
 interface Props {
   token: string;
+  /** Paridade 17/11 bloco 4: "obrigatorio" (conta nova), "opcional" (aceitou versão anterior) ou "aceito" (sem caixa). */
+  termo: "aceito" | "obrigatorio" | "opcional";
 }
 
-export function DefinirSenhaForm({ token }: Props) {
+export function DefinirSenhaForm({ token, termo }: Props) {
+  const [aceitou, setAceitou] = useState(false);
+  const [avisoTermo, setAvisoTermo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +35,14 @@ export function DefinirSenhaForm({ token }: Props) {
       return;
     }
 
+    if (termo === "obrigatorio" && !aceitou) {
+      setAvisoTermo(AVISO_SEM_ACEITE);
+      document.getElementById("aceite-termo")?.focus();
+      return;
+    }
+
     setLoading(true);
-    const result = await definirSenhaPrimeiroAcesso(token, senha);
+    const result = await definirSenhaPrimeiroAcesso(token, senha, termo !== "aceito" && aceitou, VERSAO_DO_TERMO);
     setLoading(false);
 
     if (result?.error) {
@@ -91,6 +103,10 @@ export function DefinirSenhaForm({ token }: Props) {
           className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-yellow)] bg-gray-50"
         />
       </div>
+
+      {termo !== "aceito" && (
+        <CaixaDoTermo marcado={aceitou} onChange={v => { setAceitou(v); if (v) setAvisoTermo(null); }} aviso={avisoTermo} opcional={termo === "opcional"} />
+      )}
 
       {error && (
         <p className="text-red-500 text-xs bg-red-50 border border-red-100 px-3 py-2">

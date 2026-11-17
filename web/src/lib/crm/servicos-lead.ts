@@ -131,6 +131,44 @@ export function enderecoDoFormulario(formData: FormData) {
 /** Marcador usado nas avaliações criadas pelo CRM antes de existir endereço no lead. */
 export const ENDERECO_A_DEFINIR = "A definir";
 
+// ── Endereço da Avaliação (regra do dono, 17/11/2026: "sempre vindo do lead, mas com a possibilidade de edição na
+// avaliação, isso para os dois"). Gêmeo de Prospecta/shared/lead-snapshot.ts (enderecoDaAvaliacaoAposLead).
+//   - ao criar ou vincular, o endereço vem do lead;
+//   - o endereço continua editável na avaliação e o que foi salvo nela nunca é sobrescrito ao salvar a avaliação;
+//   - mudar o endereço do lead atualiza a avaliação campo a campo, só onde o valor da avaliação ainda é igual ao
+//     antigo do lead, ou está vazio / "A definir". Cidade e UF também seguem quando o endereço da avaliação ainda está
+//     pendente. Lead que apaga um campo não apaga o da avaliação.
+export type EnderecoDaAvaliacao = { endereco: string; bairro: string; cidade: string; estado: string };
+
+const comparavel = (v: string | null | undefined) => (v ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+const pendente = (v: string | null | undefined) => comparavel(v) === "" || comparavel(v) === comparavel(ENDERECO_A_DEFINIR);
+
+function enderecoDoLeadNaAvaliacao(lead: LeadEndereco): EnderecoDaAvaliacao {
+  const e = enderecoDoLead(lead);
+  return { endereco: e.endereco, bairro: e.bairro, cidade: e.cidade, estado: e.uf };
+}
+
+/** O que muda na avaliação quando o endereço do lead muda de `antes` para `depois` (objeto vazio = nada muda). */
+export function enderecoDaAvaliacaoAposLead(avaliacao: Partial<EnderecoDaAvaliacao>, antes: LeadEndereco, depois: LeadEndereco): Partial<EnderecoDaAvaliacao> {
+  const velho = enderecoDoLeadNaAvaliacao(antes);
+  const novo = enderecoDoLeadNaAvaliacao(depois);
+  const enderecoPendente = pendente(avaliacao.endereco);
+  const patch: Partial<EnderecoDaAvaliacao> = {};
+  for (const campo of ["endereco", "bairro", "cidade", "estado"] as const) {
+    const atual = avaliacao[campo];
+    if (!novo[campo] || comparavel(novo[campo]) === comparavel(atual)) continue;
+    const segueOLead = pendente(atual) || comparavel(atual) === comparavel(velho[campo])
+      || ((campo === "cidade" || campo === "estado") && enderecoPendente);
+    if (segueOLead) patch[campo] = novo[campo];
+  }
+  return patch;
+}
+
+/** Ao vincular (ou trocar) o lead de uma avaliação: os campos que o lead tem preenchidos vêm dele. */
+export function enderecoAoVincular(lead: LeadEndereco): Partial<EnderecoDaAvaliacao> {
+  return Object.fromEntries(Object.entries(enderecoDoLeadNaAvaliacao(lead)).filter(([, v]) => v)) as Partial<EnderecoDaAvaliacao>;
+}
+
 /** Número de protocolo da avaliação (mesmo formato usado em /admin/avaliacoes). */
 export function gerarNumeroAvaliacao(agora: Date = new Date(), aleatorio: number = Math.random()): string {
   const sufixo = Math.floor(1000 + aleatorio * 9000);

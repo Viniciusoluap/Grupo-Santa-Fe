@@ -5,6 +5,14 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FotoPerfilClient } from "./_components/foto-perfil-client";
+import { TermoConsentimentoAdmin, type ResumoDoTermo } from "./_components/termo-consentimento-admin";
+import { resumoDoTermoParaAdmin } from "@/lib/consentimento";
+
+/** Paridade 17/11 bloco 4: falha (ex.: migração não aplicada) não derruba a tela de Configurações. */
+async function resumoDoTermo(): Promise<ResumoDoTermo | null> {
+  try { return await resumoDoTermoParaAdmin(); }
+  catch (erro) { console.error("[consentimento] resumo do admin indisponível:", erro); return null; }
+}
 
 const SECTIONS = [
   {
@@ -47,7 +55,7 @@ export default async function ConfiguracoesPage() {
   const userName = sessionUser?.name ?? "Usuário";
 
   // Item 05: os cinco perfis aparecem aqui; clientes do CRM sem conta para vincular.
-  const [configs, usuarios, leadsSemConta] = await Promise.all([
+  const [configs, usuarios, leadsSemConta, termo] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
       orderBy: { criadoEm: "asc" },
@@ -58,6 +66,7 @@ export default async function ConfiguracoesPage() {
       select: { id: true, nome: true, email: true, telefone: true },
       orderBy: { nome: "asc" },
     }),
+    resumoDoTermo(),
   ]);
   // LOTE B (25/10): só os campos desta tela vão ao navegador — segredos de integração
   // (asaas.*, whatsapp.evolution.*), mesmo criptografados, ficam no servidor.
@@ -95,6 +104,8 @@ export default async function ConfiguracoesPage() {
         // Lote 2, correção 04: "Engenheiro" = colaborador com perfil de engenheiro ativo.
         engenheiro: u.papel === "colaborador" && u.perfilEngenheiro?.ativo === true,
       }))} leadsSemConta={leadsSemConta} />
+
+      <TermoConsentimentoAdmin resumo={termo} />
     </div>
   );
 }
