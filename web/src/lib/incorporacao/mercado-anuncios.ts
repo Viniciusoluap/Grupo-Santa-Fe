@@ -21,6 +21,7 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import { MERCADO_ENV as ENV } from "./mercado-config";
+import { modeloDaFuncao } from "@/lib/ia/modelo-por-funcao";
 import { analisarAnuncios, type AnaliseAnuncios, type AnuncioBruto, type TipologiaImovel } from "./analise-anuncios";
 import { extrairAnunciosDeResultado, type ResultadoBusca } from "./extracao-anuncios";
 
@@ -38,6 +39,16 @@ export interface ProvedorAnuncios {
   /** null = disponível; string = motivo da indisponibilidade. */
   indisponibilidade(): string | null;
   buscar(c: ConsultaAnuncios): Promise<AnuncioBruto[]>;
+}
+
+/**
+ * Paridade 17/11 (bloco 3): modelo da pesquisa de anúncios. INCORPORACAO_IA_MODELO continua com prioridade (como
+ * antes); sem ela, o escolhido em Integrações › Anthropic › "Modelo por função", depois o preferencial do painel e,
+ * por fim, o padrão de sempre. Só o NOME do modelo: a chave continua sendo ANTHROPIC_API_KEY.
+ */
+export async function modeloMercadoAnuncios(): Promise<string> {
+  const r = await modeloDaFuncao("incorporacao_mercado", { ambiente: process.env.INCORPORACAO_IA_MODELO ?? null, padrao: ENV.incorporacaoIaModelo });
+  return r.modelo ?? ENV.incorporacaoIaModelo;
 }
 
 export const provedorBuscaWebAnthropic: ProvedorAnuncios = {
@@ -62,7 +73,7 @@ Regras obrigatórias:
 Responda SOMENTE com JSON, sem texto extra:
 {"anuncios":[{"titulo":"","url":"","fonte":"","bairro":"","tipologia":"","areaM2":0,"preco":0,"caracteristicas":"","dataAnuncio":""}]}`;
     const resp = await client.messages.create({
-      model: ENV.incorporacaoIaModelo,
+      model: await modeloMercadoAnuncios(),
       max_tokens: 6000,
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
       messages: [{ role: "user", content: prompt }],

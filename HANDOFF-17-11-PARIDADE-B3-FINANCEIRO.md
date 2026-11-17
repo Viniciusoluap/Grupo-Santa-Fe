@@ -64,7 +64,44 @@ Schema Prisma: blocos `// ── Paridade 17/11 bloco 3 ──`. `prisma migrate
   proponente vinha da PCI mesmo com o CRM apontando outra pessoa; agora fica vazio para a escolha da pessoa inteira
   (mesma mudança feita na Prospecta).
 
+## Item 3 — Painel Anthropic em Integrações (Prospecta S-10 `794feca` + S-11 `6862f03`) — concluído
+- `web/src/lib/ia/anthropic-painel.ts` (gêmeo de `server/_core/anthropic-painel.ts`): chave validada na Anthropic
+  (`models.list`, sem tokens) antes de salvar, criptografada em `configuracoes["segredo.anthropic_painel_api_key"]`
+  (`@/lib/segredo`, grupo "integracoes"), só os 4 últimos voltam à tela, erro mascarado (`sk-ant-…`), chave ilegível
+  avisada, `plain:` recriptografado, troca de chave revalida o preferencial e o modelo de cada função; modelo
+  preferencial; modelo por função (validar/gravar sem deixar pela metade; modelo que sumiu da conta é limpo com aviso).
+  `configuracaoAnthropicPainel`/`existeChaveAnthropicPainel` da Prospecta NÃO foram portados: no Santa Fé nenhuma função
+  lê a chave do painel (Dolores e Maquete não existem aqui).
+- `web/src/lib/ia/funcoes-anthropic.ts`: as linhas do Santa Fé — `central_vendas_agente` (agente da Central de Vendas)
+  e `incorporacao_mercado` (pesquisa de anúncios do Mercado, quando o provedor é a Anthropic). Sem Dolores/Maquete.
+- `web/src/lib/ia/modelo-por-funcao.ts`: só nomes de modelo; ordem: variável de ambiente da função (Mercado:
+  `INCORPORACAO_IA_MODELO`, prioridade como antes) → modelo da função → modelo configurado na própria função (Central:
+  "Modelo da IA" das configurações dela) → preferencial do painel → padrão. Nunca lança.
+- Ligações: `web/src/lib/central-vendas/ia.ts` (só o `model` muda; a chave continua a da Central ou
+  `ANTHROPIC_API_KEY`) e `web/src/lib/incorporacao/mercado-anuncios.ts` (`modeloMercadoAnuncios`; a chave continua
+  `ANTHROPIC_API_KEY`). Escolher modelo nunca liga a IA (as chaves, os interruptores da Central e
+  `INCORPORACAO_IA_ATIVA` continuam como estavam).
+- Ações (só admin ativo): `statusAnthropicAcao`, `testarAnthropicAcao`, `salvarAnthropicAcao`, `removerAnthropicAcao`,
+  `modelosAnthropicAcao`, `salvarModeloAnthropicAcao`, `modelosPorFuncaoAnthropicAcao`, `salvarModeloFuncaoAnthropicAcao`
+  em `web/src/lib/actions/integracoes.ts`. Tela: `web/src/app/admin/integracoes/_components/anthropic-card.tsx`
+  (incluída em `page.tsx`, abaixo do Mapbox): "Valendo agora" com a origem, e aviso quando a função está sem a chave dela.
+- Sem migração (usa a tabela `configuracoes`).
+- [AUTO-DECISION] "a variável de ambiente continua tendo prioridade" → aplicada ao modelo do Mercado
+  (`INCORPORACAO_IA_MODELO`) e às chaves (nenhuma função passa a usar a chave do painel). Na Central não existe variável
+  de modelo; o "Modelo da IA" dela vale como o "modelo anterior" (mesmo papel do campo antigo do cartão da Dolores).
+- Diferença com a Prospecta: lá a chave do painel é usada por Maquete e Dolores; aqui por nenhuma função. Lá Central e
+  Mercado não têm linha no painel (comentário em `shared/funcoes-anthropic.ts`); aqui têm, por pedido de 17/11.
+
 ## Testes
+- (a) automáticos (item 3): `web/src/lib/__tests__/integracoes-anthropic.test.ts` (24, sem rede: SDK simulado) —
+  chave protegida (criptografada, nunca devolvida, recusada não salva, formato inválido não chega à API, troca/remoção,
+  sem chave não chama, revogada mascarada, ilegível, `plain:`), modelos e preferência, revalidação ao trocar a chave,
+  modelo sumido, gravação sem deixar pela metade, função desconhecida recusada, resolução do modelo (ordem, banco fora do
+  ar, nunca lê a chave), "valendo"/"sem chave", só admin (colaborador/corretor/cliente recusados sem chamar a API),
+  salvar não muda `ANTHROPIC_API_KEY`/`MERCADO_ENV`, a GUARDA (varre `web/src`: ninguém além do painel cita a chave;
+  módulo de modelos com imports exatos; Central e Mercado só importam `modeloDaFuncao`; Central/Mercado continuam
+  com as chaves deles) — conferida também no negativo (marca colocada em `central-vendas/ia.ts` → falha) —, e a ligação
+  do Mercado com `INCORPORACAO_IA_MODELO` na frente. Central de Vendas + Mercado: 11 arquivos / 115 ✅.
 - (a) automáticos (item 2):
   - `pci-s09.test.ts` (21, porte das regras puras da Prospecta, ids texto) e `pci-s09.db.test.ts` (18, Postgres real):
     lista sem CPF; CPF do escolhido com log só de ids; recusa de inativo/cliente/corretor/id inexistente; perfil
@@ -87,4 +124,4 @@ Schema Prisma: blocos `// ── Paridade 17/11 bloco 3 ──`. `prisma migrate
 - (c) produção: aplicar a migração; enviar o ZIP real; conferir o aviso dos arquivados e, se houver, LIBERAR.
 
 ## Próximo passo exato
-Item 3 (painel Anthropic em Integrações, Prospecta `794feca` + `6862f03`).
+Item 4 (BPO: Asaas sem id de pagamento por valor/data; transferência interna sem lançamento).
