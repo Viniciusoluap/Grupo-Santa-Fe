@@ -33,3 +33,47 @@ DO $$ BEGIN
     REVOKE ALL ON TABLE "bpo_lancamentos_expurgo" FROM authenticated;
   END IF;
 END $$;
+
+-- ── 2. Gerador de PCI — biblioteca de modelos de preenchimento (gêmeo de Prospecta drizzle/0118) ──
+-- Um modelo guarda SÓ os dados técnicos de um projeto padrão (lista de permissão em src/lib/pci-gerador.ts,
+-- CAMPOS_COPIAVEIS_MODELO_PCI). Salvar sobre um modelo cria nova versão ("versao" + 1, "anteriorId") e mantém a
+-- anterior. Não confundir com "pci_modelos" (versões do modelo OFICIAL da CAIXA), que não muda.
+-- Reversão: DROP TABLE "pci_modelos_preenchimento" (nenhuma outra tabela depende dela).
+CREATE TABLE IF NOT EXISTS "pci_modelos_preenchimento" (
+    "id" TEXT NOT NULL,
+    "nome" VARCHAR(120) NOT NULL,
+    "versao" INTEGER NOT NULL DEFAULT 1 CHECK ("versao" >= 1),
+    "anteriorId" TEXT,
+    "dados" JSONB NOT NULL,
+    "observacao" TEXT,
+    "obraOrigemId" TEXT,
+    "criadoPorId" TEXT,
+    "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "excluidoEm" TIMESTAMP(3),
+    "excluidoPorId" TEXT,
+    -- true = já tem versão mais nova (marcado na mesma transação que grava a sucessora).
+    "substituido" BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT "pci_modelos_preenchimento_pkey" PRIMARY KEY ("id")
+);
+-- Uma versão só tem uma sucessora (a lista mostra a última de cada modelo).
+CREATE UNIQUE INDEX IF NOT EXISTS "pci_modelos_preenchimento_anteriorId_key" ON "pci_modelos_preenchimento"("anteriorId");
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pci_modelos_preenchimento_anteriorId_fkey') THEN
+    ALTER TABLE "pci_modelos_preenchimento" ADD CONSTRAINT "pci_modelos_preenchimento_anteriorId_fkey"
+      FOREIGN KEY ("anteriorId") REFERENCES "pci_modelos_preenchimento"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
+-- Nome único (sem diferença de maiúsculas) entre os modelos em uso: só a versão atual (não substituída) e não
+-- excluída. O servidor confere antes de gravar; o índice fecha a corrida de dois salvamentos ao mesmo tempo.
+CREATE UNIQUE INDEX IF NOT EXISTS "pci_modelos_preenchimento_nome_atual_uidx" ON "pci_modelos_preenchimento" (lower("nome"))
+  WHERE "excluidoEm" IS NULL AND NOT "substituido";
+
+ALTER TABLE "pci_modelos_preenchimento" ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE "pci_modelos_preenchimento" FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE "pci_modelos_preenchimento" FROM authenticated;
+  END IF;
+END $$;

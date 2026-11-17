@@ -31,8 +31,49 @@ Schema Prisma: blocos `// ── Paridade 17/11 bloco 3 ──`. `prisma migrate
   Prospecta só o módulo BPO. Liberar exige admin nos dois.
 - Sem FK de `expurgadoPorUsuarioId` para `usuarios` (padrão dos backups do BPO no Santa Fé; na Prospecta há FK SET NULL).
 
+## Item 2 — Gerador de PCI (Prospecta EPIC-024 S-09, `95f60bf`) — concluído
+- `web/src/lib/pci-gerador.ts`: substituído pelo gêmeo novo da Prospecta (`shared/pci-gerador.ts` de 95f60bf; diferença
+  só de imports) — `copiavel`/`CAMPOS_COPIAVEIS_MODELO_PCI`, procedência por campo de pessoa, blocos de pessoa
+  (`PESSOAS_PCI`, `mesmaPessoaPci`, `provaMesmaPessoaPci`), `sugestoesAutomaticasPci`, `compararPreenchimentoPci`,
+  `aplicarEscolhasPci`, `misturaPessoaPci` (em `errosPci` ao gerar), `conferirProcedenciaPci`, `registrarConfirmacoesPci`,
+  modelos (`extrairModeloPreenchimentoPci`, `dadosPessoaisNoModeloPci`, `avisosEmpresaNoModeloPci`…).
+  Adaptações de stack (ids texto/cuid no Santa Fé): `ConfirmacaoPessoaPci.por` e `OrigemModeloPci.id` são texto;
+  a origem conferível aceita `engenheiro:<cuid>` (na Prospecta `engenheiro:<número>`).
+- `web/src/lib/engenheiros.ts`: `dadosEngenheiroParaPci` (UM engenheiro, com CPF; mesmas regras da lista).
+  A lista de engenheiros continua sem CPF.
+- `web/src/lib/obras/pci-gerador-dados.ts`: `engenheiroDaPci` (só quem a lista oferece; log
+  `pci.cpf_engenheiro_lido` só com ids), engenheiro da obra (formulário → rascunho → última PCI gerada → projeto não
+  cancelado do MESMO serviço do CRM, `Projeto.servicoLeadId`), `fontesAutomaticasPci` com motivos (PCI ilegível deixa
+  de ser engolida), abertura sem rascunho com o relatório (`preenchimento`), conferência da procedência e registro das
+  confirmações no servidor (salvar e gerar), CRUD/versões dos modelos (recusa de dado pessoal, nome único também na
+  versão, autor original ou admin exclui, obra de origem só para o admin).
+- `web/src/lib/actions/pci-gerador.ts`: `engenheiroPciAcao`, `sugestoesAutomaticasPciAcao`, `listar/obter/historico/
+  salvar/excluirModeloPreenchimentoPciAcao` — mesmo acesso do gerador (admin ou colaborador com Obras).
+- Tela `web/src/components/obras/gerador-pci.tsx`: seletor com busca do perfil e confirmação, "Mesmo profissional do
+  RTP", painel do resultado (pessoa inteira por rádio; campos técnicos por caixa), aviso de mistura com "Confirmo que
+  nome e CPF são da mesma pessoa" e Gerar bloqueado, painel "Modelos de preenchimento", "Começar em branco".
+- Tabela `pci_modelos_preenchimento` (na mesma migração 20261117300000): versões por `anteriorId` (único), `substituido`,
+  índice único parcial `lower(nome)` das versões atuais não excluídas, RLS + REVOKE. Sem FK para obras/usuarios.
+- Diferenças que ficaram (de propósito):
+  - sem lead do CRM, o proponente continua vindo do nome/telefone do cadastro da obra (regra anterior do Santa Fé),
+    rotulado "Cadastro da obra (cliente sem lead do CRM)"; na Prospecta, sem lead não há cliente;
+  - valor do imóvel: o Santa Fé usa o VGV da obra (como antes); a Prospecta cai no valor de simulação do lead quando a
+    obra não tem VGV;
+  - geração da planilha oficial (`web/src/lib/caixa/pci-gerador.ts`) não foi tocada.
+- Expectativa antiga MUDADA (registrada no teste): `pci-gerador.test.ts` "a PCI vinculada tem prioridade" — antes o
+  proponente vinha da PCI mesmo com o CRM apontando outra pessoa; agora fica vazio para a escolha da pessoa inteira
+  (mesma mudança feita na Prospecta).
+
 ## Testes
-- (a) automáticos:
+- (a) automáticos (item 2):
+  - `pci-s09.test.ts` (21, porte das regras puras da Prospecta, ids texto) e `pci-s09.db.test.ts` (18, Postgres real):
+    lista sem CPF; CPF do escolhido com log só de ids; recusa de inativo/cliente/corretor/id inexistente; perfil
+    desativado/ausente; abertura com RTP do projeto do mesmo serviço; projeto cancelado ignorado; escolha da pessoa
+    inteira; gerar recusa mistura; procedência forjada rebaixada; confirmação gravada com autor/hora sem repetir;
+    PCI ilegível vira motivo; modelos (só técnico, recusa de dado pessoal com trecho mascarado, CNPJ com aviso,
+    aplicar em outra obra, versões, corrida no índice único, exclusão só admin/autor original); permissões.
+  - Suítes PCI + engenheiro + migração: 10 arquivos, 107 testes ✅.
+- (a) automáticos (item 1):
   - `web/src/lib/__tests__/bpo-paridade.db.test.ts`: +8 cenários (Postgres 16 local com o schema + migrações
     20261113100000 e 20261117300000): arquivados à parte na prévia/importação; liberar só os sem vínculo, com cópia e
     histórico, legado intacto, confirmação errada recusada, segunda vez nada; reimportar depois de liberar (4 uma vez,
@@ -46,4 +87,4 @@ Schema Prisma: blocos `// ── Paridade 17/11 bloco 3 ──`. `prisma migrate
 - (c) produção: aplicar a migração; enviar o ZIP real; conferir o aviso dos arquivados e, se houver, LIBERAR.
 
 ## Próximo passo exato
-Item 2 (Gerador de PCI, Prospecta `95f60bf`).
+Item 3 (painel Anthropic em Integrações, Prospecta `794feca` + `6862f03`).

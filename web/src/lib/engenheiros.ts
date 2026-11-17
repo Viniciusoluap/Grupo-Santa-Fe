@@ -44,6 +44,45 @@ export async function listarEngenheiros(opcoes: { apenasEngenheiros?: boolean } 
     .filter((e) => !opcoes.apenasEngenheiros || e.engenheiro);
 }
 
+/** Dados de UM engenheiro para preencher RTP/RTE da PCI (paridade 17/11, Prospecta EPIC-024 S-09). */
+export type EngenheiroParaPci = {
+  id: string;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  crea: string | null;
+  creaUf: string | null;
+  cpf: string | null;
+  /** true = perfil Engenheiro ativo; false = sem perfil ou desativado (CPF/CREA não usados). */
+  perfilAtivo: boolean;
+  temPerfil: boolean;
+};
+
+/**
+ * Paridade 17/11 (pedido do dono de 16/11 na Prospecta, substitui a decisão de 30/10 só para o CPF do próprio
+ * engenheiro): CPF, CREA e telefone do perfil de UM engenheiro, para a PCI. Mesmas regras de `listarEngenheiros`
+ * (usuário ativo, colaborador ou admin; dados do perfil só com o perfil ativo). A lista continua sem CPF.
+ * Chamar só depois da checagem do módulo Obras (Gerador de PCI).
+ */
+export async function dadosEngenheiroParaPci(usuarioId: string): Promise<EngenheiroParaPci | null> {
+  const u = await prisma.usuario.findFirst({
+    where: { id: usuarioId, ativo: true, papel: { in: ["colaborador", "admin"] } },
+    select: { id: true, nome: true, email: true, telefone: true, perfilEngenheiro: { select: { ativo: true, telefone: true, cpf: true, crea: true, creaUf: true } } },
+  });
+  if (!u) return null;
+  const p = u.perfilEngenheiro;
+  const ativo = p?.ativo === true;
+  return {
+    id: u.id, nome: u.nome, email: u.email,
+    telefone: (ativo ? p?.telefone : null) || u.telefone || null,
+    crea: ativo ? p?.crea ?? null : null,
+    creaUf: ativo ? p?.creaUf ?? null : null,
+    cpf: ativo ? p?.cpf ?? null : null,
+    perfilAtivo: ativo,
+    temPerfil: !!p,
+  };
+}
+
 /** Grava (ou reativa) o perfil Engenheiro. Só chamar depois da checagem de admin. */
 export async function gravarPerfilEngenheiro(usuarioId: string, dados: PerfilEngenheiroDados, autorId: string | null) {
   const valores = {

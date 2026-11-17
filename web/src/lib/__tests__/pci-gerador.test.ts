@@ -146,10 +146,19 @@ describe("Gerador de PCI — pré-preenchimento e engenheiro", () => {
       endereco: "Rua A, 1", bairro: "Centro", municipio: "Imperatriz", uf: "MA", areaCoberta: 70, valorImovel: 200000, valorTerreno: 50000, valorFinanciado: 150000, prazoMeses: 6,
       latitude: `05° 30' 28.4" S`, longitude: `47° 28' 39.7" W`, rtpRegistro: null, rteRegistro: null });
   });
-  it("a PCI vinculada tem prioridade; o cadastro só completa lacunas", () => {
+  it("a PCI vinculada tem prioridade; o cadastro só completa lacunas (nunca de outra pessoa)", () => {
     const pci = lerFormularioPci(MODELO);
     const f = preencherPciAutomatico({ obra, cliente: { nome: "Outro Nome", cpf: null, email: "x@y.z", telefone: null, endereco: null, bairro: null }, coordenadas: null, pci });
-    expect(f.campos.proponenteNome).toBe("PROPONENTE DE TESTE");
+    // Expectativa antiga MUDADA (paridade 17/11, Prospecta EPIC-024 S-09, portão de QA): antes o proponente vinha da PCI
+    // ("PROPONENTE DE TESTE"); agora PCI e cliente do CRM são pessoas diferentes → fica vazio para a escolha da pessoa inteira.
+    expect(f.campos.proponenteNome).toBeNull();
+    expect(f.campos.proponenteEmail).toBeNull();
+    // Portão 2 (M1): o mesmo nome sozinho não junta a PCI (com CPF) ao CRM (sem CPF, outro e-mail) — vira escolha.
+    const mesmo = preencherPciAutomatico({ obra, cliente: { nome: "Proponente de Teste", cpf: null, email: "x@y.z", telefone: null, endereco: null, bairro: null }, coordenadas: null, pci });
+    expect(mesmo.campos).toMatchObject({ proponenteNome: null, proponenteCpf: null });
+    // Só o CRM com o nome (nenhuma outra fonte de proponente): preenche.
+    const so = preencherPciAutomatico({ obra, cliente: { nome: "Proponente de Teste", cpf: null, email: "x@y.z", telefone: null, endereco: null, bairro: null }, coordenadas: null, pci: null });
+    expect(so.campos).toMatchObject({ proponenteNome: "Proponente de Teste", proponenteEmail: "x@y.z" });
     expect(f.campos.rtpRegistro).toBe("1000000001");
     expect(f.custos[0]).toBe(3940.68);
   });
