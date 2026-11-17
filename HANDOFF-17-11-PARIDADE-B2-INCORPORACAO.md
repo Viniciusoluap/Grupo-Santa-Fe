@@ -10,7 +10,7 @@ Sem merge, sem PR, sem deploy. Migrações NÃO aplicadas em banco real (quem ap
 |---|------|----------|--------|
 | 1 | Estudo de Massa com o motor novo (EPIC-023 F, correções 8/10, S-I) | concluído | (ver git log) |
 | 2 | Áreas restritas nas doações (`aproveitarRestricoes`, `DESTINOS_PADRAO`) | concluído (vem junto com o motor) | idem |
-| 3 | Camadas do mapa do terreno resilientes | pendente | — |
+| 3 | Camadas do mapa do terreno resilientes | concluído | (ver git log) |
 | 4 | EPIC-024: 02 logotipo, 06 proposta, 07 filtros, 08 KML/KMZ | pendente | — |
 | 5 | Salvamento automático da Viabilidade (93edc7c) | pendente | — |
 
@@ -61,9 +61,24 @@ Resultado: subconjunto massa/incorporação/planta/KML/camadas 254 passados, 5 p
 (c) produção: gerar cenários num estudo com KML de várias áreas; conferir vias do entorno; abrir o mapa do Terreno para
 gravar o contorno da APP e gerar de novo; abrir estudos salvos antigos.
 
+## Item 3 — Camadas do mapa do terreno resilientes
+Origem Prospecta: ab508b5 (S-E) + ajustes de 16/11 em 8aacdcd (Overpass em todos os servidores ao mesmo tempo, página
+de manutenção da EPE reconhecida) e 318bdd9 (consultas perdedoras canceladas).
+- `web/src/lib/geo/camadas-terreno-busca.ts` = `server/_core/geo/camadas-terreno-busca.ts` da Prospecta (User-Agent e
+  Accept próprios, repetição com espera exponencial e Retry-After, bloqueio por host, orçamento de tempo, espelhos do
+  Overpass consultados ao mesmo tempo com reforço e cancelamento, "fonte em manutenção", último resultado bom).
+- `web/src/lib/geo/camadas-terreno-armazem.ts` (novo): armazém no banco via Prisma (`CamadaTerrenoCache`), mesmo
+  comportamento do de lá — sem a tabela (migração não aplicada) segue sem persistência, com um aviso só.
+- `web/src/app/api/incorporacao/camadas-terreno/route.ts` passa o armazém para a busca.
+- Tela (`mapa-terreno.tsx`, já no commit dos itens 1–2): "consultado: nada no entorno" × "fonte fora do ar ou sem
+  resposta" × "dado salvo em dd/mm/aaaa — fonte fora do ar agora", com "tentar de novo".
+Testes: `camadas-terreno-resiliencia.test.ts` (porte integral, fetch/relógio/armazém simulados — sem rede),
+`camadas-terreno.test.ts` (mesmas expectativas trocadas na Prospecta: espelhos do Overpass), `camadas-terreno-cache.db.test.ts`
+(migração com PGlite + armazém com prisma simulado). 56/56.
+
 ## Migrações criadas (NÃO aplicadas)
+- `web/prisma/migrations/20261117210000_camadas_terreno_cache/migration.sql` — `CREATE TABLE IF NOT EXISTS "camadas_terreno_cache"` + RLS.
 - `web/prisma/migrations/20261117200000_contorno_app_estudo/migration.sql` — `ADD COLUMN IF NOT EXISTS "appContornoJson" TEXT`.
 
 ## Próximo passo
-Item 3 (servidor das camadas: `camadas-terreno-busca.ts` com User-Agent, repetição, espelhos do Overpass em paralelo,
-armazém do último resultado bom).
+Item 4 (EPIC-024: 07 filtros, 08 KML/KMZ, 02 logotipo, 06 proposta).

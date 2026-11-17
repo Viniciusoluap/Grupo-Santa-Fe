@@ -38,6 +38,9 @@ function reprodutor(g: Gravacao) {
 
 beforeEach(() => limparCacheCamadas());
 
+/** EPIC-023 (S-E): as repetições não esperam de verdade nos testes. */
+const rapido = { esperar: async () => {} };
+
 describe("fontes e consultas", () => {
   it("monta a query ArcGIS REST por envelope em WGS84 devolvendo GeoJSON", () => {
     const u = new URL(urlConsultaArcgis(FONTES.ucs.url, [-47.6, -5.5, -47.5, -5.4], "nome_uc"));
@@ -70,7 +73,7 @@ describe("terreno na margem do Tocantins (Imperatriz/MA, -5,47310 −47,53452)",
 
   it("cada camada tem estado próprio — Overpass fora não derruba as oficiais", async () => {
     const { fetchImpl } = reprodutor(g);
-    const r = await buscarCamadasTerreno(terreno, idsValidos(undefined), { fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, idsValidos(undefined), { ...rapido, fetchImpl });
     expect(r.camadas.hidrografia?.estado).toBe("ok");
     expect(r.camadas.osm?.estado).toBe("indisponivel");
     expect(r.camadas.osm?.fonte).toContain("overpass");
@@ -83,7 +86,7 @@ describe("terreno na margem do Tocantins (Imperatriz/MA, -5,47310 −47,53452)",
   });
 
   it("hidrografia oficial: Rio Tocantins como polígono largo + trechos da BHO", async () => {
-    const r = await buscarCamadasTerreno(terreno, ["hidrografia"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["hidrografia"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const h = r.camadas.hidrografia!.dados!;
     expect(h.aguas.some(a => a.properties.nome === "Rio Tocantins")).toBe(true);
     expect(h.aguas[0].properties.larguraM!).toBeGreaterThan(600); // largura do lago medida antes do recorte
@@ -92,7 +95,7 @@ describe("terreno na margem do Tocantins (Imperatriz/MA, -5,47310 −47,53452)",
   });
 
   it("APP automática pega a faixa de 500 m do Tocantins e mede só dentro do terreno", async () => {
-    const r = await buscarCamadasTerreno(terreno, ["hidrografia"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["hidrografia"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const auto = calcularApp(terreno, [r.camadas.hidrografia!.dados!], "auto");
     expect(auto.larguraM).toBe(500);
     expect(auto.percentual).toBeGreaterThan(5);
@@ -103,7 +106,7 @@ describe("terreno na margem do Tocantins (Imperatriz/MA, -5,47310 −47,53452)",
   });
 
   it("geologia (SGB) e furos (SIAGAS): 15 poços entre 1,6 e 4,9 km — como o concorrente", async () => {
-    const r = await buscarCamadasTerreno(terreno, ["geologia", "furos"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["geologia", "furos"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const geo = r.camadas.geologia!.dados!;
     expect(geo.unidades.map(u => u.nome)).toEqual(["Codó", "Depósitos aluvionares"]);
     expect(geo.avaliacao.rotulo).toBe("atenção: várzea");
@@ -114,7 +117,7 @@ describe("terreno na margem do Tocantins (Imperatriz/MA, -5,47310 −47,53452)",
   });
 
   it("vegetação nativa (MapBiomas 2023) em % do terreno", async () => {
-    const r = await buscarCamadasTerreno(terreno, ["vegetacao"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["vegetacao"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const v = calcularVegetacao(terreno, r.camadas.vegetacao!.dados!);
     expect(v.amostras).toBe(64);
     expect(v.classes[0].nome).toBe("Pastagem");
@@ -124,9 +127,9 @@ describe("terreno na margem do Tocantins (Imperatriz/MA, -5,47310 −47,53452)",
 
   it("cache por terreno: a 2ª busca não chama a rede para o que já respondeu; o indisponível é tentado de novo", async () => {
     const rep = reprodutor(g);
-    await buscarCamadasTerreno(terreno, ["geologia", "osm"], { fetchImpl: rep.fetchImpl });
+    await buscarCamadasTerreno(terreno, ["geologia", "osm"], { ...rapido, fetchImpl: rep.fetchImpl });
     const antes = rep.chamadas.length;
-    await buscarCamadasTerreno(terreno, ["geologia", "osm"], { fetchImpl: rep.fetchImpl });
+    await buscarCamadasTerreno(terreno, ["geologia", "osm"], { ...rapido, fetchImpl: rep.fetchImpl });
     const novas = rep.chamadas.slice(antes);
     expect(novas.some(u => u.includes("geodiversidade"))).toBe(false);
     expect(novas.some(u => u.includes("overpass"))).toBe(true);
@@ -137,7 +140,7 @@ describe("outros terrenos reais", () => {
   it("Imperatriz leste: nascente derivada da BHO entra na APP (raio 50 m) e geologia favorável", async () => {
     const g = cenario("imperatriz-leste");
     const terreno = quadrado(g.terreno);
-    const r = await buscarCamadasTerreno(terreno, ["hidrografia", "geologia", "vegetacao"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["hidrografia", "geologia", "vegetacao"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const h = r.camadas.hidrografia!.dados!;
     expect(h.nascentes.length).toBe(1);
     expect(calcularApp(terreno, [h], "auto").areaM2).toBeGreaterThan(0);
@@ -148,7 +151,7 @@ describe("outros terrenos reais", () => {
   it("linhas de transmissão da EPE: faixa de servidão pela tensão (230 kV → 40 m; 500 kV → 70 m)", async () => {
     const g = cenario("imperatriz-linhas-transmissao");
     const terreno = quadrado(g.terreno);
-    const r = await buscarCamadasTerreno(terreno, ["transmissao", "rodovias"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["transmissao", "rodovias"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const linhas = r.camadas.transmissao!.dados!.linhas;
     expect(linhas.length).toBeGreaterThan(0);
     const s = calcularServidao(terreno, linhas, r.camadas.rodovias?.dados?.rodovias ?? []);
@@ -160,7 +163,7 @@ describe("outros terrenos reais", () => {
 
   it("UC a 1,1 km aparece com nome e distância (CNUC via Pamgia)", async () => {
     const g = cenario("uc-rppn-arara-azul");
-    const r = await buscarCamadasTerreno(quadrado(g.terreno), ["ucs"], { fetchImpl: reprodutor(g).fetchImpl });
+    const r = await buscarCamadasTerreno(quadrado(g.terreno), ["ucs"], { ...rapido, fetchImpl: reprodutor(g).fetchImpl });
     const uc = r.camadas.ucs!.dados!.ucs[0];
     expect(uc.nome).toContain("ARARA AZUL");
     expect(uc.sobrepoe).toBe(false);
@@ -176,7 +179,7 @@ describe("resiliência", () => {
     const fetchImpl = ((_u: string, init?: RequestInit) => new Promise((_, rej) => {
       init?.signal?.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "TimeoutError" })));
     })) as unknown as typeof fetch;
-    const r = await buscarCamadasTerreno(terreno, ["geologia"], { fetchImpl, timeoutMs: 30 });
+    const r = await buscarCamadasTerreno(terreno, ["geologia"], { ...rapido, fetchImpl, timeoutMs: 30 });
     expect(r.camadas.geologia?.estado).toBe("indisponivel");
     expect(r.camadas.geologia?.erro).toContain("não respondeu a tempo");
   });
@@ -184,7 +187,7 @@ describe("resiliência", () => {
   it("erro do ArcGIS com HTTP 200 cai para o espelho (UCs: SIGAGEO)", async () => {
     const vazio = JSON.stringify({ type: "FeatureCollection", features: [] });
     const fetchImpl = (async (u: string) => new Response(String(u).includes("lim_unidades") ? JSON.stringify({ error: { code: 500, message: "GISService" } }) : vazio)) as unknown as typeof fetch;
-    const r = await buscarCamadasTerreno(terreno, ["ucs"], { fetchImpl });
+    const r = await buscarCamadasTerreno(terreno, ["ucs"], { ...rapido, fetchImpl });
     expect(r.camadas.ucs?.estado).toBe("vazio");
     expect(r.camadas.ucs?.fonte).toBe(FONTES.ucsEspelho.nome);
   });
@@ -242,7 +245,7 @@ describe("camadas de 11/11 (2ª etapa): CAR, mananciais, ferrovias, dutos e larg
 
   it("terreno cortado pela Ferrovia Norte-Sul: CAR e ferrovia respondem; sem manancial nem duto por perto", async () => {
     const { fetchImpl } = reprodutor(g);
-    const { camadas } = await buscarCamadasTerreno(terreno, [...novas], { fetchImpl });
+    const { camadas } = await buscarCamadasTerreno(terreno, [...novas], { ...rapido, fetchImpl });
     expect(camadas.car?.estado).toBe("ok");
     expect(camadas.car?.dados?.imoveis.length).toBeGreaterThanOrEqual(2);
     expect(camadas.car?.dados?.imoveis[0].codigo).toMatch(/^MA-\d{7}-[0-9A-F]{32}$/);
@@ -256,7 +259,7 @@ describe("camadas de 11/11 (2ª etapa): CAR, mananciais, ferrovias, dutos e larg
 
   it("faixa da ferrovia: 15 m de domínio (referência) + 15 m não edificáveis (Lei 6.766, art. 4º, III-A) de cada lado; largura confirmada substitui", async () => {
     const { fetchImpl } = reprodutor(g);
-    const { camadas } = await buscarCamadasTerreno(terreno, ["ferrovias"], { fetchImpl });
+    const { camadas } = await buscarCamadasTerreno(terreno, ["ferrovias"], { ...rapido, fetchImpl });
     const ferrovias = camadas.ferrovias!.dados!.ferrovias;
     const ref = calcularServidao(terreno, [], [], { ferrovias });
     expect(ref.itens).toHaveLength(1);
@@ -270,7 +273,7 @@ describe("camadas de 11/11 (2ª etapa): CAR, mananciais, ferrovias, dutos e larg
 
   it("CAR informado no estudo é conferido com os imóveis encontrados (ignora pontuação e caixa)", async () => {
     const { fetchImpl } = reprodutor(g);
-    const { camadas } = await buscarCamadasTerreno(terreno, ["car"], { fetchImpl });
+    const { camadas } = await buscarCamadasTerreno(terreno, ["car"], { ...rapido, fetchImpl });
     const imoveis = camadas.car!.dados!.imoveis;
     expect(carConfere(imoveis[0].codigo.toLowerCase().replace(/-/g, "."), imoveis)).toBe(true);
     expect(carConfere("MA-2105302-00000000000000000000000000000000", imoveis)).toBe(false);
@@ -284,7 +287,7 @@ describe("camadas de 11/11 (2ª etapa): CAR, mananciais, ferrovias, dutos e larg
       if (String(url).includes("CAR_NACIONAL")) throw new TypeError("fetch failed");
       return r.fetchImpl(url, init);
     }) as unknown as typeof fetch;
-    const { camadas } = await buscarCamadasTerreno(terreno, ["car", "ferrovias"], { fetchImpl });
+    const { camadas } = await buscarCamadasTerreno(terreno, ["car", "ferrovias"], { ...rapido, fetchImpl });
     expect(camadas.car?.estado).toBe("indisponivel");
     expect(camadas.ferrovias?.estado).toBe("ok");
   });

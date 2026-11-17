@@ -2111,3 +2111,19 @@ model CentralVendasTokensMes {
 
   @@map("central_vendas_tokens_mes")
 }
+
+// ── Paridade 17/11 bloco 2 ──
+// Camadas do mapa do terreno resilientes (Prospecta EPIC-023 S-E, migração 0116 de lá): último resultado bom ("ok" ou
+// "vazio") de cada camada por terreno, com a data, para o mapa mostrar quando a fonte pública estiver fora do ar.
+// Chave = chaveDoTerreno(contorno) + id da camada; `dados` guarda o EstadoCamada inteiro em JSON.
+model CamadaTerrenoCache {
+  chaveTerreno String   @db.VarChar(160)
+  camada       String   @db.VarChar(30)
+  estado       String   @db.VarChar(20) // "ok" | "vazio" (CHECK na migração)
+  fonte        String
+  dados        String
+  salvoEm      DateTime @default(now())
+
+  @@id([chaveTerreno, camada])
+  @@map("camadas_terreno_cache")
+}
