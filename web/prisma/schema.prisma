@@ -869,6 +869,26 @@ model BpoLancamentoExclusaoBackup {
   @@map("bpo_lancamento_exclusoes_backup")
 }
 
+// ── Paridade 17/11 bloco 3 ── Conta Azul: cópia de cada lançamento ARQUIVADO removido em definitivo por
+// "Liberar reimportação" (gêmeo de bpo_lancamentos_expurgo da Prospecta, migração 0122). Um lote por execução;
+// a linha inteira fica em dadosJson. Sem FK para usuarios (como os demais backups do BPO).
+model BpoLancamentoExpurgo {
+  id                    String   @id @default(cuid())
+  loteId                String
+  lancamentoId          String
+  requestKey            String?
+  origemEfetiva         String?
+  exclusaoLoteBackupId  String?
+  motivo                String   @default("liberar_reimportacao_conta_azul")
+  dadosJson             String
+  expurgadoPorUsuarioId String?
+  expurgadoEm           DateTime @default(now())
+
+  @@index([loteId])
+  @@index([lancamentoId])
+  @@map("bpo_lancamentos_expurgo")
+}
+
 /// Registro imutável das alterações manuais em lançamentos BPO.
 model BpoLancamentoHistorico {
   id                   String   @id @default(cuid())

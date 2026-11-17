@@ -190,6 +190,18 @@ export async function listarExclusoesEmLote(): Promise<ExclusaoEmLoteResumo[] | 
   } catch (e) { return { erro: e instanceof Error ? e.message : "Falha ao listar as exclusões." }; }
 }
 
+/**
+ * Paridade 17/11 (S-01): ids removidos por "Liberar reimportação" (bpo_lancamentos_expurgo). Sem a migração
+ * 20261117300000 a tabela não existe: confere antes com to_regclass (uma consulta com erro abortaria a transação da
+ * restauração) e devolve vazio.
+ */
+async function idsExpurgados(db: Tx, ids: string[]): Promise<Set<string>> {
+  const [existe] = await db.$queryRaw<{ t: string | null }[]>`SELECT to_regclass('public.bpo_lancamentos_expurgo')::text AS t`;
+  if (!existe?.t) return new Set();
+  const linhas = await db.bpoLancamentoExpurgo.findMany({ where: { lancamentoId: { in: ids } }, select: { lancamentoId: true } });
+  return new Set(linhas.map((x) => x.lancamentoId));
+}
+
 async function planoDoBackup(db: Tx, snapshotJson: string, backupId?: string): Promise<PlanoRestauracao> {
   const snapshot = lerSnapshot(snapshotJson);
   if (snapshot.some((s) => s.__limpezaAjustes === true) && !snapshot.every((s) => s.__limpezaAjustes === true)) throw new Error("Backup corrompido: formatos de exclusão misturados.");
@@ -197,12 +209,19 @@ async function planoDoBackup(db: Tx, snapshotJson: string, backupId?: string): P
   if (snapshot.length && snapshot.every((s) => s.__limpezaAjustes === true)) {
     const atuais = await db.bpoLancamento.findMany({ where: { id: { in: ids } } });
     const porId = new Map(atuais.map((l) => [l.id, l]));
+    // Paridade 17/11 (S-01): removidos em definitivo por "Liberar reimportação" do Conta Azul — avisar, e nunca
+    // recriar (a mesma linha pode ter sido reimportada com outro id).
+    const sumidos = ids.filter((id) => !porId.has(id));
+    const expurgados = sumidos.length ? await idsExpurgados(db, sumidos) : new Set<string>();
     const itens: PlanoRestauracao["itens"] = snapshot.map((s) => {
       const atual = porId.get(String(s.id));
       const restaura = !!backupId && atual?.exclusaoLoteBackupId === backupId;
+      const aviso = atual ? "O lançamento não está mais arquivado nesta exclusão; não será alterado."
+        : expurgados.has(String(s.id)) ? "Removido em definitivo para liberar a reimportação do Conta Azul (cópia no expurgo); não é recriado para não duplicar o que foi reimportado."
+        : "O lançamento não existe mais (foi apagado em definitivo); esta limpeza não recria registros nem vínculos externos.";
       return { id: String(s.id), descricao: String(s.descricao ?? ""), valor: Number(s.valor ?? 0), vencimento: s.vencimento ? String(s.vencimento) : null,
         clienteNome: String(s.clienteNome ?? s.clienteNomeLivre ?? "") || null, acao: restaura ? "restaurar" : "ja_existe",
-        avisos: restaura ? [] : ["O lançamento não está mais arquivado nesta exclusão; não será alterado."], dados: atual ? { ...atual } : {} };
+        avisos: restaura ? [] : [aviso], dados: atual ? { ...atual } : {} };
     });
     return { itens, restaurar: itens.filter((i) => i.acao === "restaurar").length, jaExistem: itens.filter((i) => i.acao === "ja_existe").length, comAviso: itens.filter((i) => i.avisos.length).length };
   }
@@ -210,12 +229,16 @@ async function planoDoBackup(db: Tx, snapshotJson: string, backupId?: string): P
   const existentes = ids.length ? await db.bpoLancamento.findMany({ where: { id: { in: ids } }, select: { id: true } }) : [];
   const clientes = clienteIds.length ? await db.bpoCliente.findMany({ where: { id: { in: clienteIds } }, select: { id: true } }) : [];
   const unicosEmUso: Record<string, Set<string>> = {};
+  const chavesEmArquivados = new Set<string>();
   for (const coluna of COLUNAS_UNICAS) {
     const valores = Array.from(new Set(snapshot.map((s) => s[coluna]).filter((x): x is string => typeof x === "string" && !!x)));
     const usados = valores.length
-      ? await db.bpoLancamento.findMany({ where: { [coluna]: { in: valores }, id: { notIn: ids } }, select: { [coluna]: true } as Record<string, true> })
+      ? await db.bpoLancamento.findMany({ where: { [coluna]: { in: valores }, id: { notIn: ids } }, select: { [coluna]: true, exclusaoLoteBackupId: true } as Record<string, true> })
       : [];
     unicosEmUso[coluna] = new Set(usados.map((u) => String((u as Record<string, unknown>)[coluna])));
+    if (coluna === "requestKey") {
+      for (const u of usados as Record<string, unknown>[]) if (u.exclusaoLoteBackupId != null) chavesEmArquivados.add(String(u.requestKey));
+    }
   }
   const precisaCatalogo = snapshot.some((s) => s.vinculoOperacionalId);
   const catalogo = precisaCatalogo ? await catalogoOperacionalBpo() : null;
@@ -227,6 +250,7 @@ async function planoDoBackup(db: Tx, snapshotJson: string, backupId?: string): P
       return !!catalogo?.[chave]?.some((r) => r.id === id);
     },
     unicosEmUso,
+    chavesEmArquivados,
   }, COLUNAS_LANCAMENTO, COLUNAS_DATA_LANCAMENTO);
 }
 

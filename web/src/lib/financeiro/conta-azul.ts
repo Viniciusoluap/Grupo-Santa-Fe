@@ -19,6 +19,12 @@ import { ehDespesa, normalizarTitular, sugerirCategoria, TRANSFERENCIA_INTERNA, 
 export const ARQUIVOS_CONTA_AZUL = [
   "pessoas.csv", "financeiro.csv", "propostas_comerciais.csv", "lista_precos.csv", "nfes.csv", "negociacoes.csv", "produtos.csv",
 ] as const;
+/** Prefixo do requestKey dos lançamentos importados do Conta Azul: `contaazul:<id>:<hash>`. */
+export const PREFIXO_CHAVE_CONTA_AZUL = "contaazul:";
+/** Paridade 17/11 (EPIC-024 S-01 da Prospecta): texto que o admin digita para remover em definitivo os arquivados que bloqueiam a reimportação. */
+export const CONFIRMACAO_LIBERAR_REIMPORTACAO = "LIBERAR";
+export const confirmacaoLiberarValida = (texto: string | null | undefined) => String(texto ?? "").trim() === CONFIRMACAO_LIBERAR_REIMPORTACAO;
+
 /** Limite de texto aceito por arquivo (o financeiro real tem ~0,6 MB). */
 export const LIMITE_ARQUIVO_CONTA_AZUL = 3_000_000;
 
@@ -228,7 +234,7 @@ function lerFinanceiro(texto: string, erros: string[]) {
     if (categoria === TRANSFERENCIA_INTERNA) { transfQtd++; transfCentavos += Math.round(Number(valor) * 100); continue; }
     const pago = r.status === "ACQUITTED";
     movimentos.push({
-      chave: `contaazul:${r.id.slice(0, 40)}:${hash([categoriaOriginal, valor, descricao, r.tipo].join("|"))}`,
+      chave: `${PREFIXO_CHAVE_CONTA_AZUL}${r.id.slice(0, 40)}:${hash([categoriaOriginal, valor, descricao, r.tipo].join("|"))}`,
       tipo, descricao, valor, vencimento, competencia, pago,
       pagoEm: pago ? (dataContaAzul(r.data_de_quitacao ?? "") ?? dataContaAzul(r.data ?? "") ?? vencimento) : null,
       negociador: (r.nome_do_negociador ?? "").replace(/\s+/g, " ").trim().slice(0, 255),

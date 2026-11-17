@@ -9,8 +9,9 @@ import { Upload } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { formatCurrency } from "@/lib/utils";
 import { exigirResultado } from "@/lib/acao-resultado";
-import { importarContaAzulAcao, previaContaAzulAcao } from "@/lib/actions/bpo-paridade";
+import { importarContaAzulAcao, liberarReimportacaoContaAzulAcao, previaContaAzulAcao } from "@/lib/actions/bpo-paridade";
 import type { PreviaContaAzul } from "@/lib/bpo-conta-azul";
+import { CONFIRMACAO_LIBERAR_REIMPORTACAO, confirmacaoLiberarValida } from "@/lib/financeiro/conta-azul";
 
 const LIMITE_ZIP = 30 * 1024 * 1024;
 
@@ -63,6 +64,13 @@ export function ImportarContaAzul({ onMensagem }: { onMensagem: (m: string) => v
     }
   }
 
+  /** Depois de liberar: a prévia é refeita com os mesmos arquivos (o servidor relê tudo). */
+  async function refazerPrevia() {
+    if (!arquivos) return;
+    try { setPrevia(exigirResultado(await previaContaAzulAcao(arquivos))); }
+    catch (e) { onMensagem(e instanceof Error ? e.message : "Falha ao refazer a prévia."); }
+  }
+
   function fechar() { if (!importando) { setArquivos(null); setPrevia(null); } }
 
   function importar() {
@@ -70,7 +78,7 @@ export function ImportarContaAzul({ onMensagem }: { onMensagem: (m: string) => v
     iniciar(async () => {
       try {
         const r = exigirResultado(await importarContaAzulAcao(arquivos));
-        onMensagem(`Conta Azul importado: ${r.lancamentosCriados} lançamento(s) e ${r.clientesCriados} cliente(s) novos${r.lancamentosJaImportados ? `; ${r.lancamentosJaImportados} já existiam` : ""}.`);
+        onMensagem(`Conta Azul importado: ${r.lancamentosCriados} lançamento(s) e ${r.clientesCriados} cliente(s) novos${r.lancamentosJaImportados ? `; ${r.lancamentosJaImportados} já existiam` : ""}${r.lancamentosArquivadosBloqueando ? `; ${r.lancamentosArquivadosBloqueando} bloqueado(s) por arquivados` : ""}.`);
         setArquivos(null); setPrevia(null);
         router.refresh();
       } catch (e) { onMensagem(e instanceof Error ? e.message : "Falha ao importar."); }
@@ -98,12 +106,15 @@ export function ImportarContaAzul({ onMensagem }: { onMensagem: (m: string) => v
           {p.lancamentos.periodo && <p className="text-gray-600">Período do backup: competências de {p.lancamentos.periodo.de} a {p.lancamentos.periodo.ate}.</p>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Resumo titulo="Lançamentos novos" valor={String(p.lancamentos.novos)} detalhe={`${p.lancamentos.pagos} pago(s) · ${p.lancamentos.emAberto} em aberto (vão para A classificar)`} />
-            <Resumo titulo="Já importados" valor={String(p.lancamentos.jaImportados)} detalhe="não serão duplicados" />
+            <Resumo titulo="Já importados (ativos)" valor={String(p.lancamentos.jaImportados)} detalhe="estão no BPO e não serão duplicados" />
             <Resumo titulo="Receitas (aba Cobranças)" valor={formatCurrency(Number(p.lancamentos.receitas.total))} detalhe={`${p.lancamentos.receitas.quantidade} lançamento(s)`} />
             <Resumo titulo="Despesas" valor={formatCurrency(Number(p.lancamentos.despesas.total))} detalhe={`${p.lancamentos.despesas.quantidade} lançamento(s)`} />
             <Resumo titulo="Clientes BPO novos" valor={String(p.clientesNovos)} detalhe={`${p.clientesExistentes} já cadastrado(s) · ${p.pessoas.clientes} cliente(s) no backup`} />
             <Resumo titulo="Fornecedores" valor={String(p.pessoas.fornecedores)} detalhe="entram como nome nos lançamentos" />
           </div>
+          {p.lancamentos.arquivados.bloqueando > 0 && (
+            <LiberarReimportacao arquivos={arquivos} arquivados={p.lancamentos.arquivados} onMensagem={onMensagem} onLiberado={() => void refazerPrevia()} />
+          )}
           {p.lancamentos.porCategoria.length > 0 && (
             <div>
               <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">Categoria no BPO (a do Conta Azul fica nas observações)</p>
@@ -131,6 +142,68 @@ export function ImportarContaAzul({ onMensagem }: { onMensagem: (m: string) => v
         </Modal>
       )}
     </>
+  );
+}
+
+type Arquivados = PreviaContaAzul["lancamentos"]["arquivados"];
+
+/**
+ * Paridade 17/11 (EPIC-024 S-01 da Prospecta): lançamentos arquivados seguram a chave do Conta Azul e impedem a
+ * reimportação. Só o admin chega a esta tela (prévia e importação já exigem o perfil admin, e o servidor confere de
+ * novo); remove em definitivo os sem vínculo (com cópia no servidor) depois de digitar LIBERAR; os com vínculo ficam.
+ */
+function LiberarReimportacao({ arquivos, arquivados, onMensagem, onLiberado }: {
+  arquivos: Record<string, string>; arquivados: Arquivados; onMensagem: (m: string) => void; onLiberado: () => void;
+}) {
+  const [confirmando, setConfirmando] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [liberando, iniciar] = useTransition();
+  function liberar() {
+    iniciar(async () => {
+      try {
+        const r = exigirResultado(await liberarReimportacaoContaAzulAcao({ arquivos, confirmacao: texto }));
+        onMensagem(`${r.removidos} lançamento(s) arquivado(s) removido(s) em definitivo (cópia guardada)${r.mantidos ? `; ${r.mantidos} mantido(s) (vínculo ou outra origem)` : ""}.`);
+        setConfirmando(false);
+        setTexto("");
+        onLiberado();
+      } catch (e) { onMensagem(e instanceof Error ? e.message : "Falha ao liberar a reimportação."); }
+    });
+  }
+  return (
+    <div role="alert" className="space-y-2 border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+      <p className="font-bold">{arquivados.bloqueando} lançamento(s) deste backup estão ARQUIVADOS no BPO e bloqueiam a reimportação.</p>
+      <p>Arquivado não aparece nas listas nem nos totais, mas continua segurando a chave da linha do Conta Azul: enquanto existir,
+        a mesma linha não entra de novo. Para importar de novo, é preciso removê-los em definitivo.</p>
+      <ul className="list-disc pl-5">
+        <li>{arquivados.liberaveis} sem vínculo nenhum — podem ser removidos (uma cópia de cada um fica guardada no servidor).</li>
+        {arquivados.comVinculo > 0 && <li>{arquivados.comVinculo} com vínculo (banco, Asaas, baixa, obra, regularização ou combinação) — ficam como estão e não entram.</li>}
+        {arquivados.outraOrigem > 0 && <li>{arquivados.outraOrigem} de outra origem (legado, Asaas, manual…) com a chave do Conta Azul — nunca são removidos por aqui.</li>}
+      </ul>
+      {arquivados.exemplosComVinculo.length > 0 && (
+        <ul className="pl-5 text-amber-800">
+          {arquivados.exemplosComVinculo.map((a) => <li key={a.id}>{a.descricao} ({formatCurrency(Number(a.valor))}): {a.motivos.join("; ")}</li>)}
+        </ul>
+      )}
+      {arquivados.liberaveis > 0 && (!confirmando
+        ? <button type="button" onClick={() => setConfirmando(true)} className="border border-amber-400 px-3 py-1.5 font-bold uppercase tracking-wider text-amber-900 hover:bg-amber-100">Liberar reimportação</button>
+        : (
+          <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); liberar(); }}>
+            <label className="block" htmlFor="confirmar-liberar">
+              Isto remove em definitivo {arquivados.liberaveis} lançamento(s) arquivado(s) do Conta Azul. Ativos e outras origens não são tocados.
+              Digite <b>{CONFIRMACAO_LIBERAR_REIMPORTACAO}</b> para confirmar:
+            </label>
+            <input id="confirmar-liberar" autoComplete="off" value={texto} onChange={(e) => setTexto(e.target.value)}
+              className="w-full border border-amber-300 bg-white px-2 py-1.5 text-sm text-gray-900" />
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" disabled={!confirmacaoLiberarValida(texto) || liberando}
+                className="bg-amber-500 px-3 py-1.5 font-bold uppercase tracking-wider text-white disabled:opacity-50">
+                {liberando ? "Removendo…" : `Remover ${arquivados.liberaveis} em definitivo`}
+              </button>
+              <button type="button" disabled={liberando} onClick={() => { setConfirmando(false); setTexto(""); }} className="px-3 py-1.5 text-gray-600">Cancelar</button>
+            </div>
+          </form>
+        ))}
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@
 // (bpo_lancamento_exclusoes_backup). Regra pura (sem banco/rede): decide o que volta, o que já
 // existe (não duplica) e quais vínculos externos sumiram (restaura sem o vínculo e avisa).
 // Gêmeos: Prospecta shared/financeiro/bpo-restauracao.ts · Santa Fé web/src/lib/bpo-restauracao.ts.
+import { PREFIXO_CHAVE_CONTA_AZUL } from "@/lib/financeiro/conta-azul";
 
 export const CONFIRMACAO_RESTAURACAO = "RESTAURAR";
 export const confirmacaoRestauracaoValida = (texto: string | null | undefined) => String(texto ?? "").trim() === CONFIRMACAO_RESTAURACAO;
@@ -18,6 +19,8 @@ export type ContextoRestauracao = {
   vinculoExiste: (tipo: string, categoriaOperacional: string, id: string) => boolean;
   /** Valores já usados em colunas únicas (ex.: requestKey) por OUTROS lançamentos. */
   unicosEmUso: Record<string, Set<string>>;
+  /** requestKey em uso por um lançamento ARQUIVADO (fora das listas e dos totais). */
+  chavesEmArquivados?: Set<string>;
 };
 
 export type ItemPlano = {
@@ -92,6 +95,13 @@ export function planejarRestauracao(
     }
     for (const [coluna, emUso] of Object.entries(ctx.unicosEmUso)) {
       const v = texto(dados[coluna]);
+      // Paridade 17/11 (S-01): a chave do Conta Azul em uso = a mesma linha foi reimportada; voltar sem a chave a duplicaria.
+      if (v && emUso.has(v) && coluna === "requestKey" && v.startsWith(PREFIXO_CHAVE_CONTA_AZUL)) {
+        const aviso = ctx.chavesEmArquivados?.has(v)
+          ? "A mesma linha do Conta Azul está em outro lançamento ARQUIVADO (fora das listas): não será duplicada. Restaure aquele arquivamento para vê-la."
+          : "Já foi importado de novo do Conta Azul (mesma chave, lançamento ativo): não será duplicado.";
+        return { ...base, acao: "ja_existe" as const, avisos: [aviso], dados: {} };
+      }
       if (v && emUso.has(v)) {
         avisos.push(`A chave única "${coluna}" já está em uso por outro lançamento: volta sem ela.`);
         dados[coluna] = null;

@@ -47,4 +47,21 @@ describe("restaurar exclusão em lote — regra pura", () => {
     const plano = planejarRestauracao([{ id: "a", tipo: "despesa", descricao: "x", valor: 1, vinculoOperacionalId: "obra-ok", categoriaOperacional: "obras" }], ctx(), COLUNAS, []);
     expect(plano.itens[0]).toMatchObject({ acao: "restaurar", avisos: [], dados: { vinculoOperacionalId: "obra-ok" } });
   });
+
+  // Paridade 17/11 (EPIC-024 S-01 da Prospecta): a chave do Conta Azul em uso = linha reimportada; nunca volta duplicada.
+  it("chave do Conta Azul já em uso: não restaura (nem sem a chave); aviso diferente se o outro está arquivado", () => {
+    const itens = [
+      { id: "a", tipo: "despesa", descricao: "CA ativo", valor: 1, requestKey: "contaazul:1:x" },
+      { id: "b", tipo: "despesa", descricao: "CA arquivado", valor: 1, requestKey: "contaazul:2:y" },
+      { id: "c", tipo: "despesa", descricao: "Outra chave", valor: 1, requestKey: "rk-usada" },
+    ];
+    const plano = planejarRestauracao(itens, ctx({
+      unicosEmUso: { requestKey: new Set(["contaazul:1:x", "contaazul:2:y", "rk-usada"]) },
+      chavesEmArquivados: new Set(["contaazul:2:y"]),
+    }), COLUNAS, []);
+    expect(plano).toMatchObject({ restaurar: 1, jaExistem: 2 });
+    expect(plano.itens[0]).toMatchObject({ acao: "ja_existe", dados: {}, avisos: [expect.stringMatching(/importado de novo do Conta Azul/)] });
+    expect(plano.itens[1]).toMatchObject({ acao: "ja_existe", avisos: [expect.stringMatching(/outro lançamento ARQUIVADO/)] });
+    expect(plano.itens[2]).toMatchObject({ acao: "restaurar", dados: { requestKey: null } }); // regra antiga mantida para outras chaves
+  });
 });
