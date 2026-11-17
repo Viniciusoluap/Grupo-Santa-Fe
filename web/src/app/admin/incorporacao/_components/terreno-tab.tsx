@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { Upload, MapPinned, Ruler } from "lucide-react";
 import type { uploadKml } from "@/lib/actions/incorporacao";
 import type { EstudoData } from "./incorporacao-detail";
-import { enviarComProgresso } from "@/lib/envio-progresso";
+import { enviarComProgresso, publicarEnvio } from "@/lib/envio-progresso";
+import { enviarEmPartes } from "@/lib/incorporacao/envio-partes";
 import { SemKmlToggle } from "./lotes-avulsos-editor";
 import { AVISO_SEM_POLIGONAL } from "@/lib/incorporacao/lotes-avulsos";
 import { formatArea } from "@/lib/utils";
@@ -22,17 +23,27 @@ function hectares(m2: number) {
 export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function enviar(formData: FormData) {
     setBusy(true);
     setErro(null);
+    setAviso(null);
     try {
-      formData.set("estudoId", estudo.id);
-      const res = await enviarComProgresso<Awaited<ReturnType<typeof uploadKml>>>("incorporacao.kml", formData, { item: "arquivo" });
+      // Paridade 17/11 (S-08): KML ou KMZ até 20 MB, enviado em partes de 1 MiB
+      const file = formData.get("kml");
+      if (!(file instanceof File) || file.size === 0) { setErro("Selecione um arquivo KML ou KMZ."); return; }
+      if (!/\.(kml|kmz)$/i.test(file.name)) { setErro("Envie um arquivo .kml ou .kmz."); return; }
+      const uploadId = await enviarEmPartes("incorporacao.terreno.parte", file, { estudoId: estudo.id });
+      const res = await enviarComProgresso<Awaited<ReturnType<typeof uploadKml>>>("incorporacao.kml", { estudoId: estudo.id, uploadId, fileName: file.name }, { item: "arquivo" });
       if (res?.error) setErro(res.error);
+      else if (res?.aviso) { setAviso(res.aviso); window.setTimeout(() => window.location.reload(), 2500); }
       else window.location.reload();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha no envio.");
     } finally {
+      publicarEnvio(null);
       setBusy(false);
     }
   }
@@ -43,15 +54,16 @@ export function TerrenoTab({ estudo }: { estudo: EstudoData }) {
     <div className="space-y-4">
       {/* Upload */}
       <form action={enviar} className="bg-white border border-gray-100 p-4 flex items-center gap-3 flex-wrap">
-        <input ref={inputRef} type="file" name="kml" accept=".kml" className="hidden"
+        <input ref={inputRef} type="file" name="kml" accept=".kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz" className="hidden"
           onChange={(e) => { if (e.target.files?.length) e.target.form?.requestSubmit(); }} />
         <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
           className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 disabled:opacity-50">
-          <Upload size={14} /> {busy ? "Processando..." : temTerreno ? "Trocar KML" : "Enviar KML do terreno"}
+          <Upload size={14} /> {busy ? "Processando..." : temTerreno ? "Trocar KML/KMZ" : "Enviar KML/KMZ do terreno"}
         </button>
-        <span className="text-xs text-gray-600">Formato .kml (polígono do terreno)</span>
+        <span className="text-xs text-gray-600">Formato .kml ou .kmz (polígono do terreno, até 20 MB)</span>
       </form>
-      {erro && <p className="text-xs text-red-500">{erro}</p>}
+      {erro && <p className="text-xs text-red-500">{erro}{temTerreno ? " O terreno já salvo foi mantido." : ""}</p>}
+      {aviso && <p className="text-xs text-amber-700">{aviso}</p>}
 
       {/* Correção 06: empreendimento sem KML + lotes avulsos */}
       <SemKmlToggle estudo={estudo} />

@@ -4,7 +4,9 @@ import { Mountain, Plus, MapPin } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { EstudoAcoes } from "./_components/estudo-acoes";
-import { SITUACOES_ESTUDO, situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
+import { SITUACOES_ESTUDO } from "@/lib/incorporacao/status-estudo";
+import { TIPOS_INCORPORACAO } from "@/lib/incorporacao/tipo-estudo";
+import { FILTROS_INCORPORACAO_VAZIOS, filtrarEstudosIncorporacao, filtrosIncorporacaoAtivos } from "@/lib/incorporacao/filtro-listagem";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   em_estudo: { label: "Em estudo", cls: "bg-blue-50 text-blue-700" },
@@ -17,15 +19,20 @@ function hectares(m2: number): string {
   return `${(m2 / 10_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} ha`;
 }
 
-export default async function IncorporacaoPage({ searchParams }: { searchParams: Promise<{ situacao?: string }> }) {
+export default async function IncorporacaoPage({ searchParams }: { searchParams: Promise<{ situacao?: string; nome?: string; tipo?: string }> }) {
   await exigirModuloPagina("incorporacao");
-  const filtro = (await searchParams).situacao ?? "todas";
+  const sp = await searchParams;
+  // Paridade 17/11 (Prospecta EPIC-024 S-07): situação, nome e tipo combinados (E lógico); o nome ignora maiúsculas e acentos.
+  const filtros = {
+    status: sp.situacao ?? FILTROS_INCORPORACAO_VAZIOS.status,
+    nome: (sp.nome ?? "").slice(0, 120),
+    tipo: sp.tipo ?? FILTROS_INCORPORACAO_VAZIOS.tipo,
+  };
+  const filtro = filtros.status;
 
-  const estudos = await prisma.estudoIncorporacao.findMany({
-    where: situacaoEstudoValida(filtro) ? { status: filtro } : filtro === "pendente"
-      ? { status: { notIn: SITUACOES_ESTUDO.map((item) => item.value) } } : undefined,
-    orderBy: { atualizadoEm: "desc" },
-  });
+  const todos = await prisma.estudoIncorporacao.findMany({ orderBy: { atualizadoEm: "desc" } });
+  const estudos = filtrarEstudosIncorporacao(todos, filtros);
+  const ativos = filtrosIncorporacaoAtivos(filtros);
 
   return (
     <div className="space-y-5">
@@ -46,6 +53,9 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
       </div>
 
       <form method="get" className="flex items-center gap-2 flex-wrap">
+        <label htmlFor="nome-filtro" className="sr-only">Buscar pelo nome do empreendimento</label>
+        <input id="nome-filtro" name="nome" type="search" defaultValue={filtros.nome} placeholder="Buscar pelo nome"
+          className="w-full sm:w-64 text-sm border border-gray-200 bg-white px-3 py-2 text-[var(--brand-dark)]" />
         <label htmlFor="situacao-filtro" className="text-sm font-semibold text-[var(--brand-dark)]">Situação</label>
         <select id="situacao-filtro" name="situacao" defaultValue={filtro}
           className="text-sm border border-gray-200 bg-white px-3 py-2 text-[var(--brand-dark)]">
@@ -53,10 +63,22 @@ export default async function IncorporacaoPage({ searchParams }: { searchParams:
           {SITUACOES_ESTUDO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           <option value="pendente">Classificação pendente</option>
         </select>
+        <label htmlFor="tipo-filtro" className="text-sm font-semibold text-[var(--brand-dark)]">Tipo</label>
+        <select id="tipo-filtro" name="tipo" defaultValue={filtros.tipo}
+          className="text-sm border border-gray-200 bg-white px-3 py-2 text-[var(--brand-dark)]">
+          <option value="todos">Todos os tipos</option>
+          {TIPOS_INCORPORACAO.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
         <button type="submit" className="text-sm font-semibold px-3 py-2 bg-[var(--brand-dark)] text-white">Filtrar</button>
+        {ativos && <Link href="/admin/incorporacao" className="text-sm font-semibold px-3 py-2 text-[var(--brand-dark)] underline">Limpar filtros</Link>}
       </form>
 
-      {estudos.length === 0 ? (
+      {todos.length > 0 && estudos.length === 0 ? (
+        <div className="bg-white border border-gray-100 p-12 text-center">
+          <p className="text-gray-600 font-medium">Nenhum estudo encontrado com esses filtros</p>
+          <Link href="/admin/incorporacao" className="mt-2 inline-block text-sm font-bold text-[var(--brand-dark)] underline">Limpar filtros</Link>
+        </div>
+      ) : estudos.length === 0 ? (
         <div className="bg-white border border-gray-100 p-12 text-center">
           <Mountain size={32} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Nenhum estudo de incorporação ainda</p>

@@ -11,7 +11,8 @@ Sem merge, sem PR, sem deploy. Migrações NÃO aplicadas em banco real (quem ap
 | 1 | Estudo de Massa com o motor novo (EPIC-023 F, correções 8/10, S-I) | concluído | (ver git log) |
 | 2 | Áreas restritas nas doações (`aproveitarRestricoes`, `DESTINOS_PADRAO`) | concluído (vem junto com o motor) | idem |
 | 3 | Camadas do mapa do terreno resilientes | concluído | (ver git log) |
-| 4 | EPIC-024: 02 logotipo, 06 proposta, 07 filtros, 08 KML/KMZ | pendente | — |
+| 4 | EPIC-024: 07 filtros e 08 KML/KMZ | concluído | (ver git log) |
+| 4b | EPIC-024: 02 logotipo e 06 proposta do terreno | pendente | — |
 | 5 | Salvamento automático da Viabilidade (93edc7c) | pendente | — |
 
 ## Itens 1 e 2 — Estudo de Massa (motor 3.0.0) e áreas restritas nas doações
@@ -76,9 +77,26 @@ Testes: `camadas-terreno-resiliencia.test.ts` (porte integral, fetch/relógio/ar
 `camadas-terreno.test.ts` (mesmas expectativas trocadas na Prospecta: espelhos do Overpass), `camadas-terreno-cache.db.test.ts`
 (migração com PGlite + armazém com prisma simulado). 56/56.
 
+## Item 4 (parte 1) — EPIC-024 S-07 (filtros) e S-08 (KML/KMZ em partes)
+Origem Prospecta: e13991c (S-07, S-08) + 2c54900.
+- S-07: `web/src/lib/incorporacao/filtro-listagem.ts` (mesma regra: situação + nome + tipo em E lógico, nome sem
+  maiúsculas/acentos, "Todos os tipos" inclui sem tipo) e `web/src/app/admin/incorporacao/page.tsx` (busca por nome,
+  seletor de tipo, "Limpar filtros", "Nenhum estudo encontrado com esses filtros"). Diferença de stack: a listagem do
+  Santa Fé é página do servidor, então os filtros vão na URL (GET) e aplicam ao clicar em "Filtrar" (na Prospecta
+  filtram na hora). O Santa Fé mantém "pendente" (classificação pendente) e o tipo "residencial" (a retirada dele na
+  Prospecta, 355f3aa, não é deste bloco).
+- S-08: `web/src/lib/geo/kmz.ts` (cópia; KMZ lido sem confiar nos tamanhos declarados, `doc.kml` preferido, bomba de
+  compressão recusada) e `web/src/lib/incorporacao/terreno-arquivo.ts`; a action `enviarParteTerreno` guarda partes de
+  1 MiB em `documento_upload_partes` (já existente; tipo "inc-terreno") pela rota `/api/envio`
+  ("incorporacao.terreno.parte"); `uploadKml` aceita o envio em partes (uploadId + fileName) ou o arquivo direto (KML/KMZ),
+  até 20 MB, e devolve o aviso do KMZ com vários KML. Falha não grava nada (terreno salvo mantido).
+  `terreno-tab.tsx`: aceita .kml/.kmz, envia em partes (`web/src/lib/incorporacao/envio-partes.ts`), mostra aviso.
+Testes: `incorporacao-kml-kmz.test.ts` (porte; partes e prisma simulados), `incorporacao-filtros-listagem.test.ts` (porte
+com os campos do Santa Fé). Sem migração.
+
 ## Migrações criadas (NÃO aplicadas)
 - `web/prisma/migrations/20261117210000_camadas_terreno_cache/migration.sql` — `CREATE TABLE IF NOT EXISTS "camadas_terreno_cache"` + RLS.
 - `web/prisma/migrations/20261117200000_contorno_app_estudo/migration.sql` — `ADD COLUMN IF NOT EXISTS "appContornoJson" TEXT`.
 
 ## Próximo passo
-Item 4 (EPIC-024: 07 filtros, 08 KML/KMZ, 02 logotipo, 06 proposta).
+Item 4b (EPIC-024: 02 logotipo, 06 proposta do terreno em PDF/e-mail).

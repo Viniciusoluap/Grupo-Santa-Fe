@@ -11,6 +11,9 @@ import { limparLargurasConfirmadas } from "@/lib/geo/camadas-terreno";
 import { parseKmlTerreno } from "@/lib/geo/kml";
 import type { MultiPolygon } from "geojson";
 import { CAMPOS_LIMPOS_AO_TROCAR_TERRENO, contornoAoSalvarApp, validarContornoApp } from "@/lib/incorporacao/app-contorno";
+import { LIMITE_ARQUIVO_TERRENO } from "@/lib/geo/kmz";
+import { TIPO_PARTES_TERRENO, avisoDoKmz, kmlDoEnvio } from "@/lib/incorporacao/terreno-arquivo";
+import { guardarParte } from "@/lib/documentos-upload-partes";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
 import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 import { tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
@@ -137,15 +140,42 @@ export async function obterVersaoEstudo(estudoId: string, numero: number) {
   return { numero: versao.numero, criadoEm: versao.criadoEm.toISOString(), snapshot: versao.snapshot };
 }
 
-/** Recebe o KML, salva no Blob, extrai o polígono e persiste geometria/métricas. */
+/**
+ * Paridade 17/11 (Prospecta EPIC-024 S-08): uma parte de 1 MiB do arquivo do terreno (KML ou KMZ, até 20 MB). A Vercel
+ * recusa corpo acima de ~4,5 MB; as partes ficam em `documento_upload_partes` (tipo "inc-terreno", item = estudo).
+ */
+export async function enviarParteTerreno(estudoId: string, uploadId: string, parte: number, total: number, nome: string, pedaco: Blob) {
+  const usuario = await exigirModuloAcao("incorporacao");
+  if (!/\.(kml|kmz)$/i.test(nome)) throw new Error("Envie um arquivo .kml ou .kmz.");
+  const chunk = Buffer.from(await pedaco.arrayBuffer()).toString("base64");
+  await guardarParte({ uploadId, parte, total, nome, chunk }, usuario.id, TIPO_PARTES_TERRENO, estudoId);
+  return { ok: true as const };
+}
+
+/**
+ * Recebe o terreno (KML ou KMZ), extrai os polígonos e persiste geometria/métricas. Aceita o arquivo direto no
+ * FormData ("kml", arquivo pequeno) ou um envio em partes ("uploadId" + "fileName", ver `enviarParteTerreno`).
+ * Falhou (KMZ sem KML, bomba de compressão, KML sem polígono): nada é gravado e o terreno salvo é mantido.
+ */
 export async function uploadKml(estudoId: string, formData: FormData) {
-  await exigirModuloAcao("incorporacao");
+  const usuario = await exigirModuloAcao("incorporacao");
 
+  const uploadId = formData.get("uploadId");
+  const fileName = formData.get("fileName");
   const file = formData.get("kml") as File | null;
-  if (!file || file.size === 0) return { error: "Selecione um arquivo KML." };
-  if (file.size > 10 * 1024 * 1024) return { error: "Arquivo muito grande (máx. 10 MB)." };
-
-  const text = await file.text();
+  let lido;
+  try {
+    if (typeof uploadId === "string" && uploadId && typeof fileName === "string") {
+      lido = await kmlDoEnvio({ uploadId, fileName }, estudoId, usuario.id);
+    } else {
+      if (!file || file.size === 0) return { error: "Selecione um arquivo KML ou KMZ." };
+      if (file.size > LIMITE_ARQUIVO_TERRENO) return { error: "Arquivo muito grande (máx. 20 MB)." };
+      lido = await kmlDoEnvio({ bytes: new Uint8Array(await file.arrayBuffer()), fileName: file.name || "terreno.kml" }, estudoId, usuario.id);
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Arquivo do terreno inválido." };
+  }
+  const text = lido.kml;
   let terreno;
   try {
     terreno = parseKmlTerreno(text);
@@ -176,7 +206,7 @@ export async function uploadKml(estudoId: string, formData: FormData) {
   });
 
   revalidatePath(`/admin/incorporacao/${estudoId}`);
-  return { ok: true, areaM2: terreno.areaM2, perimetroM: terreno.perimetroM };
+  return { ok: true, areaM2: terreno.areaM2, perimetroM: terreno.perimetroM, aviso: avisoDoKmz(lido) };
 }
 
 /** Salva o grid de elevação (JSON já calculado no client via API de elevação). */
