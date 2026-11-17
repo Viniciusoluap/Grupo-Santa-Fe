@@ -29,6 +29,10 @@ export interface LoteFrame {
   /** Só no formato "acompanha a divisa": testada real (múltiplo da informada) e profundidade média (área ÷ testada). */
   testada?: number;
   profundidadeMedia?: number;
+  /** Malha conectada: forma que desconta o lote da gleba na destinação (o retângulo inteiro, que passa da divisa). */
+  cobertura?: Position[];
+  /** Malha conectada: direção da testada no frame ("x" = frente ao sul/norte; "y" = a oeste/leste). */
+  eixoTestada?: "x" | "y";
 }
 
 export interface ImplantacaoFrame {
@@ -40,6 +44,18 @@ export interface ImplantacaoFrame {
   limitacoes: string[];
   /** Retângulos candidatos que couberam na poligonal. */
   candidatos: number;
+  /** Traçado livre (via que acompanha a divisa), já recortado pela gleba. */
+  viasLivres?: Position[][];
+  /** Malha conectada (etapa F): peças viárias mantidas, já recortadas (polígonos com furos). */
+  viasPoli?: Position[][][];
+  /** Malha conectada: formas para descontar as vias da gleba na destinação. */
+  viasCobertura?: Position[][];
+  /** Malha conectada: existe componente com acesso pela divisa (R1). Ausente = não verificado (tipologias sem malha). */
+  conexa?: boolean;
+  /** Pontos (frame) onde a malha toca a divisa. */
+  acessos?: Position[];
+  /** Trechos de via descartados por não se ligarem à malha principal ou não servirem a lote. */
+  trechosDescartados?: number;
 }
 
 export function retAnel(r: Ret): Position[] {

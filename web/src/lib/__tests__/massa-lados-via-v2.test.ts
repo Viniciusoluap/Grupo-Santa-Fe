@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ANEL_MORADA, CENTRO_MORADA } from "./fixtures/morada-do-bosque";
 import { criarProjecao, gerarEstudoMassa, validarParametrosMassa, type ParametrosMassa } from "@/lib/geo/massa-parcelamento";
 import { buscarPorLados, cadeiasDosLados, ladoDasArestas, medirLados } from "@/lib/geo/lados-gleba";
 import { areaPlanar } from "@/lib/geo/geometria-parcelamento";
+
+// Paridade 17/11: o motor de massa 3.0.0 (malha conectada, recorte na divisa) é mais pesado; com 3 workers em
+// paralelo os cenários grandes passam de 5 s. Prazo maior só neste arquivo (nenhum teste foi pulado ou afrouxado).
+vi.setConfig({ testTimeout: 60_000 });
 
 const proj = criarProjecao(CENTRO_MORADA);
 const MORADA = (() => { const p = ANEL_MORADA.map((x) => proj.paraMetros(x)); p[p.length - 1] = p[0]; return p; })();

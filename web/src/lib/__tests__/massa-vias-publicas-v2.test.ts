@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ANEL_POLIMEROS, CENTRO_POLIMEROS } from "./fixtures/polimeros-lote01-qdo";
 import { criarProjecao, gerarEstudoMassa, validarParametrosMassa, type ParametrosMassa } from "@/lib/geo/massa-parcelamento";
 import { buscarViasPublicas, completarAproveitamento, frenteNaDivisa, trechosDaDivisa } from "@/lib/geo/vias-publicas";
 import { areaPlanar } from "@/lib/geo/geometria-parcelamento";
+
+// Paridade 17/11: o motor de massa 3.0.0 (malha conectada, recorte na divisa) é mais pesado; com 3 workers em
+// paralelo os cenários grandes passam de 5 s. Prazo maior só neste arquivo (nenhum teste foi pulado ou afrouxado).
+vi.setConfig({ testTimeout: 60_000 });
 
 const P: ParametrosMassa = { larguraViaM: 0, testadaLoteM: 5, profundidadeLoteM: 25, loteMinimoM2: 125, comprimentoMaxQuadraM: 0,
   percentInstitucional: 0, percentAreaVerde: 0, precoM2Lote: 500, tipologia: "vias_publicas" };

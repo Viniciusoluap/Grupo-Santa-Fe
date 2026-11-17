@@ -71,6 +71,8 @@ export interface EstudoData {
   centroLat: number | null;
   centroLng: number | null;
   appAreaM2: number | null;
+  /** Paridade 17/11 (S-I): contorno da APP no terreno (MultiPolygon GeoJSON, lng/lat), gravado pelo mapa do Terreno. */
+  appContornoJson?: string | null;
   appLarguraM: number | null;
   /** Larguras de faixa confirmadas no mapa do terreno (JSON {chave: metros}). */
   largurasFaixaJson?: string | null;

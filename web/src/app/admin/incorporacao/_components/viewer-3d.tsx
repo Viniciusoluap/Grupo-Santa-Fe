@@ -4,9 +4,10 @@ import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import type { Feature, Polygon } from "geojson";
+import { booleanPointInPolygon } from "@turf/turf";
+import type { GeometriaTerreno } from "@/lib/geo/terreno";
 import {
-  upsampleBilinear, suavizarGrade, pontoNoPoligono, passoNivel, isolinhas,
+  upsampleBilinear, suavizarGrade, passoNivel, isolinhas,
   declividadeGrade, celulaEmMetros, type GridElevacaoLike,
 } from "@/lib/geo/relevo";
 
@@ -77,7 +78,6 @@ interface Processado {
   toWorld: (col: number, row: number) => [number, number]; // → [x, z]
   alturaWorld: (alt: number) => number;
   profundidade: number;
-  anel: [number, number][] | null;
 }
 
 function processar(grid: GridElevacao, geojson: string | null): Processado {
@@ -90,11 +90,10 @@ function processar(grid: GridElevacao, geojson: string | null): Processado {
   const cellY = grid.cellsizeY / fator;
   const norte = grid.south + (grid.nrows - 1) * grid.cellsizeY;
 
-  let anel: [number, number][] | null = null;
+  let terreno: GeometriaTerreno | null = null;
   if (geojson) {
     try {
-      const f = JSON.parse(geojson) as Feature<Polygon>;
-      anel = f.geometry.coordinates[0] as [number, number][];
+      terreno = JSON.parse(geojson) as GeometriaTerreno; // Polygon (com furos) ou MultiPolygon (várias áreas)
     } catch { /* sem recorte */ }
   }
 
@@ -105,7 +104,7 @@ function processar(grid: GridElevacao, geojson: string | null): Processado {
   for (let r = 0; r < denso.nrows; r++) {
     const linha: boolean[] = [];
     for (let c = 0; c < denso.ncols; c++) {
-      linha.push(anel ? pontoNoPoligono(lngDe(c), latDe(r), anel) : true);
+      linha.push(terreno ? booleanPointInPolygon([lngDe(c), latDe(r)], terreno) : true);
     }
     mask.push(linha);
   }
@@ -140,7 +139,7 @@ function processar(grid: GridElevacao, geojson: string | null): Processado {
   ];
   const alturaWorld = (alt: number) => (alt - min) * escala;
 
-  return { grid: gridFinal, slopes, mask, toWorld, alturaWorld, profundidade, anel };
+  return { grid: gridFinal, slopes, mask, toWorld, alturaWorld, profundidade };
 }
 
 function Superficie({ p, modo }: { p: Processado; modo: ModoRelevo }) {

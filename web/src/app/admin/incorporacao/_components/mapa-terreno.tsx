@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import type { GeoJSONSource, Map as MapaMl } from "maplibre-gl";
 import { area as turfArea, bbox as turfBbox, featureCollection } from "@turf/turf";
+import { uniaoDoTerreno, type GeometriaTerreno } from "@/lib/geo/terreno";
 import {
-  IDS_CAMADAS, LARGURA_CONFIRMADA_MAX_M, calcularApp, calcularServidao, calcularVegetacao, carConfere, fmtKm, fmtPct, limparLargurasConfirmadas,
+  IDS_CAMADAS, LARGURA_CONFIRMADA_MAX_M, calcularApp, contornoAppParaGravar, calcularServidao, calcularVegetacao, carConfere, fmtKm, fmtPct, limparLargurasConfirmadas,
   linhasOsmComplementares, resumirFuros, type AppModo, type Contorno, type DadosCamadas, type DadosHidro, type EstadoCamada, type IdCamada,
   type ItemServidao, type LargurasConfirmadas,
 } from "@/lib/geo/camadas-terreno";
@@ -21,6 +22,9 @@ import { formatArea } from "@/lib/utils";
 // As camadas vêm do servidor (/api/incorporacao/camadas-terreno), uma por vez: cada
 // item da legenda tem estado próprio (carregada / sem ocorrência / indisponível com
 // "tentar de novo") — nunca mais "carregando camadas…" eterno.
+// EPIC-023 (S-E, 15/11): três situações bem separadas na legenda — "consultado: nada no entorno" (a fonte
+// respondeu sem elementos), "fonte fora do ar ou sem resposta" e "dado salvo em dd/mm/aaaa — fonte fora do ar
+// agora" (o servidor devolveu o último resultado bom guardado para este terreno).
 //
 // A APP dentro do terreno continua calculada automaticamente e salva no estudo
 // (salvarApp) para a Viabilidade e o Relatório Executivo — mesma regra de antes.
@@ -112,10 +116,8 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId, largurasJ
   const centroLat = center?.[0], centroLng = center?.[1];
 
   const contorno = useMemo<Contorno | null>(() => {
-    try {
-      const f = JSON.parse(geojson) as Contorno; // Feature<Polygon> do KML (Feature<Polygon|MultiPolygon> também serve)
-      return f?.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") ? f : null;
-    } catch { return null; }
+    // Paridade 17/11 (Prospecta 355f3aa): KML com várias áreas — as sobreposições e divisas comuns são dissolvidas
+    try { return uniaoDoTerreno(JSON.parse(geojson) as GeometriaTerreno) as Contorno; } catch { return null; }
   }, [geojson]);
 
   // ─── Mapa base (MapLibre) ────────────────────────────────────────────────
@@ -206,13 +208,16 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId, largurasJ
 
   // APP salva automaticamente no estudo (Viabilidade/Relatório) — só quando alguma
   // fonte de hidrografia respondeu (não grava zero por falha de rede) e mudou.
+  // S-I: o contorno da APP no terreno vai junto, para o Estudo de Massa tirar a APP da área loteável pela posição real
+  const contornoApp = useMemo(() => (app && app.areaM2 > 0 ? contornoAppParaGravar(app.noTerreno) : null), [app]);
   useEffect(() => {
     if (!estudoId || !app || hidroPendente) return;
-    const chave = `${estudoId}|${Math.round(app.areaM2)}|${app.larguraM}|${appModo}`;
+    // o terreno entra na chave: trocar o KML apaga o contorno no servidor, e ele tem de ser gravado de novo
+    const chave = `${estudoId}|${geojson.length}|${Math.round(app.areaM2)}|${app.larguraM}|${appModo}|${contornoApp ? contornoApp.coordinates.length : 0}`;
     if (ultimoSalvo.current === chave) return;
     ultimoSalvo.current = chave;
-    salvarApp(estudoId, { areaM2: app.areaM2, larguraM: app.larguraM, origem: appModo }).catch(() => { /* melhor esforço */ });
-  }, [estudoId, app, appModo, hidroPendente]);
+    salvarApp(estudoId, { areaM2: app.areaM2, larguraM: app.larguraM, origem: appModo, contorno: contornoApp }).catch(() => { /* melhor esforço */ });
+  }, [estudoId, app, appModo, hidroPendente, contornoApp, geojson]);
 
   // ─── Desenho ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -285,7 +290,7 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId, largurasJ
         <Linha cor={CORES.servidao} titulo="Faixas de servidão e domínio" estado={servidaoPendente ? "carregando" : servidaoRespondeu ? "ok" : "indisponivel"}
           texto={servidao && servidao.itens.length
             ? `${formatArea(servidao.areaM2)} dentro do terreno (${fmtPct(servidao.percentual)})`
-            : servidaoRespondeu ? "nenhuma linha de transmissão, rodovia federal, ferrovia ou duto no entorno" : "fontes indisponíveis"}
+            : servidaoRespondeu ? "nenhuma linha de transmissão, rodovia federal, ferrovia ou duto no entorno" : "fontes fora do ar ou sem resposta"}
           extra={servidao && servidao.itens.length > 0 && (
             <ul className="mt-1 space-y-1.5" data-testid="itens-servidao">
               {servidao.itens.map(i => <ItemFaixa key={i.chave} item={i} onConfirmar={v => confirmarLargura(i.chave, v)} />)}
@@ -326,6 +331,11 @@ export function MapaTerreno({ geojson, center, height = 420, estudoId, largurasJ
           {app.larguraM != null && ` (faixa de ${app.larguraM} m)`} — já enviada para a aba Viabilidade.
         </p>
       )}
+      {app && !hidroPendente && estudoId && app.areaM2 > 0 && !contornoApp && (
+        <p role="alert" className="border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
+          O contorno desta APP é complexo demais para ser guardado no estudo: o Estudo de Massa vai usar só a área em m² (sem a posição real).
+        </p>
+      )}
       <p className="text-[10px] text-gray-400">
         APP pelo Código Florestal (Lei 12.651/2012, art. 4º): rios com menos de 10 m → 30 m; 10–50 m → 50 m; 50–200 m → 100 m; 200–600 m → 200 m; acima de 600 m → 500 m (largura medida no polígono oficial do rio ou estimada pela ordem do trecho na BHO/ANA); nascentes → raio de 50 m. Legislação municipal pode ser mais restritiva (ex.: Imperatriz/MA aplica 500 m na margem do Tocantins) — nesse caso selecione a faixa manualmente. Faixas: rodovias e ferrovias têm 15 m NÃO EDIFICÁVEIS de cada lado além da faixa de domínio (Lei 6.766/79, art. 4º, III e III-A; lei municipal pode reduzir a de rodovia até 5 m). A largura da faixa de domínio (DNIT/concessão), a servidão de linha de transmissão (escritura/declaração de utilidade pública) e a de dutos (licenciamento, art. 4º, § 3º) não têm valor único em lei: o mapa usa a referência indicada em cada item até você informar a largura confirmada. Mananciais: captações e massas de água de abastecimento do Atlas Águas (ANA); zona de proteção de manancial é definida por lei estadual/municipal, confirme na prefeitura. CAR: perímetro dos imóveis na base pública do SICAR. Vegetação nativa por amostragem do MapBiomas 2023 (pixel de 30 m). Confirme sempre com o órgão ambiental competente.
       </p>
@@ -364,9 +374,15 @@ function ItemFaixa({ item, onConfirmar }: { item: ItemServidao; onConfirmar: (la
   );
 }
 
+/** dd/mm/aaaa da data em que o resultado foi salvo. */
+function dataCurta(iso?: string): string {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "data desconhecida";
+}
+
 function Rotulo({ estado }: { estado: "carregando" | "ok" | "vazio" | "indisponivel" }) {
   if (estado === "carregando") return <span className="text-gray-400">consultando…</span>;
-  if (estado === "indisponivel") return <span className="font-bold text-amber-700">indisponível</span>;
+  if (estado === "indisponivel") return <span className="font-bold text-amber-700">fonte fora do ar ou sem resposta</span>;
   return null;
 }
 
@@ -386,6 +402,8 @@ function Linha({ cor, titulo, texto, estado = "ok", extra }: { cor: string; titu
 function LinhaCamada<K extends IdCamada>({ cor, titulo, e, ok, vazio, onRetry }: {
   cor: string; titulo: string; e: Estado<K>; ok: (d: DadosCamadas[K]) => string; vazio: string; onRetry: () => void;
 }) {
+  const salvo = e.estado !== "carregando" && e.desatualizado === true ? e : null;
+  const desatualizado = salvo !== null;
   return (
     <div className="flex min-w-0 items-start gap-2">
       <span className="mt-1 inline-block h-2.5 w-3 shrink-0" style={{ background: cor }} />
@@ -393,15 +411,18 @@ function LinhaCamada<K extends IdCamada>({ cor, titulo, e, ok, vazio, onRetry }:
         <span className="font-bold text-gray-700">{titulo}</span>{" "}
         {e.estado === "carregando" && <Rotulo estado="carregando" />}
         {e.estado === "ok" && "dados" in e && e.dados && <span className="text-gray-500">{ok(e.dados)}</span>}
-        {e.estado === "vazio" && <span className="text-gray-500">{vazio}</span>}
-        {e.estado === "indisponivel" && (
-          <>
-            <Rotulo estado="indisponivel" />
-            <button type="button" onClick={onRetry} className="ml-1.5 border border-gray-200 px-1.5 py-0 text-[11px] font-bold text-gray-600 hover:border-[var(--brand-yellow)]">tentar de novo</button>
-          </>
+        {e.estado === "vazio" && <span className="text-gray-500">consultado: {vazio}</span>}
+        {desatualizado && (
+          <span className="block text-[11px] font-bold text-amber-700" data-testid="camada-desatualizada">
+            dado salvo em {dataCurta(salvo?.salvoEm)} — fonte fora do ar agora
+          </span>
+        )}
+        {e.estado === "indisponivel" && <Rotulo estado="indisponivel" />}
+        {(e.estado === "indisponivel" || desatualizado) && (
+          <button type="button" onClick={onRetry} className="ml-1.5 border border-gray-200 px-1.5 py-0 text-[11px] font-bold text-gray-600 hover:border-[var(--brand-yellow)]">tentar de novo</button>
         )}
         {"fonte" in e && (
-          <span className="block text-[10px] text-gray-400" title={e.erro}>Fonte: {e.fonte}{e.estado === "indisponivel" && e.erro ? ` — ${e.erro}` : ""}</span>
+          <span className="block text-[10px] text-gray-400" title={e.erro}>Fonte: {e.fonte}{(e.estado === "indisponivel" || desatualizado) && e.erro ? ` — ${e.erro}` : ""}</span>
         )}
       </div>
     </div>

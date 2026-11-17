@@ -140,7 +140,7 @@ export function buscarPorLados(anelFechado: Position[], selecionados: LadoGleba[
       lados: selecionados,
       limitacoes: [
         `Via de ${o.via.toLocaleString("pt-BR")} m somente na(s) divisa(s) escolhida(s): ${selecionados.map((l) => ROTULO_LADO[l].toLowerCase()).join(", ")} (${comprimentoViaM.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} m de divisa). Lotes com frente de ${t.toLocaleString("pt-BR")} m sobre a via e fundo variável até a divisa oposta; área ≥ ${o.loteMinimoM2.toLocaleString("pt-BR")} m². O lote da ponta pode ter frente maior para absorver a sobra da divisa.`,
-        "Rua Simples não inclui balão de retorno; o acesso externo deve ser confirmado em projeto.",
+        "Rua Simples não inclui balão de retorno; a via corre junto à divisa e a ligação com as ruas existentes é conferida pelo motor (nota de acesso do cenário).",
       ],
     });
   }

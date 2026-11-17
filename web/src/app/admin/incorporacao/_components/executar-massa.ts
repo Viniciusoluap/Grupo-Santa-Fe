@@ -1,8 +1,10 @@
-import { gerarEstudoMassa, type EstudoMassaGerado, type ParametrosMassa } from "@/lib/geo/massa-parcelamento";
-import type { Position } from "geojson";
+import { gerarEstudoMassa, type EntradaGleba, type EstudoMassaGerado, type ParametrosMassa, type RestricaoGeometrica, type ViaEntorno } from "@/lib/geo/massa-parcelamento";
 
 // Executa o motor no Web Worker (fallback: thread principal, se o navegador não suportar).
 // Um único worker por vez: um novo pedido encerra o anterior (sem execuções concorrentes).
+// A gleba pode ter várias áreas contínuas (KML com áreas separadas) e furos; as vias do entorno
+// (OpenStreetMap) são opcionais — sem elas o motor ainda exige acesso pela divisa. As áreas restritas com contorno
+// (APP do mapa do Terreno) saem da área loteável pela posição real.
 
 let atual: Worker | null = null;
 let seq = 0;
@@ -13,8 +15,8 @@ export function cancelarMotorMassa() {
 }
 
 export function executarMotorMassa(
-  anel: Position[], centro: [number, number], params: ParametrosMassa,
-  onProgress: (fracao: number, etapa: string) => void
+  entrada: EntradaGleba, centro: [number, number], params: ParametrosMassa, viasEntorno: ViaEntorno[] | null,
+  onProgress: (fracao: number, etapa: string) => void, restricoes: RestricaoGeometrica[] | null = null,
 ): Promise<EstudoMassaGerado> {
   cancelarMotorMassa();
   const id = ++seq;
@@ -27,7 +29,7 @@ export function executarMotorMassa(
   if (!worker) {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        try { resolve(gerarEstudoMassa(anel, centro, params, { onProgress })); } catch (e) { reject(e); }
+        try { resolve(gerarEstudoMassa(entrada, centro, params, { onProgress, viasEntorno, restricoes })); } catch (e) { reject(e); }
       }, 30);
     });
   }
@@ -46,6 +48,6 @@ export function executarMotorMassa(
       }
     };
     w.onerror = (ev) => { w.terminate(); if (atual === w) atual = null; reject(new Error(ev.message || "Falha no motor de parcelamento.")); };
-    w.postMessage({ id, anel, centro, params });
+    w.postMessage({ id, entrada, centro, params, viasEntorno, restricoes });
   });
 }

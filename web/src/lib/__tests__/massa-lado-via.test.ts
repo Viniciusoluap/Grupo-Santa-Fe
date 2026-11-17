@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { criarProjecao, gerarCenariosMassa, type CenarioMassa, type ParametrosMassa } from "@/lib/geo/massa";
+
+// Paridade 17/11: o motor de massa 3.0.0 (malha conectada, recorte na divisa) é mais pesado; com 3 workers em
+// paralelo os cenários grandes passam de 5 s. Prazo maior só neste arquivo (nenhum teste foi pulado ou afrouxado).
+vi.setConfig({ testTimeout: 60_000 });
 
 describe("Rua simples pela divisa", () => {
   it("troca o lado da via e entrega o cenário com lotes, áreas e VGV recalculados", () => {

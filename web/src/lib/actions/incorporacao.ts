@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { limparLargurasConfirmadas } from "@/lib/geo/camadas-terreno";
 import { parseKmlTerreno } from "@/lib/geo/kml";
+import type { MultiPolygon } from "geojson";
+import { CAMPOS_LIMPOS_AO_TROCAR_TERRENO, contornoAoSalvarApp, validarContornoApp } from "@/lib/incorporacao/app-contorno";
 import { parseGoogleMapsLatLng } from "@/lib/geo/gmaps";
 import { situacaoEstudoValida } from "@/lib/incorporacao/status-estudo";
 import { tipoIncorporacaoValido } from "@/lib/incorporacao/tipo-estudo";
@@ -168,6 +170,8 @@ export async function uploadKml(estudoId: string, formData: FormData) {
       perimetroM: terreno.perimetroM,
       centroLng: terreno.centro[0],
       centroLat: terreno.centro[1],
+      // Paridade 17/11 (S-I): o contorno da APP era do terreno anterior; a área fica até o mapa recalcular a do novo
+      ...CAMPOS_LIMPOS_AO_TROCAR_TERRENO,
     },
   });
 
@@ -224,15 +228,23 @@ export async function salvarViabilidade(estudoId: string, premissasJson: string)
  */
 export async function salvarApp(
   estudoId: string,
-  payload: { areaM2: number; larguraM: number | null; origem: string }
+  payload: { areaM2: number; larguraM: number | null; origem: string; contorno?: MultiPolygon | null }
 ) {
   await exigirModuloAcao("incorporacao");
+  // Paridade 17/11 (Prospecta S-I): contorno da APP no terreno; null limpa; ausente mantém (ver contornoAoSalvarApp)
+  const invalido = validarContornoApp(payload.contorno);
+  if (invalido) throw new Error(invalido);
+  const anterior = payload.contorno === undefined
+    ? (await prisma.estudoIncorporacao.findUnique({ where: { id: estudoId }, select: { appAreaM2: true } }))?.appAreaM2
+    : null;
+  const contorno = contornoAoSalvarApp(payload, anterior ?? null);
   await prisma.estudoIncorporacao.update({
     where: { id: estudoId },
     data: {
       appAreaM2: payload.areaM2,
       appLarguraM: payload.larguraM ?? undefined,
       appOrigem: payload.origem,
+      ...(contorno !== undefined ? { appContornoJson: contorno } : {}),
     },
   });
   revalidatePath(`/admin/incorporacao/${estudoId}`);
