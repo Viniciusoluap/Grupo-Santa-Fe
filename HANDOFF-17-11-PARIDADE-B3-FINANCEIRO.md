@@ -92,7 +92,66 @@ Schema Prisma: blocos `// ── Paridade 17/11 bloco 3 ──`. `prisma migrate
 - Diferença com a Prospecta: lá a chave do painel é usada por Maquete e Dolores; aqui por nenhuma função. Lá Central e
   Mercado não têm linha no painel (comentário em `shared/funcoes-anthropic.ts`); aqui têm, por pedido de 17/11.
 
-## Testes
+## Item 4 — BPO: as duas diferenças de 13/11 — concluído
+- (a) Crédito do Asaas sem id de pagamento (Prospecta `server/bpo-asaas.ts`, passo 3, e `creditoDaCobranca`):
+  - `web/src/lib/financeiro/bpo-asaas.ts` (novo, regra pura gêmea): cobrança PAGA ↔ crédito de mesmo valor (bruto ou
+    líquido, em centavos) e data até 3 dias do pagamento; o mais próximo vence; em aberto nunca liga.
+  - `web/src/lib/bancos/cobrancas-asaas.ts`: candidatos = créditos de conta `provedor = asaas` sem `asaasPaymentId`,
+    com lançamento ativo sem cobrança (não arquivado, não combinado) ou parados em "A classificar" sem lançamento (fora
+    os usados em divisão de pagamento). Com lançamento → ele vira a cobrança (mesmo caminho do crédito com id); sem
+    lançamento → o lançamento nasce ligado ao crédito, com o valor e a data do dinheiro que entrou. O extrato ganha o id
+    do pagamento (a próxima sincronização acha pelo id; não duplica). Ordem igual à da Prospecta: pelo id → por
+    valor/data → Conta Azul → nova.
+  - Junto (Prospecta: `if (credito) continue`): crédito com o id da cobrança SEM lançamento e fora de "A classificar"
+    (transferência interna, ou já usado numa divisão de pagamentos) não vira receita. Antes o Santa Fé criaria um
+    lançamento novo ligado a ele (o que, para crédito já dividido, contaria o dinheiro duas vezes).
+- (b) Transferência interna não gera lançamento (Prospecta `lancamentoDaMovimentacao` → null):
+  - `web/src/lib/bancos/lancamentos-bpo.ts`: em todos os modos (nova, classificada, reprocessar) a movimentação de
+    transferência fica só com a categoria, fora de "A classificar"; o lote nem pega movimentação já categorizada como
+    transferência (e o laço conta a categorização como progresso, para não parar antes).
+  - Dados existentes: NADA é alterado. Os lançamentos "Transferência interna" já gravados ficam como estão (continuam
+    fora de listas, DRE e totais pelo filtro de categoria, que não mudou). Movimentação que já tem lançamento não é
+    reprocessada. Marcar no painel Bancos uma movimentação que JÁ tem lançamento como transferência continua só trocando
+    a categoria do lançamento (fica oculto) — na Prospecta ele é apagado; aqui não, para não apagar dado.
+  - Números: DRE, Cobranças/Despesas, painel de valores, resumo por cliente e Contabilidade já excluíam a categoria;
+    portanto não mudam. Achado (não alterado, fora do pedido): o detalhe do cliente BPO (`/admin/bpo/[id]`, "total
+    pago") e as listas "BPO disponíveis" de obra/regularização e de vínculo de cliente não filtravam a categoria; com a
+    regra nova, transferências NOVAS deixam de aparecer ali (as antigas continuam aparecendo como antes).
+  - Para conferir os dados reais antes do deploy (só leitura; o lead roda no Supabase):
+    `SELECT count(*), sum(valor) FROM bpo_lancamentos WHERE categoria = 'Transferência interna';` (fica igual depois);
+    `SELECT count(*) FROM transacoes_bancarias t LEFT JOIN bpo_lancamentos l ON l."transacaoId" = t.id WHERE t.categoria = 'Transferência interna' AND l.id IS NULL;`
+    (hoje deve ser 0; depois só crescem as novas);
+    `SELECT count(*) FROM bpo_lancamentos WHERE categoria = 'Transferência interna' AND "clienteId" IS NOT NULL;` (as que aparecem no detalhe do cliente).
+
+## Testes — rodada final (branch inteira, 17/11)
+- (a) automáticos:
+  - `npx tsc --noEmit -p .` ✅. ESLint em todos os .ts/.tsx alterados na branch: 0 erros, 1 aviso (`_descartadas` em
+    `web/src/lib/pci-gerador.ts`, idêntico ao gêmeo da Prospecta).
+  - `npx vitest run --maxWorkers=3` (sem banco): 186 arquivos ✅ / 30 pulados; 1.460 testes ✅ / 205 pulados; 0 falhas.
+  - Com banco (`*.db.test.ts`, Postgres 16 local com `prisma db push` + migrações 20261113100000 e 20261117300000,
+    `--no-file-parallelism`): 259 ✅ / 9 ❌ / 29 pulados — as mesmas 9 já registradas como falhas da `main` neste
+    ambiente em `HANDOFF-13-11-PARIDADE-BPO.md` (bancos-sync Asaas, avisos Pluggy, exclusão definitiva ×4, projeto-
+    engenheiro ×3) + os arquivos de Drive/medições que não carregam sem as migrações de gatilho. `bancos-sync` Asaas
+    conferido: falha igual com o `cobrancas-asaas.ts` da `main`. Em paralelo (sem `--no-file-parallelism`) os testes
+    que rodam o reprocessamento global se atropelam no mesmo banco — rodar em série.
+  - Sob carga (outras frentes na mesma máquina), testes PGlite da Central de Vendas estouram o limite de 5 s; com
+    `--testTimeout=60000` passam (11 arquivos / 115).
+  - `npx next build`: ✓ Compiled, TypeScript ok; parou na geração estática de "/" por falta de banco
+    (DatabaseNotReachable) — esperado.
+- (b) manuais: nenhum nesta sessão (sem navegador). Telas novas/alteradas a conferir: Importar backup Conta Azul
+  (aviso de arquivados + LIBERAR), Gerador de PCI (seletor, painel de resultado, modelos), Integrações › Anthropic.
+- (c) produção: aplicar a migração; Conta Azul com o ZIP real; Gerador de PCI numa obra com engenheiro; cadastrar a
+  chave da Anthropic e escolher o modelo de cada função; sincronizar o Asaas e conferir créditos sem id; conferir que
+  uma transferência nova não cria lançamento e que os números do DRE/totais não mudaram (SQL do item 4).
+
+## Testes por item
+- (a) automáticos (item 4): `bpo-paridade.db.test.ts` +3 (crédito sem id: líquido, crédito antigo com lançamento,
+  5 dias não liga, em aberto não liga, reexecução sem duplicar; crédito-transferência não vira receita; transferência
+  nova/reprocessar/painel Bancos sem lançamento, volta de categoria cria, lançamento antigo intacto, DRE igual) e
+  `bpo-paridade-regras.test.ts` +1 (`creditoDaCobranca`). Expectativas antigas MUDADAS (registradas nos testes):
+  `bpo-extrato.db.test.ts` "importação gera 1 lançamento…" (lançamentos criados 1 → 0; 4 → 3 lançamentos; a
+  transferência fica sem lançamento) e `bpo-paridade.db.test.ts` (movimentação de transferência e "ignorar" agora sem
+  lançamento; antes com lançamento "Transferência interna").
 - (a) automáticos (item 3): `web/src/lib/__tests__/integracoes-anthropic.test.ts` (24, sem rede: SDK simulado) —
   chave protegida (criptografada, nunca devolvida, recusada não salva, formato inválido não chega à API, troca/remoção,
   sem chave não chama, revogada mascarada, ilegível, `plain:`), modelos e preferência, revalidação ao trocar a chave,
@@ -124,4 +183,4 @@ Schema Prisma: blocos `// ── Paridade 17/11 bloco 3 ──`. `prisma migrate
 - (c) produção: aplicar a migração; enviar o ZIP real; conferir o aviso dos arquivados e, se houver, LIBERAR.
 
 ## Próximo passo exato
-Item 4 (BPO: Asaas sem id de pagamento por valor/data; transferência interna sem lançamento).
+Revisão do lead → aplicar a migração 20261117300000 no Supabase (antes do deploy) → PR/merge/deploy (lead) → validar (c).

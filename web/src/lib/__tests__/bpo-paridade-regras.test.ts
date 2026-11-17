@@ -212,3 +212,24 @@ describe("filtros (regras)", () => {
     expect(dreFiltrado(celulas, { centroCusto: "Outro" }).porCompetencia).toEqual([]);
   });
 });
+
+// Paridade 17/11, bloco 3 (gêmeo de creditoDaCobranca da Prospecta): crédito do Asaas sem id de pagamento.
+describe("creditoDaCobranca (crédito do Asaas sem id de pagamento)", () => {
+  it("mesmo valor bruto ou líquido, até 3 dias do pagamento, o mais próximo; em aberto e usados não ligam", async () => {
+    const { creditoDaCobranca } = await import("@/lib/financeiro/bpo-asaas");
+    const cands = [
+      { transacaoId: "longe", valor: 100, data: "2026-10-01" },
+      { transacaoId: "perto", valor: 100, data: "2026-10-09T15:00:00Z" },
+      { transacaoId: "liquido", valor: 97.01, data: new Date("2026-10-10T12:00:00Z") },
+      { transacaoId: "outro", valor: 100.01, data: "2026-10-10" },
+    ];
+    const paga = { status: "RECEIVED", value: 100, netValue: 97.01, dueDate: "2026-10-05", paymentDate: "2026-10-10" };
+    expect(creditoDaCobranca(paga, cands, new Set())).toBe("liquido"); // dist 0 vence a de 1 dia
+    expect(creditoDaCobranca(paga, cands, new Set(["liquido"]))).toBe("perto");
+    expect(creditoDaCobranca(paga, cands, new Set(["liquido", "perto"]))).toBeNull(); // "longe" passa de 3 dias
+    expect(creditoDaCobranca({ ...paga, status: "PENDING" }, cands, new Set())).toBeNull();
+    expect(creditoDaCobranca({ ...paga, status: "overdue" }, cands, new Set())).toBeNull();
+    expect(creditoDaCobranca({ status: "CONFIRMED", value: 100, dueDate: "2026-10-12" }, cands, new Set())).toBe("perto"); // sem data de pagamento: o vencimento
+    expect(creditoDaCobranca({ status: "RECEIVED", value: 100.005, dueDate: "2026-10-10" }, cands, new Set())).toBe("outro"); // centavos arredondados
+  });
+});

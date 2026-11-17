@@ -291,7 +291,9 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
       for (const n of [2, 3]) expect(await txDe(`${MARCA}-${n}`)).toMatchObject({ aClassificar: true, lancamento: null });
       const aberto = await prisma.bpoLancamento.findFirstOrThrow({ where: { requestKey: { startsWith: CHAVE_FIXTURE }, valor: 320.5 } });
       expect(aberto).toMatchObject({ pago: false, aClassificar: true, transacaoId: null });
-      expect((await txDe(`${MARCA}-4`)).lancamento).toMatchObject({ categoria: "Transferência interna" }); // fora de listas/DRE (regra antiga do Santa Fé)
+      // Paridade 17/11, bloco 3 (expectativa mudada; antes: lançamento "Transferência interna" fora de listas/DRE, regra
+      // antiga do Santa Fé): como na Prospecta, a transferência interna não gera lançamento nem vai para A classificar.
+      expect(await txDe(`${MARCA}-4`)).toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
       expect(await prisma.bpoLancamento.count({ where: { origemEfetiva: "extrato", transacao: { contaId: conta.id }, categoria: { not: "Transferência interna" } } })).toBe(0);
       expect(ok(await acoes.dadosAClassificar()).contagem.movimentacoes).toBeGreaterThanOrEqual(2);
       // reimportar as mesmas linhas não muda nada
@@ -322,7 +324,8 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
       expect(ok(await acoes.ignorarAClassificar([t3.id]))).toEqual({ ignoradas: 1 });
       const t3d = await txDe(t3.externalId!);
       expect(t3d.aClassificar).toBe(false);
-      expect(t3d.lancamento?.categoria).toBe("Transferência interna");
+      // Paridade 17/11, bloco 3 (expectativa mudada; antes: lançamento com a categoria "Transferência interna"): sem lançamento.
+      expect(t3d).toMatchObject({ categoria: "Transferência interna", lancamento: null });
       const dre = resultado.dreFiltrado(resultado.celulasDre(await visiveis()));
       expect(dre.porCompetencia).toEqual([{ competencia: "2026-10", receitas: 1700, despesas: 0, resultado: 1700 }]);
     });
@@ -414,6 +417,88 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
       expect(depois.aClassificar).toBe(false);
       expect(depois.lancamento).toMatchObject({ asaasPaymentId: `${MARCA}-pay9`, transacaoId: t.id });
       expect(await prisma.bpoLancamento.count({ where: { asaasPaymentId: `${MARCA}-pay9` } })).toBe(1);
+    });
+
+    // Paridade 17/11, bloco 3 (Prospecta server/bpo-asaas.ts, passo 3): crédito do Asaas SEM id de pagamento.
+    it("crédito do Asaas sem id de pagamento: a cobrança paga de mesmo valor (bruto ou líquido) e data até 3 dias o assume; sem duplicar", async () => {
+      const conta = await criarConta({ provedor: "asaas" });
+      await bancos.gravarMovimentos(conta, [
+        mov(1, "2026-10-08", 97.01, "credito", "Recebimento sem id"), // líquido da cobrança payA
+        mov(2, "2026-10-08", 250, "credito", "Outro crédito"),
+      ], "asaas");
+      const t1 = await txDe(`${MARCA}-1`);
+      expect(t1).toMatchObject({ aClassificar: true, lancamento: null, asaasPaymentId: null });
+      // crédito antigo com lançamento do extrato (regra anterior a 13/11): o lançamento vira a cobrança
+      const t3 = await prisma.transacaoBancaria.create({ data: { contaId: conta.id, data: new Date("2026-10-09T12:00:00Z"), descricao: `${MARCA} crédito antigo`, valor: 410, tipo: "credito", externalId: `${MARCA}-antigo`, origem: "asaas" } });
+      const antigo = await novoLanc("crédito antigo", { origemEfetiva: "extrato", transacaoId: t3.id, valor: 410, pago: true, pagoEm: t3.data, categoria: "Recebimento de cliente" });
+      const r = await asaas.sincronizarCobrancasAsaas("$aact_teste", "2026-10-01", fetchCobrancas([
+        { id: `${MARCA}-payA`, status: "RECEIVED", value: 99.99, netValue: 97.01, dueDate: "2026-10-05", paymentDate: "2026-10-06", description: `${MARCA} a` },
+        { id: `${MARCA}-payB`, status: "CONFIRMED", value: 410, dueDate: "2026-10-09", paymentDate: "2026-10-10", description: `${MARCA} b` },
+        // mesmo valor do outro crédito, mas 5 dias longe: não liga (entra como cobrança nova)
+        { id: `${MARCA}-payC`, status: "RECEIVED", value: 250, dueDate: "2026-10-01", paymentDate: "2026-10-03", description: `${MARCA} c` },
+        // em aberto nunca liga a crédito
+        { id: `${MARCA}-payD`, status: "PENDING", value: 250, dueDate: "2026-10-08", description: `${MARCA} d` },
+      ]));
+      expect(r).toMatchObject({ reconciliadas: 2, criadas: 2 });
+      const d1 = await txDe(`${MARCA}-1`);
+      expect(d1).toMatchObject({ aClassificar: false, asaasPaymentId: `${MARCA}-payA` });
+      expect(d1.lancamento).toMatchObject({ asaasPaymentId: `${MARCA}-payA`, valor: 97.01, pago: true, aClassificar: false, tipo: "recebimento" });
+      expect(d1.lancamento!.pagoEm!.toISOString().slice(0, 10)).toBe("2026-10-08"); // a data do dinheiro que entrou
+      expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: antigo.id } })).toMatchObject({ asaasPaymentId: `${MARCA}-payB`, valor: 410, pago: true });
+      expect((await prisma.transacaoBancaria.findUniqueOrThrow({ where: { id: t3.id } })).asaasPaymentId).toBe(`${MARCA}-payB`);
+      expect(await txDe(`${MARCA}-2`)).toMatchObject({ aClassificar: true, lancamento: null, asaasPaymentId: null });
+      expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { asaasPaymentId: `${MARCA}-payC` } })).toMatchObject({ transacaoId: null, pago: true });
+      expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { asaasPaymentId: `${MARCA}-payD` } })).toMatchObject({ transacaoId: null, pago: false });
+      // rodar de novo não duplica nada (agora o extrato já tem o id do pagamento)
+      const r2 = await asaas.sincronizarCobrancasAsaas("$aact_teste", "2026-10-01", fetchCobrancas([
+        { id: `${MARCA}-payA`, status: "RECEIVED", value: 99.99, netValue: 97.01, dueDate: "2026-10-05", paymentDate: "2026-10-06" },
+        { id: `${MARCA}-payB`, status: "CONFIRMED", value: 410, dueDate: "2026-10-09", paymentDate: "2026-10-10" },
+      ]));
+      expect(r2).toMatchObject({ criadas: 0, reconciliadas: 0, atualizadas: 2 });
+      for (const pid of ["payA", "payB"]) expect(await prisma.bpoLancamento.count({ where: { asaasPaymentId: `${MARCA}-${pid}` } })).toBe(1);
+      expect(await prisma.bpoLancamento.count({ where: { transacaoId: { in: [t1.id, t3.id] } } })).toBe(2);
+    });
+
+    it("crédito com o id da cobrança marcado como transferência interna (sem lançamento) não vira receita", async () => {
+      const conta = await criarConta({ provedor: "asaas" });
+      await bancos.gravarMovimentos(conta, [mov(1, "2026-10-07", 600, "credito", "Repasse", { asaasPaymentId: `${MARCA}-payT` })], "asaas");
+      const t = await txDe(`${MARCA}-1`);
+      expect(ok(await acoes.ignorarAClassificar([t.id]))).toEqual({ ignoradas: 1 });
+      expect(await txDe(`${MARCA}-1`)).toMatchObject({ categoria: "Transferência interna", lancamento: null });
+      const r = await asaas.sincronizarCobrancasAsaas("$aact_teste", "2026-10-01", fetchCobrancas([{ id: `${MARCA}-payT`, status: "RECEIVED", value: 600, dueDate: "2026-10-07", paymentDate: "2026-10-07" }]));
+      expect(r).toMatchObject({ criadas: 0, reconciliadas: 0 });
+      expect(await prisma.bpoLancamento.count({ where: { OR: [{ asaasPaymentId: `${MARCA}-payT` }, { transacaoId: t.id }] } })).toBe(0);
+    });
+  });
+
+  // Paridade 17/11, bloco 3 (Prospecta): transferência interna não gera lançamento; os já gravados ficam como estão.
+  describe("transferência interna", () => {
+    it("nova, reprocessar e classificar no painel Bancos não criam lançamento; DRE e listas não mudam; os antigos ficam intactos", async () => {
+      const conta = await criarConta();
+      // Lançamento de transferência gravado ANTES (regra antiga): continua igual e fora das listas/DRE.
+      const tAntiga = await prisma.transacaoBancaria.create({ data: { contaId: conta.id, data: new Date("2026-10-02T12:00:00Z"), descricao: `${MARCA} transferência antiga`, valor: 900, tipo: "debito", categoria: "Transferência interna", externalId: `${MARCA}-ti-antiga` } });
+      const lAntigo = await novoLanc("transferência antiga", { tipo: "despesa", origemEfetiva: "extrato", transacaoId: tAntiga.id, valor: 900, pago: true, pagoEm: tAntiga.data, categoria: "Transferência interna", competencia: "2026-10" });
+      await gravar(conta, [
+        mov(1, "2026-10-03", 1000, "debito", "Transferência entre contas mesma titularidade"),
+        mov(2, "2026-10-04", 50, "debito", "Tarifa"),
+      ]);
+      expect(await txDe(`${MARCA}-1`)).toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
+      // reprocessar (rede diária / backfill) também não cria
+      await lanc.reprocessarMovimentacoes();
+      expect((await txDe(`${MARCA}-1`)).lancamento).toBeNull();
+      // painel Bancos: marcar outra movimentação como transferência interna não cria; voltar a uma categoria cria
+      const t2 = await txDe(`${MARCA}-2`);
+      await lanc.classificarTransacao(t2.id, { categoria: "Transferência interna" });
+      expect(await txDe(`${MARCA}-2`)).toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
+      await lanc.classificarTransacao(t2.id, { categoria: "Tarifas bancárias" });
+      expect((await txDe(`${MARCA}-2`)).lancamento).toMatchObject({ categoria: "Tarifas bancárias", valor: 50, pago: true });
+      // o lançamento antigo não foi tocado
+      const depois = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: lAntigo.id } });
+      expect(depois).toMatchObject({ categoria: "Transferência interna", valor: 900, transacaoId: tAntiga.id, version: lAntigo.version });
+      // DRE: só a tarifa (as transferências, antiga e nova, ficam fora como antes)
+      const dre = resultado.dreFiltrado(resultado.celulasDre(await visiveis()));
+      expect(dre.porCompetencia).toEqual([{ competencia: "2026-10", receitas: 0, despesas: 50, resultado: -50 }]);
+      expect(await prisma.bpoLancamento.count({ where: { transacao: { contaId: conta.id } } })).toBe(2); // antiga + tarifa
     });
   });
 

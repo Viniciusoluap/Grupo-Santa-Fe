@@ -6,6 +6,9 @@
 // sistema sabe ligar com segurança (cobrança Asaas conhecida, lançamento do Conta Azul já pago, regra do titular
 // com categoria). O resto fica "A classificar" (transacoes_bancarias."aClassificar") até o dono classificar ou
 // dar baixa. Movimentação que deu baixa por divisão de pagamento (bpo_baixas."transacaoId") nunca gera lançamento.
+// Paridade 17/11 (bloco 3, Prospecta): transferência interna NÃO gera lançamento (em nenhum modo) — a movimentação
+// fica com a categoria "Transferência interna", fora de "A classificar". Os lançamentos de transferência gravados
+// antes continuam como estão (fora de listas, DRE e totais pela categoria): nada antigo é apagado nem alterado.
 import { prisma } from "@/lib/db";
 import { TRANSFERENCIA_INTERNA, categoriaValida, descricaoComTitular, normalizarTitular, sugerirCategoria, tipoLancamentoDaTransacao } from "@/lib/bpo-categorias";
 import { conciliarMovimentosComContaAzul } from "@/lib/bpo-conta-azul";
@@ -39,6 +42,8 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
         aClassificar: false,
         baixas: { none: {} },
         AND: [
+          // Transferência interna não vira lançamento (já categorizada: nem entra no lote).
+          { OR: [{ categoria: null }, { categoria: { not: TRANSFERENCIA_INTERNA } }] },
           ...(pagamentosArquivados.length ? [{ OR: [{ tipo: { not: "credito" } }, { asaasPaymentId: null }, { asaasPaymentId: { notIn: pagamentosArquivados } }] }] : []),
           ...(origensArquivadas.length ? [{ OR: [{ externalId: null }, { externalId: { notIn: origensArquivadas } }] }] : []),
         ],
@@ -103,9 +108,11 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       if (t.categoria === t.categoriaFinal) continue;
       porCategoria.set(t.categoriaFinal, [...(porCategoria.get(t.categoriaFinal) ?? []), t.id]);
     }
+    let categorizadasNoLote = 0;
     for (const [categoria, ids] of porCategoria) {
       const r = await prisma.transacaoBancaria.updateMany({ where: { id: { in: ids } }, data: { categoria } });
       categorizadas += r.count;
+      categorizadasNoLote += r.count;
     }
 
     // O que já veio PAGO do backup do Conta Azul (mesmo tipo/valor, até 3 dias da quitação) é só ligado.
@@ -113,13 +120,14 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
       .filter((t) => t.categoriaFinal !== TRANSFERENCIA_INTERNA)
       .map((t) => ({ id: t.id, tipo: t.tipo === "credito" ? "receita" as const : "despesa" as const, valor: t.valor, data: t.data })));
     conciliadasContaAzul += doContaAzul.size;
-    let paraCriar = comCategoria.filter((t) => !doContaAzul.has(t.id));
+    // Paridade 17/11 (bloco 3): transferência interna não gera lançamento nem vai para A classificar.
+    let paraCriar = comCategoria.filter((t) => !doContaAzul.has(t.id) && t.categoriaFinal !== TRANSFERENCIA_INTERNA);
     let marcadas = 0;
     if (modo === "nova") {
-      // Só a regra que o usuário ensinou (titular com categoria) cria o lançamento; transferência interna segue
-      // como antes (lançamento fora de listas/DRE). O resto vai para A classificar, com o cliente sugerido.
-      const esperar = paraCriar.filter((t) => !t.temRegra && t.categoriaFinal !== TRANSFERENCIA_INTERNA);
-      paraCriar = paraCriar.filter((t) => t.temRegra || t.categoriaFinal === TRANSFERENCIA_INTERNA);
+      // Só a regra que o usuário ensinou (titular com categoria) cria o lançamento. O resto vai para A classificar,
+      // com o cliente sugerido.
+      const esperar = paraCriar.filter((t) => !t.temRegra);
+      paraCriar = paraCriar.filter((t) => t.temRegra);
       if (esperar.length) {
         const r = await prisma.transacaoBancaria.updateMany({ where: { id: { in: esperar.map((t) => t.id) }, aClassificar: false }, data: { aClassificar: true } });
         marcadas = r.count;
@@ -149,7 +157,7 @@ export async function vincularTransacoesAoBpo(filtro: { contaId?: string; ids?: 
     });
     criados += r.count;
     // Concorrência: se outro processo vinculou este lote, não há o que fazer aqui.
-    if (r.count + vinculosRestaurados + doContaAzul.size + marcadas === 0 || lote.length < LOTE) break;
+    if (r.count + vinculosRestaurados + doContaAzul.size + marcadas + categorizadasNoLote === 0 || lote.length < LOTE) break;
   }
   return { criados, categorizadas, aClassificar, conciliadasContaAzul };
 }
