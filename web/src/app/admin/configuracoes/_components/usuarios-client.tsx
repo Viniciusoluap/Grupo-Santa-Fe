@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield, Search, Mail, UserX } from "lucide-react";
 import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes, alterarPerfilUsuario, salvarDadosCorretor, enviarLinkAcesso, vincularUsuarioCorretor } from "@/lib/actions/usuarios";
 import { excluirCorretor } from "@/lib/actions/corretores";
-import { filtrarItens, type Situacao } from "@/lib/usuarios/filtro";
+import { filtrarItens, perfilDoUsuario, PERFIS_DO_FILTRO, type PerfilDoFiltro, type Situacao } from "@/lib/usuarios/filtro";
 import { MODULOS_PAINEL } from "@/lib/auth/modulos-lista";
 import { UFS } from "@/lib/engenheiro";
 import { PerfilEngenheiro } from "./perfil-engenheiro";
@@ -70,11 +70,13 @@ interface Props {
   leadsSemConta: LeadOpcao[];
   /** Corretores antigos sem conta de acesso (antes só apareciam na tela "Corretores"). */
   corretoresSemConta?: DadosCorretor[];
+  /** Filtro por perfil vindo de `?perfil=` (paridade EPIC-023 S-A: a antiga rota de Corretores abre em Corretor). */
+  perfilInicial?: PerfilDoFiltro | "todos";
 }
 
 const comissaoTexto = (p: string | null) => (p ? `comissão ${Number(p).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%` : "sem comissão padrão");
 
-export function UsuariosClient({ usuarios, leadsSemConta, corretoresSemConta = [] }: Props) {
+export function UsuariosClient({ usuarios, leadsSemConta, corretoresSemConta = [], perfilInicial = "todos" }: Props) {
   const [papelNovo, setPapelNovo] = useState<Papel>("colaborador");
   const [buscaLead, setBuscaLead] = useState("");
   // Item 12 (18/10): conta de cliente com nome e telefone do cadastro no CRM.
@@ -82,7 +84,7 @@ export function UsuariosClient({ usuarios, leadsSemConta, corretoresSemConta = [
   const [foneNovo, setFoneNovo] = useState("");
   const [linkGerado, setLinkGerado] = useState<{ link: string; emailEnviado: boolean } | null>(null);
   const [perfilId, setPerfilId] = useState<string | null>(null);
-  const [aba, setAba] = useState<Papel | "todos">("todos");
+  const [aba, setAba] = useState<Papel | "todos">(perfilInicial);
   const [showForm, setShowForm] = useState(false);
   const [resetId, setResetId] = useState<string | null>(null);
   const [permissoesId, setPermissoesId] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export function UsuariosClient({ usuarios, leadsSemConta, corretoresSemConta = [
   const [corretorEditId, setCorretorEditId] = useState<string | null>(null);
   const [convidar, setConvidar] = useState(true);
 
-  const perfilDe = (u: Usuario): Papel => (u.engenheiro ? "engenheiro" : (u.papel as Papel));
+  const perfilDe = (u: Usuario): Papel => perfilDoUsuario(u) as Papel;
   const textosDoUsuario = (u: Usuario) => [u.nome, u.leadNome, u.email, u.creci ?? u.corretor?.creci, u.telefone];
   const porBuscaESituacao = useMemo(
     () => filtrarItens(usuarios.map((u) => ({ u, ativo: u.ativo, textos: textosDoUsuario(u) })), { busca, situacao }).map((i) => i.u),
@@ -260,9 +262,10 @@ export function UsuariosClient({ usuarios, leadsSemConta, corretoresSemConta = [
 
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap border-b border-gray-100 pb-0">
-        {(["todos", "admin", "colaborador", "engenheiro", "corretor", "cliente", "empreiteiro"] as const).map((p) => (
+        {(["todos", ...PERFIS_DO_FILTRO] as const).map((p) => (
           <button
             key={p}
+            aria-pressed={aba === p}
             onClick={() => setAba(p)}
             className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors border-b-2 -mb-px ${
               aba === p

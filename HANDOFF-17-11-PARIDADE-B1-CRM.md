@@ -9,8 +9,8 @@ Autorização: dono, 17/11. Fonte da verdade (Prospecta, só leitura): EPIC-023 
 | # | Item | Situação | Commit |
 |---|------|----------|--------|
 | 1 | CRM no iPad (altura do viewport, só cartões rolam, arrasto lateral sobre o cartão) | Concluído | `79b9433` |
-| 2 | Corretores em "Usuários e acesso" + remoção da tela + colaborador sem acesso | Concluído | ver `git log` |
-| 3 | Filtro por perfil em "Usuários e acesso" | Pendente | — |
+| 2 | Corretores em "Usuários e acesso" + remoção da tela + colaborador sem acesso | Concluído | `9f69535` |
+| 3 | Filtro por perfil em "Usuários e acesso" | Concluído (as abas já existiam) | ver `git log` |
 | 4 | Mapa operacional no MapLibre | Pendente | — |
 
 ### Item 1 — CRM no iPad
@@ -51,7 +51,16 @@ Autorização: dono, 17/11. Fonte da verdade (Prospecta, só leitura): EPIC-023 
   `criarCorretor` avisava os admins ("novo_corretor"); como só o admin cadastra agora, o aviso não foi levado.
   `web/src/lib/corretores/validacao.ts` ficou sem uso em produção (o teste dele foi mantido, sem apagar).
 
+### Item 3 — Filtro por perfil
+- Já existia quase igual: as abas Todos/Admin/Colaborador/Engenheiro/Corretor/Cliente/Empreiteiro de "Usuários e
+  acesso" são "Todos" + os perfis do formulário (na Prospecta é uma lista suspensa; aqui ficaram as abas, mesma regra).
+- O que faltava e foi feito: as abas agora combinam com a busca e a situação (contagem por aba também); `?perfil=` na
+  URL abre a aba (usado pelo redirecionamento da antiga tela Corretores); o botão "Novo usuário" já abre no perfil da
+  aba escolhida (como na Prospecta). Lista das abas centralizada em `PERFIS_DO_FILTRO` (`web/src/lib/usuarios/filtro.ts`).
+- Teste: `web/src/lib/__tests__/usuarios-filtro-perfil.test.ts` (5 cenários, render estático).
+
 ## Testes
+- (a) Item 3: `usuarios-filtro-perfil.test.ts` 5/5.
 - (a) Automáticos: `corretores-usuarios-acesso.test.ts` (14 cenários, inclui a migração em PGlite);
   `colaborador-modulos`, `perfis-acesso`, `api-acesso-modulos`, `modulos-removidos` passando; `crm-ipad-layout.test.ts` 3/3; `crm-pipeline.test.ts` passou; `tsc --noEmit` sem erros; eslint
   sem achados nos 3 arquivos.
@@ -64,4 +73,4 @@ NOT EXISTS "observacoes" TEXT NOT NULL DEFAULT ''`. Aditiva e idempotente (testa
 banco real** — aplicar no Supabase antes de publicar (sem ela, a tela de Configurações quebra ao ler `observacoes`).
 
 ## Próximo passo
-Item 3 (filtro por perfil: as abas já existem; falta `?perfil=` na URL e o teste).
+Item 4 (Mapa operacional no MapLibre, Prospecta `2cb1fd2`).

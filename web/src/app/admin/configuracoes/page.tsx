@@ -5,6 +5,7 @@ import { requirePageRole } from "@/lib/auth/rbac";
 import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FotoPerfilClient } from "./_components/foto-perfil-client";
+import { perfilDaUrl } from "@/lib/usuarios/filtro";
 
 const SECTIONS = [
   {
@@ -40,7 +41,7 @@ const SECTIONS = [
   },
 ];
 
-export default async function ConfiguracoesPage() {
+export default async function ConfiguracoesPage({ searchParams }: { searchParams: Promise<{ perfil?: string | string[] }> }) {
   const session = await auth();
   requirePageRole(session, "admin");
   const sessionUser = session?.user as { role?: string; name?: string } | undefined;
@@ -103,7 +104,7 @@ export default async function ConfiguracoesPage() {
         // Lote 2, correção 04: "Engenheiro" = colaborador com perfil de engenheiro ativo.
         engenheiro: u.papel === "colaborador" && u.perfilEngenheiro?.ativo === true,
         corretor: u.corretor ? corretorDaTela(u.corretor) : null,
-      }))} leadsSemConta={leadsSemConta} corretoresSemConta={corretoresSemConta.map(corretorDaTela)} />
+      }))} perfilInicial={perfilDaUrl((await searchParams).perfil)} leadsSemConta={leadsSemConta} corretoresSemConta={corretoresSemConta.map(corretorDaTela)} />
     </div>
   );
 }
