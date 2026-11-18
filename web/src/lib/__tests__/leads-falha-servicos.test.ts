@@ -134,7 +134,8 @@ describe("editarLead — persistência atômica", () => {
     await expect(editarLead(editarForm())).rejects.toThrow("Falha ao criar projeto");
     expect(mocks.bloquear).toHaveBeenCalledWith(tx, "L1");
     expect(mocks.updateMany.mock.calls[0][0].data).toEqual({ etapaOperacional: "projetos_vistorias" });
-    expect(mocks.propagar).toHaveBeenCalledWith(expect.objectContaining({ id: "L1", nome: "Maria atualizada", telefone: "2", email: null }), tx);
+    // Regra do endereço (17/11): o 3º argumento é o endereço do lead ANTES da edição.
+    expect(mocks.propagar).toHaveBeenCalledWith(expect.objectContaining({ id: "L1", nome: "Maria atualizada", telefone: "2", email: null }), tx, expect.objectContaining({ endereco: undefined }));
     expect(mocks.sincronizar).toHaveBeenCalledWith("L1", tx);
     semFalsoSucesso(); semEscritaGlobal();
   });

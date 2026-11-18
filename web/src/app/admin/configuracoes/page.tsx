@@ -6,6 +6,14 @@ import { ConfiguracoesClient } from "./configuracoes-client";
 import { UsuariosClient } from "./_components/usuarios-client";
 import { FotoPerfilClient } from "./_components/foto-perfil-client";
 import { perfilDaUrl } from "@/lib/usuarios/filtro";
+import { TermoConsentimentoAdmin, type ResumoDoTermo } from "./_components/termo-consentimento-admin";
+import { resumoDoTermoParaAdmin } from "@/lib/consentimento";
+
+/** Paridade 17/11 bloco 4: falha (ex.: migração não aplicada) não derruba a tela de Configurações. */
+async function resumoDoTermo(): Promise<ResumoDoTermo | null> {
+  try { return await resumoDoTermoParaAdmin(); }
+  catch (erro) { console.error("[consentimento] resumo do admin indisponível:", erro); return null; }
+}
 
 const SECTIONS = [
   {
@@ -51,7 +59,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
   // Paridade 17/11 (EPIC-023 S-A da Prospecta): dados do cadastro de corretor (antiga tela "Corretores") e
   // corretores antigos ainda sem conta de acesso também aparecem aqui.
   const dadosCorretor = { id: true, nome: true, email: true, telefone: true, creci: true, ativo: true, observacoes: true, regraComissao: { select: { percentual: true } } } as const;
-  const [configs, usuarios, leadsSemConta, corretoresSemConta] = await Promise.all([
+  const [configs, usuarios, leadsSemConta, corretoresSemConta, termo] = await Promise.all([
     prisma.configuracao.findMany({ orderBy: { grupo: "asc" } }),
     prisma.usuario.findMany({
       orderBy: { criadoEm: "asc" },
@@ -63,6 +71,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
       orderBy: { nome: "asc" },
     }),
     prisma.corretor.findMany({ where: { usuarioId: null }, select: dadosCorretor, orderBy: { nome: "asc" } }),
+    resumoDoTermo(),
   ]);
   const corretorDaTela = (c: { id: string; nome: string; email: string; telefone: string; creci: string; ativo: boolean; observacoes: string; regraComissao: { percentual: { toString(): string } } | null }) => ({
     id: c.id, nome: c.nome, email: c.email, telefone: c.telefone, creci: c.creci, ativo: c.ativo, observacoes: c.observacoes,
@@ -105,6 +114,8 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
         engenheiro: u.papel === "colaborador" && u.perfilEngenheiro?.ativo === true,
         corretor: u.corretor ? corretorDaTela(u.corretor) : null,
       }))} perfilInicial={perfilDaUrl((await searchParams).perfil)} leadsSemConta={leadsSemConta} corretoresSemConta={corretoresSemConta.map(corretorDaTela)} />
+
+      <TermoConsentimentoAdmin resumo={termo} />
     </div>
   );
 }

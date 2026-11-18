@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AlertCircle } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { aceitesDoUsuario, situacaoNoLink, MENSAGEM_FALHA_AO_VERIFICAR, type SituacaoDoTermo } from "@/lib/consentimento";
 import { DefinirSenhaForm } from "./definir-senha-form";
 
 export const metadata: Metadata = {
@@ -16,9 +17,15 @@ export default async function DefinirSenhaPage({ params }: PageProps) {
 
   const usuario = await prisma.usuario.findUnique({
     where: { tokenPrimeiroAcesso: token },
-    select: { nome: true, tokenPrimeiroAcessoExpira: true },
+    select: { id: true, nome: true, tokenPrimeiroAcessoExpira: true },
   });
   const valido = !!usuario && !!usuario.tokenPrimeiroAcessoExpira && usuario.tokenPrimeiroAcessoExpira > new Date();
+  // Paridade 17/11 bloco 4: situação do termo de consentimento (falha do banco não vira "link inválido").
+  let termo: SituacaoDoTermo | null = null;
+  if (valido) {
+    try { termo = situacaoNoLink(await aceitesDoUsuario(usuario.id)); }
+    catch (erro) { console.error("[consentimento] falha ao verificar o termo no link:", erro); }
+  }
 
   return (
     <div className="min-h-screen bg-[var(--brand-dark)] flex items-center justify-center px-4">
@@ -41,7 +48,9 @@ export default async function DefinirSenhaPage({ params }: PageProps) {
               <p className="text-gray-400 text-sm mb-6">
                 Defina sua senha de acesso ao sistema.
               </p>
-              <DefinirSenhaForm token={token} />
+              {termo ? <DefinirSenhaForm token={token} termo={termo} /> : (
+                <p role="alert" className="text-sm text-red-600">{MENSAGEM_FALHA_AO_VERIFICAR}</p>
+              )}
             </>
           ) : (
             <div className="text-center py-4 space-y-3">

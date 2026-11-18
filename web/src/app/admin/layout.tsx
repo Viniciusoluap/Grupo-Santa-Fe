@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
+import { ConsentimentoNoLogin } from "@/components/consentimento/consentimento-no-login";
 import { AdminShell } from "./_components/admin-shell";
 import { destinoDoUsuario, MODULOS_PAINEL, usuarioAtual } from "@/lib/auth/modulos";
 import { areaDoPerfil, podeAcessarModulo, podeAdministrarSeguranca } from "@/lib/perfis-acesso";
@@ -25,5 +26,6 @@ export default async function AdminLayout({
   if (usuario.perfil !== "corretor" && podeAcessarModulo(usuario, "leads")) rotasPermitidas.push("/admin/central-vendas");
   if (podeAdministrarSeguranca(usuario)) rotasPermitidas.push("/admin/configuracoes", "/admin/integracoes");
 
-  return <AdminShell rotasPermitidas={rotasPermitidas}>{children}</AdminShell>;
+  // Paridade 17/11 bloco 4: termo de consentimento ao entrar (só quando o servidor diz que é preciso).
+  return <><AdminShell rotasPermitidas={rotasPermitidas}>{children}</AdminShell><ConsentimentoNoLogin usuarioId={usuario.id} /></>;
 }
