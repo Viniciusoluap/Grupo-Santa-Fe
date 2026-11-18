@@ -59,21 +59,24 @@ describe.skipIf(!url)("LOTE C — extrato alimentando o BPO (banco real)", () =>
     expect(previa.saldo).toEqual({ valor: 160, data: "2026-10-04" });
     const r = await bancos.confirmarImportacao(conta.id, previa.linhas, previa.saldo);
     expect(r.novos).toBe(4);
-    // Paridade BPO (13/11, expectativa mudada): antes 4 lançamentos na hora; agora só a transferência interna
-    // (fora de listas/DRE) e as outras 3 esperam em "A classificar".
-    expect(r.lancamentosCriados).toBe(1);
+    // Paridade BPO (13/11, expectativa mudada): antes 4 lançamentos na hora; agora as 3 esperam em "A classificar".
+    // Paridade 17/11, bloco 3 (expectativa mudada de novo, regra da Prospecta): a transferência interna não gera mais
+    // lançamento (antes gerava 1, fora de listas/DRE) — fica só na movimentação, com a categoria.
+    expect(r.lancamentosCriados).toBe(0);
     expect(r.aClassificar).toBe(3);
     await classificarSugeridas(conta.id);
 
     const ls = await lancamentosDa(conta.id);
-    expect(ls).toHaveLength(4);
+    expect(ls).toHaveLength(3);
     expect(ls.every((l) => l.pago && l.transacaoId)).toBe(true);
     const receita = ls.find((l) => l.valor === 1500)!;
     expect(receita).toMatchObject({ tipo: "recebimento", competencia: "2026-10", categoria: "Recebimento de cliente", descricao: "Pix recebido Cliente A" });
     expect(receita.vencimento.toISOString().slice(0, 10)).toBe("2026-10-01");
     expect(receita.pagoEm?.toISOString().slice(0, 10)).toBe("2026-10-01");
     expect(ls.find((l) => l.valor === 320.4)).toMatchObject({ tipo: "despesa", categoria: "Material" });
-    expect(ls.find((l) => l.valor === 1000)).toMatchObject({ tipo: "despesa", categoria: "Transferência interna" });
+    expect(ls.find((l) => l.valor === 1000)).toBeUndefined();
+    expect(await prisma.transacaoBancaria.findFirstOrThrow({ where: { contaId: conta.id, valor: 1000 }, include: { lancamento: true } }))
+      .toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
     expect(ls.find((l) => l.valor === 19.6)).toMatchObject({ tipo: "despesa", categoria: "Tarifas bancárias" });
     // A categoria também fica na movimentação.
     expect(ls.find((l) => l.valor === 320.4)!.transacao!.categoria).toBe("Material");
@@ -82,7 +85,7 @@ describe.skipIf(!url)("LOTE C — extrato alimentando o BPO (banco real)", () =>
     const r2 = await bancos.confirmarImportacao(conta.id, deNovo.linhas, deNovo.saldo);
     expect(r2.novos).toBe(0);
     expect(r2.lancamentosCriados).toBe(0);
-    expect(await lancamentosDa(conta.id)).toHaveLength(4);
+    expect(await lancamentosDa(conta.id)).toHaveLength(3);
   });
 
   it("transferência interna fica fora do DRE e da contabilidade", async () => {

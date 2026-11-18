@@ -871,6 +871,26 @@ model BpoLancamentoExclusaoBackup {
   @@map("bpo_lancamento_exclusoes_backup")
 }
 
+// ── Paridade 17/11 bloco 3 ── Conta Azul: cópia de cada lançamento ARQUIVADO removido em definitivo por
+// "Liberar reimportação" (gêmeo de bpo_lancamentos_expurgo da Prospecta, migração 0122). Um lote por execução;
+// a linha inteira fica em dadosJson. Sem FK para usuarios (como os demais backups do BPO).
+model BpoLancamentoExpurgo {
+  id                    String   @id @default(cuid())
+  loteId                String
+  lancamentoId          String
+  requestKey            String?
+  origemEfetiva         String?
+  exclusaoLoteBackupId  String?
+  motivo                String   @default("liberar_reimportacao_conta_azul")
+  dadosJson             String
+  expurgadoPorUsuarioId String?
+  expurgadoEm           DateTime @default(now())
+
+  @@index([loteId])
+  @@index([lancamentoId])
+  @@map("bpo_lancamentos_expurgo")
+}
+
 /// Registro imutável das alterações manuais em lançamentos BPO.
 model BpoLancamentoHistorico {
   id                   String   @id @default(cuid())
@@ -1801,6 +1821,32 @@ model PciGerada {
 
   @@index([obraId, criadoEm])
   @@map("pci_geradas")
+}
+
+// ── Paridade 17/11 bloco 3 ── Gerador de PCI: biblioteca de modelos de preenchimento (gêmeo de
+// pci_modelos_preenchimento da Prospecta, migração 0118). Só dados técnicos (lista de permissão
+// CAMPOS_COPIAVEIS_MODELO_PCI em src/lib/pci-gerador.ts); salvar sobre um modelo cria nova versão
+// (versao + 1, anteriorId) e mantém a anterior. Nome único (sem maiúsculas) entre as versões atuais
+// não excluídas: índice parcial só na migração. Sem FK para obras/usuarios (como os demais registros da PCI).
+model PciModeloPreenchimento {
+  id            String                  @id @default(cuid())
+  nome          String                  @db.VarChar(120)
+  versao        Int                     @default(1)
+  anteriorId    String?                 @unique
+  anterior      PciModeloPreenchimento? @relation("PciModeloPreenchimentoVersoes", fields: [anteriorId], references: [id], onDelete: SetNull)
+  sucessor      PciModeloPreenchimento? @relation("PciModeloPreenchimentoVersoes")
+  /// DadosModeloPreenchimentoPci: campos técnicos, custos, adicionais e cronograma (nunca CPF, nome ou endereço).
+  dados         Json                    @db.JsonB
+  observacao    String?
+  obraOrigemId  String?
+  criadoPorId   String?
+  criadoEm      DateTime                @default(now())
+  excluidoEm    DateTime?
+  excluidoPorId String?
+  /// true = já tem versão mais nova (marcado na mesma transação que grava a sucessora).
+  substituido   Boolean                 @default(false)
+
+  @@map("pci_modelos_preenchimento")
 }
 
 // Checklist pessoal do CRM; preferências existem mesmo antes da solicitação.

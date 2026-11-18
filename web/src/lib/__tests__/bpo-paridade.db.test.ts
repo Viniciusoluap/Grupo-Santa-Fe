@@ -9,10 +9,12 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: async () => ({ user: { id: "usuario-teste", role: "admin" } }) }));
-vi.mock("@/lib/auth/modulos", () => ({
-  exigirModuloAcao: async () => ({ id: "usuario-teste", nome: "Teste" }),
-  exigirAdminAtivo: async () => ({ id: "usuario-teste", nome: "Teste" }),
+// vi.fn (17/11): o teste de "Liberar reimportação" simula um não-admin com mockRejectedValueOnce.
+const guardas = vi.hoisted(() => ({
+  exigirModuloAcao: vi.fn(async () => ({ id: "usuario-teste", nome: "Teste" })),
+  exigirAdminAtivo: vi.fn(async () => ({ id: "usuario-teste", nome: "Teste" })),
 }));
+vi.mock("@/lib/auth/modulos", () => guardas);
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url;
 process.env.AUTH_SECRET ||= "segredo-de-teste";
@@ -51,6 +53,8 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
     await prisma.bpoLancamento.updateMany({ where: { id: { in: ids } }, data: { combinadaEmId: null } });
     await prisma.bpoLancamento.deleteMany({ where: { id: { in: ids } } });
     await prisma.bpoLancamentoHistorico.deleteMany({ where: { lancamentoReferencia: { in: ids } } });
+    await prisma.bpoLancamentoHistorico.deleteMany({ where: { motivo: { startsWith: "Removido em definitivo para liberar a reimportação" }, antesJson: { contains: CHAVE_FIXTURE } } });
+    await prisma.bpoLancamentoExpurgo.deleteMany({ where: { requestKey: { startsWith: CHAVE_FIXTURE } } });
     await prisma.bpoLancamentoExclusaoBackup.deleteMany({ where: { OR: [{ snapshotJson: { contains: MARCA } }, { snapshotJson: { contains: CHAVE_FIXTURE } }] } });
     await prisma.contaBancaria.deleteMany({ where: { banco: { startsWith: MARCA } } });
     await prisma.bpoRegraTitular.deleteMany({ where: { titularNormalizado: { startsWith: "teste paridade bpo" } } });
@@ -119,6 +123,156 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
     });
   });
 
+  // Paridade 17/11 (EPIC-024 S-01 da Prospecta): os lançamentos do Conta Azul arquivados seguravam a chave única e a
+  // prévia dizia "já importados". Mesmos cenários de Prospecta/server/bpo-conta-azul.test.ts ("arquivados que bloqueiam").
+  describe("arquivados que bloqueiam a reimportação do Conta Azul", () => {
+    const doFixture = { requestKey: { startsWith: CHAVE_FIXTURE } };
+    /** Arquiva como a "limpeza de ajustes": backup JSON + exclusaoLoteBackupId nas linhas. */
+    async function arquivarTudoDoContaAzul() {
+      const rows = await prisma.bpoLancamento.findMany({ where: { ...doFixture, origemEfetiva: "conta_azul" }, orderBy: { id: "asc" } });
+      const b = await prisma.bpoLancamentoExclusaoBackup.create({ data: {
+        modo: "tudo", aba: "a_classificar", quantidade: rows.length,
+        snapshotJson: JSON.stringify(rows.map((r) => ({ id: r.id, descricao: r.descricao, valor: r.valor, version: r.version, requestKey: r.requestKey, __limpezaAjustes: true }))),
+      } });
+      await prisma.bpoLancamento.updateMany({ where: { id: { in: rows.map((r) => r.id) } }, data: { exclusaoLoteBackupId: b.id } });
+      return b.id;
+    }
+    const liberar = (confirmacao = "LIBERAR") => acoes.liberarReimportacaoContaAzulAcao({ arquivos: BACKUP, confirmacao });
+
+    it("prévia e importação mostram os arquivados à parte (não como já importados)", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      await arquivarTudoDoContaAzul();
+      const p = ok(await acoes.previaContaAzulAcao(BACKUP));
+      expect(p.lancamentos).toMatchObject({ novos: 0, jaImportados: 0, arquivados: { bloqueando: 4, liberaveis: 4, comVinculo: 0, outraOrigem: 0 } });
+      expect(ok(await acoes.importarContaAzulAcao(BACKUP))).toMatchObject({ lancamentosCriados: 0, lancamentosJaImportados: 0, lancamentosArquivadosBloqueando: 4 });
+    });
+
+    it("liberar remove só os arquivados do Conta Azul sem vínculo, com cópia e histórico; o resto fica intacto", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      const backupId = await arquivarTudoDoContaAzul();
+      // um volta a ficar ativo; outro tem movimentação bancária; um legado arquivado de outra origem (outra chave)
+      const ids = (await prisma.bpoLancamento.findMany({ where: doFixture, orderBy: { valor: "asc" }, select: { id: true } })).map((x) => x.id);
+      await prisma.bpoLancamento.update({ where: { id: ids[0] }, data: { exclusaoLoteBackupId: null } });
+      const conta = await criarConta();
+      const t = await prisma.transacaoBancaria.create({ data: { contaId: conta.id, data: new Date("2026-04-15T12:00:00Z"), descricao: `${MARCA} Pix`, valor: 709, tipo: "debito" } });
+      await prisma.bpoLancamento.update({ where: { id: ids[2] }, data: { transacaoId: t.id } });
+      const legado = await novoLanc("Legado", { origemEfetiva: "legado", exclusaoLoteBackupId: backupId, requestKey: `${MARCA}-legado:1` });
+
+      const p = ok(await acoes.previaContaAzulAcao(BACKUP));
+      expect(p.lancamentos).toMatchObject({ jaImportados: 1, arquivados: { bloqueando: 3, liberaveis: 2, comVinculo: 1, outraOrigem: 0 } });
+      expect(p.lancamentos.arquivados.exemplosComVinculo[0].motivos).toEqual(["ligado a uma movimentação bancária"]);
+
+      expect(await liberar("sim")).toEqual({ erroAcao: expect.stringMatching(/Digite LIBERAR/) });
+      expect(await prisma.bpoLancamento.count({ where: doFixture })).toBe(4);
+
+      const r = ok(await liberar());
+      expect(r).toMatchObject({ arquivados: 3, removidos: 2, mantidos: 1 });
+      expect(r.mantidosDetalhe).toEqual([expect.objectContaining({ id: ids[2], motivos: ["ligado a uma movimentação bancária"] })]);
+      expect((await prisma.bpoLancamento.findMany({ where: doFixture, select: { id: true } })).map((x) => x.id).sort()).toEqual([ids[0], ids[2]].sort());
+      expect(await prisma.bpoLancamento.findUnique({ where: { id: legado.id } })).toMatchObject({ exclusaoLoteBackupId: backupId });
+      const copias = await prisma.bpoLancamentoExpurgo.findMany({ where: { lancamentoId: { in: ids } }, orderBy: { lancamentoId: "asc" } });
+      expect(copias.map((c) => c.lancamentoId)).toEqual([ids[1], ids[3]].sort());
+      expect(new Set(copias.map((c) => c.loteId))).toEqual(new Set([r.loteId]));
+      expect(JSON.parse(copias[0].dadosJson)).toMatchObject({ origemEfetiva: "conta_azul", exclusaoLoteBackupId: backupId });
+      expect(copias[0].expurgadoPorUsuarioId).toBe("usuario-teste");
+      expect(await prisma.bpoLancamentoHistorico.count({ where: { lancamentoReferencia: { in: ids }, motivo: { startsWith: "Removido em definitivo para liberar a reimportação" } } })).toBe(2);
+
+      // de novo: nada mais a liberar além do que tem vínculo
+      expect(ok(await liberar())).toMatchObject({ removidos: 0, mantidos: 1, loteId: null });
+    });
+
+    it("depois de liberar, reimporta tudo uma vez; a segunda importação não cria nada; restaurar a limpeza antiga não duplica", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      const clientesAntes = await prisma.bpoCliente.count();
+      const backupId = await arquivarTudoDoContaAzul();
+      ok(await liberar());
+      expect(await prisma.bpoLancamento.count({ where: doFixture })).toBe(0);
+
+      expect(ok(await acoes.importarContaAzulAcao(BACKUP))).toMatchObject({ lancamentosCriados: 4, clientesCriados: 0, lancamentosArquivadosBloqueando: 0, transferenciasIgnoradas: 1 });
+      expect(await prisma.bpoCliente.count()).toBe(clientesAntes);
+      // transferência interna fora e a linha repetida por centro de custo sem dobrar
+      const ls = await prisma.bpoLancamento.findMany({ where: doFixture, orderBy: { valor: "asc" } });
+      expect(ls.reduce((s, l) => s + l.valor, 0)).toBe(2619.5);
+      expect(ls.filter((l) => l.valor === 709).map((l) => l.centroCustos)).toEqual(["Santa Fe Canaa / Santa Fe Parauapebas"]);
+      // classificação preservada: em aberto volta para A classificar, pago não
+      expect(ls.filter((l) => [320.5, 1500].includes(l.valor)).map((l) => [l.valor, l.aClassificar])).toEqual([[320.5, true], [1500, false]]);
+
+      expect(ok(await acoes.importarContaAzulAcao(BACKUP))).toMatchObject({ lancamentosCriados: 0, lancamentosJaImportados: 4, clientesCriados: 0 });
+      expect(await prisma.bpoLancamento.count({ where: doFixture })).toBe(4);
+
+      const previa = await lote.previaRestauracaoExclusao(backupId);
+      expect(previa).toMatchObject({ restaurar: 0, jaExistem: 4 });
+      if ("erro" in previa) throw new Error(previa.erro);
+      for (const i of previa.itens) expect(i.avisos[0]).toMatch(/liberar a reimportação do Conta Azul/);
+      expect(await lote.restaurarExclusaoEmLote({ backupId, confirmacao: "RESTAURAR" })).toMatchObject({ restaurados: 0 });
+      expect(await prisma.bpoLancamento.count({ where: doFixture })).toBe(4);
+    });
+
+    it("restaurar uma exclusão antiga (backup JSON) pula a linha do Conta Azul que já foi reimportada (ativa ou arquivada)", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      const l = await prisma.bpoLancamento.findFirstOrThrow({ where: { ...doFixture, valor: 320.5 } });
+      const snapshot = [{ id: `${MARCA}-antigo`, tipo: "despesa", descricao: l.descricao, valor: l.valor, vencimento: "2026-04-10T12:00:00.000Z", competencia: "2026-04", requestKey: l.requestKey, origemEfetiva: "conta_azul", version: 1 }];
+      const b = await prisma.bpoLancamentoExclusaoBackup.create({ data: { modo: "selecionados", aba: "despesas", quantidade: 1, snapshotJson: JSON.stringify(snapshot) } });
+      const previa = await lote.previaRestauracaoExclusao(b.id);
+      if ("erro" in previa) throw new Error(previa.erro);
+      expect(previa.itens[0].avisos).toEqual([expect.stringMatching(/Já foi importado de novo do Conta Azul/)]);
+      expect(await lote.restaurarExclusaoEmLote({ backupId: b.id, confirmacao: "RESTAURAR" })).toMatchObject({ restaurados: 0, jaExistiam: 1 });
+      expect(await prisma.bpoLancamento.count({ where: { ...doFixture, valor: 320.5 } })).toBe(1);
+      // com a linha reimportada ARQUIVADA, o aviso é outro (e também não duplica)
+      await arquivarTudoDoContaAzul();
+      const b2 = await prisma.bpoLancamentoExclusaoBackup.create({ data: { modo: "selecionados", aba: "despesas", quantidade: 1, snapshotJson: JSON.stringify(snapshot) } });
+      const previa2 = await lote.previaRestauracaoExclusao(b2.id);
+      if ("erro" in previa2) throw new Error(previa2.erro);
+      expect(previa2).toMatchObject({ restaurar: 0, jaExistem: 1 });
+      expect(previa2.itens[0].avisos).toEqual([expect.stringMatching(/outro lançamento ARQUIVADO/)]);
+    });
+
+    it("só o admin libera: sem o perfil admin a ação é recusada e nada é apagado", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      await arquivarTudoDoContaAzul();
+      guardas.exigirAdminAtivo.mockRejectedValueOnce(new Error("Não autorizado."));
+      expect(await liberar()).toEqual({ erroAcao: "Não autorizado." });
+      expect(await prisma.bpoLancamento.count({ where: doFixture })).toBe(4);
+      expect(ok(await liberar())).toMatchObject({ removidos: 4 });
+    });
+
+    it("arquivado de OUTRA origem com a chave do Conta Azul: contado à parte, com o motivo, e nunca removido", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      await arquivarTudoDoContaAzul();
+      const l = await prisma.bpoLancamento.findFirstOrThrow({ where: { ...doFixture, valor: 1500 } });
+      await prisma.bpoLancamento.update({ where: { id: l.id }, data: { origemEfetiva: "legado" } });
+      const p = ok(await acoes.previaContaAzulAcao(BACKUP));
+      expect(p.lancamentos.arquivados).toMatchObject({ bloqueando: 4, liberaveis: 3, comVinculo: 0, outraOrigem: 1 });
+      expect(p.lancamentos.arquivados.exemplosComVinculo[0].motivos[0]).toMatch(/origem "legado"/);
+      expect(ok(await liberar())).toMatchObject({ removidos: 3, mantidos: 1 });
+      expect(await prisma.bpoLancamento.findMany({ where: doFixture, select: { id: true, origemEfetiva: true } })).toEqual([{ id: l.id, origemEfetiva: "legado" }]);
+    });
+
+    it("cobrança combinada num arquivado (ou com baixa) não é removida", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      await arquivarTudoDoContaAzul();
+      const [a, b] = await prisma.bpoLancamento.findMany({ where: doFixture, orderBy: { valor: "asc" } });
+      const filho = await novoLanc("filho combinado", { combinadaEmId: a.id });
+      await prisma.bpoBaixa.create({ data: { lancamentoId: b.id, requestKey: `${MARCA}-baixa`, valor: 1, data: new Date(), motivo: "teste", usuarioId: "usuario-teste" } });
+      const r = ok(await liberar());
+      expect(r).toMatchObject({ removidos: 2, mantidos: 2 });
+      expect(r.mantidosDetalhe.map((m) => m.motivos)).toEqual(expect.arrayContaining([["outra cobrança foi combinada nele"], ["tem baixa registrada em recebimentos"]]));
+      await prisma.bpoLancamento.delete({ where: { id: filho.id } });
+    });
+
+    it("restaurar limpeza cujos lançamentos foram apagados fora do sistema: mensagem simples e nada recriado", async () => {
+      ok(await acoes.importarContaAzulAcao(BACKUP));
+      const backupId = await arquivarTudoDoContaAzul();
+      await prisma.bpoLancamento.deleteMany({ where: doFixture }); // apagados direto no banco, sem expurgo
+      const previa = await lote.previaRestauracaoExclusao(backupId);
+      if ("erro" in previa) throw new Error(previa.erro);
+      expect(previa).toMatchObject({ restaurar: 0, jaExistem: 4 });
+      for (const i of previa.itens) expect(i.avisos).toEqual([expect.stringMatching(/não existe mais \(foi apagado em definitivo\)/)]);
+      expect(await lote.restaurarExclusaoEmLote({ backupId, confirmacao: "RESTAURAR" })).toMatchObject({ restaurados: 0 });
+      expect(await prisma.bpoLancamento.count({ where: doFixture })).toBe(0);
+    });
+  });
+
   describe("movimentação nova do banco", () => {
     it("depois do backup: o pago do Conta Azul só é ligado; em aberto e o resto ficam A classificar; nada entra no DRE", async () => {
       ok(await acoes.importarContaAzulAcao(BACKUP));
@@ -137,7 +291,9 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
       for (const n of [2, 3]) expect(await txDe(`${MARCA}-${n}`)).toMatchObject({ aClassificar: true, lancamento: null });
       const aberto = await prisma.bpoLancamento.findFirstOrThrow({ where: { requestKey: { startsWith: CHAVE_FIXTURE }, valor: 320.5 } });
       expect(aberto).toMatchObject({ pago: false, aClassificar: true, transacaoId: null });
-      expect((await txDe(`${MARCA}-4`)).lancamento).toMatchObject({ categoria: "Transferência interna" }); // fora de listas/DRE (regra antiga do Santa Fé)
+      // Paridade 17/11, bloco 3 (expectativa mudada; antes: lançamento "Transferência interna" fora de listas/DRE, regra
+      // antiga do Santa Fé): como na Prospecta, a transferência interna não gera lançamento nem vai para A classificar.
+      expect(await txDe(`${MARCA}-4`)).toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
       expect(await prisma.bpoLancamento.count({ where: { origemEfetiva: "extrato", transacao: { contaId: conta.id }, categoria: { not: "Transferência interna" } } })).toBe(0);
       expect(ok(await acoes.dadosAClassificar()).contagem.movimentacoes).toBeGreaterThanOrEqual(2);
       // reimportar as mesmas linhas não muda nada
@@ -168,7 +324,8 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
       expect(ok(await acoes.ignorarAClassificar([t3.id]))).toEqual({ ignoradas: 1 });
       const t3d = await txDe(t3.externalId!);
       expect(t3d.aClassificar).toBe(false);
-      expect(t3d.lancamento?.categoria).toBe("Transferência interna");
+      // Paridade 17/11, bloco 3 (expectativa mudada; antes: lançamento com a categoria "Transferência interna"): sem lançamento.
+      expect(t3d).toMatchObject({ categoria: "Transferência interna", lancamento: null });
       const dre = resultado.dreFiltrado(resultado.celulasDre(await visiveis()));
       expect(dre.porCompetencia).toEqual([{ competencia: "2026-10", receitas: 1700, despesas: 0, resultado: 1700 }]);
     });
@@ -260,6 +417,88 @@ describe.skipIf(!url)("Paridade BPO 13/11 (banco real)", () => {
       expect(depois.aClassificar).toBe(false);
       expect(depois.lancamento).toMatchObject({ asaasPaymentId: `${MARCA}-pay9`, transacaoId: t.id });
       expect(await prisma.bpoLancamento.count({ where: { asaasPaymentId: `${MARCA}-pay9` } })).toBe(1);
+    });
+
+    // Paridade 17/11, bloco 3 (Prospecta server/bpo-asaas.ts, passo 3): crédito do Asaas SEM id de pagamento.
+    it("crédito do Asaas sem id de pagamento: a cobrança paga de mesmo valor (bruto ou líquido) e data até 3 dias o assume; sem duplicar", async () => {
+      const conta = await criarConta({ provedor: "asaas" });
+      await bancos.gravarMovimentos(conta, [
+        mov(1, "2026-10-08", 97.01, "credito", "Recebimento sem id"), // líquido da cobrança payA
+        mov(2, "2026-10-08", 250, "credito", "Outro crédito"),
+      ], "asaas");
+      const t1 = await txDe(`${MARCA}-1`);
+      expect(t1).toMatchObject({ aClassificar: true, lancamento: null, asaasPaymentId: null });
+      // crédito antigo com lançamento do extrato (regra anterior a 13/11): o lançamento vira a cobrança
+      const t3 = await prisma.transacaoBancaria.create({ data: { contaId: conta.id, data: new Date("2026-10-09T12:00:00Z"), descricao: `${MARCA} crédito antigo`, valor: 410, tipo: "credito", externalId: `${MARCA}-antigo`, origem: "asaas" } });
+      const antigo = await novoLanc("crédito antigo", { origemEfetiva: "extrato", transacaoId: t3.id, valor: 410, pago: true, pagoEm: t3.data, categoria: "Recebimento de cliente" });
+      const r = await asaas.sincronizarCobrancasAsaas("$aact_teste", "2026-10-01", fetchCobrancas([
+        { id: `${MARCA}-payA`, status: "RECEIVED", value: 99.99, netValue: 97.01, dueDate: "2026-10-05", paymentDate: "2026-10-06", description: `${MARCA} a` },
+        { id: `${MARCA}-payB`, status: "CONFIRMED", value: 410, dueDate: "2026-10-09", paymentDate: "2026-10-10", description: `${MARCA} b` },
+        // mesmo valor do outro crédito, mas 5 dias longe: não liga (entra como cobrança nova)
+        { id: `${MARCA}-payC`, status: "RECEIVED", value: 250, dueDate: "2026-10-01", paymentDate: "2026-10-03", description: `${MARCA} c` },
+        // em aberto nunca liga a crédito
+        { id: `${MARCA}-payD`, status: "PENDING", value: 250, dueDate: "2026-10-08", description: `${MARCA} d` },
+      ]));
+      expect(r).toMatchObject({ reconciliadas: 2, criadas: 2 });
+      const d1 = await txDe(`${MARCA}-1`);
+      expect(d1).toMatchObject({ aClassificar: false, asaasPaymentId: `${MARCA}-payA` });
+      expect(d1.lancamento).toMatchObject({ asaasPaymentId: `${MARCA}-payA`, valor: 97.01, pago: true, aClassificar: false, tipo: "recebimento" });
+      expect(d1.lancamento!.pagoEm!.toISOString().slice(0, 10)).toBe("2026-10-08"); // a data do dinheiro que entrou
+      expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: antigo.id } })).toMatchObject({ asaasPaymentId: `${MARCA}-payB`, valor: 410, pago: true });
+      expect((await prisma.transacaoBancaria.findUniqueOrThrow({ where: { id: t3.id } })).asaasPaymentId).toBe(`${MARCA}-payB`);
+      expect(await txDe(`${MARCA}-2`)).toMatchObject({ aClassificar: true, lancamento: null, asaasPaymentId: null });
+      expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { asaasPaymentId: `${MARCA}-payC` } })).toMatchObject({ transacaoId: null, pago: true });
+      expect(await prisma.bpoLancamento.findUniqueOrThrow({ where: { asaasPaymentId: `${MARCA}-payD` } })).toMatchObject({ transacaoId: null, pago: false });
+      // rodar de novo não duplica nada (agora o extrato já tem o id do pagamento)
+      const r2 = await asaas.sincronizarCobrancasAsaas("$aact_teste", "2026-10-01", fetchCobrancas([
+        { id: `${MARCA}-payA`, status: "RECEIVED", value: 99.99, netValue: 97.01, dueDate: "2026-10-05", paymentDate: "2026-10-06" },
+        { id: `${MARCA}-payB`, status: "CONFIRMED", value: 410, dueDate: "2026-10-09", paymentDate: "2026-10-10" },
+      ]));
+      expect(r2).toMatchObject({ criadas: 0, reconciliadas: 0, atualizadas: 2 });
+      for (const pid of ["payA", "payB"]) expect(await prisma.bpoLancamento.count({ where: { asaasPaymentId: `${MARCA}-${pid}` } })).toBe(1);
+      expect(await prisma.bpoLancamento.count({ where: { transacaoId: { in: [t1.id, t3.id] } } })).toBe(2);
+    });
+
+    it("crédito com o id da cobrança marcado como transferência interna (sem lançamento) não vira receita", async () => {
+      const conta = await criarConta({ provedor: "asaas" });
+      await bancos.gravarMovimentos(conta, [mov(1, "2026-10-07", 600, "credito", "Repasse", { asaasPaymentId: `${MARCA}-payT` })], "asaas");
+      const t = await txDe(`${MARCA}-1`);
+      expect(ok(await acoes.ignorarAClassificar([t.id]))).toEqual({ ignoradas: 1 });
+      expect(await txDe(`${MARCA}-1`)).toMatchObject({ categoria: "Transferência interna", lancamento: null });
+      const r = await asaas.sincronizarCobrancasAsaas("$aact_teste", "2026-10-01", fetchCobrancas([{ id: `${MARCA}-payT`, status: "RECEIVED", value: 600, dueDate: "2026-10-07", paymentDate: "2026-10-07" }]));
+      expect(r).toMatchObject({ criadas: 0, reconciliadas: 0 });
+      expect(await prisma.bpoLancamento.count({ where: { OR: [{ asaasPaymentId: `${MARCA}-payT` }, { transacaoId: t.id }] } })).toBe(0);
+    });
+  });
+
+  // Paridade 17/11, bloco 3 (Prospecta): transferência interna não gera lançamento; os já gravados ficam como estão.
+  describe("transferência interna", () => {
+    it("nova, reprocessar e classificar no painel Bancos não criam lançamento; DRE e listas não mudam; os antigos ficam intactos", async () => {
+      const conta = await criarConta();
+      // Lançamento de transferência gravado ANTES (regra antiga): continua igual e fora das listas/DRE.
+      const tAntiga = await prisma.transacaoBancaria.create({ data: { contaId: conta.id, data: new Date("2026-10-02T12:00:00Z"), descricao: `${MARCA} transferência antiga`, valor: 900, tipo: "debito", categoria: "Transferência interna", externalId: `${MARCA}-ti-antiga` } });
+      const lAntigo = await novoLanc("transferência antiga", { tipo: "despesa", origemEfetiva: "extrato", transacaoId: tAntiga.id, valor: 900, pago: true, pagoEm: tAntiga.data, categoria: "Transferência interna", competencia: "2026-10" });
+      await gravar(conta, [
+        mov(1, "2026-10-03", 1000, "debito", "Transferência entre contas mesma titularidade"),
+        mov(2, "2026-10-04", 50, "debito", "Tarifa"),
+      ]);
+      expect(await txDe(`${MARCA}-1`)).toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
+      // reprocessar (rede diária / backfill) também não cria
+      await lanc.reprocessarMovimentacoes();
+      expect((await txDe(`${MARCA}-1`)).lancamento).toBeNull();
+      // painel Bancos: marcar outra movimentação como transferência interna não cria; voltar a uma categoria cria
+      const t2 = await txDe(`${MARCA}-2`);
+      await lanc.classificarTransacao(t2.id, { categoria: "Transferência interna" });
+      expect(await txDe(`${MARCA}-2`)).toMatchObject({ categoria: "Transferência interna", aClassificar: false, lancamento: null });
+      await lanc.classificarTransacao(t2.id, { categoria: "Tarifas bancárias" });
+      expect((await txDe(`${MARCA}-2`)).lancamento).toMatchObject({ categoria: "Tarifas bancárias", valor: 50, pago: true });
+      // o lançamento antigo não foi tocado
+      const depois = await prisma.bpoLancamento.findUniqueOrThrow({ where: { id: lAntigo.id } });
+      expect(depois).toMatchObject({ categoria: "Transferência interna", valor: 900, transacaoId: tAntiga.id, version: lAntigo.version });
+      // DRE: só a tarifa (as transferências, antiga e nova, ficam fora como antes)
+      const dre = resultado.dreFiltrado(resultado.celulasDre(await visiveis()));
+      expect(dre.porCompetencia).toEqual([{ competencia: "2026-10", receitas: 0, despesas: 50, resultado: -50 }]);
+      expect(await prisma.bpoLancamento.count({ where: { transacao: { contaId: conta.id } } })).toBe(2); // antiga + tarifa
     });
   });
 

@@ -13,6 +13,7 @@ import {
 } from "./base";
 import { atribuirOperador } from "./distribuicao";
 import { enfileirar, enfileirarTemplate, processarFila } from "./envio";
+import { modeloDaFuncao } from "@/lib/ia/modelo-por-funcao";
 
 /** Falha que não adianta repetir (sem chave, sem orçamento): vai direto para humano. */
 export class IAIndisponivel extends Error {}
@@ -20,8 +21,11 @@ export class IAIndisponivel extends Error {}
 const clientePadrao: ClienteIA = async ({ sistema, mensagens, maxTokens, config }) => {
   const chave = segredo(config, "chaveAnthropic") || process.env.ANTHROPIC_API_KEY;
   if (!chave) throw new IAIndisponivel("Chave da IA não configurada.");
+  // Paridade 17/11 (bloco 3): o modelo pode ser escolhido em Integrações › Anthropic › "Modelo por função"; sem escolha,
+  // vale o "Modelo da IA" desta Central (como antes). Só o NOME do modelo muda: a chave continua a de cima.
+  const modelo = (await modeloDaFuncao("central_vendas_agente", { anterior: config.modeloIA })).modelo ?? config.modeloIA;
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const r = await new Anthropic({ apiKey: chave }).messages.create({ model: config.modeloIA, max_tokens: maxTokens, system: sistema, messages: mensagens });
+  const r = await new Anthropic({ apiKey: chave }).messages.create({ model: modelo, max_tokens: maxTokens, system: sistema, messages: mensagens });
   const texto = r.content.map(b => (b.type === "text" ? b.text : "")).join("");
   return { texto, entrada: r.usage?.input_tokens ?? 0, saida: r.usage?.output_tokens ?? 0 };
 };

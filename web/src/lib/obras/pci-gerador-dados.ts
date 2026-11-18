@@ -9,17 +9,30 @@ import {
   MENSAGEM_SAIDA_XLS_PCI,
   formatoModeloPci,
   nomeArquivoPciGerada,
+  avisosEmpresaNoModeloPci,
+  compararPreenchimentoPci,
+  conferirProcedenciaPci,
+  dadosPessoaisNoModeloPci,
   errosPci,
+  extrairModeloPreenchimentoPci,
+  faltasPerfilEngenheiroPci,
+  formularioPciVazio,
   normalizarFormularioPci,
   pendenciasPci,
   preencherPciAutomatico,
+  registrarConfirmacoesPci,
+  resumoModeloPreenchimentoPci,
+  sugestoesAutomaticasPci,
+  validarNomeModeloPreenchimentoPci,
+  type EngenheiroDaObraPci,
+  type FontesPreenchimentoPci,
   type FormatoModeloPci,
   type FormularioPci,
 } from "@/lib/pci-gerador";
 import { gerarPdfPci, gerarPlanilhaPci, lerFormularioPci, validarModeloPci } from "@/lib/caixa/pci-gerador";
 import { compararEstruturasPci, lerEstruturaModeloPci, xlsCompativelCom, type EstruturaModeloPci, type RelatorioCompatibilidadePci } from "@/lib/caixa/pci-modelo-estrutura";
 import { cidadeEstadoDoEndereco, coordenadasDaPci, coordenadasSalvas } from "@/lib/obra-localizacao";
-import { listarEngenheiros } from "@/lib/engenheiros";
+import { dadosEngenheiroParaPci, listarEngenheiros } from "@/lib/engenheiros";
 import { podeAcessarModulo, podeAdministrarSeguranca, type UsuarioAcesso } from "@/lib/perfis-acesso";
 
 /** Gerador: admin ou colaborador com Obras (empreiteiro e corretor, não). Mesma regra do Prospecta. */
@@ -226,8 +239,8 @@ async function obraDoGerador(obraId: string) {
     where: { id: obraId },
     select: {
       id: true, nome: true, endereco: true, area: true, vgv: true, custoTerreno: true, financiamentoCef: true, dataInicio: true, dataPrevisaoFim: true,
-      clienteNome: true, clienteTel: true, latitude: true, longitude: true,
-      leadVinculado: { select: { nome: true, cpf: true, email: true, telefone: true } },
+      clienteNome: true, clienteTel: true, latitude: true, longitude: true, leadId: true, servicoLeadId: true,
+      leadVinculado: { select: { nome: true, cpf: true, email: true, telefone: true, endereco: true, bairro: true } },
       imovel: { select: { latitude: true, longitude: true } },
       pci: { select: { vinculadaEm: true, versao: { select: { dados: true, parsed: true } } } },
     },
@@ -236,31 +249,291 @@ async function obraDoGerador(obraId: string) {
   return o;
 }
 
-/** Pré-preenchimento com o que o sistema já sabe da obra (sem inventar). */
-export async function preenchimentoAutomaticoPci(obraId: string): Promise<FormularioPci> {
+// ─── Paridade 17/11 (Prospecta EPIC-024 S-09): CPF do engenheiro e "Dados automáticos" com a fonte ──────────
+
+const ID_TEXTO = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Decisão de acesso ao CPF do engenheiro (mesma da Prospecta, portão de QA): quem usa o gerador (admin ou
+ * colaborador com Obras) lê o CPF SÓ de quem a própria lista de engenheiros do gerador oferece
+ * (`listarEngenheiros`, mesmo filtro). Outro usuário → recusa. Cada leitura vira um log estruturado só com ids.
+ */
+async function engenheiroOferecido(usuarioId: string) {
+  return (await listarEngenheiros()).some((e) => e.id === usuarioId);
+}
+
+function registrarLeituraCpf(evento: { usuarioId: string | null; obraId: string; engenheiroId: string; origem: string; comCpf: boolean }) {
+  console.info(JSON.stringify({ evento: "pci.cpf_engenheiro_lido", ...evento, em: new Date().toISOString() }));
+}
+
+const NAO_OFERECIDO = "Este usuário não está na lista de engenheiros do Gerador de PCI.";
+
+/** Engenheiro para a PCI (com CPF), só depois da checagem do módulo Obras (action). */
+export async function engenheiroDaPci(engenheiroId: string, contexto: { usuarioId: string | null; obraId: string }) {
+  await obraDoGerador(contexto.obraId);
+  if (!ID_TEXTO.test(engenheiroId) || !(await engenheiroOferecido(engenheiroId))) throw new ErroGeradorPci(NAO_OFERECIDO);
+  const e = await dadosEngenheiroParaPci(engenheiroId);
+  if (!e) throw new ErroGeradorPci(NAO_OFERECIDO);
+  registrarLeituraCpf({ ...contexto, engenheiroId: e.id, origem: "selecao", comCpf: !!e.cpf });
+  const avisos: string[] = [];
+  const nome = e.nome ?? "Este usuário";
+  if (!e.temPerfil) avisos.push(`${nome} não tem perfil de Engenheiro: CPF e CREA não estão cadastrados. Complete em Configurações › Usuários.`);
+  else if (!e.perfilAtivo) avisos.push(`O perfil de Engenheiro de ${nome} está desativado: CPF, CREA e telefone do perfil não foram usados. Reative em Configurações › Usuários.`);
+  else {
+    const faltas = faltasPerfilEngenheiroPci(e);
+    if (faltas.length) avisos.push(`O perfil de Engenheiro de ${nome} está sem ${faltas.join(", ")}: esses campos ficaram em branco. Complete em Configurações › Usuários.`);
+  }
+  return { id: e.id, nome: e.nome, email: e.email, telefone: e.telefone, crea: e.crea, creaUf: e.creaUf, cpf: e.cpf, perfilAtivo: e.perfilAtivo, temPerfil: e.temPerfil, avisos };
+}
+
+type EscolhaEngenheiro = { id: string; fonte: string; escolhido: boolean } | { id: null; motivo: string };
+type IdsEngenheiros = { rtp?: string | null; rte?: string | null };
+
+/**
+ * Engenheiros da obra para RTP/RTE, só por vínculos que existem: (1) o escolhido no formulário aberto, (2) o do
+ * rascunho salvo, (3) o da última PCI gerada desta obra; para o RTP, também (4) o engenheiro do projeto (Projetos,
+ * não cancelado) ligado ao MESMO serviço do CRM da obra — só se for um só. Só engenheiros que a lista do gerador
+ * oferece; cada CPF lido é registrado.
+ */
+async function engenheirosDaObra(obraId: string, servicoLeadId: string | null, ids: IdsEngenheiros, usuarioId: string | null, origemLeitura: string) {
+  const [rascunhoLinha, geradaLinha] = await Promise.all([
+    prisma.pciGeradorRascunho.findUnique({ where: { obraId }, select: { dados: true } }),
+    prisma.pciGerada.findFirst({ where: { obraId }, orderBy: [{ criadoEm: "desc" }, { id: "desc" }], select: { dados: true } }),
+  ]);
+  const rascunho = (rascunhoLinha?.dados ?? null) as Partial<FormularioPci> | null;
+  const gerada = (geradaLinha?.dados ?? null) as Partial<FormularioPci> | null;
+  let projeto: EscolhaEngenheiro = { id: null, motivo: "A obra não tem serviço do CRM ligado a um projeto com engenheiro." };
+  if (servicoLeadId) {
+    const ps = await prisma.projeto.findMany({ where: { servicoLeadId, engenheiroId: { not: null }, NOT: { status: "cancelado" } }, select: { nome: true, engenheiroId: true } });
+    const distintos = Array.from(new Set(ps.map((x) => x.engenheiroId!)));
+    if (distintos.length === 1) projeto = { id: distintos[0], fonte: `Engenheiro do projeto "${ps[0].nome}" (mesmo serviço do CRM)`, escolhido: false };
+    else if (distintos.length > 1) projeto = { id: null, motivo: "Os projetos do mesmo serviço do CRM têm engenheiros diferentes: escolha o engenheiro abaixo." };
+  }
+  const idValido = (v: unknown) => (typeof v === "string" && ID_TEXTO.test(v) ? v : null);
+  const escolher = (papel: "rtp" | "rte"): EscolhaEngenheiro => {
+    const chave = papel === "rtp" ? "rtpEngenheiroId" : "rteEngenheiroId";
+    const noForm = idValido(ids[papel]);
+    if (noForm) return { id: noForm, fonte: "Engenheiro escolhido nesta obra", escolhido: true };
+    const noRascunho = idValido(rascunho?.[chave]);
+    if (noRascunho) return { id: noRascunho, fonte: "Engenheiro escolhido no rascunho desta obra", escolhido: true };
+    const naGerada = idValido(gerada?.[chave]);
+    if (naGerada) return { id: naGerada, fonte: "Engenheiro da última PCI gerada desta obra", escolhido: true };
+    if (papel === "rtp") return projeto;
+    return { id: null, motivo: "Nenhum engenheiro de execução escolhido nesta obra. Escolha abaixo (pode ser o mesmo do RTP)." };
+  };
+  const oferecidos = new Set((await listarEngenheiros()).map((e) => e.id));
+  const resultado: { rtp: EngenheiroDaObraPci | null; rte: EngenheiroDaObraPci | null; motivos: { rtp?: string; rte?: string } } = { rtp: null, rte: null, motivos: {} };
+  for (const papel of ["rtp", "rte"] as const) {
+    const e = escolher(papel);
+    if (e.id === null) { resultado.motivos[papel] = e.motivo; continue; }
+    const dados = oferecidos.has(e.id) ? await dadosEngenheiroParaPci(e.id) : null;
+    if (!dados) { resultado.motivos[papel] = "O engenheiro indicado não está na lista de engenheiros do gerador (inativo ou sem acesso)."; continue; }
+    registrarLeituraCpf({ usuarioId, obraId, engenheiroId: dados.id, origem: origemLeitura, comCpf: !!dados.cpf });
+    resultado[papel] = { id: e.id, fonte: e.fonte, escolhido: e.escolhido, dados: { nome: dados.nome, email: dados.email, telefone: dados.telefone, crea: dados.crea, creaUf: dados.creaUf, cpf: dados.cpf, perfilAtivo: dados.perfilAtivo, temPerfil: dados.temPerfil } };
+  }
+  return resultado;
+}
+
+/**
+ * Fontes de "Dados automáticos" com a origem de cada valor e o motivo do que falta. A falha ao ler a PCI
+ * vinculada deixa de ser engolida: vira motivo na tela.
+ * Santa Fé (diferença mantida): sem lead do CRM, o proponente continua vindo do nome/telefone do cadastro da obra
+ * (regra anterior do Santa Fé), com o rótulo "Cadastro da obra (cliente sem lead do CRM)".
+ */
+export async function fontesAutomaticasPci(obraId: string, ids: IdsEngenheiros = {}, usuarioId: string | null = null, origemLeitura = "dados_automaticos"): Promise<FontesPreenchimentoPci> {
   const o = await obraDoGerador(obraId);
+  const motivos: NonNullable<FontesPreenchimentoPci["motivos"]> = {};
   let pci: FormularioPci | null = null;
-  if (o.pci) {
-    try { pci = lerFormularioPci(new Uint8Array(o.pci.versao.dados)); } catch { pci = null; }
+  if (!o.pci) motivos.pci = "A obra não tem PCI vinculada.";
+  else {
+    try { pci = lerFormularioPci(new Uint8Array(o.pci.versao.dados)); }
+    catch (e) { motivos.pci = `A PCI vinculada não pôde ser lida (${e instanceof Error ? e.message : "arquivo inválido"}).`; }
   }
   const local = cidadeEstadoDoEndereco(o.endereco);
-  const id = (o.pci?.versao.parsed as { identificacao?: { latitude?: unknown; longitude?: unknown } } | null)?.identificacao;
+  const idPci = (o.pci?.versao.parsed as { identificacao?: { latitude?: unknown; longitude?: unknown } } | null)?.identificacao;
   const coordenadas = coordenadasSalvas(o.imovel?.latitude, o.imovel?.longitude)
     ?? coordenadasSalvas(o.latitude, o.longitude)
-    ?? (id ? coordenadasDaPci(id.latitude, id.longitude) : null);
+    ?? (idPci ? coordenadasDaPci(idPci.latitude, idPci.longitude) : null);
+  if (!coordenadas) motivos.coordenadas = "A obra não tem localização exata no Mapa operacional.";
   const lead = o.leadVinculado;
-  return preencherPciAutomatico({
+  const cliente = lead
+    ? { nome: lead.nome, cpf: lead.cpf, email: lead.email, telefone: lead.telefone, endereco: lead.endereco, bairro: lead.bairro }
+    : o.clienteNome || o.clienteTel ? { nome: o.clienteNome || null, cpf: null, email: null, telefone: o.clienteTel || null, endereco: null, bairro: null } : null;
+  if (!cliente) motivos.cliente = "A obra não tem cliente do CRM vinculado.";
+  const eng = await engenheirosDaObra(obraId, o.servicoLeadId, ids, usuarioId, origemLeitura);
+  return {
     obra: {
       titulo: o.nome, endereco: o.endereco, cidade: local?.cidade ?? null, uf: local?.estado ?? null, area: num(o.area),
       valorImovel: num(o.vgv), valorTerreno: num(o.custoTerreno), valorFinanciado: num(o.financiamentoCef),
       inicio: iso(o.dataInicio), termino: iso(o.dataPrevisaoFim),
     },
-    cliente: lead
-      ? { nome: lead.nome, cpf: lead.cpf, email: lead.email, telefone: lead.telefone, endereco: null, bairro: null }
-      : { nome: o.clienteNome || null, cpf: null, email: null, telefone: o.clienteTel || null, endereco: null, bairro: null },
+    cliente,
     coordenadas,
     pci,
-  });
+    rtp: eng.rtp,
+    rte: eng.rte,
+    rotulos: { cliente: lead ? "Cliente do CRM (lead vinculado à obra)" : "Cadastro da obra (cliente sem lead do CRM)", pci: "PCI vinculada à obra" },
+    motivos: { ...motivos, ...eng.motivos },
+  };
+}
+
+/** Pré-preenchimento com o que o sistema já sabe da obra (sem inventar). */
+export async function preenchimentoAutomaticoPci(obraId: string, usuarioId: string | null = null): Promise<FormularioPci> {
+  return preencherPciAutomatico(await fontesAutomaticasPci(obraId, {}, usuarioId));
+}
+
+/** Abertura sem rascunho: o formulário e o relatório (fontes, escolhas de pessoa, o que faltou). */
+async function aberturaAutomaticaPci(obraId: string, usuarioId: string | null) {
+  const s = sugestoesAutomaticasPci(await fontesAutomaticasPci(obraId, {}, usuarioId));
+  const { formulario, ...relatorio } = compararPreenchimentoPci(formularioPciVazio(), s.sugestoes, s.ausencias);
+  return { formulario, relatorio };
+}
+
+/** "Dados automáticos": sugestões com fonte e o que não foi encontrado (a tela compara e pede confirmação). */
+export async function sugestoesAutomaticasDaObraPci(obraId: string, ids: IdsEngenheiros, usuarioId: string | null = null) {
+  return sugestoesAutomaticasPci(await fontesAutomaticasPci(obraId, ids, usuarioId));
+}
+
+// ─── modelos de preenchimento (paridade 17/11, Prospecta EPIC-024 S-09) ─────────────────────────────────────
+
+type LinhaModeloPreenchimento = {
+  id: string; nome: string; versao: number; anteriorId: string | null; dados: unknown; observacao: string | null;
+  obraOrigemId: string | null; criadoPorId: string | null; criadoEm: Date; excluidoEm: Date | null; substituido: boolean;
+};
+
+/** Resumo para a tela. O nome da obra de origem costuma ter o nome do cliente: só o admin vê. */
+async function resumosModelo(ls: LinhaModeloPreenchimento[], admin: boolean) {
+  const autores = await nomesDeUsuarios(ls.map((l) => l.criadoPorId));
+  const obraIds = admin ? Array.from(new Set(ls.map((l) => l.obraOrigemId).filter((x): x is string => !!x))) : [];
+  const obras = new Map((obraIds.length ? await prisma.obra.findMany({ where: { id: { in: obraIds } }, select: { id: true, nome: true } }) : []).map((o) => [o.id, o.nome]));
+  return ls.map((l) => ({
+    id: l.id, nome: l.nome, versao: l.versao, anteriorId: l.anteriorId, observacao: l.observacao,
+    obraOrigemId: admin ? l.obraOrigemId : null, obraOrigem: admin && l.obraOrigemId ? obras.get(l.obraOrigemId) ?? null : null,
+    autor: l.criadoPorId ? autores.get(l.criadoPorId) ?? null : null, criadoEm: l.criadoEm.toISOString(),
+    resumo: resumoModeloPreenchimentoPci(extrairModeloPreenchimentoPci(l.dados)),
+  }));
+}
+
+/** Última versão de cada modelo não excluído. */
+export async function listarModelosPreenchimentoPci(admin = false) {
+  const ls = await prisma.pciModeloPreenchimento.findMany({ where: { excluidoEm: null, sucessor: { is: null } }, orderBy: { id: "asc" } });
+  ls.sort((a, b) => a.nome.toLocaleLowerCase("pt-BR").localeCompare(b.nome.toLocaleLowerCase("pt-BR"), "pt-BR") || a.id.localeCompare(b.id));
+  return resumosModelo(ls, admin);
+}
+
+/** Cadeia de versões a partir de `id` para trás (inclusive excluídas), mais nova primeiro. */
+async function cadeiaModelo(id: string): Promise<LinhaModeloPreenchimento[]> {
+  const cadeia: LinhaModeloPreenchimento[] = [];
+  let atual: string | null = id;
+  const vistos = new Set<string>();
+  while (atual && !vistos.has(atual) && cadeia.length < 500) {
+    vistos.add(atual);
+    const l: LinhaModeloPreenchimento | null = await prisma.pciModeloPreenchimento.findUnique({ where: { id: atual } });
+    if (!l) break;
+    cadeia.push(l);
+    atual = l.anteriorId;
+  }
+  return cadeia;
+}
+
+const MENSAGEM_VERSAO_CONCORRENTE_PCI = "Outra pessoa salvou uma versão deste modelo agora. Atualize a lista e tente de novo.";
+
+/** Violação de unicidade do Postgres (P2002 do Prisma ou 23505): qual restrição, ou null. */
+function violacaoUnicaPci(e: unknown): string | null {
+  const o = e as { code?: unknown; meta?: { target?: unknown; constraint?: unknown }; message?: unknown } | null;
+  if (!o || typeof o !== "object") return null;
+  const texto = `${String(o.message ?? "")} ${JSON.stringify(o.meta ?? {})}`;
+  if (o.code !== "P2002" && o.code !== "23505" && !/duplicate key|unique constraint/i.test(texto)) return null;
+  if (/nome_atual_uidx|lower\(|"nome"|\bnome\b/.test(texto)) return "nome";
+  if (/anteriorId/.test(texto)) return "anterior";
+  return "desconhecida";
+}
+
+/**
+ * Salva os dados técnicos da obra como modelo (ou nova versão de um modelo). O servidor tira os dados
+ * pessoais/específicos (lista de permissão) — não confia no que vem do navegador — e RECUSA texto livre com CPF,
+ * CNPJ, e-mail ou telefone (a pessoa vê o campo e corrige; nada some em silêncio).
+ */
+export async function salvarModeloPreenchimentoPci(entrada: { obraId: string; nome: unknown; formulario: unknown; observacao?: string | null; novaVersaoDe?: string | null }, autorId: string) {
+  await obraDoGerador(entrada.obraId);
+  let nome: string;
+  try { nome = validarNomeModeloPreenchimentoPci(entrada.nome); } catch (e) { throw new ErroGeradorPci(e instanceof Error ? e.message : "Nome inválido."); }
+  const dados = extrairModeloPreenchimentoPci(normalizarFormularioPci(entrada.formulario));
+  if (!Object.keys(dados.campos).length && !dados.custos.some((x) => x !== null) && !dados.cronograma.some((x) => x !== null))
+    throw new ErroGeradorPci("Não há dados técnicos para guardar no modelo (memorial, sistema construtivo, custos ou cronograma).");
+  const observacao = typeof entrada.observacao === "string" && entrada.observacao.trim() ? entrada.observacao.trim().slice(0, 500) : null;
+  const pessoais = dadosPessoaisNoModeloPci({ nome, observacao, dados });
+  if (pessoais.length) {
+    // O trecho (meio mascarado) ajuda a achar o dado num memorial longo.
+    throw new ErroGeradorPci(`O modelo não pode levar dados pessoais. Tire antes de salvar: ${pessoais.map((p) => `${p.campo} (${p.tipos.join(", ")}: ${p.trechos.map((t) => `"${t}"`).join(", ")})`).join("; ")}.`);
+  }
+  const avisos = avisosEmpresaNoModeloPci({ nome, observacao, dados });
+  let versao = 1;
+  let anterior: string | null = null;
+  if (entrada.novaVersaoDe) {
+    const base = typeof entrada.novaVersaoDe === "string" && ID_TEXTO.test(entrada.novaVersaoDe)
+      ? await prisma.pciModeloPreenchimento.findUnique({ where: { id: entrada.novaVersaoDe }, include: { sucessor: { select: { id: true } } } })
+      : null;
+    if (!base || base.excluidoEm) throw new ErroGeradorPci("Modelo não encontrado.");
+    if (base.sucessor) throw new ErroGeradorPci("Este modelo já tem uma versão mais nova. Atualize a lista e salve sobre a última versão.");
+    versao = base.versao + 1;
+    anterior = base.id;
+  }
+  // Nome único entre os modelos — também na nova versão (não pode tomar o nome de OUTRO modelo).
+  const repetido = (await prisma.pciModeloPreenchimento.findMany({ where: { excluidoEm: null, sucessor: { is: null } }, select: { id: true, nome: true } }))
+    .find((m) => m.id !== anterior && m.nome.toLocaleLowerCase("pt-BR") === nome.toLocaleLowerCase("pt-BR"));
+  if (repetido) throw new ErroGeradorPci(`Já existe o modelo "${repetido.nome}". ${anterior ? "Escolha outro nome para esta versão." : "Salve como nova versão dele ou escolha outro nome."}`);
+  try {
+    const id = await prisma.$transaction(async (tx) => {
+      // Nova versão: marca a anterior como substituída na MESMA transação (o índice único parcial do nome vale só
+      // para a versão atual); se outra pessoa já salvou a sucessora, nada é gravado.
+      if (anterior) {
+        const marcada = await tx.pciModeloPreenchimento.updateMany({ where: { id: anterior, substituido: false, excluidoEm: null }, data: { substituido: true } });
+        if (!marcada.count) throw new ErroGeradorPci(MENSAGEM_VERSAO_CONCORRENTE_PCI);
+      }
+      const novo = await tx.pciModeloPreenchimento.create({
+        data: { nome, versao, anteriorId: anterior, dados: dados as unknown as Prisma.InputJsonValue, observacao, obraOrigemId: entrada.obraId, criadoPorId: autorId },
+        select: { id: true },
+      });
+      return novo.id;
+    });
+    return { id, nome, versao, avisos };
+  } catch (e) {
+    if (e instanceof ErroGeradorPci) throw e;
+    const violacao = violacaoUnicaPci(e);
+    if (violacao === "nome") throw new ErroGeradorPci(`Já existe o modelo "${nome}" (outra pessoa acabou de salvar com este nome). Atualize a lista e salve como nova versão dele ou escolha outro nome.`);
+    if (violacao) throw new ErroGeradorPci(MENSAGEM_VERSAO_CONCORRENTE_PCI);
+    throw e;
+  }
+}
+
+/** Dados técnicos de uma versão (inclusive anterior), para aplicar em outra obra. */
+export async function obterModeloPreenchimentoPci(id: string, admin = false) {
+  const l = ID_TEXTO.test(id) ? await prisma.pciModeloPreenchimento.findUnique({ where: { id } }) : null;
+  if (!l || l.excluidoEm) throw new ErroGeradorPci("Modelo não encontrado.");
+  return { ...(await resumosModelo([l], admin))[0], dados: extrairModeloPreenchimentoPci(l.dados) };
+}
+
+/** Versões de um modelo (da indicada para trás), mais nova primeiro. */
+export async function historicoModeloPreenchimentoPci(id: string, admin = false) {
+  if (!ID_TEXTO.test(id)) throw new ErroGeradorPci("Modelo não encontrado.");
+  return resumosModelo((await cadeiaModelo(id)).filter((l) => !l.excluidoEm), admin);
+}
+
+/**
+ * Exclusão LÓGICA do modelo (todas as versões). Só o admin ou o AUTOR ORIGINAL (quem salvou a versão 1) — quem
+ * só acrescentou uma versão não apaga o modelo de outra pessoa.
+ */
+export async function excluirModeloPreenchimentoPci(id: string, usuario: { id: string; admin: boolean }) {
+  const l = ID_TEXTO.test(id) ? await prisma.pciModeloPreenchimento.findUnique({ where: { id }, include: { sucessor: { select: { id: true } } } }) : null;
+  if (!l || l.excluidoEm) throw new ErroGeradorPci("Modelo não encontrado.");
+  if (l.sucessor) throw new ErroGeradorPci("Exclua pela última versão do modelo (atualize a lista).");
+  const cadeia = await cadeiaModelo(id);
+  const original = cadeia[cadeia.length - 1];
+  if (!usuario.admin && original?.criadoPorId !== usuario.id) throw new ErroGeradorPci("Só o administrador ou quem criou o modelo pode excluí-lo.");
+  const ativas = cadeia.filter((v) => !v.excluidoEm);
+  await prisma.pciModeloPreenchimento.updateMany({ where: { id: { in: ativas.map((v) => v.id) }, excluidoEm: null }, data: { excluidoEm: new Date(), excluidoPorId: usuario.id } });
+  return { nome: l.nome, versoes: ativas.length };
 }
 
 export async function historicoPci(obraId: string) {
@@ -275,33 +548,68 @@ export async function historicoPci(obraId: string) {
   }));
 }
 
-export async function salvarRascunhoPci(obraId: string, entrada: unknown, autorId: string) {
-  await obraDoGerador(obraId);
-  const form = normalizarFormularioPci(entrada);
-  // Lote 03, correções 06/07: valores inválidos (fora da lista, fora de 0–100, acumulado diminuindo) não são salvos.
-  const erros = errosPci(form, { paraGerar: false });
-  if (erros.length) throw new ErroGeradorPci(`Corrija antes de salvar: ${erros.join(" ")}`);
+/** Rascunho gravado (normalizado), para comparar confirmações já registradas. */
+async function rascunhoGravado(obraId: string): Promise<FormularioPci | null> {
+  const r = await prisma.pciGeradorRascunho.findUnique({ where: { obraId }, select: { dados: true } });
+  return r ? normalizarFormularioPci(r.dados) : null;
+}
+
+/**
+ * Paridade 17/11 (Prospecta S-09, portão 2, L3): a procedência que veio do navegador é conferida com as fontes de
+ * hoje (as mesmas de "Dados automáticos") — só quando o formulário cita alguma fonte conferível.
+ */
+async function conferirProcedenciaNoServidor(obraId: string, form: FormularioPci, usuarioId: string): Promise<FormularioPci> {
+  const citaFonte = Object.values(form.procedencia ?? {}).some((o) => o.split("+").some((x) => /^(engenheiro:[A-Za-z0-9_-]{1,64}|crm|pci)$/.test(x)));
+  if (!citaFonte) return form;
+  const s = sugestoesAutomaticasPci(await fontesAutomaticasPci(obraId, { rtp: form.rtpEngenheiroId, rte: form.rteEngenheiroId }, usuarioId, "conferencia_geracao"));
+  const r = conferirProcedenciaPci(form, s.sugestoes);
+  if (r.rebaixadas.length) console.info(JSON.stringify({ evento: "pci.procedencia_rebaixada", usuarioId, obraId, campos: r.rebaixadas, em: new Date().toISOString() }));
+  return r.formulario;
+}
+
+/** Paridade 17/11 (Prospecta S-09, portão 2, L4): quem confirmou e quando (servidor) + log estruturado só com ids. */
+async function registrarConfirmacoes(obraId: string, form: FormularioPci, usuarioId: string): Promise<FormularioPci> {
+  const agora = new Date();
+  const r = registrarConfirmacoesPci(form, await rascunhoGravado(obraId), usuarioId, agora);
+  for (const pessoa of r.novas) console.info(JSON.stringify({ evento: "pci.pessoa_confirmada", usuarioId, obraId, pessoa, em: agora.toISOString() }));
+  return r.formulario;
+}
+
+async function gravarRascunhoPci(obraId: string, form: FormularioPci, autorId: string) {
   const dados = form as unknown as Prisma.InputJsonValue;
   await prisma.pciGeradorRascunho.upsert({
     where: { obraId },
     create: { obraId, dados, atualizadoPorId: autorId },
     update: { dados, atualizadoPorId: autorId, atualizadoEm: new Date() },
   });
+}
+
+export async function salvarRascunhoPci(obraId: string, entrada: unknown, autorId: string) {
+  await obraDoGerador(obraId);
+  let form = normalizarFormularioPci(entrada);
+  // Lote 03, correções 06/07: valores inválidos (fora da lista, fora de 0–100, acumulado diminuindo) não são salvos.
+  const erros = errosPci(form, { paraGerar: false });
+  if (erros.length) throw new ErroGeradorPci(`Corrija antes de salvar: ${erros.join(" ")}`);
+  form = await registrarConfirmacoes(obraId, form, autorId);
+  await gravarRascunhoPci(obraId, form, autorId);
   return { form, pendencias: pendenciasPci(form) };
 }
 
 /** Dados da aba "Gerador de PCI" do Editar Obra. */
-export async function carregarGeradorPci(obraId: string) {
+export async function carregarGeradorPci(obraId: string, usuarioId: string | null = null) {
   await obraDoGerador(obraId);
   const rascunho = await prisma.pciGeradorRascunho.findUnique({ where: { obraId } });
   const modelo = await modeloAtualPci();
-  const formulario = rascunho ? normalizarFormularioPci(rascunho.dados) : await preenchimentoAutomaticoPci(obraId);
+  // Paridade 17/11 (S-09): sem rascunho, a abertura mostra o mesmo relatório do botão (fontes, escolhas de pessoa).
+  const abertura = rascunho ? null : await aberturaAutomaticaPci(obraId, usuarioId);
+  const formulario = rascunho ? normalizarFormularioPci(rascunho.dados) : abertura!.formulario;
   const autor = rascunho?.atualizadoPorId ? (await nomesDeUsuarios([rascunho.atualizadoPorId])).get(rascunho.atualizadoPorId) ?? null : null;
   const engenheiros = (await listarEngenheiros()).map((e) => ({ id: e.id, nome: e.nome, email: e.email, telefone: e.telefone, crea: e.crea, creaUf: e.creaUf, engenheiro: e.engenheiro }));
   return {
     modelo: modelo ? { versao: modelo.versao, arquivo: modelo.arquivo, formato: modelo.formato, enviadoEm: modelo.enviadoEm.toISOString() } : null,
     ...(await disponibilidadeGeracaoPci(modelo)),
     formulario,
+    preenchimento: abertura?.relatorio ?? null,
     origem: rascunho ? ("rascunho" as const) : ("automatico" as const),
     rascunhoEm: rascunho ? rascunho.atualizadoEm.toISOString() : null,
     rascunhoAutor: autor,
@@ -312,8 +620,9 @@ export async function carregarGeradorPci(obraId: string) {
 export type DadosGeradorPci = Awaited<ReturnType<typeof carregarGeradorPci>>;
 
 export async function gerarPciDaObra(obraId: string, entrada: unknown, autor: { id: string; nome: string | null }) {
-  const form = normalizarFormularioPci(entrada);
   const obra = await obraDoGerador(obraId);
+  // Paridade 17/11 (S-09): a procedência do navegador é conferida; nome e CPF de fontes diferentes bloqueiam (errosPci).
+  let form = await conferirProcedenciaNoServidor(obraId, normalizarFormularioPci(entrada), autor.id);
   // Lote 03, correções 06/07: valores inválidos, cronograma incompleto ou fora da lista bloqueiam.
   const erros = errosPci(form, { paraGerar: true });
   if (erros.length) throw new ErroGeradorPci(`Corrija antes de gerar: ${erros.join(" ")}`);
@@ -321,7 +630,8 @@ export async function gerarPciDaObra(obraId: string, entrada: unknown, autor: { 
   if (!atual) throw new ErroGeradorPci("Nenhum modelo de PCI cadastrado. Envie o modelo oficial em Integrações › PCI da CAIXA.");
   const modelo = await modeloParaGerarPci(atual);
   if (!modelo) throw new ErroGeradorPci("Modelo não encontrado.");
-  await salvarRascunhoPci(obraId, form, autor.id);
+  form = await registrarConfirmacoes(obraId, form, autor.id);
+  await gravarRascunhoPci(obraId, form, autor.id);
   let planilha;
   try {
     planilha = gerarPlanilhaPci(new Uint8Array(modelo.dados), modelo.formato as FormatoModeloPci, form);
