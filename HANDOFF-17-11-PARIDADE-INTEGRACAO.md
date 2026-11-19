@@ -15,7 +15,7 @@ geração estática sem banco — esperado).
 - [x] 20261117220000_logotipo_empreendimento
 - [x] 20261117230000_proposta_terreno_envios
 - [x] 20261117300000_paridade_b3_financeiro
-- [ ] 20261117400000_consentimentos
+- [x] 20261117400000_consentimentos (19/11; sem os `DROP TRIGGER IF EXISTS`, tabela nova — resultado idêntico)
 Prospecta: migração 0132 (retirada do consentimento) da branch `claude/paridade17-termo` — aplicar no Neon antes do merge.
 
 ## Próximo passo exato
