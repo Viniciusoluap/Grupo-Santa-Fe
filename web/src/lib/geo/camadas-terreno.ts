@@ -12,7 +12,7 @@ import type { Feature, FeatureCollection, GeoJsonProperties, Geometry, LineStrin
 import {
   area as turfArea, bbox as turfBbox, bboxClip, booleanIntersects, booleanPointInPolygon, buffer as turfBuffer,
   centroid as turfCentroid, difference, distance as turfDistance, featureCollection, flatten, intersect,
-  length as turfLength, lineString, point, pointToLineDistance, polygon as turfPolygon, polygonToLine, union,
+  length as turfLength, lineString, point, pointToLineDistance, polygon as turfPolygon, polygonToLine, simplify as turfSimplify, union,
 } from "@turf/turf";
 
 export type Bbox = [number, number, number, number]; // [oeste, sul, leste, norte]
@@ -30,6 +30,13 @@ export type EstadoCamada<T> = {
   consultadoEm: string;
   erro?: string;
   dados?: T;
+  /**
+   * EPIC-023 (S-E): a fonte falhou agora e os dados são o último resultado bom salvo para este terreno.
+   * `estado` continua "ok"/"vazio" (o que a fonte respondeu da última vez); `erro` traz a falha de agora.
+   */
+  desatualizado?: boolean;
+  /** Quando o resultado salvo foi gravado (ISO) — presente sempre que o dado vem do armazenamento. */
+  salvoEm?: string;
 };
 
 // ─── Tipos dos dados normalizados ───────────────────────────────────────────
@@ -107,7 +114,13 @@ export const FONTES = {
     { url: `${EPE}/SMA/Webmap_EPE_Infraestrutura_de_Gas_Natural/MapServer/7`, campos: "DUTO_ID,Categoria,FLUIDO", tipo: "duto de escoamento" },
   ] },
   dutosIbama: { nome: "IBAMA (SIGA Geo) — dutos licenciados", url: `${PAMGIA}/21_SIGA_Geo/duto/MapServer/0`, campos: "nomeempreendimento,tipologia" },
-  overpass: { nome: "OpenStreetMap (Overpass)", urls: ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"] },
+  // EPIC-023 (S-E): instâncias públicas conhecidas do Overpass, em ordem de preferência.
+  overpass: { nome: "OpenStreetMap (Overpass)", urls: [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ] },
 } as const;
 
 /** Folga de busca em volta do terreno por camada (m). APP de 500 m exige rios a até 500 m. */
@@ -763,6 +776,8 @@ export type ResultadoApp = {
   areaM2: number; percentual: number; larguraM: number | null;
   /** Faixa de APP (recortada ao entorno) para desenhar. */
   faixa: Poligonal | null;
+  /** Faixa de APP recortada pelo terreno: o contorno que o Estudo de Massa tira da área loteável (S-I). */
+  noTerreno?: Poligonal | null;
   /** Lâminas d'água usadas (recortadas). */
   aguas: Feature<Polygon, PropsAgua>[];
 };
@@ -835,7 +850,47 @@ export function calcularApp(contorno: Contorno, hidro: DadosHidro[], modo: AppMo
   const dentro = recortarAo(contorno, faixa);
   const areaM2 = dentro ? turfArea(dentro) : 0;
   const total = turfArea(contorno);
-  return { areaM2, percentual: total > 0 ? (areaM2 / total) * 100 : 0, larguraM: larguraMax, faixa, aguas };
+  return { areaM2, percentual: total > 0 ? (areaM2 / total) * 100 : 0, larguraM: larguraMax, faixa, noTerreno: dentro, aguas };
+}
+
+/** Teto de vértices do contorno da APP gravado no estudo (o servidor recusa acima disso). */
+export const MAX_VERTICES_CONTORNO_APP = 6000;
+
+/**
+ * Contorno da APP no terreno pronto para gravar no estudo (S-I): MultiPolygon em [lng, lat] com 7 casas (~1 cm).
+ * Acima do teto de vértices, simplifica com tolerância crescente (até ~50 m); se ainda passar, descarta primeiro os
+ * furos e depois as peças menores, até caber. Só devolve null sem APP (ou se nada coube — não acontece na prática).
+ */
+export function contornoAppParaGravar(p: Poligonal | null | undefined): MultiPolygon | null {
+  if (!p?.geometry) return null;
+  const arred = (g: Polygon | MultiPolygon): MultiPolygon => {
+    const polis = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+    return {
+      type: "MultiPolygon",
+      coordinates: polis.map(poli => poli.map(anel => {
+        const a = anel.map(([x, y]) => [Math.round(x * 1e7) / 1e7, Math.round(y * 1e7) / 1e7] as Position)
+          .filter((q, i, arr) => i === 0 || q[0] !== arr[i - 1][0] || q[1] !== arr[i - 1][1]);
+        if (a.length && (a[0][0] !== a[a.length - 1][0] || a[0][1] !== a[a.length - 1][1])) a.push(a[0]);
+        return a;
+      }).filter(anel => anel.length >= 4)).filter(poli => poli.length > 0),
+    };
+  };
+  const vertices = (g: MultiPolygon) => g.coordinates.reduce((s, poli) => s + poli.reduce((t, a) => t + a.length, 0), 0);
+  let g = arred(p.geometry);
+  for (const tol of [0.000002, 0.000005, 0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005]) {
+    if (vertices(g) <= MAX_VERTICES_CONTORNO_APP) break;
+    try { g = arred((turfSimplify(p, { tolerance: tol, highQuality: true }) as Poligonal).geometry); } catch { break; }
+  }
+  if (vertices(g) > MAX_VERTICES_CONTORNO_APP) {
+    // último recurso: sem furos, e as peças maiores primeiro até caber
+    const pecas = g.coordinates.map(poli => [poli[0]])
+      .sort((a, b) => turfArea(turfPolygon(b)) - turfArea(turfPolygon(a)));
+    const fica: Position[][][] = [];
+    let n = 0;
+    for (const poli of pecas) { if (n + poli[0].length > MAX_VERTICES_CONTORNO_APP) continue; fica.push(poli); n += poli[0].length; }
+    g = { type: "MultiPolygon", coordinates: fica };
+  }
+  return g.coordinates.length > 0 && vertices(g) <= MAX_VERTICES_CONTORNO_APP ? g : null;
 }
 
 export type ResultadoVegetacao = { percentualNativa: number; percentualFlorestal: number; areaNativaM2: number; amostras: number; classes: { nome: string; percentual: number }[] };

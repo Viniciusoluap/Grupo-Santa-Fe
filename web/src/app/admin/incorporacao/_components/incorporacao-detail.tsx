@@ -71,6 +71,8 @@ export interface EstudoData {
   centroLat: number | null;
   centroLng: number | null;
   appAreaM2: number | null;
+  /** Paridade 17/11 (S-I): contorno da APP no terreno (MultiPolygon GeoJSON, lng/lat), gravado pelo mapa do Terreno. */
+  appContornoJson?: string | null;
   appLarguraM: number | null;
   /** Larguras de faixa confirmadas no mapa do terreno (JSON {chave: metros}). */
   largurasFaixaJson?: string | null;
@@ -334,7 +336,9 @@ export function IncorporacaoDetail({ estudo }: { estudo: EstudoData }) {
   // Marca "há alterações" depois do evento de digitação: atualizar o estado do
   // pai durante a fase de captura fazia a primeira tecla de cada campo se perder.
   const alteradoRef = useRef(false);
-  const marcarAlterado = () => {
+  const marcarAlterado = (e?: { target: EventTarget | null }) => {
+    // Paridade 17/11: abas com salvamento automático (Viabilidade) cuidam do próprio aviso ao sair.
+    if (e?.target instanceof Element && e.target.closest("[data-autosalvamento]")) return;
     if (alteradoRef.current) return;
     alteradoRef.current = true;
     setTimeout(() => setAlterado(true), 0);

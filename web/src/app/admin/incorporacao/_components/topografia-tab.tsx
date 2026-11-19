@@ -9,7 +9,8 @@ import {
 } from "@/lib/geo/relevo";
 import type { ModoRelevo } from "./viewer-3d";
 import type { EstudoData } from "./incorporacao-detail";
-import type { Feature, Polygon } from "geojson";
+import { bbox } from "@turf/turf";
+import type { GeometriaTerreno } from "@/lib/geo/terreno";
 import { enviarComProgresso } from "@/lib/envio-progresso";
 import { AVISO_SEM_POLIGONAL } from "@/lib/incorporacao/lotes-avulsos";
 
@@ -24,15 +25,8 @@ interface GridElevacao {
 }
 
 function bboxDoGeojson(geojson: string) {
-  const f = JSON.parse(geojson) as Feature<Polygon>;
-  const anel = f.geometry.coordinates[0];
-  let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
-  for (const [lng, lat] of anel) {
-    if (lng < west) west = lng;
-    if (lng > east) east = lng;
-    if (lat < south) south = lat;
-    if (lat > north) north = lat;
-  }
+  // Paridade 17/11 (Prospecta 355f3aa): caixa de todas as áreas do KML, não só da primeira
+  const [west, south, east, north] = bbox(JSON.parse(geojson) as GeometriaTerreno);
   return { west, east, south, north };
 }
 

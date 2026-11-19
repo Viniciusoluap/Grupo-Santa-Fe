@@ -50,6 +50,7 @@ export default async function EstudoDetailPage({
     centroLat: estudo.centroLat,
     centroLng: estudo.centroLng,
     appAreaM2: estudo.appAreaM2,
+    appContornoJson: estudo.appContornoJson ?? null,
     appLarguraM: estudo.appLarguraM,
     largurasFaixaJson: estudo.largurasFaixaJson,
     appOrigem: estudo.appOrigem,

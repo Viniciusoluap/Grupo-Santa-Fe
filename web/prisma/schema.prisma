@@ -144,10 +144,10 @@ model Lead {
   // ── Paridade pendências antigas (13/11) ──
   // EPIC-017 (Prospecta): endereço do cliente no lead; migra para Avaliação,
   // Obra e Regularização criadas pelo CRM.
-  endereco             String?
-  bairro               String?
-  cidade               String?
-  uf                   String?                   @db.VarChar(2)
+  endereco String?
+  bairro   String?
+  cidade   String?
+  uf       String? @db.VarChar(2)
 
   @@map("leads")
 }
@@ -230,28 +230,28 @@ model TarefaCrm {
 // ─── CORRETORES ──────────────────────────────────────────────────────────────
 
 model Corretor {
-  id             String                 @id @default(cuid())
-  usuarioId      String?                @unique
-  usuario        Usuario?               @relation(fields: [usuarioId], references: [id])
-  nome           String
-  email          String                 @unique
-  telefone       String
-  creci          String
-  foto           String?
-  ativo          Boolean                @default(true)
-  especialidades String                 @default("[]")
-  senhaAcesso    String?
+  id                     String                 @id @default(cuid())
+  usuarioId              String?                @unique
+  usuario                Usuario?               @relation(fields: [usuarioId], references: [id])
+  nome                   String
+  email                  String                 @unique
+  telefone               String
+  creci                  String
+  foto                   String?
+  ativo                  Boolean                @default(true)
+  especialidades         String                 @default("[]")
+  senhaAcesso            String?
   // ── Paridade 17/11 bloco 1 ── observações do corretor (EPIC-023 S-A da Prospecta: broker_profiles.notes)
-  observacoes    String                 @default("")
-  regraComissao  RegraComissaoCorretor?
-  imoveis        Imovel[]
-  leads          Lead[]
-  visitas        Visita[]
-  comissoes      Comissao[]
-  contratosIntermediados Contrato[] @relation("ContratoCorretor")
-  financiamentos Financiamento[]
-  criadoEm       DateTime               @default(now())
-  atualizadoEm   DateTime               @updatedAt
+  observacoes            String                 @default("")
+  regraComissao          RegraComissaoCorretor?
+  imoveis                Imovel[]
+  leads                  Lead[]
+  visitas                Visita[]
+  comissoes              Comissao[]
+  contratosIntermediados Contrato[]             @relation("ContratoCorretor")
+  financiamentos         Financiamento[]
+  criadoEm               DateTime               @default(now())
+  atualizadoEm           DateTime               @updatedAt
 
   @@map("corretores")
 }
@@ -770,7 +770,7 @@ model BpoCliente {
 
 model BpoLancamento {
   /// Limpeza de ajustes: tombstone local recuperável; preserva os vínculos e as chaves externas.
-  exclusaoLoteBackupId       String?
+  exclusaoLoteBackupId      String?
   id                        String                     @id @default(cuid())
   movimentosObra            ObraMovimento[]
   recebimentosRegularizacao RegularizacaoRecebimento[]
@@ -817,15 +817,15 @@ model BpoLancamento {
 }
 
 model BpoBaixa {
-  id           String        @id @default(cuid())
+  id           String             @id @default(cuid())
   lancamentoId String
-  lancamento   BpoLancamento @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
-  requestKey   String        @unique
+  lancamento   BpoLancamento      @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  requestKey   String             @unique
   valor        Float
   data         DateTime
   motivo       String
   usuarioId    String
-  criadoEm     DateTime      @default(now())
+  criadoEm     DateTime           @default(now())
   // ── Paridade BPO (13/11) ── baixa feita com uma movimentação do banco (dividir pagamentos).
   transacaoId  String?
   transacao    TransacaoBancaria? @relation("BaixaDaTransacao", fields: [transacaoId], references: [id], onDelete: SetNull)
@@ -1269,9 +1269,16 @@ model EstudoIncorporacao {
 
   // APP (área de preservação permanente) calculada automaticamente a partir do
   // mapa (Overpass + Código Florestal ou largura manual) — nunca preenchida à mão.
-  appAreaM2   Float?
-  appLarguraM Float?
-  appOrigem   String? // "auto" (Código Florestal) | "30"|"50"|"100"|"200"|"500" (manual)
+  appAreaM2         Float?
+  appLarguraM       Float?
+  appOrigem         String? // "auto" (Código Florestal) | "30"|"50"|"100"|"200"|"500" (manual)
+  // ── Paridade 17/11 bloco 2 ── contorno da APP no terreno (MultiPolygon GeoJSON, lng/lat), gravado pelo mapa do
+  // Terreno para o Estudo de Massa tirar a APP da área loteável pela posição real (Prospecta EPIC-023 S-I, migração 0117).
+  appContornoJson   String?
+  /// Paridade 17/11 bloco 2 (Prospecta EPIC-024 S-02): logotipos do empreendimento (tabela própria, nunca nesta linha).
+  logotipos         EstudoLogotipo[]
+  /// Paridade 17/11 bloco 2 (Prospecta EPIC-024 S-06): envios da proposta formal do terreno.
+  propostasEnvios   EstudoPropostaEnvio[]
   /// 11/11: larguras de faixa (servidão/domínio) confirmadas pelo dono no mapa do terreno ({"rod:BR-010": 80, …}).
   largurasFaixaJson String?
 
@@ -2179,4 +2186,70 @@ model Consentimento {
   @@index([usuarioId, registradoEm])
   @@index([versaoTermo])
   @@map("consentimentos")
+}
+
+// ── Paridade 17/11 bloco 2 ──
+// Camadas do mapa do terreno resilientes (Prospecta EPIC-023 S-E, migração 0116 de lá): último resultado bom ("ok" ou
+// "vazio") de cada camada por terreno, com a data, para o mapa mostrar quando a fonte pública estiver fora do ar.
+// Chave = chaveDoTerreno(contorno) + id da camada; `dados` guarda o EstadoCamada inteiro em JSON.
+model CamadaTerrenoCache {
+  chaveTerreno String   @db.VarChar(160)
+  camada       String   @db.VarChar(30)
+  estado       String   @db.VarChar(20) // "ok" | "vazio" (CHECK na migração)
+  fonte        String
+  dados        String
+  salvoEm      DateTime @default(now())
+
+  @@id([chaveTerreno, camada])
+  @@map("camadas_terreno_cache")
+}
+
+// ── Paridade 17/11 bloco 2 ──
+// Logotipo de cada empreendimento da Incorporação (Prospecta EPIC-024 S-02, migração 0119 de lá). Tabela separada: a
+// listagem lê o estudo inteiro e as versões do estudo copiam a linha — os bytes do logotipo não podem ir junto. Guarda o
+// original e o PNG de exibição gerado no navegador (o único servido aos cartões). Um ativo por estudo (`excluidoEm`
+// nulo); trocar ou excluir só marca `excluidoEm` no anterior. `enviadoPorId` sem chave estrangeira (só registro).
+model EstudoLogotipo {
+  id             String             @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  mime           String             @db.VarChar(40)
+  nome           String             @db.VarChar(255)
+  origem         String             @default("envio") @db.VarChar(10) // "envio" | "ia"
+  sha256         String             @db.VarChar(64)
+  tamanho        Int
+  original       Bytes
+  exibicaoPng    Bytes
+  /// ETag da imagem servida aos cartões.
+  exibicaoSha256 String             @db.VarChar(64)
+  largura        Int?
+  altura         Int?
+  enviadoPorId   String?
+  criadoEm       DateTime           @default(now())
+  excluidoEm     DateTime?
+
+  @@index([estudoId])
+  @@map("estudos_incorporacao_logos")
+}
+
+// ── Paridade 17/11 bloco 2 ──
+// Envios da proposta formal de aquisição do terreno por e-mail (Prospecta EPIC-024 S-06, migração 0120 de lá): data,
+// destinatário, situação, motivo da falha e hash do PDF. Fora do JSON da negociação, que a aba reescreve ao salvar.
+model EstudoPropostaEnvio {
+  id             String             @id @default(cuid())
+  estudoId       String
+  estudo         EstudoIncorporacao @relation(fields: [estudoId], references: [id], onDelete: Cascade)
+  /// id da proposta dentro de negociacaoTerrenoJson
+  propostaId     String             @db.VarChar(80)
+  destinatario   String             @db.VarChar(254)
+  status         String             @db.VarChar(10) // "enviado" | "falhou"
+  motivo         String?            @db.VarChar(400)
+  dataEmissao    String             @db.VarChar(10) // AAAA-MM-DD
+  pdfSha256      String             @db.VarChar(64)
+  enviadoPorId   String?
+  enviadoPorNome String?            @db.VarChar(255)
+  criadoEm       DateTime           @default(now())
+
+  @@index([estudoId, propostaId])
+  @@map("estudos_incorporacao_propostas_envios")
 }

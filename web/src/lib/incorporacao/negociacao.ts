@@ -28,6 +28,8 @@ export interface Proposta {
 export interface DadosNegociacao {
   proprietarioNome: string;
   proprietarioContato: string;
+  /** Paridade 17/11 (Prospecta EPIC-024 S-06): e-mail do proprietário/terreneiro (destinatário sugerido da proposta formal). */
+  proprietarioEmail?: string;
   /** Legado/fallback: VGV digitado à mão. A ordem de uso é Viabilidade › cenário do Estudo de Massa › este valor. */
   vgvGrossManual?: number;
   propostas: Proposta[];

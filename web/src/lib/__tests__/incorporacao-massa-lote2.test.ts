@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import intersect from "@turf/intersect";
 import { featureCollection, polygon as turfPolygon } from "@turf/helpers";
 import type { Position } from "geojson";
@@ -13,6 +13,10 @@ import {
 import {
   cenarioPrincipalDe, motivoBloqueioExclusao, proximaVersao, mixDoCenario, indicadoresDoCenario, validarNomeEstudo,
 } from "@/lib/incorporacao/estudos-massa";
+
+// Paridade 17/11: o motor de massa 3.0.0 (malha conectada, recorte na divisa) é mais pesado; com 3 workers em
+// paralelo os cenários grandes passam de 5 s. Prazo maior só neste arquivo (nenhum teste foi pulado ou afrouxado).
+vi.setConfig({ testTimeout: 60_000 });
 
 const CENTRO: [number, number] = [-49.879, -6.5];
 const proj = criarProjecao(CENTRO);
@@ -125,7 +129,13 @@ describe("gerarCenariosMassa — quadro, tipologias e poligonal", () => {
     expect(q.faixaServidaoM2).toBe(5_000);
     expect(q.areaParcelavelM2).toBeCloseTo(q.areaBrutaM2 - 25_000, 0);
     expect(comRestricao.kpis.lotesVendaveis).toBeLessThan(semRestricao.kpis.lotesVendaveis);
-    expect(comRestricao.lotes.some((l) => l.tipo === "nao_parcelavel")).toBe(true);
+    // Regra de 16/11: APP e faixa de servidão contam como área verde por padrão — entram no desenho como área
+    // verde, não como peça "não parcelável" à parte. Marcadas como "não conta", voltam a ser desenhadas por fora.
+    expect(comRestricao.lotes.some((l) => l.tipo === "nao_parcelavel")).toBe(false);
+    expect(comRestricao.quadroAreas!.areaVerdeEmRestricaoM2).toBeCloseTo(25_000, 0);
+    const [porFora] = gerarCenariosMassa(RETANGULO, CENTRO, { ...PARAMS, appM2: 20_000, faixaServidaoM2: 5_000, destinoApp: "nenhum", destinoFaixaServidao: "nenhum" }, OPTS);
+    expect(porFora.lotes.some((l) => l.tipo === "nao_parcelavel")).toBe(true);
+    expect(porFora.kpis.areaVendavelM2).toBeLessThanOrEqual(comRestricao.kpis.areaVendavelM2);
   });
 
   it("cul-de-sac: desenha balões de retorno, tudo dentro da poligonal", () => {

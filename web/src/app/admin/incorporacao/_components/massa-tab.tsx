@@ -5,13 +5,16 @@ import dynamic from "next/dynamic";
 import { AlertTriangle, CheckCircle2, FolderOpen, Grid3x3, Loader2, Save, Send, Star, Trash2, Trophy, CopyPlus, PenTool, Satellite } from "lucide-react";
 import { formatCurrency, parseNumeroBR, formatArea } from "@/lib/utils";
 import {
-  assinaturaEntradas, criarProjecao, validarParametrosMassa, ROTULO_ESTUDO_PRELIMINAR, TIPOLOGIAS_MASSA,
-  type CenarioMassa, type EstudoMassaGerado, type ParametrosMassa, type TipologiaMassa,
+  assinaturaEntradas, criarProjecao, estadoDoContornoApp, medirRestricoesNaGleba, validarParametrosMassa, viasEntornoDoOsm, ROTULO_ESTUDO_PRELIMINAR, TIPOLOGIAS_MASSA,
+  type CenarioMassa, type EntradaGleba, type EstudoMassaGerado, type ParametrosMassa, type RestricaoGeometrica, type TipologiaMassa, type ViaEntorno,
 } from "@/lib/geo/massa-parcelamento";
+import type { Position } from "geojson";
 import { executarMotorMassa } from "./executar-massa";
 import { LADOS_GLEBA, ROTULO_LADO, medirLados, type LadoGleba } from "@/lib/geo/lados-gleba";
 import { PlantaTecnica } from "./planta-tecnica";
-import { linhasQuadroAreas, type QuadroAreasMassa } from "@/lib/incorporacao/massa-quadro-areas";
+import { DESTINOS_PADRAO, DESTINOS_RESTRICAO, linhasQuadroAreas, type DestinoRestricao, type QuadroAreasMassa } from "@/lib/incorporacao/massa-quadro-areas";
+import { aproveitamentoDosParametros } from "@/lib/geo/massa-parcelamento";
+import { area as areaGeografica } from "@turf/turf";
 import { AVISO_SEM_POLIGONAL, parseLotesAvulsos, resumoLotesAvulsos } from "@/lib/incorporacao/lotes-avulsos";
 import type { EstudoMassaSalvo } from "@/lib/incorporacao/estudos-massa";
 import {
@@ -21,14 +24,23 @@ import {
 import { exigirResultado } from "@/lib/acao-resultado";
 import { CORES_MASSA } from "./mapa-massa";
 import type { EstudoData } from "./incorporacao-detail";
-import type { Feature, Polygon } from "geojson";
+import { uniaoDoTerreno, type GeometriaTerreno } from "@/lib/geo/terreno";
 
 const MapaMassa = dynamic(() => import("./mapa-massa").then((m) => m.MapaMassa), {
   ssr: false,
   loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: 460 }} />,
 });
 
-type CampoNumerico = Exclude<keyof ParametrosMassa, "tipologia" | "modoSistemaViario" | "formatoLote" | "tracadoVia" | "inverterLadoVia" | "ladosVia">;
+type CampoNumerico = Exclude<keyof ParametrosMassa, "tipologia" | "modoSistemaViario" | "formatoLote" | "tracadoVia" | "inverterLadoVia" | "ladosVia" | CampoDestino>;
+type CampoDestino = "destinoApp" | "destinoSupressaoVegetal" | "destinoFaixaTransmissao" | "destinoFaixaServidao" | "destinoOutrasNaoParcelaveis";
+/** Destino de cada área restrita nas doações (regra do dono de 16/11): o seletor fica embaixo do campo da área. */
+const DESTINO_DO_CAMPO: Partial<Record<CampoNumerico, { k: CampoDestino; restricao: keyof typeof DESTINOS_PADRAO }>> = {
+  appM2: { k: "destinoApp", restricao: "appM2" },
+  supressaoVegetalM2: { k: "destinoSupressaoVegetal", restricao: "supressaoVegetalM2" },
+  faixaTransmissaoM2: { k: "destinoFaixaTransmissao", restricao: "faixaTransmissaoM2" },
+  faixaServidaoM2: { k: "destinoFaixaServidao", restricao: "faixaServidaoM2" },
+  outrasNaoParcelaveisM2: { k: "destinoOutrasNaoParcelaveis", restricao: "outrasNaoParcelaveisM2" },
+};
 
 const CAMPOS: { k: CampoNumerico; label: string }[] = [
   { k: "testadaLoteM", label: "Testada do lote (m)" },
@@ -103,6 +115,28 @@ function paramsIniciais(estudo: EstudoData): ParametrosMassa {
 
 type Mensagem = { tipo: "ok" | "erro"; texto: string } | null;
 
+const ROTA_CAMADAS = "/api/incorporacao/camadas-terreno";
+
+/**
+ * Vias públicas do entorno (camada "osm", a mesma do mapa do Terreno) para o motor ligar a malha às ruas
+ * existentes (R5). Falha na busca não impede gerar: devolve null e o motor exige só o acesso pela divisa.
+ */
+async function buscarViasEntorno(contorno: GeometriaTerreno): Promise<ViaEntorno[] | null> {
+  try {
+    const r = await fetch(ROTA_CAMADAS, {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geojson: contorno, ids: ["osm"] }), signal: AbortSignal.timeout(25_000),
+    });
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null) as { camadas?: { osm?: { estado?: string; dados?: { vias?: unknown[] } } } } | null;
+    const osm = j?.camadas?.osm;
+    if (!osm || (osm.estado !== "ok" && osm.estado !== "vazio")) return null;
+    return viasEntornoDoOsm((osm.dados?.vias ?? []) as Parameters<typeof viasEntornoDoOsm>[0]);
+  } catch {
+    return null;
+  }
+}
+
 export function MassaTab({ estudo }: { estudo: EstudoData }) {
   const [params, setParams] = useState<ParametrosMassa>(() => paramsIniciais(estudo));
   // Buffer de texto por campo — permite digitar no padrão brasileiro
@@ -120,6 +154,8 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
   const [avisos, setAvisos] = useState<string[]>([]);
   const [visao, setVisao] = useState<"tecnico" | "satelite">("tecnico");
   const cache = useRef<{ assinatura: string; resultado: EstudoMassaGerado } | null>(null);
+  // vias do entorno por contorno (a rota de camadas também tem cache no servidor)
+  const viasCache = useRef<{ geojson: string; vias: ViaEntorno[] } | null>(null);
   // Estudos salvos (correção 11)
   const [salvos, setSalvos] = useState<EstudoMassaSalvo[]>([]);
   const [carregandoSalvos, setCarregandoSalvos] = useState(true);
@@ -172,11 +208,36 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
 
   const contorno = useMemo(() => {
     try {
-      return estudo.geojson ? (JSON.parse(estudo.geojson) as Feature<Polygon>).geometry ?? null : null;
+      return estudo.geojson ? uniaoDoTerreno(JSON.parse(estudo.geojson) as GeometriaTerreno).geometry : null;
     } catch {
       return null;
     }
   }, [estudo.geojson]);
+  // S-I: contorno da APP gravado pelo mapa do Terreno — o motor tira a APP da área loteável pela posição real
+  const restricoesGeo = useMemo<RestricaoGeometrica[] | null>(() => {
+    const g = parseJson<{ type?: string; coordinates?: Position[][][] }>(estudo.appContornoJson);
+    return g?.type === "MultiPolygon" && Array.isArray(g.coordinates) && g.coordinates.length > 0 ? [{ tipo: "app", poligonos: g.coordinates }] : null;
+  }, [estudo.appContornoJson]);
+  // KML com áreas separadas: o motor estuda cada área contínua e compõe um único resultado (furos respeitados)
+  const entradaGleba = useMemo<EntradaGleba | null>(() => (contorno?.type === "MultiPolygon" ? contorno.coordinates
+    : contorno?.type === "Polygon" ? (contorno.coordinates.length > 1 ? [contorno.coordinates] : contorno.coordinates[0]) : null), [contorno]);
+  // APP dentro da gleba medida como o motor mede (mesmo número do quadro de áreas); 0 = contorno fora deste terreno
+  const areaContornoApp = useMemo(() => {
+    if (!restricoesGeo || !entradaGleba || estudo.centroLng == null || estudo.centroLat == null) return null;
+    try { return medirRestricoesNaGleba(entradaGleba, [estudo.centroLng, estudo.centroLat], restricoesGeo).app ?? 0; } catch { return null; }
+  }, [restricoesGeo, entradaGleba, estudo.centroLng, estudo.centroLat]);
+  const estadoApp = estadoDoContornoApp({ restricoes: restricoesGeo, appAreaM2: estudo.appAreaM2, appNaGlebaM2: areaContornoApp, cenarios });
+  // o estudo principal salvo (espelho em massaCenariosJson) também é marcado quando foi gerado sem o contorno
+  const principalSemContorno = useMemo(() => {
+    const doPrincipal = parseJson<{ cenarios?: CenarioMassa[] }>(estudo.massaCenariosJson)?.cenarios ?? [];
+    return doPrincipal.length > 0 && estadoDoContornoApp({ restricoes: restricoesGeo, appAreaM2: estudo.appAreaM2, appNaGlebaM2: areaContornoApp, cenarios: doPrincipal }) === "cenarios_sem_contorno";
+  }, [estudo.massaCenariosJson, estudo.appAreaM2, restricoesGeo, areaContornoApp]);
+  // Quanto das áreas restritas é aproveitado nas doações (prévia, enquanto se digita). Com contorno no terreno, vale o m² dele.
+  const aproveitamento = useMemo(() => {
+    if (!contorno) return null;
+    const p = areaContornoApp != null && areaContornoApp > 0 ? { ...params, appM2: areaContornoApp } : params;
+    try { return aproveitamentoDosParametros(p, areaGeografica(contorno)); } catch { return null; }
+  }, [contorno, params, areaContornoApp]);
 
   // comprimento de cada lado da gleba (cima/esquerda/direita/baixo), medido no KML
   const ladosMedidos = useMemo(() => {
@@ -201,15 +262,24 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
     }
 
     setErro(null);
-    const anel = contorno?.coordinates[0];
-    if (!anel || anel.length < 4) {
+    const entrada = entradaGleba;
+    const primeiro = contorno?.type === "MultiPolygon" ? contorno.coordinates[0]?.[0] : contorno?.coordinates[0];
+    if (!entrada || !primeiro || primeiro.length < 4) {
       setErro("Geometria da gleba inválida ou incompleta. Reenvie o KML na aba Terreno.");
       return;
     }
     const centro: [number, number] = [estudo.centroLng, estudo.centroLat];
-    const assinatura = assinaturaEntradas(anel, entradas);
+    setGerando(true); // bloqueia novos cliques já durante a consulta das vias
+    let vias: ViaEntorno[] | null = viasCache.current?.geojson === estudo.geojson ? viasCache.current.vias : null;
+    if (!vias && contorno) {
+      setProgresso({ fracao: 0, etapa: "Consultando as vias existentes do entorno (OpenStreetMap)" });
+      vias = await buscarViasEntorno({ type: "Feature", properties: {}, geometry: contorno });
+      if (vias) viasCache.current = { geojson: estudo.geojson, vias };
+    }
+    const avisoVias = vias ? null : "Vias do entorno (OpenStreetMap) indisponíveis agora: a ligação com as ruas existentes não pôde ser conferida — os cenários exigem acesso pela divisa e o acesso externo fica a confirmar em projeto.";
+    const assinatura = assinaturaEntradas(entrada, entradas, vias, restricoesGeo);
     const aplicar = (r: EstudoMassaGerado) => {
-      setAvisos(r.avisos);
+      setAvisos(avisoVias ? [avisoVias, ...r.avisos] : r.avisos);
       setInviabilidade(r.inviabilidade);
       if (r.cenarios.length === 0) {
         // nenhum cenário válido: mantém os anteriores fora da tela de comparação, sem inventar cartões
@@ -222,12 +292,11 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
       setSelecionado(r.cenarios[0].id);
     };
     // mesmas entradas + mesma versão do algoritmo = mesmo resultado: reaproveita sem recalcular
-    if (cache.current?.assinatura === assinatura) { aplicar(cache.current.resultado); return; }
+    if (cache.current?.assinatura === assinatura) { setGerando(false); setProgresso(null); aplicar(cache.current.resultado); return; }
 
-    setGerando(true);
     setProgresso({ fracao: 0, etapa: "Iniciando" });
     try {
-      const r = await executarMotorMassa(anel, centro, entradas, (fracao, etapa) => setProgresso({ fracao, etapa }));
+      const r = await executarMotorMassa(entrada, centro, entradas, vias, (fracao, etapa) => setProgresso({ fracao, etapa }), restricoesGeo);
       cache.current = { assinatura, resultado: r };
       aplicar(r);
     } catch (e) {
@@ -407,14 +476,60 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
         </div>
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-4 mb-2">Áreas não parceláveis (m²) — informe quando não vierem do KML</p>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {CAMPOS_RESTRICOES.map((c) => (
-            <CampoTexto key={c.k} id={`massa-${c.k}`} label={c.label} valor={camposTexto[c.k]}
-              onChange={(v) => upd(c.k, v)} onBlur={() => reformatarCampo(c.k)} />
-          ))}
+          {CAMPOS_RESTRICOES.map((c) => {
+            const d = DESTINO_DO_CAMPO[c.k];
+            return (
+              <div key={c.k}>
+                <CampoTexto id={`massa-${c.k}`} label={c.label} valor={camposTexto[c.k]}
+                  onChange={(v) => upd(c.k, v)} onBlur={() => reformatarCampo(c.k)} />
+                {d && (
+                  <select aria-label={`Aproveitamento: ${c.label}`} className="mt-1 w-full border border-gray-300 bg-white px-1 py-1 text-[11px] text-gray-700"
+                    value={params[d.k] ?? DESTINOS_PADRAO[d.restricao]}
+                    onChange={(e) => { setParams((p) => ({ ...p, [d.k]: e.target.value as DestinoRestricao })); setErro(null); }}>
+                    {DESTINOS_RESTRICAO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                )}
+              </div>
+            );
+          })}
         </div>
         <p className="text-[10px] text-gray-500 mt-2">
           Cada restrição entra uma única vez no quadro de áreas. A APP vem preenchida com a área calculada no mapa do Terreno, quando houver.
+          A área marcada como &quot;conta como área verde&quot; (ou institucional) é aproveitada para cumprir o mínimo exigido: o motor só tira da área loteável o que faltar.
+          Confirme na legislação do município o que pode ser aproveitado.
         </p>
+        {estadoApp === "contorno" && (
+          <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-1.5 mt-2" data-testid="massa-app-contorno">
+            APP com o contorno real do mapa do Terreno{areaContornoApp != null ? ` (${m2(areaContornoApp)} dentro da gleba)` : ""}: ela sai da área loteável pela posição real — nenhum lote nem via
+            dentro dela — e aparece no desenho como APP. O m² usado é o do contorno; o campo APP acima não é somado de novo.
+          </p>
+        )}
+        {estadoApp === "cenarios_sem_contorno" && (
+          <p role="alert" className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 px-2 py-1.5 mt-2" data-testid="massa-app-cenarios-sem-contorno">
+            Os cenários na tela foram gerados sem o contorno da APP (ou com um contorno anterior) e podem ter lotes em cima dela — gere os cenários de novo.
+          </p>
+        )}
+        {estadoApp === "fora_do_terreno" && (
+          <p role="alert" className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 px-2 py-1.5 mt-2" data-testid="massa-app-fora-do-terreno">
+            O contorno da APP guardado no estudo não cai neste terreno (o KML pode ter sido trocado): o motor usa a APP informada em m², sem a posição real.
+            Abra o mapa da aba Terreno para o sistema guardar o contorno de novo.
+          </p>
+        )}
+        {estadoApp === "sem_contorno" && (
+          <p role="alert" className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 px-2 py-1.5 mt-2" data-testid="massa-app-sem-contorno">
+            Este estudo tem APP de {m2(estudo.appAreaM2 ?? 0)}, mas o contorno dela ainda não foi guardado: o motor reserva o tamanho certo de área verde,
+            mas não sabe onde a APP fica e pode desenhar lotes em cima dela. Abra o mapa da aba Terreno (o sistema guarda o contorno sozinho) e gere os cenários de novo.
+            Se o mapa avisar que o contorno é complexo demais para guardar, o estudo segue só com a área em m².
+          </p>
+        )}
+        {aproveitamento && aproveitamento.comoVerdeM2 + aproveitamento.comoInstitucionalM2 > 0 && (
+          <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-1.5 mt-2" data-testid="massa-aproveitamento">
+            Área verde exigida: {m2(aproveitamento.exigidoVerdeM2)} — {m2(aproveitamento.comoVerdeM2)} vêm de APP/faixas
+            {aproveitamento.verdeEmAreaLoteavelM2 > 0 ? ` e ${m2(aproveitamento.verdeEmAreaLoteavelM2)} saem da área loteável` : "; nada sai da área loteável"}.
+            {aproveitamento.comoInstitucionalM2 > 0 && ` Institucional exigida: ${m2(aproveitamento.exigidoInstitucionalM2)} — ${m2(aproveitamento.comoInstitucionalM2)} vêm de áreas restritas${aproveitamento.institucionalEmAreaLoteavelM2 > 0 ? ` e ${m2(aproveitamento.institucionalEmAreaLoteavelM2)} saem da área loteável` : ""}.`}
+            {" "}Economia de área loteável: <strong>{m2(aproveitamento.economiaM2)}</strong>.
+          </p>
+        )}
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-4 mb-2">Área do sistema viário (m²)</p>
         <div className="flex flex-wrap items-end gap-3">
           <fieldset className="flex gap-3 text-xs text-gray-700" aria-label="Modo da área do sistema viário">
@@ -503,7 +618,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
                     <p className="text-xs font-black text-[var(--brand-dark)] uppercase flex items-center gap-1">
                       {i === 0 && <Trophy size={12} className="text-[var(--brand-yellow)]" />} Cenário {i + 1}
                     </p>
-                    <span className="text-[10px] text-gray-600">{ROTULO_TIPOLOGIA[c.tipologia ?? "grid"]} · {c.anguloVia.toLocaleString("pt-BR")}°</span>
+                    <span className="text-[10px] text-gray-600">{ROTULO_TIPOLOGIA[c.tipologia ?? "grid"]} · {c.anguloVia.toLocaleString("pt-BR")}°{c.areas && c.areas > 1 ? ` · ${c.areas} áreas` : ""}</span>
                   </div>
                   {c.criterioRotulo && <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">{c.criterioRotulo}</p>}
                   <p className="font-black text-[var(--brand-dark)] text-xl leading-none mb-1">{c.kpis.lotesVendaveis} lotes</p>
@@ -625,6 +740,7 @@ export function MassaTab({ estudo }: { estudo: EstudoData }) {
                   <p className="text-sm font-bold text-[var(--brand-dark)] break-words">
                     {s.nome} <span className="font-normal text-gray-600">· versão {s.versao}</span>
                     {s.principal && <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase px-1.5 py-0.5 bg-[var(--brand-yellow)] text-[var(--brand-dark)]"><Star size={10} /> Principal</span>}
+                    {s.principal && principalSemContorno && <span className="ml-2 text-[10px] font-bold uppercase px-1.5 py-0.5 bg-amber-100 text-amber-900" title="Cenários gerados antes do contorno da APP: podem ter lotes em cima dela. Gere de novo e salve.">sem o contorno da APP — gere de novo</span>}
                     {aberto?.id === s.id && <span className="ml-2 text-[10px] font-bold uppercase text-gray-600">(aberto)</span>}
                   </p>
                   <p className="text-[11px] text-gray-600">
