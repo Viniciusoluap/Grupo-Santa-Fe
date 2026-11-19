@@ -9,8 +9,9 @@ export async function pdfPropostaTerreno(estudoId: string, propostaId: string, d
   return capturarErroAcao(async () => pdfDaPropostaTerreno(estudoId, propostaId, await exigirModuloAcao("incorporacao"), dataEmissao));
 }
 
-export async function enviarPropostaTerreno(estudoId: string, propostaId: string, destinatario: string, dataEmissao: string) {
-  return capturarErroAcao(async () => enviarPropostaTerrenoPorEmail(estudoId, propostaId, destinatario, await exigirModuloAcao("incorporacao"), dataEmissao));
+/** `pdfSha256` = hash do PDF da prévia; o servidor recusa o envio se o PDF de agora for outro. */
+export async function enviarPropostaTerreno(estudoId: string, propostaId: string, destinatario: string, dataEmissao: string, pdfSha256: string) {
+  return capturarErroAcao(async () => enviarPropostaTerrenoPorEmail(estudoId, propostaId, destinatario, await exigirModuloAcao("incorporacao"), dataEmissao, pdfSha256));
 }
 
 export async function enviosPropostaTerreno(estudoId: string) {

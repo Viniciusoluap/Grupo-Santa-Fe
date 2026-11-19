@@ -79,3 +79,27 @@ describe("tela do Mapa operacional no MapLibre", () => {
     expect(usosDeHtml).toEqual(["htmlAlfinete"]);
   });
 });
+
+// Revisão do PR #263: o cluster_id se repete entre conjuntos de dados; depois de filtrar ou buscar, o marcador antigo
+// (posição, contagem e clique) não pode ser reaproveitado.
+describe("marcadores de agrupamento depois de trocar os dados", () => {
+  it("mesmo cluster_id em gerações diferentes → chaves diferentes; mesma geração → mesma chave", async () => {
+    const { chaveDoMarcador } = await import("@/lib/mapa-alfinetes");
+    const grupo = { cluster: true, cluster_id: 0, point_count: 12 };
+    expect(chaveDoMarcador(grupo, 1)).toBe(chaveDoMarcador({ ...grupo, point_count: 99 }, 1));
+    expect(chaveDoMarcador(grupo, 1)).not.toBe(chaveDoMarcador(grupo, 2));
+    expect(chaveDoMarcador({ chave: "i1" }, 1)).not.toBe(chaveDoMarcador({ chave: "i1" }, 2));
+    // ponto e grupo nunca colidem
+    expect(chaveDoMarcador({ chave: "0" }, 1)).not.toBe(chaveDoMarcador({ cluster: true, cluster_id: 0 }, 1));
+    expect(chaveDoMarcador(null, 3)).toBe("3:pundefined");
+  });
+
+  it("o mapa troca a geração e limpa o cache de marcadores antes de cada setData", () => {
+    const fonte = readFileSync(resolve(src, "components/map/property-map.tsx"), "utf8");
+    expect(fonte).toContain("chaveDoMarcador(f.properties, geracao.current)");
+    expect(fonte).not.toMatch(/`g\$\{f\.properties\.cluster_id\}`/);
+    const efeitoDosPinos = fonte.slice(fonte.indexOf("porId.current = new Map();"), fonte.indexOf(".setData("));
+    expect(efeitoDosPinos).toContain("geracao.current += 1;");
+    expect(efeitoDosPinos).toContain("m.limparMarcadores();");
+  });
+});

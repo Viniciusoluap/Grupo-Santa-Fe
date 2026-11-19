@@ -115,7 +115,7 @@ describe("PDF e envio (servidor)", () => {
     const baixado = await pdfDaPropostaTerreno("e1", "prop-1", usuario);
     expect(baixado.dataEmissao).toBe(hojeBrasil());
     const enviar = vi.fn(async () => true);
-    const r = await enviarPropostaTerrenoPorEmail("e1", "prop-1", " Dono@Exemplo.test ", usuario, baixado.dataEmissao, enviar);
+    const r = await enviarPropostaTerrenoPorEmail("e1", "prop-1", " Dono@Exemplo.test ", usuario, baixado.dataEmissao, baixado.sha256, enviar);
     expect(r.ok).toBe(true);
     const mensagem = (enviar.mock.calls[0] as unknown as [{ to: string; attachments: { content: Buffer; filename: string }[] }])[0];
     expect(mensagem.to).toBe("dono@exemplo.test");
@@ -123,6 +123,34 @@ describe("PDF e envio (servidor)", () => {
     expect(mensagem.attachments[0].filename).toBe(baixado.nomeArquivo);
     expect(r.envio).toMatchObject({ status: "enviado", destinatario: "dono@exemplo.test", pdfSha256: baixado.sha256, dataEmissao: hojeBrasil(), enviadoPorNome: "Usuária Teste" });
     expect(parseNegociacao(gravado)!.propostas.find((p) => p.id === "prop-1")!.status).toBe("enviada");
+  });
+
+  it("revisão do PR #263: negociação mudou depois da prévia → recusa com mensagem clara, nada é enviado nem registrado", async () => {
+    const { pdfDaPropostaTerreno, enviarPropostaTerrenoPorEmail, enviosDasPropostasTerreno, ERRO_PROPOSTA_MUDOU } = await import("@/lib/incorporacao/proposta-terreno");
+    // a tela reconhece a mesma mensagem e troca o botão por "Gerar a prévia de novo"; a confirmação manda o hash da prévia
+    const tela = readFileSync("src/app/admin/incorporacao/_components/proposta-terreno-envio.tsx", "utf8");
+    expect(tela).toContain(`AVISO_PROPOSTA_MUDOU = "${ERRO_PROPOSTA_MUDOU}"`);
+    expect(tela).toContain("previa.pdf.dataEmissao, previa.pdf.sha256)");
+    expect(ERRO_PROPOSTA_MUDOU).toBe("A proposta mudou desde a prévia; gere a prévia de novo.");
+    const previa = await pdfDaPropostaTerreno("e1", "prop-1", usuario);
+    expect(previa.sha256).toMatch(/^[0-9a-f]{64}$/);
+    const antes = (await enviosDasPropostasTerreno("e1")).length;
+    // outra pessoa (ou outra aba) muda o valor da proposta depois da prévia
+    gravado = JSON.stringify({ ...JSON.parse(gravado), propostas: [{ ...PROPOSTA, valorTotal: 1_900_000 }] });
+    const nunca = vi.fn(async () => true);
+    await expect(enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, previa.dataEmissao, previa.sha256, nunca)).rejects.toThrow(ERRO_PROPOSTA_MUDOU);
+    // hash ausente ou malformado também recusa
+    await expect(enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, previa.dataEmissao, undefined, nunca)).rejects.toThrow(ERRO_PROPOSTA_MUDOU);
+    await expect(enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, previa.dataEmissao, "abc", nunca)).rejects.toThrow(ERRO_PROPOSTA_MUDOU);
+    expect(nunca).not.toHaveBeenCalled();
+    expect((await enviosDasPropostasTerreno("e1")).length).toBe(antes);
+    // nova prévia → envio liberado, com o PDF novo
+    const nova = await pdfDaPropostaTerreno("e1", "prop-1", usuario);
+    expect(nova.sha256).not.toBe(previa.sha256);
+    const ok = vi.fn(async () => true);
+    const r = await enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, nova.dataEmissao, nova.sha256, ok);
+    expect(r.ok).toBe(true);
+    expect(r.envio.pdfSha256).toBe(nova.sha256);
   });
 
   it("os envios ficam fora do JSON da negociação (salvar a aba não os apaga)", async () => {
@@ -134,12 +162,13 @@ describe("PDF e envio (servidor)", () => {
   });
 
   it("falha fica registrada com o motivo e o reenvio funciona", async () => {
-    const { enviarPropostaTerrenoPorEmail, enviosDasPropostasTerreno, hojeBrasil } = await import("@/lib/incorporacao/proposta-terreno");
-    const falhou = await enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, hojeBrasil(), vi.fn(async () => false));
+    const { enviarPropostaTerrenoPorEmail, enviosDasPropostasTerreno, hojeBrasil, pdfDaPropostaTerreno } = await import("@/lib/incorporacao/proposta-terreno");
+    const { sha256 } = await pdfDaPropostaTerreno("e1", "prop-1", usuario);
+    const falhou = await enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, hojeBrasil(), sha256, vi.fn(async () => false));
     expect(falhou.ok).toBe(false);
     expect(falhou.envio.status).toBe("falhou");
     expect(falhou.motivo).toBeTruthy();
-    const reenvio = await enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, hojeBrasil(), vi.fn(async () => true));
+    const reenvio = await enviarPropostaTerrenoPorEmail("e1", "prop-1", "dono@exemplo.test", usuario, hojeBrasil(), sha256, vi.fn(async () => true));
     expect(reenvio.ok).toBe(true);
     const lista = await enviosDasPropostasTerreno("e1");
     expect(lista.slice(0, 2).map((e) => e.status)).toEqual(["enviado", "falhou"]);
@@ -149,7 +178,7 @@ describe("PDF e envio (servidor)", () => {
   it("valida destinatário, data de emissão, autor da proposta e proposta inexistente", async () => {
     const { pdfDaPropostaTerreno, enviarPropostaTerrenoPorEmail, hojeBrasil } = await import("@/lib/incorporacao/proposta-terreno");
     const nunca = vi.fn(async () => true);
-    await expect(enviarPropostaTerrenoPorEmail("e1", "prop-1", "nao-e-email", usuario, hojeBrasil(), nunca)).rejects.toThrow(/inválido/);
+    await expect(enviarPropostaTerrenoPorEmail("e1", "prop-1", "nao-e-email", usuario, hojeBrasil(), "0".repeat(64), nunca)).rejects.toThrow(/inválido/);
     await expect(pdfDaPropostaTerreno("e1", "prop-1", usuario, "2099-01-01")).rejects.toThrow(/Data de emissão/);
     await expect(pdfDaPropostaTerreno("e1", "prop-2", usuario)).rejects.toThrow(/do proprietário/);
     await expect(pdfDaPropostaTerreno("e1", "nao-existe", usuario)).rejects.toThrow(/não encontrada/);
@@ -162,7 +191,7 @@ describe("PDF e envio (servidor)", () => {
     vi.resetModules();
     const acoes = await import("@/lib/actions/proposta-terreno");
     expect(await acoes.pdfPropostaTerreno("e1", "prop-1")).toEqual({ erroAcao: "Sem permissão para este módulo." });
-    expect(await acoes.enviarPropostaTerreno("e1", "prop-1", "dono@exemplo.test", "2026-11-17")).toEqual({ erroAcao: "Sem permissão para este módulo." });
+    expect(await acoes.enviarPropostaTerreno("e1", "prop-1", "dono@exemplo.test", "2026-11-17", "0".repeat(64))).toEqual({ erroAcao: "Sem permissão para este módulo." });
     await expect(acoes.enviosPropostaTerreno("e1")).rejects.toThrow(/permissão/i);
     vi.doUnmock("@/lib/auth/modulos");
   });

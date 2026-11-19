@@ -174,9 +174,11 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   // Paridade 17/11 (Prospecta 93edc7c): as premissas gravam sozinhas 700 ms depois da última alteração (fila que espera a
   // resposta anterior); o botão continua para gravar na hora. Grava também as fontes efetivas (manual/sistema), para o
   // Relatório e as demais abas lerem o mesmo — calculadas do retrato gravado, não do estado do momento do clique.
-  const { salvar, pending, salvo: salvoOk, erro: erroSalvar } = useSalvamento({ formBase, mixBase }, async (snapshot) => {
+  // Revisão do PR #263: sem premissas gravadas, o formulário abre com os padrões; isso não conta como "salvo" — o botão
+  // grava na primeira vez mesmo sem alteração, e abrir a aba continua sem gravar nada.
+  const { salvar, pending, salvo: salvoOk, erro: erroSalvar, alterado, registrado } = useSalvamento({ formBase, mixBase }, async (snapshot) => {
     exigirResultado(await salvarViabilidade(estudo.id, premissasParaGravar(estudo, snapshot.formBase, snapshot.mixBase)));
-  });
+  }, { semRegistro: !salvo });
 
   const CENARIO_META: { id: CenarioId; label: string; cor: string }[] = [
     { id: "conservador", label: "Conservador", cor: "border-orange-300" },
@@ -207,7 +209,11 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           <button type="button" className="underline" onClick={() => { void salvar(); }}>Tentar novamente</button>
         </p>
       )}
-      {!erroSalvar && !salvoOk && <p role="status" className="text-xs text-amber-800">Salvando alterações automaticamente…</p>}
+      {!erroSalvar && !salvoOk && (
+        <p role="status" className="text-xs text-amber-800">
+          {!registrado && !alterado && !pending ? "Premissas ainda não gravadas — clique em Salvar premissas para registrá-las." : "Salvando alterações automaticamente…"}
+        </p>
+      )}
       {fontes.avisos.length > 0 && (
         <div className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
           {fontes.avisos.map((a) => <p key={a}>{a}</p>)}
