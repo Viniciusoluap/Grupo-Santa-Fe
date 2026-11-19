@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
@@ -17,6 +17,7 @@ import {
   appDaViabilidade,
   defaultsMix,
   montarViabilidade,
+  premissasParaGravar,
   type PremissasForm,
 } from "@/lib/incorporacao/premissas-loteamento";
 import { composicaoFinanceira, type ModoFonte } from "@/lib/incorporacao/composicao-custos";
@@ -28,6 +29,7 @@ import {
   fluxoPorAno,
   textoPayback,
 } from "@/lib/pdf/loteamento";
+import { useSalvamento } from "./salvamento";
 import { salvarViabilidade } from "@/lib/actions/incorporacao";
 import { exigirResultado } from "@/lib/acao-resultado";
 import { formatCurrency, formatArea } from "@/lib/utils";
@@ -114,21 +116,16 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const mix = form.mixModo === "cenario" ? defaultsMix(estudo) : mixBase;
 
   const [cenarioAtivo, setCenarioAtivo] = useState<CenarioId>("ideal");
-  const [pending, startTransition] = useTransition();
-  const [salvoOk, setSalvoOk] = useState(false);
-  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   const set = <K extends keyof PremissasForm>(k: K) => (v: PremissasForm[K]) => {
     const campoUrbanistico = ["areaBrutaM2", "pctAreaPublica", "pctAreaVerde", "pctSistemaViario", "pctFaixaServidao"].includes(k);
     // Correção 09: editar um valor NÃO troca a fonte; a fonte só muda pelo seletor "Valor manual / Valor do sistema"
     setForm({ ...form, [k]: v, urbanismoModo: campoUrbanistico ? "manual" : form.urbanismoModo });
-    setSalvoOk(false);
   };
 
   function addProduto() {
     setForm({ ...form, mixModo: "manual" });
     setMix([...mix, { nome: "Novo produto", quantidade: 0, areaUnidadeM2: 0, precoM2: 0 }]);
-    setSalvoOk(false);
   }
   function updProduto(i: number, campo: keyof ItemMixProduto, valor: string | number | boolean) {
     setForm({ ...form, mixModo: "manual" });
@@ -140,12 +137,10 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
       if (campo === "casaPronta" && valor === true && !(novo[i].areaUnidadeM2 > 0) && areaMediaLote > 0) novo[i] = { ...novo[i], areaUnidadeM2: areaMediaLote };
       return novo;
     });
-    setSalvoOk(false);
   }
   function removerProduto(i: number) {
     setForm({ ...form, mixModo: "manual" });
     setMix(mix.filter((_, j) => j !== i));
-    setSalvoOk(false);
   }
 
   // APP: SEMPRE calculada automaticamente a partir do mapa (aba Terreno) — nunca
@@ -163,7 +158,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const unidadesMix = mix.reduce((s, p) => s + (Number.isFinite(p.quantidade) ? p.quantidade : 0), 0);
   const temCasaPronta = mix.some((p) => p.casaPronta);
   const temLoteSeparado = mix.some((p) => !p.casaPronta && /lote/i.test(p.nome));
-  const setFonte = (campo: "custoInfraFonte" | "marketingFonte" | "terrenoFonte") => (v: ModoFonte) => { setForm({ ...form, [campo]: v }); setSalvoOk(false); };
+  const setFonte = (campo: "custoInfraFonte" | "marketingFonte" | "terrenoFonte") => (v: ModoFonte) => { setForm({ ...form, [campo]: v }); };
   const urb = r.urbanistico;
 
   const dadosGrafico = useMemo(
@@ -176,18 +171,12 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   const anosVenda = useMemo(() => vendasPorAno(r), [r]);
   const anosFluxo = useMemo(() => fluxoPorAno(r), [r]);
 
-  function salvar() {
-    startTransition(async () => {
-      setErroSalvar(null);
-      try {
-        // grava também as fontes efetivas (manual/sistema), para o Relatório e as demais abas lerem o mesmo
-        exigirResultado(await salvarViabilidade(estudo.id, JSON.stringify({ ...form, custoInfraFonte: cfg.custoInfraFonte, marketingFonte: cfg.marketingFonte, terrenoFonte: cfg.terrenoFonte, considerarCaptacao: cfg.considerarCaptacao, itensMix: mix })));
-        setSalvoOk(true);
-      } catch (e) {
-        setErroSalvar(e instanceof Error ? e.message : "Não foi possível salvar as premissas.");
-      }
-    });
-  }
+  // Paridade 17/11 (Prospecta 93edc7c): as premissas gravam sozinhas 700 ms depois da última alteração (fila que espera a
+  // resposta anterior); o botão continua para gravar na hora. Grava também as fontes efetivas (manual/sistema), para o
+  // Relatório e as demais abas lerem o mesmo — calculadas do retrato gravado, não do estado do momento do clique.
+  const { salvar, pending, salvo: salvoOk, erro: erroSalvar } = useSalvamento({ formBase, mixBase }, async (snapshot) => {
+    exigirResultado(await salvarViabilidade(estudo.id, premissasParaGravar(estudo, snapshot.formBase, snapshot.mixBase)));
+  });
 
   const CENARIO_META: { id: CenarioId; label: string; cor: string }[] = [
     { id: "conservador", label: "Conservador", cor: "border-orange-300" },
@@ -196,14 +185,15 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
   ];
 
   return (
-    <div className="space-y-4">
+    // data-autosalvamento: esta aba grava sozinha; o aviso genérico de "alterações não salvas" do estudo não vale aqui
+    <div className="space-y-4" data-autosalvamento>
       {/* ── Premissas ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm text-gray-500">
           Premissas do estudo — os resultados recalculam <b>em tempo real</b>, só com fórmulas (sem IA, sem créditos).
         </p>
         <button
-          onClick={salvar}
+          onClick={() => { void salvar(); }}
           disabled={pending}
           className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-[var(--brand-dark)] text-[var(--brand-yellow)] hover:opacity-90 disabled:opacity-50"
         >
@@ -211,7 +201,13 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
           {pending ? "Salvando..." : salvoOk ? "Premissas salvas" : "Salvar premissas"}
         </button>
       </div>
-      {erroSalvar && <p className="text-xs font-bold text-red-600">{erroSalvar}</p>}
+      {erroSalvar && (
+        <p role="alert" className="text-xs font-bold text-red-700">
+          Há alterações não salvas. {erroSalvar}{" "}
+          <button type="button" className="underline" onClick={() => { void salvar(); }}>Tentar novamente</button>
+        </p>
+      )}
+      {!erroSalvar && !salvoOk && <p role="status" className="text-xs text-amber-800">Salvando alterações automaticamente…</p>}
       {fontes.avisos.length > 0 && (
         <div className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
           {fontes.avisos.map((a) => <p key={a}>{a}</p>)}
@@ -296,7 +292,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
             {origemUrbanismo?.quadroAreas && <>
               <p className="mt-1">Área pública total: {fmtM2(origemUrbanismo.quadroAreas.areaPublicaTotalM2)} · Institucional: {fmtM2(origemUrbanismo.quadroAreas.areaInstitucionalM2)} · Vendável: {fmtM2(origemUrbanismo.quadroAreas.areaLiquidaVendavelM2)}</p>
               <p className="mt-1">Supressão: {fmtM2(origemUrbanismo.quadroAreas.supressaoVegetalM2)} · Transmissão: {fmtM2(origemUrbanismo.quadroAreas.faixaTransmissaoM2)} · Servidão: {fmtM2(origemUrbanismo.quadroAreas.faixaServidaoM2)} · Outras restrições: {fmtM2(origemUrbanismo.quadroAreas.outrasNaoParcelaveisM2)}</p>
-              <button type="button" className="mt-2 font-bold underline" onClick={() => { if (form.urbanismoModo !== "manual" || confirm("Substituir os ajustes manuais pelas áreas do cenário selecionado?")) { setForm({ ...form, urbanismoModo: "cenario", mixModo: "cenario" }); setSalvoOk(false); } }}>Usar cenário selecionado</button>
+              <button type="button" className="mt-2 font-bold underline" onClick={() => { if (form.urbanismoModo !== "manual" || confirm("Substituir os ajustes manuais pelas áreas do cenário selecionado?")) { setForm({ ...form, urbanismoModo: "cenario", mixModo: "cenario" }); } }}>Usar cenário selecionado</button>
             </>}
           </div>
           <Num label="Área bruta" sufixo="m²" value={form.areaBrutaM2} onChange={set("areaBrutaM2")} step={100} />
@@ -359,7 +355,7 @@ export function ViabilidadeTab({ estudo }: { estudo: EstudoData }) {
             <Num label="Permuta física" sufixo="unidades" value={cfg.permutaFisicaUnidadesManual} onChange={set("permutaFisicaUnidadesManual")} />
           </>)}
           <div className="col-span-full flex items-center gap-2 text-xs text-gray-700">
-            <input id="considerar-captacao" type="checkbox" checked={cfg.considerarCaptacao} onChange={(e) => { setForm({ ...form, considerarCaptacao: e.target.checked }); setSalvoOk(false); }} />
+            <input id="considerar-captacao" type="checkbox" checked={cfg.considerarCaptacao} onChange={(e) => { setForm({ ...form, considerarCaptacao: e.target.checked }); }} />
             <label htmlFor="considerar-captacao">
               Considerar a captação do Business Plan no fluxo
               {fontes.captacao.disponivel ? ` — ${formatCurrency(fontes.captacao.capitalTotal)} captados; custo da captação ${formatCurrency(fontes.captacao.custoTotal)}` : " (nenhuma fonte cadastrada)"}

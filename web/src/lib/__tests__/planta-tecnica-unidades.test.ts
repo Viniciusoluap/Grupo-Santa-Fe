@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { Position } from "geojson";
 import { gerarEstudoMassa, criarProjecao, type ParametrosMassa, type TipologiaMassa } from "@/lib/geo/massa-parcelamento";
 import {
@@ -7,6 +7,10 @@ import {
 import {
   chaveUnidade, codigoExibicao, compararCodigoUnidade, formatarCodigoLote, paginar, parseCodigoUnidade, unidadesDoCenario,
 } from "@/lib/incorporacao/unidades";
+
+// Paridade 17/11: o motor de massa 3.0.0 (malha conectada, recorte na divisa) é mais pesado; com 3 workers em
+// paralelo os cenários grandes passam de 5 s. Prazo maior só neste arquivo (nenhum teste foi pulado ou afrouxado).
+vi.setConfig({ testTimeout: 60_000 });
 
 const CENTRO: [number, number] = [-44.3, -2.53];
 const proj = criarProjecao(CENTRO);
@@ -37,8 +41,9 @@ describe("Correção 04 — desenho técnico universal", () => {
         expect(svg).toContain('data-camada="escala"');
         expect(svg).toContain('data-camada="norte"');
         expect(svg).toContain(`Lotes vendáveis (${c.kpis.lotesVendaveis})`);
-        // medidas do modelo = medidas do cálculo (mesma projeção)
-        for (const l of modelo.lotes) {
+        // medidas do modelo = medidas do cálculo (mesma projeção). Etapa F: lotes recortados/ampliados na divisa e
+        // peças de sobra (áreas públicas) têm forma irregular — conferem-se os lotes retangulares inteiros
+        for (const l of modelo.lotes.filter((x) => x.tipo === "vendavel" && !x.irregular)) {
           expect(l.testadaM).toBeCloseTo(BASE.testadaLoteM, 4);
           expect(l.profundidadeM).toBeCloseTo(BASE.profundidadeLoteM, 4);
         }

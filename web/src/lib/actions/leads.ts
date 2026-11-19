@@ -251,7 +251,8 @@ export async function editarLead(formData: FormData) {
 
   // Lead é a fonte única dos dados do cliente: reflete a edição nos registros
   // vinculados e cria os registros dos serviços recém-marcados.
-    await propagarDadosClienteDoLead(lead, tx);
+    // Regra do endereço (17/11): o endereço anterior do lead decide quais avaliações acompanham a mudança.
+    await propagarDadosClienteDoLead(lead, tx, { endereco: atual.endereco, bairro: atual.bairro, cidade: atual.cidade, uf: atual.uf });
     await sincronizarServicosDoLead(lead.id, tx);
     await tx.financiamento.updateMany({ where: { leadId: lead.id }, data: {
       valorImovel: lead.orcamento, valorFinanciado: lead.valorAprovado == null ? null : Number(lead.valorAprovado),

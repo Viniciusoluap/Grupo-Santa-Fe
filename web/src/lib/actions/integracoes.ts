@@ -14,6 +14,14 @@ import {
 } from "@/lib/integracoes";
 import { removerTokenMapbox, salvarTokenMapbox, tokenMapbox } from "@/lib/geo/mapbox-config";
 import { verificarTokenMapbox } from "@/lib/geo/mapbox-token";
+import {
+  conferirModelosDasFuncoes, mascararChaveAnthropic, modelosAnthropicPainel, removerAnthropicPainel, salvarChaveAnthropicPainel,
+  salvarModeloDaFuncao, salvarModeloPreferencialAnthropic, statusAnthropicPainel, statusModelosPorFuncao, testarAnthropicPainel,
+  type ContextoDasFuncoes,
+} from "@/lib/ia/anthropic-painel";
+import { ehFuncaoAnthropic } from "@/lib/ia/funcoes-anthropic";
+import { carregarConfig as carregarConfigCentral } from "@/lib/central-vendas/base";
+import { MERCADO_ENV } from "@/lib/incorporacao/mercado-config";
 
 const ROTA = "/admin/integracoes";
 const SERVICOS: readonly ServicoIntegracao[] = ["asaas", "pluggy", "whatsapp"];
@@ -103,4 +111,89 @@ export async function salvarMapboxAcao(token: string): Promise<{ mensagem?: stri
 export async function removerMapboxAcao(): Promise<{ erro?: string }> {
   try { await exigirAdminAtivo(); await removerTokenMapbox(); revalidatePath(ROTA); return {}; }
   catch (e) { return { erro: motivo(e) }; }
+}
+
+// ─── Anthropic (paridade 17/11, bloco 3 — gêmeo das procedures integracoes.*Anthropic da Prospecta, EPIC-024 S-10/S-11) ───
+// Só cadastro da chave (criptografada), teste quando o admin pedir, lista de modelos, preferência e modelo por função.
+// Nada aqui liga a IA: nenhuma função do Santa Fé lê a chave do painel (guarda em integracoes-anthropic.test.ts).
+// Só o admin ativo (exigirAdminAtivo = perfil admin). A chave nunca volta para a tela; erros saem mascarados.
+
+const motivoAnthropic = (e: unknown, padrao: string) => mascararChaveAnthropic(motivo(e, padrao));
+
+/** O que cada função já tem fora do painel: só nomes de modelo e SE há a chave dela (nunca a chave). */
+async function contextoDasFuncoesAnthropic(): Promise<ContextoDasFuncoes> {
+  const central = await carregarConfigCentral().catch(() => null);
+  const chaveServidor = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  const iaMercadoDesligada = process.env.INCORPORACAO_IA_ATIVA === "0";
+  return {
+    central_vendas_agente: {
+      anterior: central?.modeloIA ?? null,
+      temChave: Boolean(central?.segredos.chaveAnthropic) || chaveServidor,
+      semChave: "A Central de Vendas está sem chave da IA (nem a chave própria dela nem ANTHROPIC_API_KEY no servidor): o agente não roda.",
+      nota: "Sem escolha aqui, vale o \"Modelo da IA\" das configurações da Central de Vendas. A chave continua a da Central (ou ANTHROPIC_API_KEY), nunca a deste painel.",
+    },
+    incorporacao_mercado: {
+      ambiente: process.env.INCORPORACAO_IA_MODELO?.trim() || null,
+      padrao: MERCADO_ENV.incorporacaoIaModelo,
+      temChave: chaveServidor && !iaMercadoDesligada,
+      semChave: iaMercadoDesligada
+        ? "A pesquisa de anúncios com IA está desligada (INCORPORACAO_IA_ATIVA=0): não roda."
+        : "Sem ANTHROPIC_API_KEY no servidor, a pesquisa de anúncios pela Anthropic não roda (os dados oficiais e os comparáveis manuais continuam).",
+      nota: "Com INCORPORACAO_IA_MODELO no servidor, ela tem prioridade sobre a escolha daqui. Só vale quando o provedor em uso é a Anthropic (Tavily e Google vêm antes). A chave continua ANTHROPIC_API_KEY.",
+    },
+  };
+}
+
+export async function statusAnthropicAcao() {
+  try { await exigirAdminAtivo(); return { status: await statusAnthropicPainel() }; }
+  catch (e) { return { erro: motivoAnthropic(e, "Não foi possível ler a configuração.") }; }
+}
+
+export async function testarAnthropicAcao(): Promise<{ ok: boolean; mensagem: string }> {
+  try { await exigirAdminAtivo(); return await testarAnthropicPainel(); }
+  catch (e) { return { ok: false, mensagem: motivoAnthropic(e, "Não foi possível testar.") }; }
+}
+
+export async function salvarAnthropicAcao(apiKey: string) {
+  try {
+    await exigirAdminAtivo();
+    const r = await salvarChaveAnthropicPainel(typeof apiKey === "string" ? apiKey.slice(0, 500) : "");
+    revalidatePath(ROTA);
+    return r;
+  } catch (e) { return { erro: motivoAnthropic(e, "Chave da Anthropic não aceita.") }; }
+}
+
+export async function removerAnthropicAcao(): Promise<{ erro?: string }> {
+  try { await exigirAdminAtivo(); await removerAnthropicPainel(); revalidatePath(ROTA); return {}; }
+  catch (e) { return { erro: motivoAnthropic(e, "Não foi possível remover.") }; }
+}
+
+/** Lista os modelos da chave salva e confere o modelo escolhido de cada função (o que sumiu da conta é limpo, com aviso). */
+export async function modelosAnthropicAcao() {
+  try {
+    await exigirAdminAtivo();
+    const modelos = await modelosAnthropicPainel();
+    await conferirModelosDasFuncoes(modelos).catch(() => undefined);
+    return { modelos };
+  } catch (e) { return { erro: motivoAnthropic(e, "Não foi possível listar os modelos.") }; }
+}
+
+export async function salvarModeloAnthropicAcao(modelo: string) {
+  try { await exigirAdminAtivo(); return { modelo: await salvarModeloPreferencialAnthropic(typeof modelo === "string" ? modelo.slice(0, 200) : "") }; }
+  catch (e) { return { erro: motivoAnthropic(e, "Não foi possível salvar o modelo.") }; }
+}
+
+export async function modelosPorFuncaoAnthropicAcao() {
+  try { await exigirAdminAtivo(); return { status: await statusModelosPorFuncao(await contextoDasFuncoesAnthropic()) }; }
+  catch (e) { return { erro: motivoAnthropic(e, "Não foi possível ler os modelos por função.") }; }
+}
+
+/** Valida e grava o modelo de uma função (vazio = próxima opção da ordem). Não liga nada nem consome tokens. */
+export async function salvarModeloFuncaoAnthropicAcao(funcao: string, modelo: string) {
+  try {
+    await exigirAdminAtivo();
+    if (!ehFuncaoAnthropic(funcao)) throw new Error("Função desconhecida.");
+    const m = await salvarModeloDaFuncao(funcao, typeof modelo === "string" ? modelo.slice(0, 200) : "");
+    return { modelo: m, status: await statusModelosPorFuncao(await contextoDasFuncoesAnthropic()) };
+  } catch (e) { return { erro: motivoAnthropic(e, "Não foi possível salvar o modelo da função.") }; }
 }

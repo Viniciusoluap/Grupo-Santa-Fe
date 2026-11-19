@@ -53,8 +53,16 @@ function larguraMinima(m: Position[]): number {
   return min;
 }
 
+// Etapa F (15/11): o lote que cruza a divisa é RECORTADO (ou ampliado com a sobra vizinha) em vez de descartado, e as
+// sobras viram áreas públicas com geometria própria. A regra "testada × profundidade exatas" continua valendo para
+// TODO lote vendável inteiro; o lote de borda (ajuste "recortado"/"ampliado") precisa de área ≥ mínima e testada ≥
+// mínima (5 m ou metade da testada), e as peças públicas não têm dimensão fixa.
 function conferirDimensoesExatas(c: CenarioMassa, p: ParametrosMassa) {
-  for (const l of c.lotes) {
+  for (const l of c.lotes.filter((x) => x.tipo === "vendavel" && x.ajuste)) {
+    expect(l.areaM2).toBeGreaterThanOrEqual(p.loteMinimoM2 - 1e-6);
+    expect(l.testadaM!).toBeGreaterThanOrEqual(Math.min(p.testadaLoteM, Math.max(5, p.testadaLoteM / 2)) - 1e-6);
+  }
+  for (const l of c.lotes.filter((x) => x.tipo === "vendavel" && !x.ajuste)) {
     const [a, b, cc, d] = lados(l.anel);
     expect(Math.abs(a - p.testadaLoteM)).toBeLessThan(1e-4);
     expect(Math.abs(cc - p.testadaLoteM)).toBeLessThan(1e-4);
@@ -68,6 +76,12 @@ function conferirDimensoesExatas(c: CenarioMassa, p: ParametrosMassa) {
   expect(c.larguraViaM).toBe(p.larguraViaM);
 }
 
+// Área de uma interseção do turf (Polygon ou MultiPolygon). Etapa F: peças vizinhas (lote recortado, sobra pública)
+// podem se tocar com lascas de área ~0 vindas da ida e volta lng/lat; antes o MultiPolygon contava como 1 m².
+const areaInter = (x: ReturnType<typeof intersect>) => !x ? 0 : x.geometry.type === "Polygon"
+  ? areaPlanar(x.geometry.coordinates[0]) - x.geometry.coordinates.slice(1).reduce((s, r) => s + areaPlanar(r), 0)
+  : x.geometry.coordinates.reduce((s, rs) => s + areaPlanar(rs[0]) - rs.slice(1).reduce((h, r) => h + areaPlanar(r), 0), 0);
+
 function semSobreposicaoEDentro(anelGleba: Position[], c: CenarioMassa) {
   const gleba = metros(anelGleba);
   const ind = criarIndiceAnel(gleba, 50);
@@ -75,8 +89,7 @@ function semSobreposicaoEDentro(anelGleba: Position[], c: CenarioMassa) {
   for (const m of lotes) {
     // lote inteiro dentro: área do recorte = área do lote
     const inter = intersect(featureCollection([turfPolygon([m]), turfPolygon([gleba])]));
-    const dentro = inter && inter.geometry.type === "Polygon" ? areaPlanar(inter.geometry.coordinates[0]) : 0;
-    expect(dentro).toBeGreaterThanOrEqual(areaPlanar(m) - 0.01);
+    expect(areaInter(inter)).toBeGreaterThanOrEqual(areaPlanar(m) - 0.01);
   }
   const bbox = (m: Position[]) => [Math.min(...m.map((p) => p[0])), Math.min(...m.map((p) => p[1])), Math.max(...m.map((p) => p[0])), Math.max(...m.map((p) => p[1]))];
   const bbs = lotes.map(bbox);
@@ -86,13 +99,11 @@ function semSobreposicaoEDentro(anelGleba: Position[], c: CenarioMassa) {
       const [a, b] = [bbs[i], bbs[j]];
       if (a[2] <= b[0] || b[2] <= a[0] || a[3] <= b[1] || b[3] <= a[1]) continue;
       const x = intersect(featureCollection([turfPolygon([lotes[i]]), turfPolygon([lotes[j]])]));
-      const ax = x ? (x.geometry.type === "Polygon" ? areaPlanar(x.geometry.coordinates[0]) : 1) : 0;
-      expect(ax).toBeLessThan(0.01);
+      expect(areaInter(x)).toBeLessThan(0.01);
     }
     for (const r of ruas) {
       const x = intersect(featureCollection([turfPolygon([lotes[i]]), turfPolygon([r])]));
-      const ax = x ? (x.geometry.type === "Polygon" ? areaPlanar(x.geometry.coordinates[0]) : 1) : 0;
-      expect(ax).toBeLessThan(0.01);
+      expect(areaInter(x)).toBeLessThan(0.01);
     }
   }
   void ind;
@@ -167,7 +178,10 @@ describe("Correção 01 — parâmetros respeitados exatamente", () => {
     const r = gerarEstudoMassa(IRREGULAR, CENTRO, { ...BASE, appM2: 5_000, faixaServidaoM2: 1_000 });
     for (const c of r.cenarios) {
       const q = c.quadroAreas!;
-      expect(Math.abs(q.totalNaoParcelavelM2 + q.areaLiquidaVendavelM2 + q.areaPublicaTotalM2 + (q.sobrasM2 ?? 0) - q.areaBrutaM2)).toBeLessThan(1);
+      // A parte da área verde que está em APP/faixa aproveitada (regra de 16/11) já está nas não parceláveis: desconta uma vez.
+      const aproveitada = (q.areaVerdeEmRestricaoM2 ?? 0) + (q.areaInstitucionalEmRestricaoM2 ?? 0);
+      expect(aproveitada).toBeCloseTo(6_000, 0);
+      expect(Math.abs(q.totalNaoParcelavelM2 + q.areaLiquidaVendavelM2 + q.areaPublicaTotalM2 - aproveitada + (q.sobrasM2 ?? 0) - q.areaBrutaM2)).toBeLessThan(1);
       expect(q.sistemaViarioM2).toBeCloseTo(c.sistemaViario!.areaGeometricaM2, 2);
       // área das ruas desenhadas recalculada de forma independente (união dos anéis)
       const pecas = (c.ruas ?? []).map((a) => turfPolygon([metros(a)]));
@@ -229,9 +243,11 @@ describe("Correção 02 — determinismo e cenários distintos", () => {
   });
 
   it("diagnóstico distingue 'lote cabe sozinho mas não com a via'", () => {
-    // faixa de 26 m: lote 20 × 25 cabe sozinho, mas via (12) + 25 = 37 m e via + 20 = 32 m não cabem
-    const faixa = geo([[-200, -13], [200, -13], [200, 13], [-200, 13], [-200, -13]]);
-    const r = gerarEstudoMassa(faixa, CENTRO, { ...BASE, testadaLoteM: 20, percentInstitucional: 0, percentAreaVerde: 0 });
+    // gleba de 30 × 26 m: lote 20 × 25 cabe sozinho, mas via (12) + 25 = 37 m não cabe em nenhuma direção.
+    // Etapa F: antes era uma faixa de 400 × 26 m com mínimo de 250 m²; com o recorte na divisa, ali passa a caber um
+    // lote recortado de 20 × 14 m (280 m²) diante de uma via inteira — por isso o mínimo agora é a área cheia (500 m²).
+    const faixa = geo([[-15, -13], [15, -13], [15, 13], [-15, 13], [-15, -13]]);
+    const r = gerarEstudoMassa(faixa, CENTRO, { ...BASE, testadaLoteM: 20, loteMinimoM2: 500, percentInstitucional: 0, percentAreaVerde: 0 });
     expect(r.cenarios).toEqual([]);
     expect(r.inviabilidade?.causas.join(" ")).toMatch(/cabe isoladamente/);
   });
@@ -267,7 +283,7 @@ describe("Correção 03 — Rua Simples", () => {
     const coords = MORADA_SINTETICA.map((p) => `${p[0]},${p[1]},0`).join(" ");
     const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><name>Gleba</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>`;
     const t = parseKmlTerreno(kml);
-    const r = gerarEstudoMassa(t.feature.geometry.coordinates[0], CENTRO, MORADA);
+    const r = gerarEstudoMassa(t.anel, CENTRO, MORADA);
     expect(r.cenarios[0].kpis.lotesVendaveis).toBe(29);
   });
 
@@ -355,17 +371,24 @@ describe("Morada do Bosque — KML real do sistema (150.095 m²)", () => {
     expect(areaPlanar(ANEL_MORADA.map((p) => m.paraMetros(p)))).toBeLessThan(151_500);
   });
 
-  it("retangular exato 20 × 250 + via 3 m: 23 lotes (não força 29)", () => {
+  it("retangular exato 20 × 250 + via 3 m: lotes inteiros de 5.000 m² e os de borda recortados (não força 29)", () => {
     const c = gerarEstudoMassa(ANEL_MORADA, CENTRO_MORADA, MORADA_REAL).cenarios[0];
-    expect(c.kpis.lotesVendaveis).toBe(23);
-    for (const l of c.lotes) expect(l.areaM2).toBeCloseTo(5000, 2);
+    // Etapa F: antes 23 (só retângulos inteiros); agora os lotes recortados pela divisa com área ≥ 5.000 m² também valem
+    expect(c.kpis.lotesVendaveis).toBeGreaterThanOrEqual(23);
+    expect(c.kpis.lotesVendaveis).toBeLessThan(29);
+    for (const l of c.lotes.filter((x) => x.tipo === "vendavel" && !x.ajuste)) expect(l.areaM2).toBeCloseTo(5000, 2);
+    for (const l of c.lotes.filter((x) => x.tipo === "vendavel")) expect(l.areaM2).toBeGreaterThanOrEqual(5000 - 1e-6);
+    // o que não vira lote nem via tem destino (área verde da sobra): nada fica em branco
+    expect(Math.abs(c.fechoAreas!.diferencaM2)).toBeLessThanOrEqual(Math.max(1, 0.005 * c.fechoAreas!.areaGlebaM2));
   });
 
   it("lote acompanha a divisa: 25 lotes, todos ≥ 5.000 m², frente múltipla de 20 m, dentro da gleba e sem sobreposição", () => {
     const p = { ...MORADA_REAL, formatoLote: "divisa" as const };
     const c = gerarEstudoMassa(ANEL_MORADA, CENTRO_MORADA, p).cenarios[0];
     expect(c.kpis.lotesVendaveis).toBe(25);
-    for (const l of c.lotes) {
+    // Etapa F: `lotes` também traz as sobras como áreas públicas desenhadas — as regras do lote valem para os vendáveis
+    const vendaveis = c.lotes.filter((l) => l.tipo === "vendavel");
+    for (const l of vendaveis) {
       expect(l.areaM2).toBeGreaterThanOrEqual(5000);
       expect((l.testadaM ?? 0) % 20).toBeCloseTo(0, 6);
       expect(l.testadaM).toBeGreaterThanOrEqual(20);
@@ -377,7 +400,7 @@ describe("Morada do Bosque — KML real do sistema (150.095 m²)", () => {
     for (const l of c.lotes) {
       const m = l.anel.map((q) => proj2.paraMetros(q));
       const inter = intersect(featureCollection([turfPolygon([m]), gleba]));
-      const a = inter && inter.geometry.type === "Polygon" ? areaPlanar(inter.geometry.coordinates[0]) : 0;
+      const a = !inter ? 0 : inter.geometry.type === "Polygon" ? areaPlanar(inter.geometry.coordinates[0]) : inter.geometry.coordinates.reduce((s, r) => s + areaPlanar(r[0]), 0);
       expect(a).toBeGreaterThanOrEqual(areaPlanar(m) - 0.5);
     }
   });
@@ -421,7 +444,9 @@ describe("Rua Simples — via acompanha a divisa", () => {
   const conferirDivisa = (anelGeo: Position[], centro: [number, number], c: CenarioMassa, p: ParametrosMassa) => {
     const pj = criarProjecao(centro);
     const gleba = turfPolygon([anelGeo.map((q) => pj.paraMetros(q))]);
-    const lotes = c.lotes.map((l) => turfPolygon([l.anel.map((q) => pj.paraMetros(q))]));
+    // Etapa F: as sobras destinadas (área verde/institucional) também estão em `lotes`; as regras de lote valem para os vendáveis
+    const vendaveis = c.lotes.filter((l) => l.tipo === "vendavel");
+    const lotes = vendaveis.map((l) => turfPolygon([l.anel.map((q) => pj.paraMetros(q))]));
     const ruas = (c.ruas ?? []).map((r) => turfPolygon([r.map((q) => pj.paraMetros(q))]));
     const areaInter = (a: ReturnType<typeof turfPolygon>, b: ReturnType<typeof turfPolygon>) => {
       const x = intersect(featureCollection([a, b]));
@@ -430,8 +455,8 @@ describe("Rua Simples — via acompanha a divisa", () => {
     };
     lotes.forEach((lp, i) => {
       expect(areaInter(lp, gleba)).toBeGreaterThanOrEqual(areaPlanar(lp.geometry.coordinates[0]) - 0.5); // dentro da gleba
-      expect(c.lotes[i].areaM2).toBeGreaterThanOrEqual(p.loteMinimoM2);                                  // área mínima
-      expect(c.lotes[i].testadaM ?? 0).toBeGreaterThanOrEqual(p.testadaLoteM - 1e-6);                    // frente mínima
+      expect(vendaveis[i].areaM2).toBeGreaterThanOrEqual(p.loteMinimoM2);                                // área mínima
+      expect(vendaveis[i].testadaM ?? 0).toBeGreaterThanOrEqual(p.testadaLoteM - 1e-6);                  // frente mínima
       for (let j = i + 1; j < lotes.length; j++) expect(areaInter(lp, lotes[j])).toBeLessThan(0.5);      // sem sobreposição
       for (const r of ruas) expect(areaInter(lp, r)).toBeLessThan(0.5);                                   // lote não invade a via
     });

@@ -27,7 +27,8 @@ function tx() {
     checklistItem: { createMany: async () => ({ count: 0 }) },
   };
   for (const modelo of ["financiamento", "obra", "projeto", "regularizacao", "avaliacao"]) t[modelo] = {
-    findMany: async () => [],
+    // Regra do endereço (17/11): a propagação lê as avaliações do lead para decidir campo a campo.
+    findMany: async ({ where }: { where?: Linha } = {}) => (estado.tabelas[modelo] ?? []).filter((r) => !where || casa(r, where)),
     create: async ({ data }: { data: Linha }) => { const r = { ...data, id: `${modelo}1` }; (estado.tabelas[modelo] ??= []).push(r); return r; },
     updateMany: async ({ where, data }: { where: Linha; data: Linha }) => {
       estado.updates.push({ modelo, where, data });
@@ -105,6 +106,21 @@ describe("endereço do lead (paridade EPIC-017)", () => {
     expect(a2).toMatchObject({ clienteCpf: "12345678901", endereco: "Imóvel avaliado, 5", bairro: "Setor X", cidade: "Canaã dos Carajás" });
     expect(estado.tabelas.obra.map((o) => o.endereco)).toEqual(["Rua Nova, 1, Jardim, Parauapebas/PA", "Lote 7, Qd 3"]);
     expect(estado.tabelas.regularizacao[0].endereco).toBe("Rua Nova, 1, Jardim, Parauapebas/PA");
+  });
+
+  it("regra de 17/11: com o endereço anterior do lead, a avaliação que ainda o tem acompanha; a editada à mão fica", async () => {
+    estado.updates = [];
+    estado.tabelas = {
+      avaliacao: [{ id: "a1", leadId: "L1", endereco: "Rua Velha, 1", bairro: "Centro", cidade: "Canaã dos Carajás", estado: "PA" },
+        { id: "a2", leadId: "L1", endereco: "Imóvel avaliado, 5", bairro: "Setor X", cidade: "Curionópolis", estado: "PA" }],
+      obra: [], regularizacao: [], financiamento: [], projeto: [],
+    };
+    const { propagarDadosClienteDoLead } = await import("@/lib/crm/vinculo-lead");
+    await propagarDadosClienteDoLead({ ...LEAD, endereco: "Rua Nova, 1", bairro: "Jardim", cidade: "Canaã dos Carajás", uf: "PA" }, undefined,
+      { endereco: "Rua Velha, 1", bairro: "Centro", cidade: "Canaã dos Carajás", uf: "PA" });
+    const [a1, a2] = estado.tabelas.avaliacao;
+    expect(a1).toMatchObject({ endereco: "Rua Nova, 1", bairro: "Jardim", cidade: "Canaã dos Carajás" });
+    expect(a2).toMatchObject({ endereco: "Imóvel avaliado, 5", bairro: "Setor X", cidade: "Curionópolis" });
   });
 
   it("propagação sem campos de endereço (chamadores antigos) não toca em endereços", async () => {

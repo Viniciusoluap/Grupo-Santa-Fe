@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield } from "lucide-react";
-import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes, alterarPerfilUsuario } from "@/lib/actions/usuarios";
+import { useMemo, useState, useTransition } from "react";
+import { Users, Plus, KeyRound, Trash2, ToggleLeft, ToggleRight, X, Shield, Search, Mail, UserX } from "lucide-react";
+import { criarUsuario, alternarAtivo, redefinirSenha, excluirUsuario, salvarPermissoes, alterarPerfilUsuario, salvarDadosCorretor, enviarLinkAcesso, vincularUsuarioCorretor } from "@/lib/actions/usuarios";
+import { excluirCorretor } from "@/lib/actions/corretores";
+import { filtrarItens, perfilDoUsuario, PERFIS_DO_FILTRO, type PerfilDoFiltro, type Situacao } from "@/lib/usuarios/filtro";
 import { MODULOS_PAINEL } from "@/lib/auth/modulos-lista";
 import { UFS } from "@/lib/engenheiro";
 import { PerfilEngenheiro } from "./perfil-engenheiro";
@@ -10,6 +12,19 @@ import { Modal } from "@/components/ui/modal";
 
 // Lote 2, correção 04: "engenheiro" é perfil da tela — no acesso é colaborador + perfil profissional.
 type Papel = "admin" | "colaborador" | "engenheiro" | "corretor" | "cliente" | "empreiteiro";
+
+/** Paridade 17/11 (EPIC-023 S-A da Prospecta): dados da antiga tela "Corretores". */
+export interface DadosCorretor {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  creci: string;
+  ativo: boolean;
+  observacoes: string;
+  /** Comissão padrão (%), texto decimal; null = sem regra. */
+  percentualComissao: string | null;
+}
 
 interface Usuario {
   id: string;
@@ -24,6 +39,7 @@ interface Usuario {
   leadNome: string | null;
   leadTelefone: string | null;
   engenheiro: boolean;
+  corretor: DadosCorretor | null;
 }
 
 interface LeadOpcao { id: string; nome: string; email: string | null; telefone: string | null }
@@ -52,9 +68,15 @@ interface Props {
   usuarios: Usuario[];
   /** Clientes do CRM ainda sem conta (para vincular a conta de cliente). */
   leadsSemConta: LeadOpcao[];
+  /** Corretores antigos sem conta de acesso (antes só apareciam na tela "Corretores"). */
+  corretoresSemConta?: DadosCorretor[];
+  /** Filtro por perfil vindo de `?perfil=` (paridade EPIC-023 S-A: a antiga rota de Corretores abre em Corretor). */
+  perfilInicial?: PerfilDoFiltro | "todos";
 }
 
-export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
+const comissaoTexto = (p: string | null) => (p ? `comissão ${Number(p).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%` : "sem comissão padrão");
+
+export function UsuariosClient({ usuarios, leadsSemConta, corretoresSemConta = [], perfilInicial = "todos" }: Props) {
   const [papelNovo, setPapelNovo] = useState<Papel>("colaborador");
   const [buscaLead, setBuscaLead] = useState("");
   // Item 12 (18/10): conta de cliente com nome e telefone do cadastro no CRM.
@@ -62,16 +84,32 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
   const [foneNovo, setFoneNovo] = useState("");
   const [linkGerado, setLinkGerado] = useState<{ link: string; emailEnviado: boolean } | null>(null);
   const [perfilId, setPerfilId] = useState<string | null>(null);
-  const [aba, setAba] = useState<Papel | "todos">("todos");
+  const [aba, setAba] = useState<Papel | "todos">(perfilInicial);
   const [showForm, setShowForm] = useState(false);
   const [resetId, setResetId] = useState<string | null>(null);
   const [permissoesId, setPermissoesId] = useState<string | null>(null);
   const [engenheiroId, setEngenheiroId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  // Paridade 17/11 (EPIC-023 S-A da Prospecta): busca, situação, dados do corretor e cadastro sem convite.
+  const [busca, setBusca] = useState("");
+  const [situacao, setSituacao] = useState<Situacao>("todos");
+  const [corretorEditId, setCorretorEditId] = useState<string | null>(null);
+  const [convidar, setConvidar] = useState(true);
 
-  const perfilDe = (u: Usuario): Papel => (u.engenheiro ? "engenheiro" : (u.papel as Papel));
-  const filtrados = aba === "todos" ? usuarios : usuarios.filter((u) => perfilDe(u) === aba);
+  const perfilDe = (u: Usuario): Papel => perfilDoUsuario(u) as Papel;
+  const textosDoUsuario = (u: Usuario) => [u.nome, u.leadNome, u.email, u.creci ?? u.corretor?.creci, u.telefone];
+  const porBuscaESituacao = useMemo(
+    () => filtrarItens(usuarios.map((u) => ({ u, ativo: u.ativo, textos: textosDoUsuario(u) })), { busca, situacao }).map((i) => i.u),
+    [usuarios, busca, situacao],
+  );
+  const semContaVisiveis = useMemo(
+    () => filtrarItens(corretoresSemConta.map((c) => ({ c, ativo: c.ativo, textos: [c.nome, c.email, c.creci, c.telefone] })), { busca, situacao }).map((i) => i.c),
+    [corretoresSemConta, busca, situacao],
+  );
+  const filtrados = aba === "todos" ? porBuscaESituacao : porBuscaESituacao.filter((u) => perfilDe(u) === aba);
+  const mostrarSemConta = aba === "todos" || aba === "corretor";
+  const totalVisivel = filtrados.length + (mostrarSemConta ? semContaVisiveis.length : 0);
 
   function feedback(texto: string) {
     setMsg(texto);
@@ -86,7 +124,9 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
       if (res?.error) { feedback(`Erro: ${res.error}`); return; }
       setShowForm(false);
       if (res && "link" in res && res.link) setLinkGerado({ link: res.link, emailEnviado: Boolean(res.emailEnviado) });
-      feedback("Usuário cadastrado com sucesso!");
+      feedback(res && "convidado" in res && res.convidado === false
+        ? "Corretor cadastrado sem convite — envie o link de acesso quando quiser, pelo botão de e-mail do usuário."
+        : "Usuário cadastrado com sucesso!");
     });
   }
 
@@ -129,6 +169,42 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
     });
   }
 
+  async function handleSalvarCorretor(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const res = await salvarDadosCorretor(fd);
+      if (res?.error) { feedback(`Erro: ${res.error}`); return; }
+      setCorretorEditId(null);
+      feedback("Dados do corretor salvos.");
+    });
+  }
+
+  function handleEnviarLink(id: string, nome: string) {
+    if (!confirm(`Gerar um novo link de acesso (definição de senha, válido por 7 dias) para "${nome}" e enviá-lo por e-mail?`)) return;
+    startTransition(async () => {
+      const res = await enviarLinkAcesso(id);
+      if (res?.error) { feedback(`Erro: ${res.error}`); return; }
+      if (res && "link" in res && res.link) setLinkGerado({ link: res.link, emailEnviado: Boolean(res.emailEnviado) });
+    });
+  }
+
+  function handleVincularConta(corretorId: string) {
+    startTransition(async () => {
+      const res = await vincularUsuarioCorretor(corretorId);
+      if (res?.error) { feedback(`Erro: ${res.error}`); return; }
+      if (res && "token" in res && res.token) setLinkGerado({ link: `${window.location.origin}/definir-senha/${res.token}`, emailEnviado: false });
+    });
+  }
+
+  function handleExcluirCorretor(id: string, nome: string) {
+    if (!confirm(`Excluir o corretor "${nome}"? Leads, visitas, comissões, financiamentos e imóveis ficam sem corretor. Esta ação não pode ser desfeita.`)) return;
+    startTransition(async () => {
+      try { await excluirCorretor(id); feedback("Corretor excluído."); }
+      catch (erro) { feedback(`Erro: ${erro instanceof Error ? erro.message : "não foi possível excluir"}`); }
+    });
+  }
+
   async function handleTogglePerm(userId: string, moduloId: string, currentPerms: string[]) {
     const newPerms = currentPerms.includes(moduloId)
       ? currentPerms.filter((p) => p !== moduloId)
@@ -149,7 +225,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
           </h2>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setConvidar(true); setNomeNovo(""); setFoneNovo(""); if (aba !== "todos") setPapelNovo(aba); setShowForm(true); }}
           className="flex items-center gap-1.5 bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold uppercase px-3 py-2 hover:bg-black transition-colors"
         >
           <Plus size={13} /> Novo usuário
@@ -170,11 +246,26 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
         </div>
       )}
 
+      {/* Busca e situação (paridade EPIC-023 S-A) — combinam com o tipo de usuário (abas abaixo) */}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="min-w-[200px] flex-1 text-xs font-bold text-gray-500 uppercase">Buscar
+          <span className="relative mt-1 block"><Search size={14} className="pointer-events-none absolute left-2.5 top-2.5 text-gray-500" />
+            <input type="search" aria-label="Buscar usuário" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, e-mail, CRECI ou telefone" className="w-full border border-gray-200 py-2 pl-8 pr-3 text-sm font-normal normal-case focus:outline-none focus:border-[var(--brand-yellow)]" /></span>
+        </label>
+        <label className="text-xs font-bold text-gray-500 uppercase">Situação
+          <select aria-label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value as Situacao)} className="mt-1 block border border-gray-200 bg-white px-2 py-2 text-sm font-normal normal-case">
+            <option value="todos">Todos</option><option value="ativos">Ativos</option><option value="inativos">Inativos</option>
+          </select>
+        </label>
+        <p className="pb-2 text-xs text-gray-600">{totalVisivel} de {usuarios.length + corretoresSemConta.length}</p>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap border-b border-gray-100 pb-0">
-        {(["todos", "admin", "colaborador", "engenheiro", "corretor", "cliente", "empreiteiro"] as const).map((p) => (
+        {(["todos", ...PERFIS_DO_FILTRO] as const).map((p) => (
           <button
             key={p}
+            aria-pressed={aba === p}
             onClick={() => setAba(p)}
             className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors border-b-2 -mb-px ${
               aba === p
@@ -184,7 +275,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
           >
             {p === "todos" ? "Todos" : PAPEIS.find((x) => x.value === p)?.label}
             <span className="ml-1 text-[10px]">
-              ({p === "todos" ? usuarios.length : usuarios.filter((u) => perfilDe(u) === p).length})
+              ({p === "todos" ? porBuscaESituacao.length + semContaVisiveis.length : porBuscaESituacao.filter((u) => perfilDe(u) === p).length + (p === "corretor" ? semContaVisiveis.length : 0)})
             </span>
           </button>
         ))}
@@ -192,8 +283,8 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
 
       {/* Lista */}
       <div className="space-y-2">
-        {filtrados.length === 0 && (
-          <p className="text-sm text-gray-600 text-center py-6">Nenhum usuário nesta categoria.</p>
+        {totalVisivel === 0 && (
+          <p className="text-sm text-gray-600 text-center py-6">Nenhum usuário com esses filtros.</p>
         )}
         {filtrados.map((u) => (
           <div key={u.id} className={`border px-4 py-3 flex items-center gap-3 flex-wrap ${u.ativo ? "border-gray-100" : "border-gray-100 bg-gray-50 opacity-60"}`}>
@@ -204,7 +295,7 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 {!u.ativo && <span className="text-[10px] text-red-500 font-bold uppercase">Inativo</span>}
               </div>
               <p className="text-xs text-gray-600 mt-0.5">{u.email}</p>
-              {u.papel === "corretor" && u.creci && <p className="text-xs text-gray-600">CRECI: {u.creci}</p>}
+              {u.papel === "corretor" && <p className="text-xs text-gray-600">CRECI: {u.creci || u.corretor?.creci || "—"}{u.corretor ? ` · ${comissaoTexto(u.corretor.percentualComissao)}` : ""}</p>}
               {u.papel === "cliente" && <p className="text-xs text-gray-600">Cliente do CRM: {u.leadNome ? `${u.leadNome}${u.leadTelefone ? ` · ${u.leadTelefone}` : ""}` : "sem vínculo (vincule em Perfil)"}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -223,6 +314,15 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
               >
                 Perfil
               </button>
+              {u.corretor && (
+                <button
+                  onClick={() => setCorretorEditId(corretorEditId === u.corretor!.id ? null : u.corretor!.id)}
+                  title="Dados do corretor (CRECI, comissão padrão, observações)"
+                  className="text-gray-600 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase"
+                >
+                  Corretor
+                </button>
+              )}
               {u.engenheiro && (
                 <button
                   onClick={() => setEngenheiroId(engenheiroId === u.id ? null : u.id)}
@@ -239,6 +339,15 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 className="text-gray-600 hover:text-purple-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Shield size={15} />
+              </button>
+              <button
+                onClick={() => handleEnviarLink(u.id, u.nome)}
+                disabled={isPending || !u.ativo}
+                title="Enviar link de acesso (definição de senha)"
+                aria-label={`Enviar link de acesso para ${u.nome}`}
+                className="text-gray-600 hover:text-[var(--brand-dark)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Mail size={15} />
               </button>
               <button
                 onClick={() => setResetId(u.id)}
@@ -276,6 +385,8 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                 <button type="button" onClick={() => setPerfilId(null)} className="text-xs text-gray-600">Fechar</button>
               </form>
             )}
+
+            {u.corretor && corretorEditId === u.corretor.id && <FormCorretor corretor={u.corretor} pendente={isPending} onSubmit={handleSalvarCorretor} onFechar={() => setCorretorEditId(null)} />}
 
             {/* Lote 2, correção 04: dados profissionais e documentos do engenheiro */}
             {engenheiroId === u.id && u.engenheiro && <PerfilEngenheiro usuarioId={u.id} />}
@@ -335,6 +446,26 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
             )}
           </div>
         ))}
+        {mostrarSemConta && semContaVisiveis.map((c) => (
+          <div key={`corretor-${c.id}`} className={`border px-4 py-3 flex items-center gap-3 flex-wrap ${c.ativo ? "border-gray-100" : "border-gray-100 bg-gray-50 opacity-60"}`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-[var(--brand-dark)] text-sm">{c.nome}</span>
+                <Badge papel="corretor" />
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-600"><UserX size={12} /> Sem conta de acesso</span>
+                {!c.ativo && <span className="text-[10px] text-red-500 font-bold uppercase">Inativo</span>}
+              </div>
+              <p className="text-xs text-gray-600 mt-0.5">{c.email}</p>
+              <p className="text-xs text-gray-600">CRECI: {c.creci || "—"} · {comissaoTexto(c.percentualComissao)}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => handleVincularConta(c.id)} disabled={isPending} title="Criar a conta de acesso e gerar o link de definição de senha" className="bg-[var(--brand-dark)] px-2 py-1 text-[10px] font-bold uppercase text-[var(--brand-yellow)] disabled:opacity-50">Vincular conta</button>
+              <button onClick={() => setCorretorEditId(corretorEditId === c.id ? null : c.id)} title="Dados do corretor (CRECI, comissão padrão, observações)" className="text-gray-600 hover:text-[var(--brand-dark)] text-[10px] font-bold uppercase">Corretor</button>
+              <button onClick={() => handleExcluirCorretor(c.id, c.nome)} disabled={isPending} title="Excluir corretor" aria-label={`Excluir corretor ${c.nome}`} className="text-gray-500 hover:text-red-500 transition-colors disabled:opacity-30"><Trash2 size={15} /></button>
+            </div>
+            {corretorEditId === c.id && <FormCorretor corretor={c} pendente={isPending} onSubmit={handleSalvarCorretor} onFechar={() => setCorretorEditId(null)} />}
+          </div>
+        ))}
       </div>
 
       {/* Modal novo usuário */}
@@ -376,6 +507,22 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">CRECI *</label>
                   <input name="creci" type="text" required placeholder="CRECI do corretor" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
                 </div>
+              )}
+              {papelNovo === "corretor" && (
+                <>
+                  <div>
+                    <label htmlFor="comissao-novo" className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Comissão padrão (%)</label>
+                    <input id="comissao-novo" name="percentualComissaoPadrao" type="text" inputMode="decimal" pattern="\d{1,3}([.,]\d{1,4})?" placeholder="Sem regra cadastrada" className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                    <p className="mt-1 text-[11px] text-gray-600">Usada nas obras sem percentual próprio. Vazio = sem regra.</p>
+                  </div>
+                  <div>
+                    <label htmlFor="observacoes-novo" className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Observações</label>
+                    <textarea id="observacoes-novo" name="observacoes" rows={2} maxLength={5000} className="w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-yellow)]" />
+                  </div>
+                  <input type="hidden" name="enviarConvite" value={convidar ? "sim" : "nao"} />
+                  <label className="flex items-center gap-2 text-xs text-gray-700"><input type="checkbox" checked={convidar} onChange={(e) => setConvidar(e.target.checked)} className="accent-[var(--brand-yellow)]" />Enviar agora o e-mail para o corretor definir a senha</label>
+                  {!convidar && <p className="text-xs text-gray-500">O corretor fica cadastrado sem acesso; o link de senha pode ser enviado depois, pelo botão de e-mail do usuário.</p>}
+                </>
               )}
               {papelNovo === "engenheiro" && (
                 <div className="grid grid-cols-2 gap-2">
@@ -438,5 +585,30 @@ export function UsuariosClient({ usuarios, leadsSemConta }: Props) {
         </Modal>
       )}
     </div>
+  );
+}
+
+/** Paridade 17/11 (EPIC-023 S-A da Prospecta): o que a antiga tela "Corretores" editava. Só admin. */
+function FormCorretor({ corretor: c, pendente, onSubmit, onFechar }: { corretor: DadosCorretor; pendente: boolean; onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onFechar: () => void }) {
+  const [ativo, setAtivo] = useState(c.ativo);
+  const campo = "block w-full mt-1 border border-gray-200 px-2 py-1.5 text-xs bg-white font-normal normal-case focus:outline-none focus:border-[var(--brand-yellow)]";
+  const rotulo = "text-xs font-bold text-gray-500 uppercase";
+  return (
+    <form onSubmit={onSubmit} aria-label={`Dados do corretor ${c.nome}`} className="w-full grid gap-2 sm:grid-cols-2 pt-2 border-t border-gray-100 mt-1">
+      <input type="hidden" name="id" value={c.id} />
+      <input type="hidden" name="ativo" value={String(ativo)} />
+      <label className={rotulo}>Nome *<input name="nome" required defaultValue={c.nome} className={campo} /></label>
+      <label className={rotulo}>E-mail *<input name="email" type="email" required defaultValue={c.email} className={campo} /></label>
+      <label className={rotulo}>Telefone *<input name="telefone" required defaultValue={c.telefone} className={campo} /></label>
+      <label className={rotulo}>CRECI *<input name="creci" required defaultValue={c.creci} className={campo} /></label>
+      <label className={rotulo}>Comissão padrão (%)<input name="percentualComissaoPadrao" inputMode="decimal" pattern="\d{1,3}([.,]\d{1,4})?" placeholder="Sem regra cadastrada" defaultValue={c.percentualComissao ? String(Number(c.percentualComissao)).replace(".", ",") : ""} className={campo} /></label>
+      <label className="flex items-center gap-2 self-end pb-1.5 text-xs text-gray-700"><input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="accent-[var(--brand-yellow)]" />Cadastro de corretor ativo</label>
+      <label className={`${rotulo} sm:col-span-2`}>Observações<textarea name="observacoes" rows={3} maxLength={5000} defaultValue={c.observacoes} className={campo} /></label>
+      <p className="text-[11px] text-gray-600 sm:col-span-2">A comissão padrão vale nas obras sem percentual próprio. Vazio = sem regra.</p>
+      <div className="flex gap-2 sm:col-span-2">
+        <button type="submit" disabled={pendente} className="bg-[var(--brand-dark)] text-[var(--brand-yellow)] text-xs font-bold px-3 py-1.5 disabled:opacity-50">Salvar corretor</button>
+        <button type="button" onClick={onFechar} className="text-xs text-gray-600">Fechar</button>
+      </div>
+    </form>
   );
 }

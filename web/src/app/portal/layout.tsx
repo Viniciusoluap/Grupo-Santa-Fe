@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConsentimentoNoLogin } from "@/components/consentimento/consentimento-no-login";
 import { redirect } from "next/navigation";
 import { Home, FileText, CalendarDays, MessageSquare, HardHat, Landmark } from "lucide-react";
 import { PortalHeader } from "@/components/portal/portal-header";
@@ -26,6 +27,7 @@ export default async function PortalLayout({ children }: { children: React.React
   return (
     <div className="min-h-screen bg-gray-50">
       <PortalHeader subtitulo={`Portal do Cliente · ${session.user?.name ?? ""}`} voltarPara="/portal" />
+      <ConsentimentoNoLogin usuarioId={usuario.id} />
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* No celular a navegação fica em cima do conteúdo (antes espremia a página numa coluna). */}

@@ -1,7 +1,7 @@
 // Lote 02, correção 05 — regras do Mapa Operacional (alfinetes, agrupamento,
 // camadas). Mesmo conteúdo em Prospecta/server/mapa-alfinetes.test.ts.
 import { describe, expect, it } from "vitest";
-import { CAMADAS_MAPA, CATEGORIAS_PONTO, categoriaDoPonto, coordenadaValida, estiloAgrupamento, htmlAlfinete } from "@/lib/mapa-alfinetes";
+import { CAMADAS_MAPA, CATEGORIAS_PONTO, categoriaDoPonto, coordenadaValida, estiloAgrupamento, htmlAlfinete, limitesDosPontos } from "@/lib/mapa-alfinetes";
 
 describe("Mapa Operacional — alfinetes e camadas", () => {
   it("cor por tipo/status: obra, imóvel disponível, reservado e outros", () => {
@@ -47,5 +47,13 @@ describe("Mapa Operacional — alfinetes e camadas", () => {
     for (const c of [CAMADAS_MAPA.satelite, CAMADAS_MAPA.ruas, CAMADAS_MAPA.rotulos, CAMADAS_MAPA.mapa]) expect(c.attribution.length).toBeGreaterThan(0);
     expect(CAMADAS_MAPA.satelite.attribution).toContain("Esri");
     expect(CAMADAS_MAPA.mapa.attribution).toContain("OpenStreetMap");
+  });
+
+  it("EPIC-023: enquadramento — limites [oeste, sul, leste, norte]; um ponto só ganha folga; vazio não enquadra", () => {
+    expect(limitesDosPontos([])).toBeNull();
+    expect(limitesDosPontos([{ lat: -5.5, lng: -47.4 }, { lat: -5.2, lng: -47.9 }])).toEqual([-47.9, -5.5, -47.4, -5.2]);
+    const [o, s, l, n] = limitesDosPontos([{ lat: -5.5, lng: -47.4 }])!;
+    expect(l - o).toBeCloseTo(0.002, 6);
+    expect(n - s).toBeCloseTo(0.002, 6);
   });
 });

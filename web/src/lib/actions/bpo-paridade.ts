@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { exigirAdminAtivo, exigirModuloAcao } from "@/lib/auth/modulos";
 import { capturarErroAcao } from "@/lib/acao-resultado";
 import { LIMITE_ARQUIVO_CONTA_AZUL } from "@/lib/financeiro/conta-azul";
-import { importarContaAzul, previaContaAzul } from "@/lib/bpo-conta-azul";
+import { importarContaAzul, liberarReimportacaoContaAzul, previaContaAzul } from "@/lib/bpo-conta-azul";
 import {
   abertosParaBaixa, confirmarLancamentos, contagemAClassificar, criarLancamentosDasMovimentacoes, darBaixaComMovimentacao,
   ignorarMovimentacoes, lancamentosAClassificar, movimentacoesAClassificar,
@@ -49,6 +49,21 @@ export async function importarContaAzulAcao(arquivos: Record<string, string>) {
     await exigirAdminAtivo();
     await exigirModuloAcao("bpo");
     const r = await importarContaAzul(arquivosValidos(arquivos));
+    revalidatePath(BPO);
+    return r;
+  });
+}
+
+/**
+ * Paridade 17/11 (EPIC-024 S-01 da Prospecta): remove em definitivo os arquivados do Conta Azul (sem vínculo) que
+ * bloqueiam este backup. Só o perfil admin ativo (exigirAdminAtivo), com a confirmação LIBERAR conferida no servidor.
+ */
+export async function liberarReimportacaoContaAzulAcao(input: { arquivos: Record<string, string>; confirmacao: string }) {
+  return capturarErroAcao(async () => {
+    const admin = await exigirAdminAtivo();
+    await exigirModuloAcao("bpo");
+    const confirmacao = typeof input?.confirmacao === "string" ? input.confirmacao.slice(0, 20) : "";
+    const r = await liberarReimportacaoContaAzul({ arquivos: arquivosValidos(input?.arquivos), confirmacao }, admin.id);
     revalidatePath(BPO);
     return r;
   });

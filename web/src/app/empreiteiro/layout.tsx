@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ConsentimentoNoLogin } from "@/components/consentimento/consentimento-no-login";
 import { destinoDoUsuario, usuarioAtual } from "@/lib/auth/modulos";
 import { PortalHeader } from "@/components/portal/portal-header";
 
@@ -13,6 +14,7 @@ export default async function EmpreiteiroLayout({ children }: { children: React.
   return (
     <div className="min-h-screen bg-gray-50">
       <PortalHeader subtitulo={`Acesso do Empreiteiro · ${u.nome ?? ""}`} voltarPara="/empreiteiro" />
+      <ConsentimentoNoLogin usuarioId={u.id} />
       <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
     </div>
   );

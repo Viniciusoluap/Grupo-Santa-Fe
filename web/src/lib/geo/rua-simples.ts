@@ -1,10 +1,11 @@
 // Tipologia RUA SIMPLES — via única de mão dupla com lotes dos dois lados.
 //
 // A via é um corredor reto de largura = largura informada pelo usuário. Os lotes
-// são retângulos EXATOS (testada × profundidade informadas) com frente para a via,
-// encostados em sequência a partir da extremidade em que a via encontra o limite da
-// gleba (é por ali que a via recebe o acesso). Cada lote só é aceito se couber
-// inteiro na poligonal; a via só avança enquanto o próprio corredor couber.
+// têm testada × profundidade informadas, com frente para a via, encostados em
+// sequência a partir da extremidade em que a via encontra o limite da gleba (é por
+// ali que a via recebe o acesso). Etapa F (15/11): o lote que cruza a divisa é
+// RECORTADO por ela (aceito com área ≥ mínima e testada ≥ mínima), inclusive no
+// trecho de acesso junto à divisa; a via só avança enquanto o próprio corredor couber.
 //
 // NÃO há balão de retorno (diferente do cul-de-sac): a via termina em seu último lote
 // e isso é registrado como limitação. Curvas da via não são modeladas nesta versão —
@@ -18,6 +19,9 @@ import {
   EPS_GEO, angulosDasArestas, areaPlanar, distanciaAteDivisa, prepararFrameAnel, recortarPorRetangulo, retAnel, retanguloDentro,
   type FrameAnel, type ImplantacaoFrame, type LoteFrame, type Ret,
 } from "./geometria-parcelamento";
+import {
+  areaCelula, avaliarMalhaRapida, frenteMinimaPara, prepararGlebaFrame, type CelulaLote, type GlebaFrame, type ViaMalha,
+} from "./malha-conectada";
 
 export interface DimensoesRua {
   testada: number;
@@ -40,6 +44,12 @@ export interface OpcoesRua {
    */
   formato?: "retangular" | "divisa";
   loteMinimoM2?: number;
+  /** Furos da gleba (metros, antes da rotação) — não recebem lote nem via. */
+  furosM?: Position[][];
+  /** Gleba já preparada no frame (cache da busca). */
+  gf?: GlebaFrame;
+  /** Orientações adicionais a testar (ex.: alinhadas às vias existentes do entorno). */
+  angulosExtras?: number[];
 }
 
 export interface ImplantacaoRua extends ImplantacaoFrame {
@@ -50,6 +60,9 @@ export interface ImplantacaoRua extends ImplantacaoFrame {
   comprimentoViaM: number;
   /** Peças de via que a poligonal comportaria sem o limite informado. */
   pecasPossiveis: number;
+  /** Formato retangular: células candidatas (inclusive as recortadas pela divisa) e o corredor, para a malha conectada. */
+  celulas?: CelulaLote[];
+  viaRet?: Ret;
 }
 
 /** Trechos do eixo y=c que estão dentro da poligonal (regra par-ímpar com semiaberto — sem dupla contagem de vértices). */
@@ -115,6 +128,31 @@ export function gerarRuaSimplesFrame(
     const area = areaPlanar(anel);
     return { anel, area, ret, testada: x1 - x0, profundidadeMedia: area / (x1 - x0) };
   };
+  // formato retangular: células de lote (frente para a via) recortadas pela divisa — etapa F
+  const gf = divisa ? null : (opcoes.gf ?? prepararGlebaFrame(fr, opcoes.furosM ?? []));
+  const viaFaixa: ViaMalha[] = [{ ret: [Math.min(ini, fim) - 1, c - meio, Math.max(ini, fim) + 1, c + meio] }];
+  const oMalha = { loteMinimoM2: Math.max(opcoes.loteMinimoM2 ?? t * p, 1e-9), frenteMinimaM: frenteMinimaPara(t), larguraViaM: w };
+  const celulasDaColuna = (xa: number, xb: number, k: number): CelulaLote[] => [
+    { ret: [xa, c + meio, xb, c + meio + p], frente: "S", viasFrente: [0], linha: 0, faixa: 0, segmento: 0, ordem: k },
+    { ret: [xa, c - meio - p, xb, c - meio], frente: "N", viasFrente: [0], linha: 0, faixa: 0, segmento: 1, ordem: k },
+  ];
+  const aceitaRapido = (cel: CelulaLote) => avaliarMalhaRapida(gf!, viaFaixa, [cel], oMalha).n > 0;
+  const celulas: CelulaLote[] = [];
+  if (!divisa) {
+    // trecho de acesso (entre a divisa e a primeira peça cheia): lotes recortados pela divisa, de frente para o acesso
+    for (let k = -1; ; k--) {
+      const xa = dir === 1 ? ini + inicio + k * t : fim - inicio - (k + 1) * t;
+      const xb = xa + t;
+      if (dir === 1 ? xb <= ini + EPS_GEO : xa >= fim - EPS_GEO) break;
+      for (const cel of celulasDaColuna(xa, xb, k)) {
+        celulas.push(cel);
+        if (aceitaRapido(cel)) {
+          lotes.push({ anel: retAnel(cel.ret), area: areaCelula(gf!, cel.ret), ret: cel.ret, linha: 0, faixa: 0, segmento: cel.segmento, ordem: k });
+          candidatos++;
+        }
+      }
+    }
+  }
   for (let k = 0; ; k++) {
     const xa = dir === 1 ? ini + inicio + k * t : fim - inicio - (k + 1) * t;
     const xb = xa + t;
@@ -139,33 +177,44 @@ export function gerarRuaSimplesFrame(
         }
       }
     } else {
-      const lados: Ret[] = [[xa, c + meio, xb, c + meio + p], [xa, c - meio - p, xb, c - meio]];
-      lados.forEach((ret, lado) => {
-        if (retanguloDentro(fr.ind, ret)) {
-          lotes.push({ anel: retAnel(ret), area: t * p, ret, linha: 0, faixa: 0, segmento: lado, ordem: k });
+      for (const cel of celulasDaColuna(xa, xb, k)) {
+        // a peça de via está inteira na gleba: a frente do lote está toda sobre a via; basta a área mínima
+        const area = areaCelula(gf!, cel.ret);
+        if (area + 1e-9 >= oMalha.loteMinimoM2) {
+          lotes.push({ anel: retAnel(cel.ret), area, ret: cel.ret, linha: 0, faixa: 0, segmento: cel.segmento, ordem: k });
           candidatos++;
           n++;
         }
-      });
+      }
     }
     pecas.push({ ret: peca, lotes: n });
   }
   let ultimo = pecas.length - 1;
   if (aparar) while (ultimo >= 0 && pecas[ultimo].lotes === 0) ultimo--;
   const usadas = pecas.slice(0, ultimo + 1);
-  if (usadas.length === 0 || lotes.length === 0) return { ...vazio(), pecasPossiveis };
+  // os lotes das peças aparadas (e das além do limite manual) não contam
+  const lotesUsados = divisa ? lotes : lotes.filter((l) => l.ordem < usadas.length);
+  if (usadas.length === 0 || lotesUsados.length === 0) return { ...vazio(), pecasPossiveis };
   const corredores: Ret[] = [];
   // corredor da divisa (acesso) até o fim do último trecho usado
   const xFimUsado = dir === 1 ? Math.max(...usadas.map((u) => u.ret[2])) : Math.min(...usadas.map((u) => u.ret[0]));
   corredores.push(dir === 1 ? [ini, c - meio, xFimUsado, c + meio] : [xFimUsado, c - meio, fim, c + meio]);
+  // as células das peças usadas seguem para a malha conectada (recorte exato e testada medida)
+  if (!divisa) {
+    for (let k = 0; k < usadas.length; k++) {
+      const xa = dir === 1 ? ini + inicio + k * t : fim - inicio - (k + 1) * t;
+      celulas.push(...celulasDaColuna(xa, xa + t, k));
+    }
+  }
   return {
-    lotes, corredores, baloes: [], candidatos,
+    lotes: lotesUsados, corredores, baloes: [], candidatos: divisa ? candidatos : lotesUsados.length,
     limitacoes: [
       ...(divisa ? [`Lotes acompanham a divisa: frente de ${t.toLocaleString("pt-BR")} m (ou múltiplo, quando a faixa não atinge a área mínima), fundo até o limite da gleba (máx. ${profMax.toLocaleString("pt-BR")} m) e área ≥ ${minArea.toLocaleString("pt-BR")} m² — profundidade variável, informada por lote.`] : []),
       "Rua Simples: via única, reta, de mão dupla, com lotes dos dois lados. Curvas da via não são modeladas; a poligonal é acomodada pela escolha da orientação e do eixo.",
-      "Rua Simples não inclui balão de retorno: a via termina no último lote. O acesso externo ocorre pela extremidade em que o eixo encontra o limite da gleba e deve ser confirmado em projeto (não foi informado ponto de acesso).",
+      "Rua Simples não inclui balão de retorno: a via termina no último lote; a ligação com o sistema viário é pela extremidade em que a via encontra a divisa.",
     ],
     c, ancora, intervalo, pecasVia: usadas.length, comprimentoViaM: inicio + usadas.length * t, pecasPossiveis,
+    ...(divisa ? {} : { celulas, viaRet: corredores[0] }),
   };
 }
 
@@ -185,8 +234,8 @@ export function compararCandidatoRua(a: CandidatoRua, b: CandidatoRua): number {
     || (a.ancora === b.ancora ? 0 : a.ancora === "inicio" ? -1 : 1) || a.intervalo[0] - b.intervalo[0];
 }
 
-function angulosGrossos(anelM: Position[]): number[] {
-  const set = new Set<number>(angulosDasArestas(anelM, 8));
+function angulosGrossos(anelM: Position[], extras: number[] = []): number[] {
+  const set = new Set<number>([...angulosDasArestas(anelM, 8), ...extras]);
   for (let a = 0; a < 180; a += 10) set.add(a);
   return Array.from(set).sort((a, b) => a - b);
 }
@@ -199,15 +248,19 @@ function norm180(a: number): number {
 export function buscarRuaSimples(anelM: Position[], g: DimensoesRua, opcoes: OpcoesRua = {}, maxCandidatos = 60): CandidatoRua[] {
   const celula = Math.max(g.testada, g.profundidade, g.via) * 2;
   const passo = Math.max(0.5, Math.min(5, g.testada / 4));
-  const frames = new Map<number, FrameAnel>();
-  const frameDe = (ang: number) => {
+  const frames = new Map<number, { fr: FrameAnel; gf: GlebaFrame | undefined }>();
+  const quadroDe = (ang: number) => {
     let f = frames.get(ang);
-    if (!f) { f = prepararFrameAnel(anelM, ang, celula); frames.set(ang, f); }
+    if (!f) {
+      const fr = prepararFrameAnel(anelM, ang, celula);
+      f = { fr, gf: opcoes.formato === "divisa" ? undefined : prepararGlebaFrame(fr, opcoes.furosM ?? []) };
+      frames.set(ang, f);
+    }
     return f;
   };
 
   const varrer = (ang: number, desloc: number[] | null, passoC: number, fases: number[] = [0, g.testada / 2]): CandidatoRua[] => {
-    const fr = frameDe(ang);
+    const { fr, gf } = quadroDe(ang);
     const [, minY, , maxY] = fr.bbox;
     const cs: number[] = [];
     if (desloc) for (const d of desloc) cs.push(d);
@@ -218,7 +271,7 @@ export function buscarRuaSimples(anelM: Position[], g: DimensoesRua, opcoes: Opc
         if (intervalo[1] - intervalo[0] < g.testada) continue;
         for (const ancora of ["inicio", "fim"] as const) {
           for (const fase of fases) {
-            const r = gerarRuaSimplesFrame(fr, c, intervalo, ancora, g, { ...opcoes, fase, aparar: opcoes.aparar ?? true });
+            const r = gerarRuaSimplesFrame(fr, c, intervalo, ancora, g, { ...opcoes, gf, fase, aparar: opcoes.aparar ?? true });
             if (r.lotes.length > 0) out.push({ angulo: ang, c, fase, ancora, intervalo, nLotes: r.lotes.length, pecasVia: r.pecasVia });
           }
         }
@@ -229,7 +282,7 @@ export function buscarRuaSimples(anelM: Position[], g: DimensoesRua, opcoes: Opc
 
   // 1) varredura grossa
   let pool: CandidatoRua[] = [];
-  for (const ang of angulosGrossos(anelM)) pool.push(...varrer(ang, null, passo));
+  for (const ang of angulosGrossos(anelM, opcoes.angulosExtras)) pool.push(...varrer(ang, null, passo));
   pool.sort(compararCandidatoRua);
 
   // 2) refino local ao redor dos melhores (por ângulo)
@@ -262,11 +315,25 @@ export function buscarRuaSimples(anelM: Position[], g: DimensoesRua, opcoes: Opc
     out.push(cand);
     if (out.length >= maxCandidatos) break;
   }
+  // orientações pedidas (ex.: alinhadas às vias existentes do entorno): os 2 melhores de cada uma entram sempre,
+  // com as duas extremidades de acesso, para a seleção poder ligar a via à rua existente
+  for (const ang of opcoes.angulosExtras ?? []) {
+    for (const ancora of ["inicio", "fim"] as const) {
+      let n = 0;
+      for (const cand of pool) {
+        if (cand.angulo !== ang || cand.ancora !== ancora) continue;
+        const chave = `${cand.angulo}|${cand.c}|${cand.fase}|${cand.ancora}|${cand.intervalo[0].toFixed(3)}`;
+        if (!out.some((o) => `${o.angulo}|${o.c}|${o.fase}|${o.ancora}|${o.intervalo[0].toFixed(3)}` === chave)) out.push(cand);
+        if (++n >= 2) break;
+      }
+    }
+  }
   return out;
 }
 
 /** Reconstrói a implantação completa de um candidato (mesmo caminho da busca). */
 export function implantacaoDoCandidatoRua(anelM: Position[], cand: CandidatoRua, g: DimensoesRua, opcoes: OpcoesRua = {}): { fr: FrameAnel; impl: ImplantacaoRua } {
   const fr = prepararFrameAnel(anelM, cand.angulo, Math.max(g.testada, g.profundidade, g.via) * 2);
-  return { fr, impl: gerarRuaSimplesFrame(fr, cand.c, cand.intervalo, cand.ancora, g, { ...opcoes, fase: cand.fase }) };
+  const gf = opcoes.formato === "divisa" ? undefined : prepararGlebaFrame(fr, opcoes.furosM ?? []);
+  return { fr, impl: gerarRuaSimplesFrame(fr, cand.c, cand.intervalo, cand.ancora, g, { ...opcoes, gf, fase: cand.fase }) };
 }

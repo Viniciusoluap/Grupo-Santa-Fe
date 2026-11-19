@@ -26,6 +26,67 @@ export interface RestricoesNaoParcelaveis {
   outrasNaoParcelaveisM2: number;
 }
 
+/**
+ * Regra do dono (16/11/2026): APP, faixas de servidão e demais áreas que não podem virar lote devem ser
+ * aproveitadas, sempre que permitido, para cumprir as áreas que o loteamento tem de destinar (área verde e área
+ * institucional) — em vez de serem reservadas por fora e ainda se tirar mais terra loteável para a doação.
+ * Cada tipo de restrição tem um destino: conta como área verde, como área institucional, ou não conta.
+ */
+export type DestinoRestricao = "verde" | "institucional" | "nenhum";
+export const DESTINOS_RESTRICAO: { value: DestinoRestricao; label: string }[] = [
+  { value: "verde", label: "Conta como área verde" },
+  { value: "institucional", label: "Conta como área institucional" },
+  { value: "nenhum", label: "Não conta (só não parcelável)" },
+];
+export type DestinosDasRestricoes = Record<keyof RestricoesNaoParcelaveis, DestinoRestricao>;
+/**
+ * Padrão: APP, vegetação a preservar e faixas não edificáveis contam como área verde (uso compatível: não se
+ * constrói nelas). Nenhuma conta como institucional por padrão, porque a área institucional recebe equipamento
+ * público e precisa ser edificável; "outras" não contam, por não se saber o que são. A legislação municipal manda:
+ * a tela deixa trocar o destino de cada uma.
+ */
+export const DESTINOS_PADRAO: DestinosDasRestricoes = {
+  appM2: "verde", supressaoVegetalM2: "verde", faixaTransmissaoM2: "verde", faixaServidaoM2: "verde", outrasNaoParcelaveisM2: "nenhum",
+};
+
+export interface AproveitamentoDasRestricoes {
+  /** Restrições que contam como área verde / institucional, e as que ficam só como não parceláveis (m²). */
+  comoVerdeM2: number; comoInstitucionalM2: number; semAproveitamentoM2: number;
+  /** Mínimo exigido pelos percentuais, sobre a área parcelável. */
+  exigidoVerdeM2: number; exigidoInstitucionalM2: number;
+  /** Quanto ainda precisa sair da terra loteável para completar cada mínimo. */
+  verdeEmAreaLoteavelM2: number; institucionalEmAreaLoteavelM2: number;
+  /** Total a destinar em cada uso (a restrição aproveitada + o complemento). */
+  alvoVerdeM2: number; alvoInstitucionalM2: number;
+  /** Terra loteável que deixou de ser doada por causa do aproveitamento. */
+  economiaM2: number;
+}
+
+/** Fecha a conta do aproveitamento das áreas restritas nas doações obrigatórias. */
+export function aproveitarRestricoes(
+  restricoes: RestricoesNaoParcelaveis, destinos: Partial<DestinosDasRestricoes> | undefined,
+  areaBrutaM2: number, percentVerde: number, percentInstitucional: number,
+): AproveitamentoDasRestricoes {
+  const d = { ...DESTINOS_PADRAO, ...(destinos ?? {}) };
+  // Se as restrições somam mais que a gleba, todas são reduzidas na mesma proporção (o quadro avisa).
+  const total = totalRestricoes(restricoes), fator = total > areaBrutaM2 && total > 0 ? Math.max(0, areaBrutaM2) / total : 1;
+  let comoVerde = 0, comoInstitucional = 0, sem = 0;
+  for (const k of Object.keys(DESTINOS_PADRAO) as (keyof RestricoesNaoParcelaveis)[]) {
+    const v = positivo(restricoes[k]) * fator;
+    if (d[k] === "verde") comoVerde += v; else if (d[k] === "institucional") comoInstitucional += v; else sem += v;
+  }
+  const parcelavel = Math.max(0, areaBrutaM2 - (comoVerde + comoInstitucional + sem));
+  const exigidoVerde = Math.max(0, percentVerde) * parcelavel, exigidoInstitucional = Math.max(0, percentInstitucional) * parcelavel;
+  const verdeEmLoteavel = Math.max(0, exigidoVerde - comoVerde), instEmLoteavel = Math.max(0, exigidoInstitucional - comoInstitucional);
+  return {
+    comoVerdeM2: r2(comoVerde), comoInstitucionalM2: r2(comoInstitucional), semAproveitamentoM2: r2(sem),
+    exigidoVerdeM2: r2(exigidoVerde), exigidoInstitucionalM2: r2(exigidoInstitucional),
+    verdeEmAreaLoteavelM2: r2(verdeEmLoteavel), institucionalEmAreaLoteavelM2: r2(instEmLoteavel),
+    alvoVerdeM2: r2(comoVerde + verdeEmLoteavel), alvoInstitucionalM2: r2(comoInstitucional + instEmLoteavel),
+    economiaM2: r2(Math.min(exigidoVerde, comoVerde) + Math.min(exigidoInstitucional, comoInstitucional)),
+  };
+}
+
 export interface EntradaQuadroAreas {
   areaBrutaM2: number;
   restricoes: RestricoesNaoParcelaveis;
@@ -43,6 +104,12 @@ export interface EntradaQuadroAreas {
   /** Modo de definição da área viária e valor manual (quando houver) — só para exibição/auditoria. */
   modoSistemaViario?: "automatico" | "manual";
   sistemaViarioInformadoM2?: number;
+  /**
+   * Restrições aproveitadas como área verde/institucional (`aproveitarRestricoes`). Essas áreas já estão dentro
+   * de `areaVerdeM2`/`areaInstitucionalM2` E dentro das restrições: o quadro desconta a parte repetida para o
+   * sistema viário e as sobras fecharem.
+   */
+  aproveitamento?: AproveitamentoDasRestricoes;
 }
 
 export interface QuadroAreasMassa {
@@ -71,6 +138,13 @@ export interface QuadroAreasMassa {
   sobrasM2?: number;
   modoSistemaViario?: "automatico" | "manual";
   sistemaViarioInformadoM2?: number;
+  /** Parte da área verde/institucional que está em APP ou faixa aproveitada (não ocupa terra parcelável). */
+  areaVerdeEmRestricaoM2?: number;
+  areaInstitucionalEmRestricaoM2?: number;
+  /** Mínimos exigidos pelos percentuais e a terra loteável poupada pelo aproveitamento das restrições. */
+  areaVerdeExigidaM2?: number;
+  areaInstitucionalExigidaM2?: number;
+  economiaPorAproveitamentoM2?: number;
 }
 
 export const RESTRICOES_VAZIAS: RestricoesNaoParcelaveis = {
@@ -114,7 +188,10 @@ export function calcularQuadroAreasMassa(e: EntradaQuadroAreas): QuadroAreasMass
   const verde = positivo(e.areaVerdeM2);
   const institucional = positivo(e.areaInstitucionalM2);
   const geometrico = e.sistemaViarioM2 !== undefined && Number.isFinite(e.sistemaViarioM2);
-  let viario = areaParcelavel - vendavel - verde - institucional;
+  // A parte da área verde/institucional que está em cima de APP ou faixa (aproveitada) não ocupa terra parcelável.
+  const verdeEmRestricao = Math.min(verde, positivo(e.aproveitamento?.comoVerdeM2 ?? 0));
+  const institucionalEmRestricao = Math.min(institucional, positivo(e.aproveitamento?.comoInstitucionalM2 ?? 0));
+  let viario = areaParcelavel - vendavel - (verde - verdeEmRestricao) - (institucional - institucionalEmRestricao);
   let sobras: number | undefined;
   if (geometrico) {
     const viarioGeo = positivo(e.sistemaViarioM2);
@@ -149,6 +226,11 @@ export function calcularQuadroAreasMassa(e: EntradaQuadroAreas): QuadroAreasMass
     aproveitamentoParcelavel: areaParcelavel > 0 ? vendavel / areaParcelavel : 0,
     vgv: Math.round(vendavel * positivo(e.precoM2Lote)),
     avisos,
+    ...(e.aproveitamento ? {
+      areaVerdeEmRestricaoM2: r2(verdeEmRestricao), areaInstitucionalEmRestricaoM2: r2(institucionalEmRestricao),
+      areaVerdeExigidaM2: e.aproveitamento.exigidoVerdeM2, areaInstitucionalExigidaM2: e.aproveitamento.exigidoInstitucionalM2,
+      economiaPorAproveitamentoM2: e.aproveitamento.economiaM2,
+    } : {}),
     ...(geometrico ? {
       sobrasM2: r2(sobras ?? 0),
       modoSistemaViario: e.modoSistemaViario ?? "automatico",
@@ -169,7 +251,9 @@ export function linhasQuadroAreas(q: QuadroAreasMassa): { rotulo: string; m2: nu
     { rotulo: "Área parcelável", m2: q.areaParcelavelM2, destaque: true },
     { rotulo: q.sobrasM2 !== undefined ? "Sistema viário (desenhado)" : "Sistema viário (inclui sobras de quadra)", m2: q.sistemaViarioM2 },
     { rotulo: "Área verde", m2: q.areaVerdeM2 },
+    ...(q.areaVerdeEmRestricaoM2 ? [{ rotulo: "  da qual em APP/faixas (aproveitada)", m2: q.areaVerdeEmRestricaoM2 }] : []),
     { rotulo: "Área institucional", m2: q.areaInstitucionalM2 },
+    ...(q.areaInstitucionalEmRestricaoM2 ? [{ rotulo: "  da qual em APP/faixas (aproveitada)", m2: q.areaInstitucionalEmRestricaoM2 }] : []),
     { rotulo: "Área pública total", m2: q.areaPublicaTotalM2, destaque: true },
     { rotulo: "Área líquida vendável", m2: q.areaLiquidaVendavelM2, destaque: true },
     ...(q.sobrasM2 !== undefined ? [{ rotulo: "Sobras de quadra (remanescente)", m2: q.sobrasM2 }] : []),

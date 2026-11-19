@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ConsentimentoNoLogin } from "@/components/consentimento/consentimento-no-login";
 import { destinoDoUsuario, usuarioAtual } from "@/lib/auth/modulos";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { CorretorNav } from "./_components/corretor-nav";
@@ -16,6 +17,7 @@ export default async function CorretorLayout({ children }: { children: React.Rea
   return (
     <div className="min-h-screen bg-slate-100 text-[var(--brand-dark)]">
       <PortalHeader subtitulo={`Portal do Corretor · ${u.nome ?? ""}`} voltarPara="/corretor" />
+      <ConsentimentoNoLogin usuarioId={u.id} />
       <CorretorNav />
       <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">{children}</main>
     </div>

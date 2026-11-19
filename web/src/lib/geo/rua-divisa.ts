@@ -440,7 +440,7 @@ export function implantarNaDivisa(anelFechado: Position[], arestas: number[], re
     lotes, corredores: [], baloes: [], viasLivres, candidatos: lotes.length,
     limitacoes: [
       `Via acompanha a divisa (traçado curvo) com ${o.via.toLocaleString("pt-BR")} m de largura, do lado de dentro da gleba; lotes com frente mínima de ${o.testada.toLocaleString("pt-BR")} m sobre a via (maior só onde a faixa não atinge a área mínima), fundo até a divisa oposta (máx. ${(2 * o.profundidade).toLocaleString("pt-BR")} m) e área ≥ ${minArea.toLocaleString("pt-BR")} m². Nas curvas os lotes ficam em leque.`,
-      "Rua Simples não inclui balão de retorno; o acesso externo ocorre pelo início da via na divisa e deve ser confirmado em projeto.",
+      "Rua Simples não inclui balão de retorno; o acesso ocorre pelo início da via na divisa e a ligação com as ruas existentes é conferida pelo motor (nota de acesso do cenário).",
     ],
     arestasDivisa: arestas, comprimentoViaM: sFimVia, comprimentoDisponivelM: l.total,
     chave: `div|${arestas.join(",")}|${reverso ? "r" : "d"}|${fase}|r${raio}${extras.fundoVariavel ? "|fv" : ""}`,

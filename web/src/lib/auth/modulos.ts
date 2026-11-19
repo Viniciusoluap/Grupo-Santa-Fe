@@ -17,7 +17,8 @@ export type UsuarioDaSessao = UsuarioAcesso & { id: string; nome: string; corret
 function lerPermissoes(json: string | null | undefined): string[] {
   try {
     const v = JSON.parse(json || "[]");
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    // Paridade 17/11: só módulos que existem — "corretores" (já retirado) gravado em contas antigas não vale mais.
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && IDS_MODULOS_PAINEL.includes(x)) : [];
   } catch {
     return [];
   }

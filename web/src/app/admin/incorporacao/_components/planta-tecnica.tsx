@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Maximize2, Minus, Plus, Printer } from "lucide-react";
-import type { Feature, Polygon } from "geojson";
+import { poligonosDoTerreno, type GeometriaTerreno } from "@/lib/geo/terreno";
 import type { CenarioMassa } from "@/lib/geo/massa-parcelamento";
 import {
   montarModeloPlanta, renderizarPlantaSvg, rotuloLote, vistaInicial, zoomEm, type VistaPlanta,
@@ -31,7 +31,8 @@ export function PlantaTecnica({ geojson, cenario, centro, height = 520, titulo }
 
   const modelo = useMemo(() => {
     try {
-      const [gleba, ...demaisContornos] = (JSON.parse(geojson) as Feature<Polygon>).geometry.coordinates;
+      // Paridade 17/11 (Prospecta 355f3aa): KML com várias áreas e furos — todos os contornos entram na planta
+      const [gleba, ...demaisContornos] = poligonosDoTerreno(JSON.parse(geojson) as GeometriaTerreno).flat();
       return montarModeloPlanta(gleba, cenario, centro, demaisContornos);
     } catch {
       return null;

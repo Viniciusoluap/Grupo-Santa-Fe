@@ -44,6 +44,7 @@ function corDoLote(l: LoteGerado): string {
 
 function rotuloDoLote(l: LoteGerado): string {
   if (l.tipo === "vendavel") return `${l.quadra ? `Quadra ${l.quadra} · Lote ${l.numero} · ` : ""}${formatArea(l.areaM2)}`;
+  if (l.restricao === "app") return `${formatArea(l.areaM2)} · APP (contorno do mapa do Terreno) · ${l.tipo === "nao_parcelavel" ? "não parcelável" : l.uso === "institucional" ? "conta como institucional" : "conta como área verde"}`;
   if (l.tipo === "nao_parcelavel") return `${formatArea(l.areaM2)} · Não parcelável (restrição)`;
   return `${formatArea(l.areaM2)} · ${l.uso === "institucional" ? "Institucional" : l.uso === "verde" ? "Área verde" : "Área pública"}`;
 }

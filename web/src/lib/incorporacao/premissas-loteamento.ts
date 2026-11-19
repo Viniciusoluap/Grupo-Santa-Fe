@@ -273,6 +273,22 @@ export function montarPremissasLoteamento(estudo: EstudoData): PremissasLoteamen
 }
 
 /** Igual a `montarPremissasLoteamento`, devolvendo também o formulário e as fontes resolvidas. */
+/**
+ * Paridade 17/11 (Prospecta 93edc7c): o JSON que o salvamento automático da Viabilidade grava em `loteamentoJson` —
+ * o mesmo formato do antigo botão "Salvar premissas" (premissas + fontes efetivas manual/sistema + itensMix), montado do
+ * retrato gravado (form e mix como estavam na tela), para o Relatório e as demais abas lerem o mesmo.
+ */
+export function premissasParaGravar(estudo: EstudoData, formBase: PremissasForm, mixBase: ItemMixProduto[]): string {
+  const premissas = sincronizarUrbanismo(estudo, formBase);
+  const itensMix = premissas.mixModo === "cenario" ? defaultsMix(estudo) : mixBase;
+  const app = premissas.areaBrutaM2 > 0 ? appDaViabilidade(estudo, premissas) / premissas.areaBrutaM2 : 0;
+  const { config } = montarViabilidade(estudo, premissas, itensMix, app).fontes;
+  return JSON.stringify({
+    ...premissas, custoInfraFonte: config.custoInfraFonte, marketingFonte: config.marketingFonte,
+    terrenoFonte: config.terrenoFonte, considerarCaptacao: config.considerarCaptacao, itensMix,
+  });
+}
+
 export function montarViabilidadeDoEstudo(estudo: EstudoData): { premissas: PremissasLoteamento; fontes: FontesResolvidas; form: PremissasForm; itensMix: ItemMixProduto[] } | null {
   if (!estudo.loteamentoJson) return null;
   let salvo: (Partial<PremissasForm> & { itensMix?: ItemMixProduto[] }) | null = null;

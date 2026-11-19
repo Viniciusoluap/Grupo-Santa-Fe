@@ -4,11 +4,19 @@
 // /api/pci-modelos e /api/obras/[id]/pci-geradas (partes de 1 MB).
 // Gêmeo dos routers `pciGerador`/`pciModelos` do Prospecta (server/pci-gerador.ts).
 import { usuarioAtual, type UsuarioDaSessao } from "@/lib/auth/modulos";
+import { podeAdministrarSeguranca } from "@/lib/perfis-acesso";
 import {
   ErroGeradorPci,
   carregarGeradorPci,
   definirModeloAtualPci as definirAtual,
+  engenheiroDaPci,
   excluirModeloPci,
+  excluirModeloPreenchimentoPci,
+  historicoModeloPreenchimentoPci,
+  listarModelosPreenchimentoPci,
+  obterModeloPreenchimentoPci,
+  salvarModeloPreenchimentoPci,
+  sugestoesAutomaticasDaObraPci,
   previaExclusaoModeloPci,
   gerarPciDaObra,
   listarModelosPci,
@@ -40,15 +48,75 @@ function erro(e: unknown) {
 
 export async function obterGeradorPci(obraId: string) {
   try {
-    await usuarioGerador();
-    return { dados: await carregarGeradorPci(obraId) };
+    const u = await usuarioGerador();
+    return { dados: await carregarGeradorPci(obraId, u.id) };
   } catch (e) { return erro(e); }
 }
 
 export async function preencherAutomaticoPci(obraId: string) {
   try {
-    await usuarioGerador();
-    return { formulario: await preenchimentoAutomaticoPci(obraId) };
+    const u = await usuarioGerador();
+    return { formulario: await preenchimentoAutomaticoPci(obraId, u.id) };
+  } catch (e) { return erro(e); }
+}
+
+// ── Paridade 17/11 (Prospecta EPIC-024 S-09): mesmo acesso do gerador (admin ou colaborador com Obras) ──
+
+const textoId = (v: unknown) => (typeof v === "string" ? v.slice(0, 64) : "");
+
+/** CPF, CREA e telefone de UM engenheiro oferecido na lista (o escolhido em RTP/RTE) — a lista não leva CPF. */
+export async function engenheiroPciAcao(obraId: string, engenheiroId: string) {
+  try {
+    const u = await usuarioGerador();
+    return { engenheiro: await engenheiroDaPci(textoId(engenheiroId), { usuarioId: u.id, obraId: textoId(obraId) }) };
+  } catch (e) { return erro(e); }
+}
+
+/** "Dados automáticos" com a fonte de cada valor; a tela compara e confirma conflitos. */
+export async function sugestoesAutomaticasPciAcao(obraId: string, ids: { rtpEngenheiroId?: string | null; rteEngenheiroId?: string | null }) {
+  try {
+    const u = await usuarioGerador();
+    return { sugestoes: await sugestoesAutomaticasDaObraPci(textoId(obraId), { rtp: textoId(ids?.rtpEngenheiroId) || null, rte: textoId(ids?.rteEngenheiroId) || null }, u.id) };
+  } catch (e) { return erro(e); }
+}
+
+export async function listarModelosPreenchimentoPciAcao() {
+  try {
+    const u = await usuarioGerador();
+    return { modelos: await listarModelosPreenchimentoPci(podeAdministrarSeguranca(u)) };
+  } catch (e) { return erro(e); }
+}
+
+export async function obterModeloPreenchimentoPciAcao(id: string) {
+  try {
+    const u = await usuarioGerador();
+    return { modelo: await obterModeloPreenchimentoPci(textoId(id), podeAdministrarSeguranca(u)) };
+  } catch (e) { return erro(e); }
+}
+
+export async function historicoModeloPreenchimentoPciAcao(id: string) {
+  try {
+    const u = await usuarioGerador();
+    return { versoes: await historicoModeloPreenchimentoPci(textoId(id), podeAdministrarSeguranca(u)) };
+  } catch (e) { return erro(e); }
+}
+
+export async function salvarModeloPreenchimentoPciAcao(entrada: { obraId: string; nome: string; formulario: unknown; observacao?: string | null; novaVersaoDe?: string | null }) {
+  try {
+    const u = await usuarioGerador();
+    const r = await salvarModeloPreenchimentoPci({
+      obraId: textoId(entrada?.obraId), nome: typeof entrada?.nome === "string" ? entrada.nome.slice(0, 200) : "", formulario: entrada?.formulario,
+      observacao: typeof entrada?.observacao === "string" ? entrada.observacao.slice(0, 1000) : null, novaVersaoDe: textoId(entrada?.novaVersaoDe) || null,
+    }, u.id);
+    return { ok: true as const, ...r };
+  } catch (e) { return erro(e); }
+}
+
+export async function excluirModeloPreenchimentoPciAcao(id: string, confirmar: boolean) {
+  try {
+    const u = await usuarioGerador();
+    if (confirmar !== true) throw new ErroGeradorPci("Confirme a exclusão.");
+    return { ok: true as const, ...(await excluirModeloPreenchimentoPci(textoId(id), { id: u.id, admin: podeAdministrarSeguranca(u) })) };
   } catch (e) { return erro(e); }
 }
 

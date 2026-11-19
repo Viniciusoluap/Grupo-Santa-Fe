@@ -4,12 +4,13 @@
  * opções e a mesma ordem do Painel Administrativo da Prospecta (lá há também o
  * Ecossistema de Sorteio, exclusivo dela). Configurações (Usuários e Acessos e
  * integrações) fica só com o admin. Os ids são os já gravados no banco.
+ * "Corretores" deixou de ser módulo em 17/11/2026 (paridade com o EPIC-023 da Prospecta, decisão do dono em
+ * 15/11): o cadastro foi para "Usuários e acesso", só do admin.
  */
 export const MODULOS_PAINEL = [
   { id: "leads", label: "CRM / Pipeline", rota: "/admin/leads" },
   { id: "obras", label: "Obras", rota: "/admin/obras" },
   { id: "agenda", label: "Tarefas e Agenda", rota: "/admin/agenda" },
-  { id: "corretores", label: "Corretores", rota: "/admin/corretores" },
   { id: "regularizacao", label: "Regularizações", rota: "/admin/regularizacao" },
   { id: "comissoes", label: "Comissões", rota: "/admin/comissoes" },
   { id: "projetos", label: "Projetos", rota: "/admin/projetos" },

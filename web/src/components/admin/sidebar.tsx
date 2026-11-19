@@ -56,11 +56,6 @@ const navItems = [
     icon: CalendarDays,
   },
   {
-    label: "Corretores",
-    href: "/admin/corretores",
-    icon: UserCheck,
-  },
-  {
     label: "Comissões",
     href: "/admin/comissoes",
     icon: BadgeDollarSign,

@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { clienteParaRegistro, cpfParaRegistro } from "@/lib/crm/vinculo-lead";
+import { enderecoAoVincular } from "@/lib/crm/servicos-lead";
 
 // Avaliações, assim como Financiamentos (Lote 3) e Obras/Projetos/
 // Regularização, só nascem vinculadas a um lead do CRM — ver
@@ -65,6 +66,12 @@ export async function editarAvaliacao(formData: FormData) {
   // Registro vinculado não volta a ser avulso; trocar de lead recopia os dados.
   const leadId = (formData.get("leadId") as string) || atual?.leadId || null;
   const cliente = await clienteParaRegistro(leadId, formData);
+  // Endereço (regra de 17/11): vem do lead ao vincular ou trocar o lead; fora isso, o que foi digitado na avaliação
+  // é salvo como está — a edição manual nunca é sobrescrita pelo lead ao salvar.
+  const vinculandoAgora = !!leadId && leadId !== (atual?.leadId ?? null);
+  const doLead = vinculandoAgora
+    ? enderecoAoVincular((await prisma.lead.findUnique({ where: { id: leadId }, select: { endereco: true, bairro: true, cidade: true, uf: true } })) ?? {})
+    : {};
   await prisma.avaliacao.update({
     where: { id },
     data: {
@@ -75,7 +82,9 @@ export async function editarAvaliacao(formData: FormData) {
       endereco: formData.get("endereco") as string,
       bairro: formData.get("bairro") as string,
       cidade: (formData.get("cidade") as string) || "Canaã dos Carajás",
-      estado: (formData.get("estado") as string) || "PA",
+      // A tela de edição não tem o campo UF: sem ele no formulário, mantém o valor salvo (antes voltava para "PA").
+      estado: formData.has("estado") ? (formData.get("estado") as string) || "PA" : undefined,
+      ...doLead,
       areaConstruida: formData.get("areaConstruida") ? parseFloat(formData.get("areaConstruida") as string) : null,
       areaTerreno: formData.get("areaTerreno") ? parseFloat(formData.get("areaTerreno") as string) : null,
       quartos: formData.get("quartos") ? parseInt(formData.get("quartos") as string) : null,
