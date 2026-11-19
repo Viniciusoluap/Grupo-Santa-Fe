@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MapaMl, Marker, Popup } from "maplibre-gl";
 import { formatCurrency } from "@/lib/utils";
-import { CATEGORIAS_PONTO, coordenadaValida, estiloAgrupamento, htmlAlfinete, limitesDosPontos, type CategoriaPonto } from "@/lib/mapa-alfinetes";
+import { CATEGORIAS_PONTO, chaveDoMarcador, coordenadaValida, estiloAgrupamento, htmlAlfinete, limitesDosPontos, type CategoriaPonto } from "@/lib/mapa-alfinetes";
 import { aplicarBase, criarMapaBase, type BaseMapa } from "@/app/admin/incorporacao/_components/mapa-base-ml";
 
 export interface MapPin {
@@ -72,7 +72,9 @@ export function PropertyMap({
   legenda = false,
 }: PropertyMapProps) {
   const container = useRef<HTMLDivElement>(null);
-  const motor = useRef<{ map: MapaMl } | null>(null);
+  const motor = useRef<{ map: MapaMl; limparMarcadores: () => void } | null>(null);
+  // Geração dos dados da fonte: muda a cada setData (filtro/busca), para nenhum marcador antigo ser reaproveitado.
+  const geracao = useRef(0);
   const porId = useRef(new Map<string, MapPin>());
   const aoClicar = useRef(onPinClick);
   const inicio = useRef(center);
@@ -120,7 +122,7 @@ export function PropertyMap({
           if (f.geometry.type !== "Point") continue;
           const lngLat = f.geometry.coordinates as [number, number];
           const agrupado = !!f.properties?.cluster;
-          const chave = agrupado ? `g${f.properties.cluster_id}` : `p${f.properties?.chave}`;
+          const chave = chaveDoMarcador(f.properties, geracao.current);
           if (vistos.has(chave)) continue;
           vistos.add(chave);
           if (marcadores.has(chave)) continue;
@@ -151,7 +153,7 @@ export function PropertyMap({
         map.addSource(FONTE, { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 48, clusterMaxZoom: 22 });
         // Camada invisível: mantém os ladrilhos da fonte carregados para a consulta dos pontos visíveis.
         map.addLayer({ id: "pontos-base", type: "circle", source: FONTE, paint: { "circle-radius": 1, "circle-opacity": 0 } });
-        motor.current = { map };
+        motor.current = { map, limparMarcadores: () => { marcadores.forEach((mk) => mk.remove()); marcadores.clear(); } };
         setPronto(true);
       });
       map.on("render", atualizar);
@@ -168,6 +170,9 @@ export function PropertyMap({
     const m = motor.current;
     if (!pronto || !m) return;
     porId.current = new Map();
+    // Revisão do PR #263: dados novos → marcadores do conjunto anterior saem (o cluster_id se repete entre conjuntos).
+    geracao.current += 1;
+    m.limparMarcadores();
     const pontos = pins.flatMap((pin) => {
       const c = coordenadaValida(pin.lat, pin.lng);
       if (!c) return [];

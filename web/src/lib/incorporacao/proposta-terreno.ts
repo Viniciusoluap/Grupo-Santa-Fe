@@ -92,14 +92,28 @@ export async function pdfDaPropostaTerreno(estudoId: string, propostaId: string,
   return { base64: Buffer.from(r.pdf).toString("base64"), nomeArquivo: r.nomeArquivo, dataEmissao, sha256: r.sha256 };
 }
 
-/** Envia o PDF (o mesmo da prévia: mesma data de emissão) e registra data, destinatário e situação. */
+export const ERRO_PROPOSTA_MUDOU = "A proposta mudou desde a prévia; gere a prévia de novo.";
+
+/**
+ * Revisão do PR #263: o anexo tem de ser o PDF que a pessoa conferiu. A prévia devolve o `sha256` do PDF gerado no
+ * servidor; a confirmação manda esse hash de volta e o servidor recusa se o PDF gerado agora for outro (a negociação
+ * mudou depois da prévia). Hash ausente ou malformado também recusa. Nada é enviado nem registrado nesse caso (como as
+ * demais validações de entrada, que também não gravam envio).
+ */
+export function conferirPdfDaPrevia(pdfSha256Previa: unknown, pdfSha256Atual: string) {
+  if (typeof pdfSha256Previa !== "string" || !/^[0-9a-f]{64}$/.test(pdfSha256Previa) || pdfSha256Previa !== pdfSha256Atual)
+    throw new Error(ERRO_PROPOSTA_MUDOU);
+}
+
+/** Envia o PDF (o mesmo da prévia: mesma data de emissão e mesmo hash) e registra data, destinatário e situação. */
 export async function enviarPropostaTerrenoPorEmail(
-  estudoId: string, propostaId: string, destinatarioBruto: unknown, usuario: Usuario, dataEmissaoPedida?: string,
-  enviar: typeof sendEmail = sendEmail,
+  estudoId: string, propostaId: string, destinatarioBruto: unknown, usuario: Usuario, dataEmissaoPedida: string | undefined,
+  pdfSha256Previa: unknown, enviar: typeof sendEmail = sendEmail,
 ) {
   const destinatario = normalizarDestinatario(destinatarioBruto);
   const dataEmissao = conferirEmissao(dataEmissaoPedida);
   const r = await montarPdfProposta(estudoId, propostaId, dataEmissao, usuario);
+  conferirPdfDaPrevia(pdfSha256Previa, r.sha256);
   const { subject, html } = emailDaProposta(r.dados);
   const smtpConfigurado = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
   const ok = await enviar({ to: destinatario, subject, html, attachments: [{ filename: r.nomeArquivo, content: Buffer.from(r.pdf), contentType: "application/pdf" }] });

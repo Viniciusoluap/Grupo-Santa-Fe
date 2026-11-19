@@ -61,6 +61,17 @@ export function htmlAlfinete(categoria: CategoriaPonto): string {
     + `</svg>`;
 }
 
+/**
+ * Chave do marcador HTML de uma feature da fonte agrupada (revisão do PR #263). O `cluster_id` do MapLibre se repete
+ * entre conjuntos de dados (depois de filtrar ou buscar, o grupo 0 do novo conjunto não é o grupo 0 do anterior); por
+ * isso a chave leva a geração dos dados: trocar os dados da fonte gera chaves novas e nenhum marcador antigo (posição,
+ * contagem e clique) é reaproveitado.
+ */
+export function chaveDoMarcador(propriedades: Record<string, unknown> | null | undefined, geracao: number): string {
+  const agrupado = !!propriedades?.cluster;
+  return `${geracao}:${agrupado ? `g${propriedades?.cluster_id}` : `p${propriedades?.chave}`}`;
+}
+
 /** Texto e tamanho do agrupamento (cluster) conforme a quantidade de pontos. */
 export function estiloAgrupamento(quantidade: number): { texto: string; tamanho: number } {
   const tamanho = quantidade < 10 ? 34 : quantidade < 100 ? 40 : 48;
